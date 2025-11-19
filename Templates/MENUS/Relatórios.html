@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios DRE</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .relatorios-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .relatorio-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .relatorio-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .relatorio-card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .relatorio-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .btn-visualizar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+            width: 100%;
+        }
+
+        .btn-visualizar:hover {
+            opacity: 0.9;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #667eea;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .error-message {
+            background-color: #ffe6e6;
+            color: #cc0000;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Relatórios Financeiros</h1>
+
+        <div class="relatorios-grid">
+            <!-- Card Relatório de Razão -->
+            <div class="relatorio-card">
+                <h2>📈 Relatório de Razão</h2>
+                <p>Visualize o agrupamento de contas, classificações e estrutura completa do plano de contas.</p>
+                <button class="btn-visualizar" onclick="carregarRelatorioRazao()">
+                    Visualizar Relatório
+                </button>
+            </div>
+
+            <!-- Card DRE Consolidada -->
+            <div class="relatorio-card">
+                <h2>💰 DRE Consolidada</h2>
+                <p>Demonstração do Resultado do Exercício consolidada com todos os centros de custo.</p>
+                <button class="btn-visualizar" onclick="alert('Em desenvolvimento')">
+                    Em Desenvolvimento
+                </button>
+            </div>
+
+            <!-- Card Centro de Custo -->
+            <div class="relatorio-card">
+                <h2>🏢 Centro de Custo</h2>
+                <p>Análise detalhada por centro de custo e classificação de despesas.</p>
+                <button class="btn-visualizar" onclick="alert('Em desenvolvimento')">
+                    Em Desenvolvimento
+                </button>
+            </div>
+
+            <!-- Card Despesas com Pessoal -->
+            <div class="relatorio-card">
+                <h2>👥 Despesas com Pessoal</h2>
+                <p>Classificação e análise das despesas relacionadas a pessoal.</p>
+                <button class="btn-visualizar" onclick="alert('Em desenvolvimento')">
+                    Em Desenvolvimento
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para exibir dados -->
+    <div id="modalRelatorio" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="fecharModal()">&times;</span>
+            <h2 id="modalTitulo">Relatório</h2>
+            <div id="modalConteudo">
+                <div class="loading">Carregando...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function carregarRelatorioRazao() {
+            const modal = document.getElementById('modalRelatorio');
+            const modalTitulo = document.getElementById('modalTitulo');
+            const modalConteudo = document.getElementById('modalConteudo');
+            
+            modal.style.display = 'block';
+            modalTitulo.textContent = '📈 Relatório de Razão';
+            modalConteudo.innerHTML = '<div class="loading">Carregando dados...</div>';
+            
+            try {
+                const response = await fetch('/Rentabilidade/RelatorioRazao');
+                
+                if (!response.ok) {
+                    throw new Error(`Erro: ${response.status} - ${response.statusText}`);
+                }
+                
+                const dados = await response.json();
+                
+                if (dados.length === 0) {
+                    modalConteudo.innerHTML = '<p>Nenhum dado encontrado.</p>';
+                    return;
+                }
+                
+                // Calcula totais
+                let totalDebito = dados.reduce((sum, item) => sum + (item.debito || 0), 0);
+                let totalCredito = dados.reduce((sum, item) => sum + (item.credito || 0), 0);
+                let totalSaldo = dados.reduce((sum, item) => sum + (item.saldo || 0), 0);
+                
+                let html = `
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px;">
+                        <h3>Resumo</h3>
+                        <p><strong>Total de registros:</strong> ${dados.length}</p>
+                        <p><strong>Total Débito:</strong> R$ ${totalDebito.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                        <p><strong>Total Crédito:</strong> R$ ${totalCredito.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                        <p><strong>Saldo Total:</strong> R$ ${totalSaldo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Conta</th>
+                                <th>Título</th>
+                                <th>Data</th>
+                                <th>Centro Custo</th>
+                                <th>Nome CC</th>
+                                <th>Débito</th>
+                                <th>Crédito</th>
+                                <th>Saldo</th>
+                                <th>Mês</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                dados.forEach(item => {
+                    // Formata valores monetários
+                    const debito = (item.debito || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    const credito = (item.credito || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    const saldo = (item.saldo || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    
+                    // Formata data
+                    let dataFormatada = '-';
+                    if (item.data) {
+                        const data = new Date(item.data);
+                        dataFormatada = data.toLocaleDateString('pt-BR');
+                    }
+                    
+                    html += `
+                        <tr>
+                            <td>${item.conta || '-'}</td>
+                            <td>${item.titulo_conta || '-'}</td>
+                            <td>${dataFormatada}</td>
+                            <td>${item.cc_cod || '-'}</td>
+                            <td>${item.nome_cc || '-'}</td>
+                            <td style="text-align: right;">R$ ${debito}</td>
+                            <td style="text-align: right;">R$ ${credito}</td>
+                            <td style="text-align: right;">R$ ${saldo}</td>
+                            <td>${item.mes || '-'}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                    </table>
+                `;
+                
+                modalConteudo.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Erro ao carregar relatório:', error);
+                modalConteudo.innerHTML = `
+                    <div class="error-message">
+                        <strong>Erro ao carregar relatório:</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById('modalRelatorio').style.display = 'none';
+        }
+
+        // Fechar modal ao clicar fora dele
+        window.onclick = function(event) {
+            const modal = document.getElementById('modalRelatorio');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% extends "Base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="jumbotron bg-white p-5 rounded shadow-sm">
+            <h1 class="display-4">Olá, {{ user.nome }}!</h1>
+            <p class="lead">Bem-vindo ao sistema DRE Database Control.</p>
+            <hr class="my-4">
+            <p>Utilize o menu acima para navegar pelas funcionalidades do sistema.</p>
+            
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card text-center border-primary mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Status Conexão SQL</h5>
+                            <p class="card-text text-success fw-bold">Ativa</p>
+                            <a href="#" class="btn btn-primary">Ver Detalhes</a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Mais cards aqui -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

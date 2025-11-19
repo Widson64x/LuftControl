@@ -1,0 +1,31 @@
+{% extends "Base.html" %}
+
+{% block content %}
+<div class="row justify-content-center" style="margin-top: 100px;">
+    <div class="col-md-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white text-center">
+                <h4><i class="fas fa-lock"></i> Acesso ao Sistema</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Usuário</label>
+                        <input type="text" class="form-control" id="username" name="username" required placeholder="Digite seu usuário">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Senha</label>
+                        <input type="password" class="form-control" id="password" name="password" required placeholder="Digite sua senha">
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Entrar</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-muted text-center">
+                <small>DRE Control &copy; 2024</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
