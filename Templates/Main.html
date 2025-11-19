@@ -1,25 +1,181 @@
 {% extends "Base.html" %}
 
+{% block title %}Relatórios - DRE Control System{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/relatorios.js') }}"></script>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="jumbotron bg-white p-5 rounded shadow-sm">
-            <h1 class="display-4">Olá, {{ user.nome }}!</h1>
-            <p class="lead">Bem-vindo ao sistema DRE Database Control.</p>
-            <hr class="my-4">
-            <p>Utilize o menu acima para navegar pelas funcionalidades do sistema.</p>
-            
-            <div class="row mt-4">
-                <div class="col-md-4">
-                    <div class="card text-center border-primary mb-3">
-                        <div class="card-body">
-                            <h5 class="card-title">Status Conexão SQL</h5>
-                            <p class="card-text text-success fw-bold">Ativa</p>
-                            <a href="#" class="btn btn-primary">Ver Detalhes</a>
-                        </div>
-                    </div>
-                </div>
-                <!-- Mais cards aqui -->
+<div class="card mb-5 text-center fade-in">
+    <div class="card-header">
+        <h1 class="card-title">
+            <i class="fas fa-chart-bar"></i> Relatórios Financeiros
+        </h1>
+        <p class="card-subtitle">Acesse e visualize todos os relatórios disponíveis no sistema</p>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card mb-5 fade-in">
+    <div class="card-body">
+        <div class="d-flex gap-md flex-wrap">
+            <div style="flex: 1; min-width: 200px;">
+                <label class="form-label">
+                    <i class="fas fa-filter"></i> Categoria
+                </label>
+                <select class="form-control">
+                    <option value="all">Todos os Relatórios</option>
+                    <option value="financeiro">Financeiro</option>
+                    <option value="operacional">Operacional</option>
+                    <option value="gerencial">Gerencial</option>
+                </select>
+            </div>
+
+            <div style="flex: 1; min-width: 200px;">
+                <label class="form-label">
+                    <i class="fas fa-calendar"></i> Período
+                </label>
+                <select class="form-control">
+                    <option value="current">Mês Atual</option>
+                    <option value="last">Último Mês</option>
+                    <option value="quarter">Trimestre</option>
+                    <option value="year">Ano</option>
+                </select>
+            </div>
+
+            <div style="flex: 1; min-width: 200px;">
+                <label class="form-label">
+                    <i class="fas fa-sort"></i> Ordenar por
+                </label>
+                <select class="form-control">
+                    <option value="name">Nome</option>
+                    <option value="date">Data</option>
+                    <option value="popular">Mais Usados</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Relatórios Grid -->
+<div class="d-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem;">
+    <!-- Relatório de Razão -->
+    <div class="card slide-in-up" style="animation-delay: 0.1s;">
+        <div class="card-body text-center">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📈</div>
+            <h3 class="card-title">Relatório de Razão</h3>
+            <p class="card-subtitle">
+                Visualize o relatório consolidado de razão com dados de débito, crédito e saldo.
+            </p>
+            <div class="mb-3">
+                <span class="badge badge-success">Ativo</span>
+            </div>
+            <button class="btn btn-primary" onclick="carregarRelatorioRazao()" style="width: 100%;">
+                <i class="fas fa-eye"></i> Visualizar Relatório
+            </button>
+        </div>
+    </div>
+
+    <!-- DRE Consolidada -->
+    <div class="card slide-in-up" style="animation-delay: 0.2s;">
+        <div class="card-body text-center">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">💰</div>
+            <h3 class="card-title">DRE Consolidada</h3>
+            <p class="card-subtitle">
+                Demonstração do Resultado do Exercício com análise completa de receitas e despesas.
+            </p>
+            <div class="mb-3">
+                <span class="badge badge-warning">Em Desenvolvimento</span>
+            </div>
+            <button class="btn btn-secondary" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')" style="width: 100%;">
+                <i class="fas fa-clock"></i> Em Breve
+            </button>
+        </div>
+    </div>
+
+    <!-- Centro de Custo -->
+    <div class="card slide-in-up" style="animation-delay: 0.3s;">
+        <div class="card-body text-center">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🏢</div>
+            <h3 class="card-title">Centro de Custo</h3>
+            <p class="card-subtitle">
+                Análise detalhada por centro de custo com alocação de despesas por departamento.
+            </p>
+            <div class="mb-3">
+                <span class="badge badge-warning">Em Desenvolvimento</span>
+            </div>
+            <button class="btn btn-secondary" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')" style="width: 100%;">
+                <i class="fas fa-clock"></i> Em Breve
+            </button>
+        </div>
+    </div>
+
+    <!-- Despesas com Pessoal -->
+    <div class="card slide-in-up" style="animation-delay: 0.4s;">
+        <div class="card-body text-center">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
+            <h3 class="card-title">Despesas com Pessoal</h3>
+            <p class="card-subtitle">
+                Classificação e análise completa das despesas relacionadas a recursos humanos.
+            </p>
+            <div class="mb-3">
+                <span class="badge badge-warning">Em Desenvolvimento</span>
+            </div>
+            <button class="btn btn-secondary" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')" style="width: 100%;">
+                <i class="fas fa-clock"></i> Em Breve
+            </button>
+        </div>
+    </div>
+
+    <!-- Fluxo de Caixa -->
+    <div class="card slide-in-up" style="animation-delay: 0.5s;">
+        <div class="card-body text-center">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">💸</div>
+            <h3 class="card-title">Fluxo de Caixa</h3>
+            <p class="card-subtitle">
+                Análise detalhada das entradas e saídas de caixa com projeções mensais.
+            </p>
+            <div class="mb-3">
+                <span class="badge badge-warning">Em Desenvolvimento</span>
+            </div>
+            <button class="btn btn-secondary" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')" style="width: 100%;">
+                <i class="fas fa-clock"></i> Em Breve
+            </button>
+        </div>
+    </div>
+
+    <!-- Balanço Patrimonial -->
+    <div class="card slide-in-up" style="animation-delay: 0.6s;">
+        <div class="card-body text-center">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+            <h3 class="card-title">Balanço Patrimonial</h3>
+            <p class="card-subtitle">
+                Demonstração completa do patrimônio com ativos, passivos e patrimônio líquido.
+            </p>
+            <div class="mb-3">
+                <span class="badge badge-warning">Em Desenvolvimento</span>
+            </div>
+            <button class="btn btn-secondary" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')" style="width: 100%;">
+                <i class="fas fa-clock"></i> Em Breve
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Relatórios -->
+<div id="modalRelatorio" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2 class="modal-title">Relatório</h2>
+            <button class="modal-close" onclick="fecharModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Carregando...</div>
             </div>
         </div>
     </div>

@@ -1,324 +1,266 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatórios DRE</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% extends "Base.html" %}
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
+{% block title %}Relatórios - DRE Control System{% endblock %}
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+{% block extra_css %}
+<style>
+    .page-header {
+        background: var(--bg-card);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-lg);
+        padding: 2rem;
+        margin-bottom: 3rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
 
-        h1 {
-            color: white;
-            text-align: center;
-            margin-bottom: 40px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: var(--bg-gradient);
+    }
 
-        .relatorios-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-            margin-top: 30px;
-        }
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
 
-        .relatorio-card {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            cursor: pointer;
-        }
+    .page-subtitle {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+    }
 
-        .relatorio-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
-        }
+    .filter-bar {
+        background: var(--bg-card);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
 
-        .relatorio-card h2 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-        }
+    .filter-item {
+        flex: 1;
+        min-width: 200px;
+    }
 
-        .relatorio-card p {
-            color: #666;
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
+    .filter-label {
+        display: block;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
 
-        .btn-visualizar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 8px;
-            font-size: 1em;
-            cursor: pointer;
-            transition: opacity 0.3s ease;
-            width: 100%;
-        }
+    .filter-select {
+        width: 100%;
+        padding: 0.75rem;
+        background: var(--bg-dark);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-sm);
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: var(--transition-fast);
+    }
 
-        .btn-visualizar:hover {
-            opacity: 0.9;
-        }
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+</style>
+{% endblock %}
 
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.7);
-        }
+{% block content %}
+<div class="page-header fade-in">
+    <h1 class="page-title">
+        <i class="fas fa-chart-bar"></i> Relatórios Financeiros
+    </h1>
+    <p class="page-subtitle">Acesse e visualize todos os relatórios disponíveis no sistema</p>
+</div>
 
-        .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 30px;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 1000px;
-            max-height: 80vh;
-            overflow-y: auto;
-            position: relative;
-        }
+<!-- Filter Bar -->
+<div class="filter-bar fade-in">
+    <div class="filter-item">
+        <label class="filter-label">
+            <i class="fas fa-filter"></i> Categoria
+        </label>
+        <select class="filter-select">
+            <option value="all">Todos os Relatórios</option>
+            <option value="financeiro">Financeiro</option>
+            <option value="operacional">Operacional</option>
+            <option value="gerencial">Gerencial</option>
+        </select>
+    </div>
 
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            line-height: 20px;
-        }
+    <div class="filter-item">
+        <label class="filter-label">
+            <i class="fas fa-calendar"></i> Período
+        </label>
+        <select class="filter-select">
+            <option value="current">Mês Atual</option>
+            <option value="last">Último Mês</option>
+            <option value="quarter">Trimestre</option>
+            <option value="year">Ano</option>
+        </select>
+    </div>
 
-        .close:hover {
-            color: #000;
-        }
+    <div class="filter-item">
+        <label class="filter-label">
+            <i class="fas fa-sort"></i> Ordenar por
+        </label>
+        <select class="filter-select">
+            <option value="name">Nome</option>
+            <option value="date">Data</option>
+            <option value="popular">Mais Usados</option>
+        </select>
+    </div>
+</div>
 
-        .loading {
-            text-align: center;
-            padding: 40px;
-            font-size: 1.2em;
-            color: #667eea;
-        }
+<!-- Relatórios Grid -->
+<div class="relatorios-grid">
+    <!-- Relatório de Razão Consolidada -->
+    <div class="relatorio-card slide-in-up" style="animation-delay: 0.1s;">
+        <div class="relatorio-icon">
+            📈
+        </div>
+        <h3>Relatório de Razão</h3>
+        <p>Visualize o relatório consolidado de razão com dados de débito, crédito e saldo de todas as contas contábeis.</p>
+        <div style="margin-bottom: 1rem;">
+            <span class="status-badge status-active">Ativo</span>
+        </div>
+        <button class="btn-primary-custom" onclick="carregarRelatorioRazao()">
+            <i class="fas fa-eye"></i> Visualizar Relatório
+        </button>
+    </div>
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
+    <!-- DRE Consolidada -->
+    <div class="relatorio-card slide-in-up" style="animation-delay: 0.2s;">
+        <div class="relatorio-icon">
+            💰
+        </div>
+        <h3>DRE Consolidada</h3>
+        <p>Demonstração do Resultado do Exercício consolidada com análise completa de receitas, custos e despesas.</p>
+        <div style="margin-bottom: 1rem;">
+            <span class="status-badge status-development">Em Desenvolvimento</span>
+        </div>
+        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')">
+            <i class="fas fa-clock"></i> Em Breve
+        </button>
+    </div>
 
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
+    <!-- Centro de Custo -->
+    <div class="relatorio-card slide-in-up" style="animation-delay: 0.3s;">
+        <div class="relatorio-icon">
+            🏢
+        </div>
+        <h3>Centro de Custo</h3>
+        <p>Análise detalhada por centro de custo com alocação de despesas e classificação por departamento.</p>
+        <div style="margin-bottom: 1rem;">
+            <span class="status-badge status-development">Em Desenvolvimento</span>
+        </div>
+        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')">
+            <i class="fas fa-clock"></i> Em Breve
+        </button>
+    </div>
 
-        th {
-            background-color: #667eea;
-            color: white;
-            font-weight: 600;
-        }
+    <!-- Despesas com Pessoal -->
+    <div class="relatorio-card slide-in-up" style="animation-delay: 0.4s;">
+        <div class="relatorio-icon">
+            👥
+        </div>
+        <h3>Despesas com Pessoal</h3>
+        <p>Classificação e análise completa das despesas relacionadas a recursos humanos e folha de pagamento.</p>
+        <div style="margin-bottom: 1rem;">
+            <span class="status-badge status-development">Em Desenvolvimento</span>
+        </div>
+        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')">
+            <i class="fas fa-clock"></i> Em Breve
+        </button>
+    </div>
 
-        tr:hover {
-            background-color: #f5f5f5;
-        }
+    <!-- Fluxo de Caixa -->
+    <div class="relatorio-card slide-in-up" style="animation-delay: 0.5s;">
+        <div class="relatorio-icon">
+            💸
+        </div>
+        <h3>Fluxo de Caixa</h3>
+        <p>Análise detalhada das entradas e saídas de caixa com projeções e comparativos mensais.</p>
+        <div style="margin-bottom: 1rem;">
+            <span class="status-badge status-development">Em Desenvolvimento</span>
+        </div>
+        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')">
+            <i class="fas fa-clock"></i> Em Breve
+        </button>
+    </div>
 
-        .error-message {
-            background-color: #ffe6e6;
-            color: #cc0000;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>📊 Relatórios Financeiros</h1>
+    <!-- Balanço Patrimonial -->
+    <div class="relatorio-card slide-in-up" style="animation-delay: 0.6s;">
+        <div class="relatorio-icon">
+            📊
+        </div>
+        <h3>Balanço Patrimonial</h3>
+        <p>Demonstração completa do patrimônio da empresa com ativos, passivos e patrimônio líquido.</p>
+        <div style="margin-bottom: 1rem;">
+            <span class="status-badge status-development">Em Desenvolvimento</span>
+        </div>
+        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')">
+            <i class="fas fa-clock"></i> Em Breve
+        </button>
+    </div>
+</div>
 
-        <div class="relatorios-grid">
-            <!-- Card Relatório de Razão -->
-            <div class="relatorio-card">
-                <h2>📈 Relatório de Razão</h2>
-                <p>Visualize o agrupamento de contas, classificações e estrutura completa do plano de contas.</p>
-                <button class="btn-visualizar" onclick="carregarRelatorioRazao()">
-                    Visualizar Relatório
-                </button>
-            </div>
-
-            <!-- Card DRE Consolidada -->
-            <div class="relatorio-card">
-                <h2>💰 DRE Consolidada</h2>
-                <p>Demonstração do Resultado do Exercício consolidada com todos os centros de custo.</p>
-                <button class="btn-visualizar" onclick="alert('Em desenvolvimento')">
-                    Em Desenvolvimento
-                </button>
-            </div>
-
-            <!-- Card Centro de Custo -->
-            <div class="relatorio-card">
-                <h2>🏢 Centro de Custo</h2>
-                <p>Análise detalhada por centro de custo e classificação de despesas.</p>
-                <button class="btn-visualizar" onclick="alert('Em desenvolvimento')">
-                    Em Desenvolvimento
-                </button>
-            </div>
-
-            <!-- Card Despesas com Pessoal -->
-            <div class="relatorio-card">
-                <h2>👥 Despesas com Pessoal</h2>
-                <p>Classificação e análise das despesas relacionadas a pessoal.</p>
-                <button class="btn-visualizar" onclick="alert('Em desenvolvimento')">
-                    Em Desenvolvimento
-                </button>
+<!-- Modal de Relatórios -->
+<div id="modalRelatorio" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2 class="modal-title">Relatório</h2>
+            <button class="modal-close" onclick="fecharModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Carregando...</div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Modal para exibir dados -->
-    <div id="modalRelatorio" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="fecharModal()">&times;</span>
-            <h2 id="modalTitulo">Relatório</h2>
-            <div id="modalConteudo">
-                <div class="loading">Carregando...</div>
-            </div>
-        </div>
-    </div>
+{% endblock %}
 
-    <script>
-        async function carregarRelatorioRazao() {
-            const modal = document.getElementById('modalRelatorio');
-            const modalTitulo = document.getElementById('modalTitulo');
-            const modalConteudo = document.getElementById('modalConteudo');
+{% block extra_js %}
+<script>
+    // Animação de entrada dos cards
+    document.addEventListener('DOMContentLoaded', () => {
+        const cards = document.querySelectorAll('.relatorio-card');
+        cards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
             
-            modal.style.display = 'block';
-            modalTitulo.textContent = '📈 Relatório de Razão';
-            modalConteudo.innerHTML = '<div class="loading">Carregando dados...</div>';
-            
-            try {
-                const response = await fetch('/Rentabilidade/RelatorioRazao');
-                
-                if (!response.ok) {
-                    throw new Error(`Erro: ${response.status} - ${response.statusText}`);
-                }
-                
-                const dados = await response.json();
-                
-                if (dados.length === 0) {
-                    modalConteudo.innerHTML = '<p>Nenhum dado encontrado.</p>';
-                    return;
-                }
-                
-                // Calcula totais
-                let totalDebito = dados.reduce((sum, item) => sum + (item.debito || 0), 0);
-                let totalCredito = dados.reduce((sum, item) => sum + (item.credito || 0), 0);
-                let totalSaldo = dados.reduce((sum, item) => sum + (item.saldo || 0), 0);
-                
-                let html = `
-                    <div style="margin-bottom: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px;">
-                        <h3>Resumo</h3>
-                        <p><strong>Total de registros:</strong> ${dados.length}</p>
-                        <p><strong>Total Débito:</strong> R$ ${totalDebito.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                        <p><strong>Total Crédito:</strong> R$ ${totalCredito.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                        <p><strong>Saldo Total:</strong> R$ ${totalSaldo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                    </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Conta</th>
-                                <th>Título</th>
-                                <th>Data</th>
-                                <th>Centro Custo</th>
-                                <th>Nome CC</th>
-                                <th>Débito</th>
-                                <th>Crédito</th>
-                                <th>Saldo</th>
-                                <th>Mês</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-                
-                dados.forEach(item => {
-                    // Formata valores monetários
-                    const debito = (item.debito || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                    const credito = (item.credito || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                    const saldo = (item.saldo || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                    
-                    // Formata data
-                    let dataFormatada = '-';
-                    if (item.data) {
-                        const data = new Date(item.data);
-                        dataFormatada = data.toLocaleDateString('pt-BR');
-                    }
-                    
-                    html += `
-                        <tr>
-                            <td>${item.conta || '-'}</td>
-                            <td>${item.titulo_conta || '-'}</td>
-                            <td>${dataFormatada}</td>
-                            <td>${item.cc_cod || '-'}</td>
-                            <td>${item.nome_cc || '-'}</td>
-                            <td style="text-align: right;">R$ ${debito}</td>
-                            <td style="text-align: right;">R$ ${credito}</td>
-                            <td style="text-align: right;">R$ ${saldo}</td>
-                            <td>${item.mes || '-'}</td>
-                        </tr>
-                    `;
-                });
-                
-                html += `
-                        </tbody>
-                    </table>
-                `;
-                
-                modalConteudo.innerHTML = html;
-                
-            } catch (error) {
-                console.error('Erro ao carregar relatório:', error);
-                modalConteudo.innerHTML = `
-                    <div class="error-message">
-                        <strong>Erro ao carregar relatório:</strong><br>
-                        ${error.message}
-                    </div>
-                `;
-            }
-        }
+            setTimeout(() => {
+                card.style.transition = 'all 0.5s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    });
 
-        function fecharModal() {
-            document.getElementById('modalRelatorio').style.display = 'none';
-        }
-
-        // Fechar modal ao clicar fora dele
-        window.onclick = function(event) {
-            const modal = document.getElementById('modalRelatorio');
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        }
-    </script>
-</body>
-</html>
+    // Filtros funcionais
+    document.querySelectorAll('.filter-select').forEach(select => {
+        select.addEventListener('change', () => {
+            NotificationSystem.show('Filtro aplicado com sucesso', 'success');
+        });
+    });
+</script>
+{% endblock %}
