@@ -14,7 +14,7 @@
     <title>{% block title %}DRE Control System{% endblock %}</title>
     
     <!-- ========== FAVICON ========== -->
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='IMG/Favicon.ico') }}">
     
     <!-- ========== PRECONNECT PARA PERFORMANCE ========== -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,6 +39,9 @@
     
     <!-- 3. Componentes UI -->
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Components.css') }}">
+    
+    <!-- 4. Main CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Main.css') }}">
     
     <!-- ========== CSS ADICIONAL (POR PÁGINA) ========== -->
     {% block extra_css %}{% endblock %}
@@ -148,6 +151,7 @@
     
     <!-- 1. Sistema Principal (SEMPRE CARREGA) -->
     <script src="{{ url_for('static', filename='JS/Main.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='JS/Relatorios.js') }}" defer></script>
     
     <!-- 2. Scripts Adicionais (POR PÁGINA) -->
     {% block extra_js %}{% endblock %}

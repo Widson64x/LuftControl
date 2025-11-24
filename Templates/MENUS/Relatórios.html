@@ -14,7 +14,6 @@
         position: relative;
         overflow: hidden;
     }
-
     .page-header::before {
         content: '';
         position: absolute;
@@ -24,58 +23,34 @@
         height: 4px;
         background: var(--bg-gradient);
     }
-
     .page-title {
         font-size: 2.5rem;
         font-weight: 700;
         color: var(--text-primary);
         margin-bottom: 0.5rem;
     }
-
     .page-subtitle {
         color: var(--text-secondary);
         font-size: 1.1rem;
     }
 
-    .filter-bar {
-        background: var(--bg-card);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: var(--radius-lg);
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .filter-item {
-        flex: 1;
-        min-width: 200px;
-    }
-
-    .filter-label {
-        display: block;
-        color: var(--text-secondary);
-        font-size: 0.85rem;
+    /* Estilo para badges nos cards */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.8rem;
         font-weight: 600;
-        margin-bottom: 0.5rem;
     }
-
-    .filter-select {
-        width: 100%;
-        padding: 0.75rem;
-        background: var(--bg-dark);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: var(--radius-sm);
-        color: var(--text-primary);
-        cursor: pointer;
-        transition: var(--transition-fast);
+    .status-active {
+        background: rgba(46, 204, 113, 0.2);
+        color: #2ecc71;
+        border: 1px solid rgba(46, 204, 113, 0.3);
     }
-
-    .filter-select:focus {
-        outline: none;
-        border-color: var(--primary);
+    .status-development {
+        background: rgba(241, 196, 15, 0.2);
+        color: #f1c40f;
+        border: 1px solid rgba(241, 196, 15, 0.3);
     }
 </style>
 {% endblock %}
@@ -85,145 +60,51 @@
     <h1 class="page-title">
         <i class="fas fa-chart-bar"></i> Relatórios Financeiros
     </h1>
-    <p class="page-subtitle">Acesse e visualize todos os relatórios disponíveis no sistema</p>
+    <p class="page-subtitle">Visualização de bases completas (Dados Brutos)</p>
 </div>
 
-<!-- Filter Bar -->
-<div class="filter-bar fade-in">
-    <div class="filter-item">
-        <label class="filter-label">
-            <i class="fas fa-filter"></i> Categoria
-        </label>
-        <select class="filter-select">
-            <option value="all">Todos os Relatórios</option>
-            <option value="financeiro">Financeiro</option>
-            <option value="operacional">Operacional</option>
-            <option value="gerencial">Gerencial</option>
-        </select>
-    </div>
-
-    <div class="filter-item">
-        <label class="filter-label">
-            <i class="fas fa-calendar"></i> Período
-        </label>
-        <select class="filter-select">
-            <option value="current">Mês Atual</option>
-            <option value="last">Último Mês</option>
-            <option value="quarter">Trimestre</option>
-            <option value="year">Ano</option>
-        </select>
-    </div>
-
-    <div class="filter-item">
-        <label class="filter-label">
-            <i class="fas fa-sort"></i> Ordenar por
-        </label>
-        <select class="filter-select">
-            <option value="name">Nome</option>
-            <option value="date">Data</option>
-            <option value="popular">Mais Usados</option>
-        </select>
-    </div>
-</div>
-
-<!-- Relatórios Grid -->
 <div class="relatorios-grid">
-    <!-- Relatório de Razão Consolidada -->
     <div class="relatorio-card slide-in-up" style="animation-delay: 0.1s;">
-        <div class="relatorio-icon">
-            📈
-        </div>
-        <h3>Relatório de Razão</h3>
-        <p>Visualize o relatório consolidado de razão com dados de débito, crédito e saldo de todas as contas contábeis.</p>
+        <div class="relatorio-icon">📈</div>
+        <h3>Relatório de Razão (Full)</h3>
+        <p>Carrega a base completa da Razão Contábil. Inclui todas as chaves, centros de custos e movimentações (+34k registros).</p>
         <div style="margin-bottom: 1rem;">
-            <span class="status-badge status-active">Ativo</span>
+            <span class="status-badge status-active">Disponível</span>
         </div>
-        <button class="btn-primary-custom" onclick="carregarRelatorioRazao()">
-            <i class="fas fa-eye"></i> Visualizar Relatório
+        <button class="btn-primary-custom" onclick="relatorioSystem.loadRazaoReport()">
+            <i class="fas fa-database"></i> Carregar Base Completa
         </button>
     </div>
 
-    <!-- DRE Consolidada -->
     <div class="relatorio-card slide-in-up" style="animation-delay: 0.2s;">
-        <div class="relatorio-icon">
-            💰
-        </div>
+        <div class="relatorio-icon">💰</div>
         <h3>DRE Consolidada</h3>
-        <p>Demonstração do Resultado do Exercício consolidada com análise completa de receitas, custos e despesas.</p>
+        <p>Demonstração do Resultado do Exercício consolidada com análise completa de receitas e custos.</p>
         <div style="margin-bottom: 1rem;">
             <span class="status-badge status-development">Em Desenvolvimento</span>
         </div>
-        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')">
-            <i class="fas fa-clock"></i> Em Breve
+        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Em breve!', 'info')">
+            <i class="fas fa-lock"></i> Indisponível
         </button>
     </div>
 
-    <!-- Centro de Custo -->
     <div class="relatorio-card slide-in-up" style="animation-delay: 0.3s;">
-        <div class="relatorio-icon">
-            🏢
-        </div>
-        <h3>Centro de Custo</h3>
-        <p>Análise detalhada por centro de custo com alocação de despesas e classificação por departamento.</p>
+        <div class="relatorio-icon">🏢</div>
+        <h3>Análise por Centro de Custo</h3>
+        <p>Detalhamento de despesas alocadas por departamentos e unidades de negócio.</p>
         <div style="margin-bottom: 1rem;">
             <span class="status-badge status-development">Em Desenvolvimento</span>
         </div>
-        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')">
-            <i class="fas fa-clock"></i> Em Breve
-        </button>
-    </div>
-
-    <!-- Despesas com Pessoal -->
-    <div class="relatorio-card slide-in-up" style="animation-delay: 0.4s;">
-        <div class="relatorio-icon">
-            👥
-        </div>
-        <h3>Despesas com Pessoal</h3>
-        <p>Classificação e análise completa das despesas relacionadas a recursos humanos e folha de pagamento.</p>
-        <div style="margin-bottom: 1rem;">
-            <span class="status-badge status-development">Em Desenvolvimento</span>
-        </div>
-        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')">
-            <i class="fas fa-clock"></i> Em Breve
-        </button>
-    </div>
-
-    <!-- Fluxo de Caixa -->
-    <div class="relatorio-card slide-in-up" style="animation-delay: 0.5s;">
-        <div class="relatorio-icon">
-            💸
-        </div>
-        <h3>Fluxo de Caixa</h3>
-        <p>Análise detalhada das entradas e saídas de caixa com projeções e comparativos mensais.</p>
-        <div style="margin-bottom: 1rem;">
-            <span class="status-badge status-development">Em Desenvolvimento</span>
-        </div>
-        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')">
-            <i class="fas fa-clock"></i> Em Breve
-        </button>
-    </div>
-
-    <!-- Balanço Patrimonial -->
-    <div class="relatorio-card slide-in-up" style="animation-delay: 0.6s;">
-        <div class="relatorio-icon">
-            📊
-        </div>
-        <h3>Balanço Patrimonial</h3>
-        <p>Demonstração completa do patrimônio da empresa com ativos, passivos e patrimônio líquido.</p>
-        <div style="margin-bottom: 1rem;">
-            <span class="status-badge status-development">Em Desenvolvimento</span>
-        </div>
-        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')">
-            <i class="fas fa-clock"></i> Em Breve
+        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Em breve!', 'info')">
+            <i class="fas fa-lock"></i> Indisponível
         </button>
     </div>
 </div>
 
-<!-- Modal de Relatórios -->
 <div id="modalRelatorio" class="modal-overlay">
     <div class="modal-container">
         <div class="modal-header">
-            <h2 class="modal-title">Relatório</h2>
+            <h2 class="modal-title"><i class="fas fa-table"></i> Base de Dados Completa</h2>
             <button class="modal-close" onclick="fecharModal()">
                 <i class="fas fa-times"></i>
             </button>
@@ -231,35 +112,26 @@
         <div class="modal-body">
             <div class="loading-container">
                 <div class="loading-spinner"></div>
-                <div class="loading-text">Carregando...</div>
+                <div class="loading-text">Inicializando...</div>
             </div>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // Animação de entrada dos cards
+    // Animação de entrada visual
     document.addEventListener('DOMContentLoaded', () => {
         const cards = document.querySelectorAll('.relatorio-card');
         cards.forEach((card, index) => {
             card.style.opacity = '0';
             card.style.transform = 'translateY(20px)';
-            
             setTimeout(() => {
                 card.style.transition = 'all 0.5s ease';
                 card.style.opacity = '1';
                 card.style.transform = 'translateY(0)';
             }, index * 100);
-        });
-    });
-
-    // Filtros funcionais
-    document.querySelectorAll('.filter-select').forEach(select => {
-        select.addEventListener('change', () => {
-            NotificationSystem.show('Filtro aplicado com sucesso', 'success');
         });
     });
 </script>
