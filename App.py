@@ -10,6 +10,7 @@ from Routes.Auth import auth_bp
 from Routes.Main import main_bp
 from Routes.Reports import reports_bp
 from Routes.DreConfig import dre_config_bp
+from Routes.DreOrdenamento import dre_ordem_bp
 from Routes.Auth import carregar_usuario_flask
 
 # --- IMPORTS PARA BANCO DE DADOS ---
@@ -53,6 +54,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(reports_bp, url_prefix='/Reports')
 app.register_blueprint(dre_config_bp)
+app.register_blueprint(dre_ordem_bp)
 
 @app.route('/')
 def index():

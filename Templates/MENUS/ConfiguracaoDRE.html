@@ -21,7 +21,7 @@
         .dre-container {
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 100px); /* Ocupa altura útil */
+            height: calc(100vh - 100px);
             gap: 20px;
         }
 
@@ -34,6 +34,54 @@
             border-radius: 12px;
             border: 1px solid var(--border);
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* --- BARRA DE FERRAMENTAS DE ORDENAMENTO --- */
+        .ordenamento-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .ordenamento-toolbar.inactive {
+            background: rgba(241, 196, 15, 0.1);
+            border-color: rgba(241, 196, 15, 0.3);
+        }
+
+        .ordenamento-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.active {
+            background: #2ecc71;
+            box-shadow: 0 0 8px rgba(46, 204, 113, 0.6);
+        }
+
+        .status-indicator.inactive {
+            background: #f39c12;
+            box-shadow: 0 0 8px rgba(243, 156, 18, 0.6);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         /* --- ÁRVORE (TREE VIEW) --- */
@@ -42,7 +90,7 @@
             background: var(--bg-panel);
             border-radius: 12px;
             border: 1px solid var(--border);
-            overflow-y: auto; /* Scroll interno */
+            overflow-y: auto;
             padding: 10px;
             position: relative;
         }
@@ -53,15 +101,13 @@
             margin: 0;
         }
         
-        /* Linhas de Conexão Sutis */
         ul.tree ul {
             border-left: 1px solid rgba(255,255,255,0.05);
             margin-left: 10px;
             padding-left: 15px;
-            display: none; /* Fechado por padrão, exceto raízes */
+            display: none;
         }
         
-        /* Classe para mostrar filhos */
         ul.tree ul.expanded {
             display: block;
             animation: slideDown 0.2s ease-out;
@@ -86,6 +132,7 @@
             cursor: pointer;
             transition: all 0.1s ease;
             user-select: none;
+            border: 2px solid transparent;
         }
 
         .node-wrapper:hover {
@@ -94,7 +141,43 @@
 
         .node-wrapper.selected {
             background-color: rgba(52, 152, 219, 0.2);
-            border: 1px solid rgba(52, 152, 219, 0.4);
+            border-color: rgba(52, 152, 219, 0.4);
+        }
+
+        /* --- DRAG HANDLE --- */
+        .drag-handle {
+            opacity: 0;
+            transition: opacity 0.2s;
+            margin-right: 8px;
+            color: #7f8c8d;
+            cursor: grab;
+            font-size: 0.8em;
+        }
+
+        .node-wrapper:hover .drag-handle {
+            opacity: 0.5;
+        }
+
+        .node-wrapper[draggable="true"]:hover .drag-handle {
+            opacity: 1;
+        }
+
+        .node-wrapper.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+            background: rgba(52, 152, 219, 0.2) !important;
+            border: 2px dashed #3498db !important;
+        }
+
+        .node-wrapper.drop-target-valid {
+            background: rgba(46, 204, 113, 0.15) !important;
+            border: 2px solid #2ecc71 !important;
+            box-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
+        }
+
+        .node-wrapper.drop-target-invalid {
+            background: rgba(231, 76, 60, 0.15) !important;
+            border: 2px solid #e74c3c !important;
         }
 
         /* --- ÍCONES E TOGGLES --- */
@@ -113,32 +196,65 @@
         
         .toggle-icon:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .toggle-icon.rotated { transform: rotate(90deg); color: #fff; }
-        .toggle-icon.invisible { visibility: hidden; } /* Para folhas */
+        .toggle-icon.invisible { visibility: hidden; }
 
         .type-icon { margin-right: 8px; font-size: 1em; }
+
+        /* --- BADGE DE ORDEM --- */
+        .ordem-badge {
+            margin-left: auto;
+            padding: 2px 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            font-size: 0.7em;
+            color: #95a5a6;
+            font-family: monospace;
+        }
+
+        .ordem-badge:hover {
+            background: rgba(52, 152, 219, 0.3);
+            color: #3498db;
+        }
 
         /* --- ESTILIZAÇÃO POR TIPO --- */
         .node-text { font-size: 0.9rem; color: #bdc3c7; }
         
-        /* Pasta de Tipo (Adm, Operacional) */
         .node-folder .node-text { color: #ecf0f1; font-weight: 700; text-transform: uppercase; }
-        .node-folder .type-icon { color: #f39c12; } /* Amarelo Pasta */
+        .node-folder .type-icon { color: #f39c12; }
 
-        /* Raiz Virtual */
         .node-virtual .node-text { color: var(--color-virtual); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         .node-virtual .type-icon { color: var(--color-virtual); }
 
-        /* Centro de Custo */
         .node-cc .node-text { color: var(--color-cc); font-weight: 600; }
         .node-cc .type-icon { color: var(--color-cc); }
 
-        /* Subgrupo */
         .node-sg .node-text { color: var(--color-group); }
         .node-sg .type-icon { color: var(--color-group); }
 
-        /* Conta */
         .node-conta .node-text { color: var(--color-conta); font-family: monospace; font-size: 0.85rem; }
         .node-conta .type-icon { color: var(--color-conta); font-size: 0.8em; opacity: 0.7; }
+
+        /* --- DROP INDICATOR --- */
+        .drop-indicator {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            pointer-events: none;
+            transition: all 0.1s ease;
+        }
+
+        .drop-indicator .drop-line {
+            height: 3px;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            border-radius: 3px;
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.8);
+        }
+
+        .drop-indicator.position-inside {
+            background: rgba(46, 204, 113, 0.1);
+            border: 2px solid #2ecc71;
+            border-radius: 6px;
+        }
 
         /* --- MODAIS E OVERLAYS --- */
         .dre-modal-overlay { display: none; position: fixed !important; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
@@ -162,18 +278,15 @@
         /* --- CSS DO DASHBOARD INTERATIVO (Aba Vincular) --- */
         .mass-dashboard { display: flex; height: 320px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; background: rgba(0,0,0,0.2); }
         
-        /* Coluna Esquerda */
         .col-groups { width: 35%; border-right: 1px solid rgba(255,255,255,0.1); overflow-y: auto; background: rgba(0,0,0,0.1); }
         .group-list-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); color: #bdc3c7; transition: all 0.2s; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
         .group-list-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
         .group-list-item.active { background: rgba(52, 152, 219, 0.2); color: #3498db; border-left: 3px solid #3498db; }
         
-        /* Coluna Direita */
         .col-accounts { flex: 1; padding: 15px; display: flex; flex-direction: column; }
         .accounts-header { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .linked-accounts-area { flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
         
-        /* Tags */
         .account-tag { background: rgba(46, 204, 113, 0.15); border: 1px solid rgba(46, 204, 113, 0.3); color: #2ecc71; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
         .account-tag .remove-btn { cursor: pointer; color: #e74c3c; font-size: 0.9em; padding: 2px; border-radius: 50%; }
         .account-tag .remove-btn:hover { background: rgba(231, 76, 60, 0.2); }
@@ -185,7 +298,7 @@
             background: #2c3e50; border: 1px solid #34495e;
             border-radius: 8px; padding: 5px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            min-width: 200px;
+            min-width: 220px;
         }
         .ctx-item { padding: 8px 12px; cursor: pointer; color: #ecf0f1; font-size: 0.85rem; border-radius: 4px; display: flex; align-items: center; gap: 8px; }
         .ctx-item:hover { background: #34495e; color: #fff; }
@@ -197,18 +310,50 @@
         #toast { visibility: hidden; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #27ae60; color: white; padding: 12px 24px; border-radius: 30px; font-weight: 600; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 10001; }
         #toast.show { visibility: visible; animation: slideUpFade 0.3s ease-out; }
         @keyframes slideUpFade { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+
+        /* --- HELP TOOLTIP --- */
+        .help-tooltip {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: help;
+        }
+
+        .help-tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2c3e50;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+            z-index: 1000;
+        }
+
+        .help-tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
     </style>
 {% endblock %}
 
 {% block content %}
 <div class="container dre-container">
     
+    <!-- HEADER COM AÇÕES -->
     <div class="header-actions">
         <div>
             <h2 class="text-xl font-bold text-primary mb-1"><i class="fas fa-layer-group"></i> Gerenciador DRE</h2>
             <p class="text-xs text-secondary mb-0">Estruture a visão financeira (Virtual) e departamental (Centros de Custo).</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             <button class="btn btn-sm btn-outline-light" onclick="toggleAllTree(true)"><i class="fas fa-expand-alt"></i> Expandir</button>
             <button class="btn btn-sm btn-outline-light" onclick="toggleAllTree(false)"><i class="fas fa-compress-alt"></i> Recolher</button>
             <div class="vr mx-2" style="border-left: 1px solid #444;"></div>
@@ -217,6 +362,33 @@
         </div>
     </div>
 
+    <!-- BARRA DE ORDENAMENTO -->
+    <div class="ordenamento-toolbar" id="ordenamentoToolbar">
+        <div class="ordenamento-status">
+            <div class="status-indicator" id="ordenamentoIndicator"></div>
+            <span id="ordenamentoStatusText">Verificando...</span>
+        </div>
+        
+        <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+            <span class="help-tooltip" data-tooltip="Arraste os itens para reordenar. A ordem é salva automaticamente.">
+                <i class="fas fa-question-circle text-secondary"></i>
+            </span>
+            
+            <button class="btn btn-sm btn-outline-info" id="btnInicializarOrdem" onclick="inicializarOrdenamento()" style="display: none;">
+                <i class="fas fa-magic"></i> Inicializar Ordenamento
+            </button>
+            
+            <button class="btn btn-sm btn-outline-warning" id="btnResetarOrdem" onclick="resetarOrdenamento()" style="display: none;">
+                <i class="fas fa-redo"></i> Resetar Ordem
+            </button>
+            
+            <button class="btn btn-sm btn-outline-success" id="btnNormalizarOrdem" onclick="normalizarOrdenamento()" style="display: none;">
+                <i class="fas fa-sort-numeric-down"></i> Normalizar
+            </button>
+        </div>
+    </div>
+
+    <!-- PAINEL DA ÁRVORE -->
     <div class="tree-panel" id="treeContainer">
         <ul id="treeRoot" class="tree">
             <li class="text-center text-secondary mt-5" style="opacity: 0.7;">
@@ -227,9 +399,26 @@
 
 </div>
 
+<!-- TOAST -->
 <div id="toast"><i class="fas fa-check"></i> Operação realizada!</div>
 
+<!-- DROP INDICATOR -->
+<div id="dropIndicator" class="drop-indicator">
+    <div class="drop-line"></div>
+</div>
+
+<!-- MENU DE CONTEXTO -->
 <div id="contextMenu">
+    <div class="ctx-item" id="ctxMoveUp" onclick="moverParaCima()">
+        <i class="fas fa-arrow-up text-info"></i> Mover para Cima
+        <span class="ctx-badge">Alt+↑</span>
+    </div>
+    <div class="ctx-item" id="ctxMoveDown" onclick="moverParaBaixo()">
+        <i class="fas fa-arrow-down text-info"></i> Mover para Baixo
+        <span class="ctx-badge">Alt+↓</span>
+    </div>
+    <div class="ctx-divider" id="divOrdem"></div>
+    
     <div class="ctx-item" id="ctxMassManager" onclick="openMassManager()">
         <i class="fas fa-tools text-warning"></i> Gerenciador em Massa
     </div>
@@ -249,7 +438,7 @@
     <div class="ctx-item" id="ctxDelete" onclick="deleteNode()" style="color:#e74c3c"><i class="fas fa-trash-alt"></i> <span id="lblDelete">Excluir</span></div>
 </div>
 
-
+<!-- MODAIS (mesmos do original) -->
 <div id="modalMassManager" class="dre-modal-overlay">
     <div class="dre-modal-box" style="width: 750px; padding: 0;">
         <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary">
@@ -277,7 +466,6 @@
             </div>
 
             <div class="mass-content">
-                
                 <div id="tabCreateGroup" class="mass-tab active">
                     <h4 class="text-white font-bold mb-3">Criar Grupo em Massa</h4>
                     <p class="text-sm text-secondary mb-4">Cria uma nova pasta em todos os CCs do tipo selecionado.</p>
@@ -320,14 +508,12 @@
                                 </div>
 
                                 <label class="text-xs text-secondary uppercase font-bold mb-2">Contas Vinculadas</label>
-                                <div class="linked-accounts-area" id="listLinkedAccounts">
-                                    </div>
+                                <div class="linked-accounts-area" id="listLinkedAccounts"></div>
 
                                 <div class="add-account-area mt-auto">
                                     <label class="text-xs text-secondary uppercase font-bold">Adicionar Nova Conta</label>
                                     <div class="d-flex gap-2">
                                         <input type="text" id="inputMassLinkConta" list="massContasDataList" class="custom-input mt-0" placeholder="Busque a conta...">
-                                        
                                         <button class="btn btn-info" onclick="addAccountToGroup()">
                                             <i class="fas fa-plus"></i>
                                         </button>
@@ -348,7 +534,6 @@
                         <i class="fas fa-cut"></i> Executar Desvínculo
                     </button>
                 </div>
-
             </div>
         </div>
     </div>
@@ -392,8 +577,7 @@
                 <span id="lblCountStd" class="badge bg-secondary text-xs">0</span>
             </div>
             
-            <div id="listStdLinkedAccounts" class="linked-accounts-area" style="height: 120px; background: rgba(0,0,0,0.2); border-radius: 6px; padding: 10px; overflow-y: auto;">
-                </div>
+            <div id="listStdLinkedAccounts" class="linked-accounts-area" style="height: 120px; background: rgba(0,0,0,0.2); border-radius: 6px; padding: 10px; overflow-y: auto;"></div>
         </div>
 
         <div class="add-account-area">
@@ -451,24 +635,269 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='JS/DreOrdenamento.js') }}"></script>
 <script>
-    let globalTodasContas = []; // Armazena a lista bruta de contas do ERP
-    let contextNode = { id: null, type: null, text: null };
+    
+    let globalTodasContas = [];
+    let contextNode = { id: null, type: null, text: null, ordem: null };
     let clipboard = null;
     let currentSelectedGroup = null;
+    let ordenamentoAtivo = false;
 
     document.addEventListener('DOMContentLoaded', () => {
         loadTree();
         loadContasList();
+        verificarOrdenamento();
+        
         document.addEventListener('click', () => document.getElementById('contextMenu').style.display = 'none');
         document.querySelectorAll('.dre-modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target === o) closeModals(); }));
+        
+        // Atalhos de teclado para reordenação
+        document.addEventListener('keydown', (e) => {
+            if (!contextNode.id) return;
+            
+            if (e.altKey && e.key === 'ArrowUp') {
+                e.preventDefault();
+                moverParaCima();
+            } else if (e.altKey && e.key === 'ArrowDown') {
+                e.preventDefault();
+                moverParaBaixo();
+            }
+        });
     });
 
-    // --- RENDERIZAÇÃO DA ÁRVORE ---
+    // --- VERIFICAÇÃO E CONTROLE DE ORDENAMENTO ---
+    async function verificarOrdenamento() {
+        const toolbar = document.getElementById('ordenamentoToolbar');
+        const indicator = document.getElementById('ordenamentoIndicator');
+        const statusText = document.getElementById('ordenamentoStatusText');
+        const btnInit = document.getElementById('btnInicializarOrdem');
+        const btnReset = document.getElementById('btnResetarOrdem');
+        const btnNorm = document.getElementById('btnNormalizarOrdem');
+        
+        try {
+            const r = await fetch('/Ordenamento/GetFilhosOrdenados', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contexto_pai: 'root' })
+            });
+            
+            if (r.ok) {
+                const data = await r.json();
+                ordenamentoAtivo = data.length > 0;
+                
+                if (ordenamentoAtivo) {
+                    toolbar.classList.remove('inactive');
+                    indicator.classList.add('active');
+                    indicator.classList.remove('inactive');
+                    statusText.innerHTML = '<strong class="text-success">Ordenamento Ativo</strong> - Arraste para reordenar';
+                    btnInit.style.display = 'none';
+                    btnReset.style.display = 'inline-block';
+                    btnNorm.style.display = 'inline-block';
+                } else {
+                    toolbar.classList.add('inactive');
+                    indicator.classList.remove('active');
+                    indicator.classList.add('inactive');
+                    statusText.innerHTML = '<strong class="text-warning">Ordenamento Inativo</strong> - Clique para ativar';
+                    btnInit.style.display = 'inline-block';
+                    btnReset.style.display = 'none';
+                    btnNorm.style.display = 'none';
+                }
+            }
+        } catch (e) {
+            console.warn('Ordenamento não disponível:', e);
+            toolbar.classList.add('inactive');
+            statusText.innerHTML = '<span class="text-danger">API de ordenamento não encontrada</span>';
+        }
+    }
+
+    async function inicializarOrdenamento() {
+        if (!confirm('Isso irá criar a estrutura de ordenamento baseada na configuração atual. Continuar?')) return;
+        
+        try {
+            showToast('Inicializando ordenamento...');
+            const r = await fetch('/Ordenamento/Inicializar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ limpar: false })
+            });
+            
+            const data = await r.json();
+            if (r.ok) {
+                showToast(data.msg || 'Ordenamento inicializado!');
+                verificarOrdenamento();
+                loadTree();
+            } else {
+                alert('Erro: ' + data.error);
+            }
+        } catch (e) {
+            alert('Erro de conexão');
+        }
+    }
+
+    async function resetarOrdenamento() {
+        if (!confirm('ATENÇÃO: Isso irá RESETAR toda a ordem para o padrão. Continuar?')) return;
+        
+        try {
+            const r = await fetch('/Ordenamento/Inicializar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ limpar: true })
+            });
+            
+            if (r.ok) {
+                showToast('Ordenamento resetado!');
+                loadTree();
+            }
+        } catch (e) {
+            alert('Erro');
+        }
+    }
+
+    async function normalizarOrdenamento() {
+        try {
+            const r = await fetch('/Ordenamento/Normalizar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contexto_pai: 'root' })
+            });
+            
+            if (r.ok) {
+                showToast('Ordem normalizada!');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // --- FUNÇÕES DE MOVER (UP/DOWN) ---
+    async function moverParaCima() {
+        if (!contextNode.id) return;
+        await moverElemento(-1);
+    }
+
+    async function moverParaBaixo() {
+        if (!contextNode.id) return;
+        await moverElemento(1);
+    }
+
+    async function moverElemento(direcao) {
+        // Pega o elemento visual atual
+        const wrapper = document.querySelector(`.node-wrapper[data-id="${contextNode.id}"]`);
+        if (!wrapper) return;
+        
+        const li = wrapper.closest('li');
+        const ul = li.parentElement;
+        const irmãos = Array.from(ul.querySelectorAll(':scope > li'));
+        const indiceAtual = irmãos.indexOf(li);
+        
+        const novoIndice = indiceAtual + direcao;
+        if (novoIndice < 0 || novoIndice >= irmãos.length) {
+            showToast('Não é possível mover nesta direção');
+            return;
+        }
+        
+        // Move visualmente
+        if (direcao < 0) {
+            ul.insertBefore(li, irmãos[novoIndice]);
+        } else {
+            ul.insertBefore(li, irmãos[novoIndice].nextSibling);
+        }
+        
+        // Animação
+        wrapper.classList.add('just-reordered');
+        setTimeout(() => wrapper.classList.remove('just-reordered'), 500);
+        
+        // Salva nova ordem
+        await salvarOrdemContexto(ul);
+        showToast('Posição atualizada!');
+    }
+
+    async function salvarOrdemContexto(ul) {
+        const items = ul.querySelectorAll(':scope > li > .node-wrapper');
+        const novaOrdem = [];
+        
+        items.forEach((item, index) => {
+            const id = item.getAttribute('data-id');
+            const tipo = getNodeTypeFromId(id);
+            
+            novaOrdem.push({
+                tipo_no: tipo,
+                id_referencia: extrairIdReferencia(id, tipo),
+                ordem: (index + 1) * 10
+            });
+        });
+        
+        // Determina contexto pai
+        const liPai = ul.parentElement;
+        let contexto = 'root';
+        
+        if (liPai && liPai.tagName === 'LI') {
+            const wrapperPai = liPai.querySelector(':scope > .node-wrapper');
+            if (wrapperPai) {
+                const idPai = wrapperPai.getAttribute('data-id');
+                contexto = idPai;
+            }
+        }
+        
+        try {
+            await fetch('/Ordenamento/ReordenarLote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contexto_pai: contexto,
+                    nova_ordem: novaOrdem
+                })
+            });
+        } catch (e) {
+            console.error('Erro ao salvar ordem:', e);
+        }
+    }
+
+    function getNodeTypeFromId(id) {
+        if (id.startsWith('tipo_')) return 'tipo_cc';
+        if (id.startsWith('virt_')) return 'virtual';
+        if (id.startsWith('cc_')) return 'cc';
+        if (id.startsWith('sg_')) return 'subgrupo';
+        if (id.startsWith('conta_')) return 'conta';
+        if (id.startsWith('cd_')) return 'conta_detalhe';
+        return 'unknown';
+    }
+
+    function extrairIdReferencia(nodeId, tipo) {
+        if (tipo === 'tipo_cc') return nodeId.replace('tipo_', '');
+        if (tipo === 'virtual') return nodeId.replace('virt_', '');
+        if (tipo === 'cc') return nodeId.replace('cc_', '');
+        if (tipo === 'subgrupo') return nodeId.replace('sg_', '');
+        if (tipo === 'conta') return nodeId.replace('conta_', '');
+        if (tipo === 'conta_detalhe') return nodeId.replace('cd_', '');
+        return nodeId;
+    }
+
+    // --- RENDERIZAÇÃO DA ÁRVORE (COM SUPORTE A ORDENAMENTO) ---
     async function loadTree() {
         const rootUl = document.getElementById('treeRoot');
+        
         try {
-            const response = await fetch('/Configuracao/GetDadosArvore');
+            // Tenta usar a API ordenada primeiro
+            let response;
+            let useOrdenada = false;
+            
+            if (ordenamentoAtivo) {
+                try {
+                    response = await fetch('/Ordenamento/GetArvoreOrdenada');
+                    if (response.ok) {
+                        useOrdenada = true;
+                    }
+                } catch (e) {
+                    console.warn('API ordenada não disponível, usando padrão');
+                }
+            }
+            
+            if (!useOrdenada) {
+                response = await fetch('/Configuracao/GetDadosArvore');
+            }
+            
             const data = await response.json();
             rootUl.innerHTML = '';
             
@@ -478,6 +907,11 @@
             }
             
             data.forEach(item => rootUl.appendChild(createNodeHTML(item)));
+            
+            // Habilita drag-drop se ordenamento ativo
+            if (ordenamentoAtivo && window.dreOrdenamento) {
+                setTimeout(() => window.dreOrdenamento.habilitarDragDrop(), 200);
+            }
             
         } catch (error) { 
             console.error(error); 
@@ -500,8 +934,16 @@
 
         wrapper.className = `node-wrapper ${typeClass}`;
         wrapper.setAttribute('data-id', node.id);
+        if (node.ordem) wrapper.setAttribute('data-ordem', node.ordem);
         
         const hasChildren = node.children && node.children.length > 0;
+        
+        // Drag Handle (só aparece se ordenamento ativo)
+        let dragHandleHtml = '';
+        if (ordenamentoAtivo) {
+            dragHandleHtml = '<i class="fas fa-grip-vertical drag-handle"></i>';
+        }
+        
         const toggle = document.createElement('div');
         toggle.className = `toggle-icon ${hasChildren ? '' : 'invisible'}`;
         toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
@@ -517,15 +959,24 @@
             };
         }
 
+        // Badge de ordem (debug/visual)
+        let ordemBadge = '';
+        if (node.ordem && ordenamentoAtivo) {
+            ordemBadge = `<span class="ordem-badge" title="Ordem: ${node.ordem}">#${node.ordem}</span>`;
+        }
+
         const contentHtml = `
+            ${dragHandleHtml}
             <i class="fas ${icon} type-icon"></i>
             <span class="node-text">${node.text}</span>
+            ${ordemBadge}
         `;
         
         const contentSpan = document.createElement('span');
         contentSpan.innerHTML = contentHtml;
         contentSpan.style.display = 'flex';
         contentSpan.style.alignItems = 'center';
+        contentSpan.style.flex = '1';
 
         wrapper.appendChild(toggle);
         wrapper.appendChild(contentSpan);
@@ -577,20 +1028,27 @@
         
         const menu = document.getElementById('contextMenu');
         
-        const els = ['ctxMassManager', 'divSystematic', 'ctxAddSub', 'ctxCopy', 'ctxPaste', 'divCopy', 'ctxLinkConta', 'ctxLinkDetalhe', 'ctxReplicar', 'ctxDelete', 'ctxDivider'];
+        // Oculta tudo primeiro
+        const els = ['ctxMoveUp', 'ctxMoveDown', 'divOrdem', 'ctxMassManager', 'divSystematic', 'ctxAddSub', 'ctxCopy', 'ctxPaste', 'divCopy', 'ctxLinkConta', 'ctxLinkDetalhe', 'ctxReplicar', 'ctxDelete', 'ctxDivider'];
         els.forEach(id => {
             const el = document.getElementById(id);
             if(el) el.style.display = 'none';
         });
 
-        const show = (id) => document.getElementById(id).style.display = 'flex';
-        const showDiv = (id) => document.getElementById(id).style.display = 'block';
+        const show = (id) => { const el = document.getElementById(id); if(el) el.style.display = 'flex'; };
+        const showDiv = (id) => { const el = document.getElementById(id); if(el) el.style.display = 'block'; };
+
+        // Opções de ordenamento (sempre mostrar se ativo)
+        if (ordenamentoAtivo) {
+            show('ctxMoveUp');
+            show('ctxMoveDown');
+            showDiv('divOrdem');
+        }
 
         if (node.type === 'root_tipo') {
             show('ctxMassManager'); 
             showDiv('divSystematic');
         }
-
         else if (node.type === 'root_cc') {
             show('ctxAddSub');
             show('ctxReplicar');
@@ -624,7 +1082,19 @@
         menu.style.display = 'block';
     }
 
-    // --- LOGICA DE REPLICAÇÃO E CLIPBOARD ---
+    // --- RESTANTE DAS FUNÇÕES (IGUAIS AO ORIGINAL) ---
+    // ... copyNode, pasteNode, openReplicarModal, toggleAllDestinos, submitReplicar
+    // ... openMassManager, switchMassTab, loadMassGroupsList, selectMassGroup
+    // ... submitMassCreate, submitMassDelete, submitMassUnlink
+    // ... addAccountToGroup, removeAccountFromGroup
+    // ... openModal, resetInput, closeModals, showToast
+    // ... fetchAPI, submitAddVirtual, submitAddSub, submitLinkConta, submitLinkDetalhe
+    // ... deleteNode, loadContasList, updateMassDatalist, loadStdGroupAccounts
+    // ... updateStdDatalist, removeStdAccount
+
+    // [COLE AQUI O RESTANTE DO CÓDIGO JAVASCRIPT DO TEMPLATE ORIGINAL]
+    // (Mantendo todas as funções que já existiam)
+
     function copyNode() {
         if (!contextNode.id.startsWith('sg_')) return alert('Apenas subgrupos podem ser copiados.');
         clipboard = { id: contextNode.id, text: contextNode.text };
@@ -693,17 +1163,13 @@
         fetchAPI('/Configuracao/ReplicarEstrutura', { origem_node_id: contextNode.id, destinos_ids: ids }, 'Replicação concluída!');
     }
 
-    // --- GERENCIADOR EM MASSA (DASHBOARD) ---
     function openMassManager() {
         const tipoCC = contextNode.id.replace('tipo_', '');
         document.getElementById('lblMassType').innerText = tipoCC;
-        
         loadMassGroupsList(tipoCC);
-        
         document.getElementById('inputMassCreateName').value = '';
         document.getElementById('inputMassLinkConta').value = '';
         document.getElementById('inputMassUnlinkConta').value = '';
-
         openModal('modalMassManager');
         switchMassTab('tabCreateGroup', document.querySelector('.mass-nav-item')); 
     }
@@ -758,20 +1224,16 @@
         } catch(e) { console.error(e); }
     }
 
-    // --- ATUALIZAÇÃO: CHAMAR O FILTRO AO CLICAR NO GRUPO ---
     async function selectMassGroup(groupName, element) {
         currentSelectedGroup = groupName;
         const tipoCC = document.getElementById('lblMassType').innerText;
 
-        // UI Updates
         document.querySelectorAll('.group-list-item').forEach(i => i.classList.remove('active'));
         element.classList.add('active');
         
         document.getElementById('noGroupSelected').style.display = 'none';
         document.getElementById('groupDetails').style.display = 'flex';
         document.getElementById('lblSelectedGroup').innerText = groupName;
-        
-        // Limpa o input para o usuário não ficar confuso com a busca anterior
         document.getElementById('inputMassLinkConta').value = ''; 
 
         const areaContas = document.getElementById('listLinkedAccounts');
@@ -786,17 +1248,13 @@
             const contasVinculadas = await r.json(); 
             
             document.getElementById('lblCountAccounts').innerText = `${contasVinculadas.length} contas`;
-            
-            // --- ATUALIZA O FILTRO DO DATALIST ---
             updateMassDatalist(contasVinculadas);
-            // -------------------------------------
 
             if(contasVinculadas.length === 0) {
                 areaContas.innerHTML = '<div class="empty-state">Nenhuma conta vinculada ainda.</div>';
             } else {
                 let tags = '';
                 contasVinculadas.forEach(c => {
-                    // Busca o nome da conta na nossa lista global
                     const contaInfo = globalTodasContas.find(x => x.numero == c);
                     const labelConta = contaInfo ? `${c} - ${contaInfo.nome.substring(0, 15)}...` : c;
 
@@ -814,8 +1272,6 @@
             areaContas.innerHTML = '<div class="text-danger">Erro ao carregar.</div>'; 
         }
     }
-
-    // --- FUNÇÕES DE AÇÃO EM MASSA ---
 
     async function submitMassCreate() {
         const nome = document.getElementById('inputMassCreateName').value;
@@ -840,7 +1296,6 @@
         fetchAPI('/Configuracao/DesvincularContaEmMassa', { tipo_cc: tipoCC, conta: conta });
     }
 
-    // Ações do Dashboard (Aba 3)
     async function addAccountToGroup() {
         if(!currentSelectedGroup) return;
         const conta = document.getElementById('inputMassLinkConta').value;
@@ -883,7 +1338,6 @@
         } catch(e) { alert('Erro ao remover'); }
     }
 
-    // --- UTILITÁRIOS E CRUD ---
     function openModal(id) {
         const m = document.getElementById(id);
         document.getElementById('contextMenu').style.display = 'none';
@@ -893,11 +1347,10 @@
         if(id==='modalLinkDetalhe') { document.getElementById('lblDetailTarget').innerText = contextNode.text; resetInput('inputDetailConta'); document.getElementById('inputDetailName').value = ''; }
         if(id==='modalAddVirtual') resetInput('inputVirtualName');
 
-        // --- LÓGICA DO MODAL PADRÃO (LINK CONTA INDIVIDUAL) ---
         if(id==='modalLinkConta') { 
             document.getElementById('lblGroupTarget').innerText = contextNode.text; 
             document.getElementById('inputContaSearch').value = '';
-            loadStdGroupAccounts(contextNode.id); // Carrega contas do grupo atual
+            loadStdGroupAccounts(contextNode.id);
         }
     }
     
@@ -905,7 +1358,6 @@
     function closeModals(){ document.querySelectorAll('.dre-modal-overlay').forEach(m=>{ m.classList.remove('active'); m.style.display='none'; }); }
     function showToast(msg) { const t = document.getElementById("toast"); t.innerHTML = `<i class="fas fa-check"></i> ${msg}`; t.className = "show"; setTimeout(() => t.className = "", 3000); }
 
-    // API Wrappers
     async function fetchAPI(url, body, successMsg='Sucesso!') {
         try {
             const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
@@ -925,7 +1377,6 @@
     async function submitAddVirtual() { const n=document.getElementById('inputVirtualName').value; if(!n)return alert('Nome?'); fetchAPI('/Configuracao/AddNoVirtual', {nome:n}); }
     async function submitAddSub() { const n=document.getElementById('inputSubName').value; if(!n)return alert('Nome?'); fetchAPI('/Configuracao/AddSubgrupo', {nome:n, parent_id:contextNode.id}); }
     
-    // SUBMIT DO LINK INDIVIDUAL (Sem FetchAPI genérico para controlar o refresh visual)
     async function submitLinkConta() { 
         const c = document.getElementById('inputContaSearch').value; 
         if(!c) return alert('Conta?'); 
@@ -938,8 +1389,8 @@
             if(r.ok) {
                 showToast('Conta vinculada!');
                 document.getElementById('inputContaSearch').value = '';
-                loadStdGroupAccounts(contextNode.id); // Refresh local
-                loadTree(); // Refresh árvore
+                loadStdGroupAccounts(contextNode.id);
+                loadTree();
             } else {
                 const d = await r.json(); alert(d.error);
             }
@@ -958,7 +1409,6 @@
         fetchAPI(url, {id:contextNode.id}, 'Item removido.');
     }
 
-    // --- CARREGAR CONTAS E FILTROS ---
     async function loadContasList() {
         try {
             const r = await fetch('/Configuracao/GetContasDisponiveis');
@@ -966,7 +1416,6 @@
             
             globalTodasContas = d; 
 
-            // Preenche o datalist global
             const dl = document.getElementById('contasDataList'); 
             dl.innerHTML = '';
             d.forEach(c => { 
@@ -994,7 +1443,6 @@
         const areaContas = document.getElementById('listStdLinkedAccounts');
         areaContas.innerHTML = '<div class="text-center text-secondary pt-4"><i class="fas fa-spinner fa-spin"></i></div>';
         
-        // Garante que removemos o prefixo "sg_" para enviar só o número
         const dbId = nodeId.replace('sg_', ''); 
 
         try {
@@ -1006,22 +1454,18 @@
             
             const data = await r.json();
 
-            // BLINDAGEM: Se o servidor devolveu erro ou algo que não é array
             if (!r.ok || !Array.isArray(data)) {
                 console.error("Erro servidor:", data);
                 areaContas.innerHTML = '<div class="text-danger text-center pt-4 text-sm">Erro ao buscar contas.</div>';
                 document.getElementById('lblCountStd').innerText = "0";
-                return; // Para a execução aqui
+                return;
             }
 
-            const contasVinculadas = data; // Agora temos certeza que é um array
+            const contasVinculadas = data;
 
             document.getElementById('lblCountStd').innerText = contasVinculadas.length;
-
-            // 2. Atualiza o Datalist filtrando as que já existem
             updateStdDatalist(contasVinculadas);
 
-            // 3. Renderiza as tags visuais
             if(contasVinculadas.length === 0) {
                 areaContas.innerHTML = '<div class="text-center text-secondary pt-4 text-sm">Nenhuma conta vinculada.</div>';
             } else {
