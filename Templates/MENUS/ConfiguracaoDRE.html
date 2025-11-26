@@ -58,7 +58,7 @@
             border-left: 1px solid rgba(255,255,255,0.05);
             margin-left: 10px;
             padding-left: 15px;
-            display: none; /* Começa fechado por padrão? Ou aberto? Vamos controlar via JS */
+            display: none; /* Fechado por padrão, exceto raízes */
         }
         
         /* Classe para mostrar filhos */
@@ -120,6 +120,10 @@
         /* --- ESTILIZAÇÃO POR TIPO --- */
         .node-text { font-size: 0.9rem; color: #bdc3c7; }
         
+        /* Pasta de Tipo (Adm, Operacional) */
+        .node-folder .node-text { color: #ecf0f1; font-weight: 700; text-transform: uppercase; }
+        .node-folder .type-icon { color: #f39c12; } /* Amarelo Pasta */
+
         /* Raiz Virtual */
         .node-virtual .node-text { color: var(--color-virtual); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         .node-virtual .type-icon { color: var(--color-virtual); }
@@ -136,7 +140,7 @@
         .node-conta .node-text { color: var(--color-conta); font-family: monospace; font-size: 0.85rem; }
         .node-conta .type-icon { color: var(--color-conta); font-size: 0.8em; opacity: 0.7; }
 
-        /* --- MODAIS E OVERLAYS (Mantidos funcionais) --- */
+        /* --- MODAIS E OVERLAYS --- */
         .dre-modal-overlay { display: none; position: fixed !important; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
         .dre-modal-overlay.active { display: flex !important; }
         .dre-modal-box { background: #1e2736; border: 1px solid rgba(255,255,255,0.1); width: 500px; border-radius: 12px; padding: 25px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
@@ -144,13 +148,44 @@
         .custom-input { width: 100%; background: #131722; border: 1px solid #2c3e50; padding: 10px; color: #fff; border-radius: 6px; margin-top: 5px; }
         .custom-input:focus { border-color: #3498db; outline: none; }
         
+        /* --- CSS DO GERENCIADOR EM MASSA (MODAL GRANDE) --- */
+        .mass-modal-body { display: flex; height: 400px; background: #1e2736; border-radius: 8px; overflow: hidden; margin-top: 10px; border: 1px solid rgba(255,255,255,0.05); }
+        .mass-sidebar { width: 180px; background: rgba(0,0,0,0.2); padding: 15px 0; border-right: 1px solid rgba(255,255,255,0.05); }
+        .mass-nav-item { padding: 12px 20px; color: #95a5a6; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
+        .mass-nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .mass-nav-item.active { background: rgba(52, 152, 219, 0.1); color: #3498db; border-right: 3px solid #3498db; }
+        .mass-content { flex: 1; padding: 25px; overflow-y: auto; }
+        .mass-tab { display: none; }
+        .mass-tab.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- CSS DO DASHBOARD INTERATIVO (Aba Vincular) --- */
+        .mass-dashboard { display: flex; height: 320px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; background: rgba(0,0,0,0.2); }
+        
+        /* Coluna Esquerda */
+        .col-groups { width: 35%; border-right: 1px solid rgba(255,255,255,0.1); overflow-y: auto; background: rgba(0,0,0,0.1); }
+        .group-list-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); color: #bdc3c7; transition: all 0.2s; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
+        .group-list-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .group-list-item.active { background: rgba(52, 152, 219, 0.2); color: #3498db; border-left: 3px solid #3498db; }
+        
+        /* Coluna Direita */
+        .col-accounts { flex: 1; padding: 15px; display: flex; flex-direction: column; }
+        .accounts-header { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .linked-accounts-area { flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
+        
+        /* Tags */
+        .account-tag { background: rgba(46, 204, 113, 0.15); border: 1px solid rgba(46, 204, 113, 0.3); color: #2ecc71; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+        .account-tag .remove-btn { cursor: pointer; color: #e74c3c; font-size: 0.9em; padding: 2px; border-radius: 50%; }
+        .account-tag .remove-btn:hover { background: rgba(231, 76, 60, 0.2); }
+        .empty-state { color: #7f8c8d; font-size: 0.9rem; text-align: center; margin-top: 40px; width: 100%; }
+
         /* --- MENU DE CONTEXTO --- */
         #contextMenu {
             display: none; position: absolute; z-index: 10000;
             background: #2c3e50; border: 1px solid #34495e;
             border-radius: 8px; padding: 5px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            min-width: 180px;
+            min-width: 200px;
         }
         .ctx-item { padding: 8px 12px; cursor: pointer; color: #ecf0f1; font-size: 0.85rem; border-radius: 4px; display: flex; align-items: center; gap: 8px; }
         .ctx-item:hover { background: #34495e; color: #fff; }
@@ -195,7 +230,12 @@
 <div id="toast"><i class="fas fa-check"></i> Operação realizada!</div>
 
 <div id="contextMenu">
-    <div class="ctx-item" id="ctxAddSub" onclick="openModal('modalAddSub')"><i class="fas fa-folder-plus text-warning"></i> Criar Subgrupo</div>
+    <div class="ctx-item" id="ctxMassManager" onclick="openMassManager()">
+        <i class="fas fa-tools text-warning"></i> Gerenciador em Massa
+    </div>
+    <div class="ctx-divider" id="divSystematic"></div>
+
+    <div class="ctx-item" id="ctxAddSub" onclick="openModal('modalAddSub')"><i class="fas fa-folder-plus text-primary"></i> Criar Subgrupo</div>
     
     <div class="ctx-item" id="ctxCopy" onclick="copyNode()"><i class="fas fa-copy text-light"></i> Copiar Estrutura</div>
     <div class="ctx-item" id="ctxPaste" onclick="pasteNode()"><i class="fas fa-paste text-light"></i> Colar Aqui</div>
@@ -209,15 +249,202 @@
     <div class="ctx-item" id="ctxDelete" onclick="deleteNode()" style="color:#e74c3c"><i class="fas fa-trash-alt"></i> <span id="lblDelete">Excluir</span></div>
 </div>
 
-<div id="modalAddVirtual" class="dre-modal-overlay"><div class="dre-modal-box"><h3 class="text-lg font-bold text-warning mb-3">Novo Nó Virtual (Raiz)</h3><label class="text-xs text-secondary uppercase font-bold">Nome da Estrutura</label><input type="text" id="inputVirtualName" class="custom-input" placeholder="Ex: RECEITA OPERACIONAL LÍQUIDA" autocomplete="off"><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModals()">Cancelar</button><button class="btn btn-warning" onclick="submitAddVirtual()">Criar</button></div></div></div>
 
-<div id="modalAddSub" class="dre-modal-overlay"><div class="dre-modal-box"><h3 class="text-lg font-bold text-primary mb-3">Novo Subgrupo</h3><p class="text-sm text-secondary mb-3">Dentro de: <strong id="lblParentName" class="text-white">...</strong></p><label class="text-xs text-secondary uppercase font-bold">Nome do Grupo</label><input type="text" id="inputSubName" class="custom-input" placeholder="Ex: Pessoal e Encargos" autocomplete="off"><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModals()">Cancelar</button><button class="btn btn-primary" onclick="submitAddSub()">Criar</button></div></div></div>
+<div id="modalMassManager" class="dre-modal-overlay">
+    <div class="dre-modal-box" style="width: 750px; padding: 0;">
+        <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary">
+            <div>
+                <h3 class="text-lg font-bold text-white mb-0">Gestão de Tipo: <span id="lblMassType" class="text-warning">...</span></h3>
+                <p class="text-xs text-secondary mb-0">As ações aqui afetam TODOS os centros de custo deste tipo.</p>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="closeModals()">✕</button>
+        </div>
 
-<div id="modalLinkConta" class="dre-modal-overlay"><div class="dre-modal-box"><h3 class="text-lg font-bold text-primary mb-3">Vincular Conta (Padrão)</h3><p class="text-sm text-secondary mb-3">Para Centros de Custo. Mantém o nome original.</p><label class="text-xs text-secondary uppercase font-bold">Buscar Conta</label><input type="text" id="inputContaSearch" list="contasDataList" class="custom-input" placeholder="Digite nome ou número..." autocomplete="off"><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModals()">Cancelar</button><button class="btn btn-primary" onclick="submitLinkConta()">Vincular</button></div></div></div>
+        <div class="mass-modal-body">
+            <div class="mass-sidebar">
+                <div class="mass-nav-item active" onclick="switchMassTab('tabCreateGroup', this)">
+                    <i class="fas fa-folder-plus"></i> Criar Grupo
+                </div>
+                <div class="mass-nav-item" onclick="switchMassTab('tabDeleteGroup', this)">
+                    <i class="fas fa-folder-minus"></i> Excluir Grupo
+                </div>
+                <div class="mass-nav-item" onclick="switchMassTab('tabLinkAccount', this)">
+                    <i class="fas fa-link"></i> Vincular Conta
+                </div>
+                <div class="mass-nav-item" onclick="switchMassTab('tabUnlinkAccount', this)">
+                    <i class="fas fa-unlink"></i> Desvincular
+                </div>
+            </div>
 
-<div id="modalLinkDetalhe" class="dre-modal-overlay"><div class="dre-modal-box"><h3 class="text-lg font-bold text-success mb-3">Vincular Conta (Virtual)</h3><p class="text-sm text-secondary mb-3">Para Estrutura Virtual. Permite renomear.</p><label class="text-xs text-secondary uppercase font-bold">1. Conta Real</label><input type="text" id="inputDetailConta" list="contasDataList" class="custom-input mb-3" placeholder="6010..." autocomplete="off"><label class="text-xs text-secondary uppercase font-bold">2. Nome na DRE (Opcional)</label><input type="text" id="inputDetailName" class="custom-input" placeholder="Ex: Venda Matriz" autocomplete="off"><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModals()">Cancelar</button><button class="btn btn-success" onclick="submitLinkDetalhe()">Salvar</button></div></div></div>
+            <div class="mass-content">
+                
+                <div id="tabCreateGroup" class="mass-tab active">
+                    <h4 class="text-white font-bold mb-3">Criar Grupo em Massa</h4>
+                    <p class="text-sm text-secondary mb-4">Cria uma nova pasta em todos os CCs do tipo selecionado.</p>
+                    <label class="text-xs text-secondary uppercase font-bold">Nome do Novo Grupo</label>
+                    <input type="text" id="inputMassCreateName" class="custom-input mb-4" placeholder="Ex: Despesas Gerais">
+                    <button class="btn btn-warning w-100" onclick="submitMassCreate()">
+                        <i class="fas fa-plus-circle"></i> Executar Criação
+                    </button>
+                </div>
 
-<div id="modalReplicar" class="dre-modal-overlay"><div class="dre-modal-box" style="width: 600px;"><h3 class="text-lg font-bold text-primary mb-3">Replicar Estrutura</h3><p class="text-sm text-secondary mb-3">Copiar de: <strong id="lblOrigemReplicar" class="text-white">...</strong></p><div id="listaDestinos" style="height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px;"></div><div class="d-flex justify-content-between mt-2"><button class="btn btn-sm btn-link text-secondary" onclick="toggleAllDestinos()" style="text-decoration:none">Inverter Seleção</button><span id="lblTotalSelecionados" class="text-xs text-muted pt-2">0 selecionados</span></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModals()">Cancelar</button><button class="btn btn-primary" onclick="submitReplicar()">Replicar Agora</button></div></div></div>
+                <div id="tabDeleteGroup" class="mass-tab">
+                    <h4 class="text-white font-bold mb-3">Excluir Grupo em Massa</h4>
+                    <p class="text-sm text-secondary mb-4">Remove a pasta e <span class="text-danger">tudo que estiver dentro dela</span> de todos os CCs.</p>
+                    <label class="text-xs text-secondary uppercase font-bold">Selecione o Grupo para Excluir</label>
+                    <select id="selectMassDeleteGroup" class="custom-input mb-4"></select>
+                    <button class="btn btn-danger w-100" onclick="submitMassDelete()">
+                        <i class="fas fa-trash-alt"></i> Executar Exclusão
+                    </button>
+                </div>
+
+                <div id="tabLinkAccount" class="mass-tab">
+                    <h4 class="text-white font-bold mb-2">Gerenciador de Vínculos</h4>
+                    <p class="text-sm text-secondary mb-3">Selecione um grupo na esquerda para gerenciar suas contas.</p>
+                    
+                    <div class="mass-dashboard">
+                        <div class="col-groups" id="listMassGroups">
+                            <div class="text-center p-3 text-secondary">Carregando grupos...</div>
+                        </div>
+
+                        <div class="col-accounts">
+                            <div id="noGroupSelected" class="h-100 d-flex flex-column align-items-center justify-content-center text-secondary">
+                                <i class="fas fa-arrow-left fa-2x mb-3"></i>
+                                <p>Selecione um grupo ao lado.</p>
+                            </div>
+
+                            <div id="groupDetails" style="display: none;" class="h-100 d-flex flex-column">
+                                <div class="accounts-header d-flex justify-content-between align-items-center">
+                                    <strong class="text-white" id="lblSelectedGroup">...</strong>
+                                    <span class="badge bg-secondary" id="lblCountAccounts">0 contas</span>
+                                </div>
+
+                                <label class="text-xs text-secondary uppercase font-bold mb-2">Contas Vinculadas</label>
+                                <div class="linked-accounts-area" id="listLinkedAccounts">
+                                    </div>
+
+                                <div class="add-account-area mt-auto">
+                                    <label class="text-xs text-secondary uppercase font-bold">Adicionar Nova Conta</label>
+                                    <div class="d-flex gap-2">
+                                        <input type="text" id="inputMassLinkConta" list="massContasDataList" class="custom-input mt-0" placeholder="Busque a conta...">
+                                        
+                                        <button class="btn btn-info" onclick="addAccountToGroup()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <datalist id="massContasDataList"></datalist>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tabUnlinkAccount" class="mass-tab">
+                    <h4 class="text-white font-bold mb-3">Desvincular Conta em Massa</h4>
+                    <p class="text-sm text-secondary mb-4">Remove o vínculo desta conta de todos os CCs deste tipo.</p>
+                    <label class="text-xs text-secondary uppercase font-bold">Conta Contábil para Remover</label>
+                    <input type="text" id="inputMassUnlinkConta" list="contasDataList" class="custom-input mb-4" placeholder="Digite a conta...">
+                    <button class="btn btn-danger w-100" onclick="submitMassUnlink()">
+                        <i class="fas fa-cut"></i> Executar Desvínculo
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalAddVirtual" class="dre-modal-overlay">
+    <div class="dre-modal-box">
+        <h3 class="text-lg font-bold text-warning mb-3">Novo Nó Virtual (Raiz)</h3>
+        <label class="text-xs text-secondary uppercase font-bold">Nome da Estrutura</label>
+        <input type="text" id="inputVirtualName" class="custom-input" placeholder="Ex: RECEITA OPERACIONAL LÍQUIDA" autocomplete="off">
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-warning" onclick="submitAddVirtual()">Criar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalAddSub" class="dre-modal-overlay">
+    <div class="dre-modal-box">
+        <h3 class="text-lg font-bold text-primary mb-3">Novo Subgrupo</h3>
+        <p class="text-sm text-secondary mb-3">Dentro de: <strong id="lblParentName" class="text-white">...</strong></p>
+        <label class="text-xs text-secondary uppercase font-bold">Nome do Grupo</label>
+        <input type="text" id="inputSubName" class="custom-input" placeholder="Ex: Pessoal e Encargos" autocomplete="off">
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitAddSub()">Criar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalLinkConta" class="dre-modal-overlay">
+    <div class="dre-modal-box" style="width: 600px;">
+        <h3 class="text-lg font-bold text-primary mb-2">Gerenciar Contas do Grupo</h3>
+        <p class="text-sm text-secondary mb-4">
+            Grupo: <strong id="lblGroupTarget" class="text-white">...</strong>
+        </p>
+
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
+                <label class="text-xs text-secondary uppercase font-bold m-0">Contas Já Vinculadas</label>
+                <span id="lblCountStd" class="badge bg-secondary text-xs">0</span>
+            </div>
+            
+            <div id="listStdLinkedAccounts" class="linked-accounts-area" style="height: 120px; background: rgba(0,0,0,0.2); border-radius: 6px; padding: 10px; overflow-y: auto;">
+                </div>
+        </div>
+
+        <div class="add-account-area">
+            <label class="text-xs text-secondary uppercase font-bold">Adicionar Nova Conta</label>
+            <div class="d-flex gap-2">
+                <input type="text" id="inputContaSearch" list="stdContasDataList" class="custom-input mt-0" placeholder="Busque a conta disponível..." autocomplete="off">
+                <button class="btn btn-primary" onclick="submitLinkConta()">
+                    <i class="fas fa-plus"></i> Vincular
+                </button>
+            </div>
+        </div>
+
+        <div class="modal-actions mt-4 pt-3 border-top border-secondary justify-content-end">
+            <button class="btn btn-secondary" onclick="closeModals()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<datalist id="stdContasDataList"></datalist>
+
+<div id="modalLinkDetalhe" class="dre-modal-overlay">
+    <div class="dre-modal-box">
+        <h3 class="text-lg font-bold text-success mb-3">Vincular Conta (Virtual)</h3>
+        <p class="text-sm text-secondary mb-3">Para Estrutura Virtual. Permite renomear.</p>
+        <p class="text-sm text-secondary">Destino: <strong id="lblDetailTarget" class="text-white">...</strong></p>
+        <label class="text-xs text-secondary uppercase font-bold">1. Conta Real</label>
+        <input type="text" id="inputDetailConta" list="contasDataList" class="custom-input mb-3" placeholder="6010..." autocomplete="off">
+        <label class="text-xs text-secondary uppercase font-bold">2. Nome na DRE (Opcional)</label>
+        <input type="text" id="inputDetailName" class="custom-input" placeholder="Ex: Venda Matriz" autocomplete="off">
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-success" onclick="submitLinkDetalhe()">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalReplicar" class="dre-modal-overlay">
+    <div class="dre-modal-box" style="width: 600px;">
+        <h3 class="text-lg font-bold text-primary mb-3">Replicar Estrutura</h3>
+        <p class="text-sm text-secondary mb-3">Copiar de: <strong id="lblOrigemReplicar" class="text-white">...</strong></p>
+        <div id="listaDestinos" style="height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px;"></div>
+        <div class="d-flex justify-content-between mt-2">
+            <button class="btn btn-sm btn-link text-secondary" onclick="toggleAllDestinos()" style="text-decoration:none">Inverter Seleção</button>
+            <span id="lblTotalSelecionados" class="text-xs text-muted pt-2">0 selecionados</span>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitReplicar()">Replicar Agora</button>
+        </div>
+    </div>
+</div>
 
 <datalist id="contasDataList"></datalist>
 
@@ -225,8 +452,10 @@
 
 {% block extra_js %}
 <script>
+    let globalTodasContas = []; // Armazena a lista bruta de contas do ERP
     let contextNode = { id: null, type: null, text: null };
     let clipboard = null;
+    let currentSelectedGroup = null;
 
     document.addEventListener('DOMContentLoaded', () => {
         loadTree();
@@ -235,7 +464,7 @@
         document.querySelectorAll('.dre-modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target === o) closeModals(); }));
     });
 
-    // --- RENDERIZAÇÃO DA ÁRVORE (Nova Lógica Colapsável) ---
+    // --- RENDERIZAÇÃO DA ÁRVORE ---
     async function loadTree() {
         const rootUl = document.getElementById('treeRoot');
         try {
@@ -258,11 +487,8 @@
 
     function createNodeHTML(node) {
         const li = document.createElement('li');
-        
-        // 1. Wrapper do Conteúdo (Linha clicável)
         const wrapper = document.createElement('div');
         
-        // Classes de estilo baseadas no tipo
         let typeClass = 'node-std';
         let icon = 'fa-circle';
         
@@ -275,7 +501,6 @@
         wrapper.className = `node-wrapper ${typeClass}`;
         wrapper.setAttribute('data-id', node.id);
         
-        // 2. Ícone de Toggle (Seta)
         const hasChildren = node.children && node.children.length > 0;
         const toggle = document.createElement('div');
         toggle.className = `toggle-icon ${hasChildren ? '' : 'invisible'}`;
@@ -283,17 +508,15 @@
         
         if(hasChildren) {
             toggle.onclick = (e) => {
-                e.stopPropagation(); // Não seleciona, só expande
+                e.stopPropagation();
                 toggleNode(li, toggle);
             };
-            // Clique duplo na linha também expande
             wrapper.ondblclick = (e) => {
                 e.stopPropagation();
                 toggleNode(li, toggle);
             };
         }
 
-        // 3. Ícone e Texto
         const contentHtml = `
             <i class="fas ${icon} type-icon"></i>
             <span class="node-text">${node.text}</span>
@@ -307,21 +530,17 @@
         wrapper.appendChild(toggle);
         wrapper.appendChild(contentSpan);
         
-        // Eventos
         wrapper.onclick = () => selectNodeUI(wrapper);
         wrapper.oncontextmenu = (e) => handleRightClick(e, node, wrapper);
 
         li.appendChild(wrapper);
 
-        // 4. Filhos (Recursivo)
         if (hasChildren) {
             const ul = document.createElement('ul');
-            // Se for Raiz (Tipo), começa aberto. Outros fechados.
             if (node.type === 'root_tipo' || node.type === 'root_virtual') {
                 ul.classList.add('expanded');
                 toggle.classList.add('rotated');
             }
-            
             node.children.forEach(child => ul.appendChild(createNodeHTML(child)));
             li.appendChild(ul);
         }
@@ -350,32 +569,31 @@
         element.classList.add('selected');
     }
 
-    // --- MENU DE CONTEXTO & CLIPBOARD ---
+    // --- MENU DE CONTEXTO ---
     function handleRightClick(e, node, element) {
         e.preventDefault();
-        selectNodeUI(element); // Seleciona visualmente
+        selectNodeUI(element);
         contextNode = node;
         
         const menu = document.getElementById('contextMenu');
         
-        // Esconde tudo
-        const els = ['ctxAddSub', 'ctxCopy', 'ctxPaste', 'divCopy', 'ctxLinkConta', 'ctxLinkDetalhe', 'ctxReplicar', 'ctxDelete', 'ctxDivider'];
-        els.forEach(id => document.getElementById(id).style.display = 'none');
+        const els = ['ctxMassManager', 'divSystematic', 'ctxAddSub', 'ctxCopy', 'ctxPaste', 'divCopy', 'ctxLinkConta', 'ctxLinkDetalhe', 'ctxReplicar', 'ctxDelete', 'ctxDivider'];
+        els.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+        });
 
-        // Lógica de Exibição
         const show = (id) => document.getElementById(id).style.display = 'flex';
         const showDiv = (id) => document.getElementById(id).style.display = 'block';
 
-        // Paste Logic
-        if (clipboard) {
-            const pasteBtn = document.getElementById('ctxPaste');
-            pasteBtn.style.display = 'flex';
-            pasteBtn.innerHTML = `<i class="fas fa-paste text-white"></i> Colar "${clipboard.text.substring(0,15)}..."`;
+        if (node.type === 'root_tipo') {
+            show('ctxMassManager'); 
+            showDiv('divSystematic');
         }
 
-        if (node.type === 'root_cc') {
+        else if (node.type === 'root_cc') {
             show('ctxAddSub');
-            show('ctxReplicar'); // Replicar Estrutura
+            show('ctxReplicar');
             if(clipboard) show('ctxPaste');
         } 
         else if (node.type === 'subgrupo') {
@@ -399,9 +617,6 @@
             show('ctxDelete');
         }
 
-        if (node.type === 'root_tipo') return; // Nada na raiz pura
-
-        // Posiciona Menu
         const clickX = e.clientX;
         const clickY = e.clientY;
         menu.style.left = `${clickX}px`;
@@ -409,7 +624,7 @@
         menu.style.display = 'block';
     }
 
-    // Clipboard Functions
+    // --- LOGICA DE REPLICAÇÃO E CLIPBOARD ---
     function copyNode() {
         if (!contextNode.id.startsWith('sg_')) return alert('Apenas subgrupos podem ser copiados.');
         clipboard = { id: contextNode.id, text: contextNode.text };
@@ -423,7 +638,6 @@
         fetchAPI('/Configuracao/ColarEstrutura', { origem_id: clipboard.id, destino_id: contextNode.id }, 'Estrutura colada!');
     }
 
-    // --- LÓGICA DE REPLICAÇÃO ---
     async function openReplicarModal() {
         openModal('modalReplicar');
         document.getElementById('lblOrigemReplicar').innerText = contextNode.text;
@@ -431,17 +645,15 @@
         list.innerHTML = '<div class="text-center p-3">Carregando...</div>';
         
         try {
-            // Pega tudo da árvore e filtra CCs
             const res = await fetch('/Configuracao/GetDadosArvore');
             const data = await res.json();
             let targets = [];
             
-            // Navega para achar CCs
             data.forEach(root => {
                 if(root.type === 'root_tipo' && root.id !== 'root_virtual_group') {
                     if(root.children) {
                         root.children.forEach(cc => {
-                            if(cc.id !== contextNode.id) { // Remove eu mesmo
+                            if(cc.id !== contextNode.id) {
                                 targets.push({ id: cc.id.replace('cc_', ''), text: cc.text, group: root.text });
                             }
                         });
@@ -449,7 +661,6 @@
                 }
             });
 
-            // Render
             let html = '';
             let lastGroup = '';
             targets.forEach(t => {
@@ -482,15 +693,212 @@
         fetchAPI('/Configuracao/ReplicarEstrutura', { origem_node_id: contextNode.id, destinos_ids: ids }, 'Replicação concluída!');
     }
 
+    // --- GERENCIADOR EM MASSA (DASHBOARD) ---
+    function openMassManager() {
+        const tipoCC = contextNode.id.replace('tipo_', '');
+        document.getElementById('lblMassType').innerText = tipoCC;
+        
+        loadMassGroupsList(tipoCC);
+        
+        document.getElementById('inputMassCreateName').value = '';
+        document.getElementById('inputMassLinkConta').value = '';
+        document.getElementById('inputMassUnlinkConta').value = '';
+
+        openModal('modalMassManager');
+        switchMassTab('tabCreateGroup', document.querySelector('.mass-nav-item')); 
+    }
+
+    function switchMassTab(tabId, navElement) {
+        document.querySelectorAll('.mass-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        document.querySelectorAll('.mass-nav-item').forEach(n => n.classList.remove('active'));
+        if(navElement) navElement.classList.add('active');
+    }
+
+    async function loadMassGroupsList(tipoCC) {
+        const listContainer = document.getElementById('listMassGroups');
+        listContainer.innerHTML = '<div class="text-center p-3 text-secondary"><i class="fas fa-spinner fa-spin"></i></div>';
+        
+        document.getElementById('noGroupSelected').style.display = 'flex';
+        document.getElementById('groupDetails').style.display = 'none';
+        currentSelectedGroup = null;
+
+        const selDel = document.getElementById('selectMassDeleteGroup');
+        selDel.innerHTML = '<option>Carregando...</option>';
+
+        try {
+            const r = await fetch('/Configuracao/GetSubgruposPorTipo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ tipo_cc: tipoCC })
+            });
+            const grupos = await r.json();
+
+            let htmlList = '';
+            let htmlSelect = '<option value="" disabled selected>Selecione...</option>';
+
+            if(grupos.length > 0) {
+                grupos.forEach(g => {
+                    htmlList += `
+                        <div class="group-list-item" onclick="selectMassGroup('${g}', this)">
+                            <span><i class="fas fa-folder text-warning me-2"></i> ${g}</span>
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                    `;
+                    htmlSelect += `<option value="${g}">${g}</option>`;
+                });
+            } else {
+                htmlList = '<div class="p-3 text-muted text-center text-sm">Nenhum grupo criado.</div>';
+                htmlSelect = '<option disabled>Vazio</option>';
+            }
+            
+            listContainer.innerHTML = htmlList;
+            selDel.innerHTML = htmlSelect;
+
+        } catch(e) { console.error(e); }
+    }
+
+    // --- ATUALIZAÇÃO: CHAMAR O FILTRO AO CLICAR NO GRUPO ---
+    async function selectMassGroup(groupName, element) {
+        currentSelectedGroup = groupName;
+        const tipoCC = document.getElementById('lblMassType').innerText;
+
+        // UI Updates
+        document.querySelectorAll('.group-list-item').forEach(i => i.classList.remove('active'));
+        element.classList.add('active');
+        
+        document.getElementById('noGroupSelected').style.display = 'none';
+        document.getElementById('groupDetails').style.display = 'flex';
+        document.getElementById('lblSelectedGroup').innerText = groupName;
+        
+        // Limpa o input para o usuário não ficar confuso com a busca anterior
+        document.getElementById('inputMassLinkConta').value = ''; 
+
+        const areaContas = document.getElementById('listLinkedAccounts');
+        areaContas.innerHTML = '<div class="text-secondary w-100 text-center mt-4"><i class="fas fa-spinner fa-spin"></i></div>';
+
+        try {
+            const r = await fetch('/Configuracao/GetContasDoGrupoMassa', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ tipo_cc: tipoCC, nome_grupo: groupName })
+            });
+            const contasVinculadas = await r.json(); 
+            
+            document.getElementById('lblCountAccounts').innerText = `${contasVinculadas.length} contas`;
+            
+            // --- ATUALIZA O FILTRO DO DATALIST ---
+            updateMassDatalist(contasVinculadas);
+            // -------------------------------------
+
+            if(contasVinculadas.length === 0) {
+                areaContas.innerHTML = '<div class="empty-state">Nenhuma conta vinculada ainda.</div>';
+            } else {
+                let tags = '';
+                contasVinculadas.forEach(c => {
+                    // Busca o nome da conta na nossa lista global
+                    const contaInfo = globalTodasContas.find(x => x.numero == c);
+                    const labelConta = contaInfo ? `${c} - ${contaInfo.nome.substring(0, 15)}...` : c;
+
+                    tags += `
+                        <div class="account-tag">
+                            ${labelConta}
+                            <i class="fas fa-times remove-btn" onclick="removeAccountFromGroup('${c}')" title="Desvincular"></i>
+                        </div>
+                    `;
+                });
+                areaContas.innerHTML = tags;
+            }
+        } catch(e) { 
+            console.error(e);
+            areaContas.innerHTML = '<div class="text-danger">Erro ao carregar.</div>'; 
+        }
+    }
+
+    // --- FUNÇÕES DE AÇÃO EM MASSA ---
+
+    async function submitMassCreate() {
+        const nome = document.getElementById('inputMassCreateName').value;
+        const tipoCC = document.getElementById('lblMassType').innerText;
+        if(!nome) return alert('Nome obrigatório.');
+        fetchAPI('/Configuracao/AddSubgrupoSistematico', { nome: nome, tipo_cc: tipoCC });
+    }
+
+    async function submitMassDelete() {
+        const nome = document.getElementById('selectMassDeleteGroup').value;
+        const tipoCC = document.getElementById('lblMassType').innerText;
+        if(!nome) return alert('Selecione um grupo.');
+        if(!confirm(`ATENÇÃO: Isso excluirá o grupo "${nome}" de TODOS os CCs de ${tipoCC}. Continuar?`)) return;
+        fetchAPI('/Configuracao/DeleteSubgrupoEmMassa', { nome_grupo: nome, tipo_cc: tipoCC });
+    }
+
+    async function submitMassUnlink() {
+        const conta = document.getElementById('inputMassUnlinkConta').value;
+        const tipoCC = document.getElementById('lblMassType').innerText;
+        if(!conta) return alert('Digite a conta.');
+        if(!confirm(`Remover o vínculo da conta ${conta} de todos os CCs?`)) return;
+        fetchAPI('/Configuracao/DesvincularContaEmMassa', { tipo_cc: tipoCC, conta: conta });
+    }
+
+    // Ações do Dashboard (Aba 3)
+    async function addAccountToGroup() {
+        if(!currentSelectedGroup) return;
+        const conta = document.getElementById('inputMassLinkConta').value;
+        const tipoCC = document.getElementById('lblMassType').innerText;
+        if(!conta) return alert('Digite a conta.');
+
+        try {
+            const r = await fetch('/Configuracao/VincularContaEmMassa', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ tipo_cc: tipoCC, nome_subgrupo: currentSelectedGroup, conta: conta })
+            });
+            if(r.ok) {
+                document.getElementById('inputMassLinkConta').value = '';
+                const activeItem = document.querySelector('.group-list-item.active');
+                if(activeItem) selectMassGroup(currentSelectedGroup, activeItem);
+                showToast(`Conta ${conta} adicionada!`);
+            } else {
+                const d = await r.json(); alert('Erro: ' + d.error);
+            }
+        } catch(e) { alert('Erro de conexão'); }
+    }
+
+    async function removeAccountFromGroup(conta) {
+        if(!currentSelectedGroup) return;
+        const tipoCC = document.getElementById('lblMassType').innerText;
+        if(!confirm(`Remover conta ${conta} deste grupo em TODOS os CCs?`)) return;
+
+        try {
+            const r = await fetch('/Configuracao/DesvincularContaEmMassa', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ tipo_cc: tipoCC, conta: conta })
+            });
+            if(r.ok) {
+                const activeItem = document.querySelector('.group-list-item.active');
+                if(activeItem) selectMassGroup(currentSelectedGroup, activeItem);
+                showToast('Conta removida.');
+            }
+        } catch(e) { alert('Erro ao remover'); }
+    }
+
     // --- UTILITÁRIOS E CRUD ---
     function openModal(id) {
         const m = document.getElementById(id);
         document.getElementById('contextMenu').style.display = 'none';
         m.classList.add('active'); m.style.setProperty('display', 'flex', 'important');
+        
         if(id==='modalAddSub') { document.getElementById('lblParentName').innerText = contextNode.text; resetInput('inputSubName'); }
-        if(id==='modalLinkConta') { document.getElementById('lblGroupTarget').innerText = contextNode.text; resetInput('inputContaSearch'); }
         if(id==='modalLinkDetalhe') { document.getElementById('lblDetailTarget').innerText = contextNode.text; resetInput('inputDetailConta'); document.getElementById('inputDetailName').value = ''; }
         if(id==='modalAddVirtual') resetInput('inputVirtualName');
+
+        // --- LÓGICA DO MODAL PADRÃO (LINK CONTA INDIVIDUAL) ---
+        if(id==='modalLinkConta') { 
+            document.getElementById('lblGroupTarget').innerText = contextNode.text; 
+            document.getElementById('inputContaSearch').value = '';
+            loadStdGroupAccounts(contextNode.id); // Carrega contas do grupo atual
+        }
     }
     
     function resetInput(id){ const e = document.getElementById(id); if(e){ e.value=''; setTimeout(()=>e.focus(),100); } }
@@ -501,13 +909,14 @@
     async function fetchAPI(url, body, successMsg='Sucesso!') {
         try {
             const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+            const data = await r.json();
+
             if(r.ok) { 
-                showToast(successMsg); 
+                showToast(data.msg || successMsg); 
                 closeModals(); 
                 loadTree(); 
             } else { 
-                const e = await r.json(); 
-                alert("Erro: "+e.error); 
+                alert("Erro: "+ data.error); 
             }
         } catch(e) { alert("Erro de conexão."); }
         document.getElementById('contextMenu').style.display = 'none';
@@ -515,7 +924,28 @@
 
     async function submitAddVirtual() { const n=document.getElementById('inputVirtualName').value; if(!n)return alert('Nome?'); fetchAPI('/Configuracao/AddNoVirtual', {nome:n}); }
     async function submitAddSub() { const n=document.getElementById('inputSubName').value; if(!n)return alert('Nome?'); fetchAPI('/Configuracao/AddSubgrupo', {nome:n, parent_id:contextNode.id}); }
-    async function submitLinkConta() { const c=document.getElementById('inputContaSearch').value; if(!c)return alert('Conta?'); fetchAPI('/Configuracao/VincularConta', {conta:c, subgrupo_id:contextNode.id}); }
+    
+    // SUBMIT DO LINK INDIVIDUAL (Sem FetchAPI genérico para controlar o refresh visual)
+    async function submitLinkConta() { 
+        const c = document.getElementById('inputContaSearch').value; 
+        if(!c) return alert('Conta?'); 
+        try {
+            const r = await fetch('/Configuracao/VincularConta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ conta: c, subgrupo_id: contextNode.id })
+            });
+            if(r.ok) {
+                showToast('Conta vinculada!');
+                document.getElementById('inputContaSearch').value = '';
+                loadStdGroupAccounts(contextNode.id); // Refresh local
+                loadTree(); // Refresh árvore
+            } else {
+                const d = await r.json(); alert(d.error);
+            }
+        } catch(e) { alert("Erro de conexão"); }
+    }
+
     async function submitLinkDetalhe() { const c=document.getElementById('inputDetailConta').value; const n=document.getElementById('inputDetailName').value; if(!c)return alert('Conta?'); fetchAPI('/Configuracao/VincularContaDetalhe', {conta:c, nome_personalizado:n, parent_id:contextNode.id}); }
     
     async function deleteNode() {
@@ -528,13 +958,122 @@
         fetchAPI(url, {id:contextNode.id}, 'Item removido.');
     }
 
+    // --- CARREGAR CONTAS E FILTROS ---
     async function loadContasList() {
         try {
             const r = await fetch('/Configuracao/GetContasDisponiveis');
             const d = await r.json();
-            const dl = document.getElementById('contasDataList'); dl.innerHTML = '';
-            d.forEach(c => { const o=document.createElement('option'); o.value=c.numero; o.label=c.nome; dl.appendChild(o); });
+            
+            globalTodasContas = d; 
+
+            // Preenche o datalist global
+            const dl = document.getElementById('contasDataList'); 
+            dl.innerHTML = '';
+            d.forEach(c => { 
+                const o = document.createElement('option'); 
+                o.value = c.numero; 
+                o.label = c.nome; 
+                dl.appendChild(o); 
+            });
         } catch(e){}
     }
+
+    function updateMassDatalist(contasJaVinculadas) {
+        const dlMass = document.getElementById('massContasDataList');
+        dlMass.innerHTML = ''; 
+        const contasFiltradas = globalTodasContas.filter(c => !contasJaVinculadas.includes(c.numero.toString()));
+        contasFiltradas.forEach(c => {
+            const o = document.createElement('option');
+            o.value = c.numero;
+            o.label = c.nome;
+            dlMass.appendChild(o);
+        });
+    }
+
+    async function loadStdGroupAccounts(nodeId) {
+        const areaContas = document.getElementById('listStdLinkedAccounts');
+        areaContas.innerHTML = '<div class="text-center text-secondary pt-4"><i class="fas fa-spinner fa-spin"></i></div>';
+        
+        // Garante que removemos o prefixo "sg_" para enviar só o número
+        const dbId = nodeId.replace('sg_', ''); 
+
+        try {
+            const r = await fetch('/Configuracao/GetContasDoSubgrupo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: dbId })
+            });
+            
+            const data = await r.json();
+
+            // BLINDAGEM: Se o servidor devolveu erro ou algo que não é array
+            if (!r.ok || !Array.isArray(data)) {
+                console.error("Erro servidor:", data);
+                areaContas.innerHTML = '<div class="text-danger text-center pt-4 text-sm">Erro ao buscar contas.</div>';
+                document.getElementById('lblCountStd').innerText = "0";
+                return; // Para a execução aqui
+            }
+
+            const contasVinculadas = data; // Agora temos certeza que é um array
+
+            document.getElementById('lblCountStd').innerText = contasVinculadas.length;
+
+            // 2. Atualiza o Datalist filtrando as que já existem
+            updateStdDatalist(contasVinculadas);
+
+            // 3. Renderiza as tags visuais
+            if(contasVinculadas.length === 0) {
+                areaContas.innerHTML = '<div class="text-center text-secondary pt-4 text-sm">Nenhuma conta vinculada.</div>';
+            } else {
+                let tags = '';
+                contasVinculadas.forEach(c => {
+                    const contaInfo = globalTodasContas.find(x => x.numero == c);
+                    const labelConta = contaInfo ? `${c} - ${contaInfo.nome.substring(0, 15)}...` : c;
+
+                    tags += `
+                        <div class="account-tag">
+                            ${labelConta}
+                            <i class="fas fa-times remove-btn" onclick="removeStdAccount('${c}')" title="Desvincular"></i>
+                        </div>
+                    `;
+                });
+                areaContas.innerHTML = tags;
+            }
+
+        } catch(e) { 
+            console.error(e);
+            areaContas.innerHTML = '<div class="text-danger text-center pt-4">Erro de conexão.</div>';
+        }
+    }
+
+    function updateStdDatalist(contasJaVinculadas) {
+        const dl = document.getElementById('stdContasDataList');
+        dl.innerHTML = ''; 
+        const disponiveis = globalTodasContas.filter(c => !contasJaVinculadas.includes(c.numero.toString()));
+        disponiveis.forEach(c => {
+            const o = document.createElement('option');
+            o.value = c.numero;
+            o.label = c.nome;
+            dl.appendChild(o);
+        });
+    }
+
+    async function removeStdAccount(conta) {
+        if(!confirm(`Desvincular a conta ${conta}?`)) return;
+        try {
+            const nodeFakeId = `conta_${conta}`;
+            const r = await fetch('/Configuracao/DesvincularConta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: nodeFakeId })
+            });
+            if(r.ok) {
+                showToast('Desvinculado.');
+                loadStdGroupAccounts(contextNode.id);
+                loadTree();
+            }
+        } catch(e) { alert("Erro ao remover"); }
+    }
+
 </script>
 {% endblock %}

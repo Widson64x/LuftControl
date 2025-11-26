@@ -6,7 +6,7 @@ VERSÃO ATUALIZADA - Nomenclatura refatorada
 
 from flask import Blueprint, jsonify, request, abort, render_template
 from flask_login import login_required
-from sqlalchemy import text
+from sqlalchemy import text, func
 from Db.Connections import get_postgres_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -28,6 +28,26 @@ def get_session():
     Session = sessionmaker(bind=engine)
     return Session()
 
+@dre_config_bp.route('/Configuracao/CorrigirBanco', methods=['GET'])
+def CorrigirBanco():
+    """
+    Rota utilitária para remover a constraint antiga que bloqueia duplicidade de contas.
+    """
+    session = get_session()
+    try:
+        # Comando para remover a trava antiga
+        sql_drop = text("""
+            ALTER TABLE "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" 
+            DROP CONSTRAINT IF EXISTS "DRE_Estrutura_Conta_Vinculo_Conta_Contabil_key";
+        """)
+        session.execute(sql_drop)
+        session.commit()
+        return jsonify({"success": True, "msg": "Banco corrigido! Agora você pode vincular contas em massa."}), 200
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 @dre_config_bp.route('/Configuracao/Arvore', methods=['GET'])
 @login_required
@@ -71,11 +91,8 @@ def GetContasDisponiveis():
 @login_required
 def GetDadosArvore():
     """
-    Monta a árvore híbrida da DRE:
-    1. Estrutura Virtual (Faturamento, Impostos...) - TOPO
-    2. Estrutura Padrão (Centros de Custo do ERP)
-    
-    ATUALIZADO: Usa nomenclatura nova das tabelas e colunas
+    Monta a árvore híbrida da DRE.
+    ATUALIZADO: Agora busca o nome da conta contábil para exibir "Conta - Nome".
     """
     session = get_session()
     try:
@@ -88,25 +105,44 @@ def GetDadosArvore():
         """)
         base_result = session.execute(sql_base).mappings().all()
 
-        # 2. Busca Dados Dinâmicos (NOMES ATUALIZADOS)
+        # 2. Busca Dados Dinâmicos
         subgrupos = session.query(DreHierarquia).all()
         vinculos = session.query(DreContaVinculo).all()
         virtuais = session.query(DreNoVirtual).order_by(DreNoVirtual.Ordem).all()
         contas_detalhe = session.query(DreContaPersonalizada).all()
 
+        # --- NOVO: Busca Mapa de Nomes das Contas ---
+        # Cria um dicionário { '603010...': 'SALARIOS', ... } para acesso rápido
+        sql_nomes = text("""
+            SELECT DISTINCT "Conta", "Título Conta"
+            FROM "Dre_Schema"."Razao_Dados_Consolidado"
+            WHERE "Conta" IS NOT NULL
+        """)
+        res_nomes = session.execute(sql_nomes).fetchall()
+        # Dicionário mágico: chave=numero, valor=nome
+        mapa_nomes_contas = {str(row[0]): row[1] for row in res_nomes}
+
         # --- HELPERS DE MONTAGEM ---
         
         def get_contas_normais(sub_id):
-            """Retorna contas normais vinculadas a um subgrupo"""
-            return [
-                {
-                    "id": f"conta_{v.Conta_Contabil}", 
-                    "text": f"Conta: {v.Conta_Contabil}", 
-                    "type": "conta", 
-                    "parent": sub_id
-                } 
-                for v in vinculos if v.Id_Hierarquia == sub_id
-            ]
+            """Retorna contas normais vinculadas a um subgrupo com NOME"""
+            lista = []
+            for v in vinculos:
+                if v.Id_Hierarquia == sub_id:
+                    # Busca o nome no dicionário que criamos acima
+                    conta_num = str(v.Conta_Contabil)
+                    nome_conta = mapa_nomes_contas.get(conta_num, "Sem Título")
+                    
+                    # Formata o texto para: "Conta: 6030... - SALARIOS"
+                    label_exibicao = f"Conta: {conta_num} - {nome_conta}"
+                    
+                    lista.append({
+                        "id": f"conta_{conta_num}", 
+                        "text": label_exibicao, # <--- AQUI ESTÁ A MUDANÇA
+                        "type": "conta", 
+                        "parent": sub_id
+                    })
+            return lista
 
         def get_contas_detalhe(sub_id):
             """Retorna contas personalizadas vinculadas a um subgrupo"""
@@ -139,7 +175,7 @@ def GetDadosArvore():
         # --- LISTA FINAL QUE SERÁ RETORNADA ---
         final_tree = []
 
-        # --- 1. MONTAGEM DA ÁRVORE VIRTUAL (PRIMEIRO NA LISTA) ---
+        # --- 1. MONTAGEM DA ÁRVORE VIRTUAL ---
         for v in virtuais:
             children_virtual = []
             
@@ -155,7 +191,7 @@ def GetDadosArvore():
                         "id": f"sg_{sg.Id}", 
                         "db_id": sg.Id, 
                         "text": sg.Nome, 
-                        "type": "subgrupo",
+                        "type": "subgrupo", 
                         "children": contas_do_grupo
                     }
                     children_virtual.append(node)
@@ -171,7 +207,6 @@ def GetDadosArvore():
                         "parent": f"virt_{v.Id}"
                     })
             
-            # O Nó Virtual agora é um "Root" por si só
             node_virtual = {
                 "id": f"virt_{v.Id}",
                 "text": v.Nome,
@@ -186,7 +221,7 @@ def GetDadosArvore():
         for row in base_result:
             tipo = row['Tipo']
             nome_cc = row['Nome']
-            codigo_cc = row['Codigo']  # ← ATUALIZADO
+            codigo_cc = row['Codigo'] 
             label_cc = f"{codigo_cc} - {nome_cc}"
             
             if tipo not in tipos_map:
@@ -204,7 +239,7 @@ def GetDadosArvore():
                         "id": f"sg_{sg.Id}", 
                         "db_id": sg.Id, 
                         "text": sg.Nome, 
-                        "type": "subgrupo",
+                        "type": "subgrupo", 
                         "children": (
                             get_children_subgrupos(sg.Id) + 
                             get_contas_normais(sg.Id) + 
@@ -215,13 +250,13 @@ def GetDadosArvore():
 
             node_cc = {
                 "id": f"cc_{codigo_cc}", 
-                "text": label_cc,       
+                "text": label_cc,        
                 "type": "root_cc", 
                 "children": children_do_cc
             }
             tipos_map[tipo]["children"].append(node_cc)
 
-        # Adiciona os tipos reais (Adm, Oper, etc) logo após os virtuais
+        # Adiciona os tipos reais logo após os virtuais
         final_tree.extend(list(tipos_map.values()))
 
         return jsonify(final_tree), 200
@@ -231,7 +266,45 @@ def GetDadosArvore():
     finally:
         session.close()
 
+# --- ADICIONE EM Routes/DreConfig.py ---
 
+@dre_config_bp.route('/Configuracao/GetContasDoSubgrupo', methods=['POST'])
+@login_required
+def GetContasDoSubgrupo():
+    """
+    Retorna as contas vinculadas a um ID de Subgrupo específico.
+    VERSÃO CORRIGIDA: Cast explícito de int e tratamento de erro.
+    """
+    session = get_session()
+    try:
+        data = request.json
+        raw_id = data.get('id')
+        
+        # Validação de segurança
+        if not raw_id: 
+            return jsonify([]), 200
+            
+        try:
+            sg_id = int(raw_id) # Garante que é número
+        except ValueError:
+            return jsonify([]), 200 # Se não for número, retorna lista vazia
+
+        # Busca usando ORM explícito (mais seguro que filter_by em alguns casos)
+        vinculos = session.query(DreContaVinculo.Conta_Contabil).filter(
+            DreContaVinculo.Id_Hierarquia == sg_id
+        ).all()
+        
+        # Retorna lista simples de strings
+        lista = [str(v.Conta_Contabil) for v in vinculos]
+        
+        return jsonify(lista), 200
+
+    except Exception as e:
+        print(f"Erro em GetContasDoSubgrupo: {e}") # Mostra o erro real no terminal do Python
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+        
 @dre_config_bp.route('/Configuracao/AddSubgrupo', methods=['POST'])
 @login_required
 def AddSubgrupo():
@@ -314,7 +387,359 @@ def AddSubgrupo():
     finally:
         session.close()
 
+@dre_config_bp.route('/Configuracao/AddSubgrupoSistematico', methods=['POST'])
+@login_required
+def AddSubgrupoSistematico():
+    """
+    Cria um subgrupo automaticamente para TODOS os Centros de Custo de um determinado TIPO.
+    Ex: Cria "Pessoal" dentro de todos os CCs do tipo "Administrativo".
+    """
+    session = get_session()
+    try:
+        data = request.json
+        nome_grupo = data.get('nome')
+        tipo_cc = data.get('tipo_cc') # Ex: "Adm", "Operacional"
 
+        if not nome_grupo or not tipo_cc:
+            return jsonify({"error": "Nome do grupo e Tipo são obrigatórios"}), 400
+
+        # 1. Busca todos os Centros de Custo desse Tipo
+        sql_ccs = text("""
+            SELECT "Codigo", "Nome", "Tipo"
+            FROM "Dre_Schema"."Classificacao_Centro_Custo"
+            WHERE "Tipo" = :tipo AND "Codigo" IS NOT NULL
+        """)
+        
+        ccs = session.execute(sql_ccs, {"tipo": tipo_cc}).fetchall()
+
+        if not ccs:
+            return jsonify({"error": f"Nenhum Centro de Custo encontrado para o tipo '{tipo_cc}'"}), 404
+
+        count_created = 0
+
+        # 2. Cria o subgrupo para cada CC encontrado
+        for cc in ccs:
+            codigo = cc[0]
+            nome_cc = cc[1]
+            tipo = cc[2]
+
+            # Opcional: Verifica se já existe um grupo com esse nome neste CC para não duplicar
+            existe = session.query(DreHierarquia).filter_by(
+                Raiz_Centro_Custo_Codigo=codigo,
+                Nome=nome_grupo,
+                Id_Pai=None # Apenas no nível raiz do CC
+            ).first()
+
+            if not existe:
+                novo_sub = DreHierarquia(
+                    Nome=nome_grupo,
+                    Id_Pai=None,
+                    Raiz_Centro_Custo_Codigo=codigo,
+                    Raiz_Centro_Custo_Nome=nome_cc,
+                    Raiz_Centro_Custo_Tipo=tipo
+                )
+                session.add(novo_sub)
+                count_created += 1
+        
+        session.commit()
+        
+        if count_created == 0:
+            return jsonify({"success": True, "msg": "Nenhum grupo criado (todos os CCs já possuíam este grupo)."}), 200
+            
+        return jsonify({"success": True, "msg": f"Grupo '{nome_grupo}' criado em {count_created} Centros de Custo do tipo '{tipo_cc}'!"}), 200
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+# --- ADICIONE AO FINAL DE Routes/DreConfig.py ---
+
+@dre_config_bp.route('/Configuracao/DeleteSubgrupoEmMassa', methods=['POST'])
+@login_required
+def DeleteSubgrupoEmMassa():
+    """
+    Deleta um subgrupo pelo NOME em todos os CCs de um determinado TIPO.
+    Agora faz DELETE EM CASCATA (Limpa as contas antes de apagar o grupo).
+    """
+    session = get_session()
+    try:
+        data = request.json
+        tipo_cc = data.get('tipo_cc')       # Ex: "Adm"
+        nome_grupo = data.get('nome_grupo') # Ex: "Utilidades"
+
+        if not tipo_cc or not nome_grupo:
+            return jsonify({"error": "Parâmetros inválidos"}), 400
+
+        # 1. Busca todos os grupos alvo (Pai = None garante que são grupos de 1º nível dentro do CC)
+        grupos_alvo = session.query(DreHierarquia).filter(
+            DreHierarquia.Raiz_Centro_Custo_Tipo == tipo_cc,
+            DreHierarquia.Nome == nome_grupo,
+            DreHierarquia.Id_Pai == None
+        ).all()
+
+        if not grupos_alvo:
+            return jsonify({"error": "Nenhum grupo encontrado com esse nome."}), 404
+
+        ids_para_deletar = [g.Id for g in grupos_alvo]
+
+        # --- LÓGICA DE CASCATA ---
+        
+        # A. Função auxiliar para pegar todos os IDs de filhos recursivamente
+        def get_all_child_ids(parent_ids):
+            all_ids = set(parent_ids)
+            current_level = parent_ids
+            
+            while current_level:
+                # Busca filhos do nível atual
+                filhos = session.query(DreHierarquia.Id).filter(
+                    DreHierarquia.Id_Pai.in_(current_level)
+                ).all()
+                
+                if not filhos:
+                    break
+                    
+                child_ids = [f.Id for f in filhos]
+                all_ids.update(child_ids)
+                current_level = child_ids
+            
+            return list(all_ids)
+
+        # Pega a lista completa de IDs (Pais + Filhos + Netos...)
+        todos_ids_envolvidos = get_all_child_ids(ids_para_deletar)
+
+        if todos_ids_envolvidos:
+            # B. Deleta Contas Vinculadas em Lote
+            session.query(DreContaVinculo).filter(
+                DreContaVinculo.Id_Hierarquia.in_(todos_ids_envolvidos)
+            ).delete(synchronize_session=False)
+
+            # C. Deleta Contas Personalizadas em Lote
+            session.query(DreContaPersonalizada).filter(
+                DreContaPersonalizada.Id_Hierarquia.in_(todos_ids_envolvidos)
+            ).delete(synchronize_session=False)
+
+            # D. Deleta os Grupos Hierárquicos em Lote
+            session.query(DreHierarquia).filter(
+                DreHierarquia.Id.in_(todos_ids_envolvidos)
+            ).delete(synchronize_session=False)
+        
+        session.commit()
+        
+        return jsonify({
+            "success": True, 
+            "msg": f"Exclusão em massa concluída! Grupos e vínculos removidos de {len(grupos_alvo)} locais."
+        }), 200
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@dre_config_bp.route('/Configuracao/DesvincularContaEmMassa', methods=['POST'])
+@login_required
+def DesvincularContaEmMassa():
+    """
+    Remove o vínculo de uma conta contábil em TODOS os CCs daquele TIPO.
+    Usa a coluna 'Chave_Conta_Tipo_CC' para ser rápido.
+    """
+    session = get_session()
+    try:
+        data = request.json
+        tipo_cc = data.get('tipo_cc') # Ex: "Adm"
+        conta = str(data.get('conta')).strip()
+
+        if not tipo_cc or not conta:
+            return jsonify({"error": "Dados inválidos"}), 400
+
+        # A chave mágica que agrupa tudo
+        chave_tipo = f"{conta}{tipo_cc}"
+
+        # Deleta todos os vínculos que batem com essa chave
+        resultado = session.query(DreContaVinculo).filter_by(
+            Chave_Conta_Tipo_CC=chave_tipo
+        ).delete()
+
+        session.commit()
+        
+        return jsonify({
+            "success": True, 
+            "msg": f"Vínculo da conta {conta} removido de {resultado} locais."
+        }), 200
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+# --- ADICIONE NO ARQUIVO Routes/DreConfig.py ---
+@dre_config_bp.route('/Configuracao/GetSubgruposPorTipo', methods=['POST'])
+@login_required
+def GetSubgruposPorTipo():
+    """
+    Retorna lista distinta de nomes de subgrupos que existem dentro de um TIPO de CC.
+    CORRIGIDO: Usa ORM para evitar erros de nome de tabela SQL.
+    """
+    session = get_session()
+    try:
+        data = request.json
+        tipo_cc = data.get('tipo_cc') # Ex: "Adm"
+        
+        # Usa o ORM em vez de SQL Bruto para maior segurança
+        # Busca apenas os NOMES distintos
+        # Filtra pelo Tipo e garante que é um grupo raiz dentro do CC (Id_Pai None)
+        subgrupos = session.query(DreHierarquia.Nome).filter(
+            DreHierarquia.Raiz_Centro_Custo_Tipo == tipo_cc,
+            DreHierarquia.Id_Pai == None 
+        ).distinct().order_by(DreHierarquia.Nome).all()
+        
+        # O resultado vem como uma lista de tuplas [('Pessoal',), ('Geral',)], 
+        # precisamos transformar em lista simples ['Pessoal', 'Geral']
+        lista_nomes = [row.Nome for row in subgrupos]
+        
+        return jsonify(lista_nomes), 200
+
+    except Exception as e:
+        print(f"Erro no GetSubgruposPorTipo: {e}") # Ajuda no debug do console do Flask
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+# --- ADICIONE AO FINAL DE Routes/DreConfig.py ---
+
+@dre_config_bp.route('/Configuracao/GetContasDoGrupoMassa', methods=['POST'])
+@login_required
+def GetContasDoGrupoMassa():
+    """
+    Retorna as contas contábeis que estão vinculadas ao grupo EM TODOS OS CENTROS DE CUSTO.
+    VERSÃO CORRIGIDA: Usa ORM puro para evitar erro de nome de tabela.
+    """
+    session = get_session()
+    try:
+        data = request.json
+        tipo_cc = data.get('tipo_cc')       # Ex: "Adm"
+        nome_grupo = data.get('nome_grupo') # Ex: "Pessoal"
+
+        if not tipo_cc or not nome_grupo:
+             return jsonify([]), 200
+
+        # 1. Descobre quantos grupos existem no total para esse Tipo
+        # O ORM já sabe qual é o nome certo da tabela (provavelmente DRE_Estrutura_Hierarquia)
+        total_grupos = session.query(DreHierarquia).filter(
+            DreHierarquia.Raiz_Centro_Custo_Tipo == tipo_cc,
+            DreHierarquia.Nome == nome_grupo
+        ).count()
+
+        if total_grupos == 0:
+            return jsonify([]), 200
+
+        # 2. Query Agregada via ORM
+        # Traduzindo a lógica SQL para Python/SQLAlchemy:
+        # SELECT Conta FROM Vinculo JOIN Hierarquia ... GROUP BY Conta HAVING Count == Total
+        
+        resultados = session.query(DreContaVinculo.Conta_Contabil)\
+            .join(DreHierarquia, DreContaVinculo.Id_Hierarquia == DreHierarquia.Id)\
+            .filter(DreHierarquia.Raiz_Centro_Custo_Tipo == tipo_cc)\
+            .filter(DreHierarquia.Nome == nome_grupo)\
+            .group_by(DreContaVinculo.Conta_Contabil)\
+            .having(func.count(DreContaVinculo.Conta_Contabil) == total_grupos)\
+            .order_by(DreContaVinculo.Conta_Contabil)\
+            .all()
+        
+        # O .all() retorna uma lista de tuplas ou objetos, extraímos o valor
+        lista_contas = [r.Conta_Contabil for r in resultados]
+        
+        return jsonify(lista_contas), 200
+
+    except Exception as e:
+        print(f"Erro em GetContasDoGrupoMassa: {e}") # Printa o erro no console para debug
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+        
+@dre_config_bp.route('/Configuracao/VincularContaEmMassa', methods=['POST'])
+@login_required
+def VincularContaEmMassa():
+    """
+    Vincula uma conta contábil a TODOS os subgrupos que tenham o NOME especificado,
+    dentro do TIPO especificado.
+    
+    Gera a chave correta para cada Centro de Custo individualmente.
+    """
+    session = get_session()
+    try:
+        data = request.json
+        tipo_cc = data.get('tipo_cc')       # Ex: "Adm"
+        nome_subgrupo = data.get('nome_subgrupo') # Ex: "Utilidades"
+        conta = str(data.get('conta')).strip()    # Ex: "601020"
+
+        if not all([tipo_cc, nome_subgrupo, conta]):
+            return jsonify({"error": "Dados incompletos."}), 400
+
+        # 1. Encontrar todos os subgrupos alvo (ID e Código do CC Pai)
+        # Precisamos do Codigo do CC para gerar a chave correta
+        subgrupos_alvo = session.query(DreHierarquia).filter(
+            DreHierarquia.Raiz_Centro_Custo_Tipo == tipo_cc,
+            DreHierarquia.Nome == nome_subgrupo
+        ).all()
+
+        if not subgrupos_alvo:
+            return jsonify({"error": "Nenhum subgrupo encontrado com esse nome neste tipo."}), 404
+
+        count_sucesso = 0
+
+        # 2. Iterar e criar vínculo para cada um
+        for sg in subgrupos_alvo:
+            cc_code = sg.Raiz_Centro_Custo_Codigo
+            
+            # Validação de segurança (só pra garantir que não pegou sujeira)
+            if cc_code is None: 
+                continue
+
+            # CRIAÇÃO DAS CHAVES (A parte mais importante!)
+            # Chave Tipo: Conta + Tipo (Ex: 601020Adm)
+            chave_tipo = f"{conta}{tipo_cc}"
+            
+            # Chave Código: Conta + Código Específico do CC (Ex: 601020251101)
+            chave_cod = f"{conta}{cc_code}"
+
+            # Verifica se já existe vínculo
+            vinculo = session.query(DreContaVinculo).filter_by(
+                Chave_Conta_Codigo_CC=chave_cod
+            ).first()
+
+            if vinculo:
+                # Se existe, atualiza o pai (move para este grupo se estiver em outro)
+                vinculo.Id_Hierarquia = sg.Id
+                vinculo.Chave_Conta_Tipo_CC = chave_tipo
+            else:
+                # Se não existe, cria novo
+                novo_v = DreContaVinculo(
+                    Conta_Contabil=conta,
+                    Id_Hierarquia=sg.Id,
+                    Chave_Conta_Tipo_CC=chave_tipo,
+                    Chave_Conta_Codigo_CC=chave_cod
+                )
+                session.add(novo_v)
+            
+            count_sucesso += 1
+
+        session.commit()
+        return jsonify({
+            "success": True, 
+            "msg": f"Conta {conta} vinculada a {count_sucesso} centros de custo no grupo '{nome_subgrupo}'."
+        }), 200
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+        
 @dre_config_bp.route('/Configuracao/AddNoVirtual', methods=['POST'])
 @login_required
 def AddNoVirtual():
@@ -476,10 +901,8 @@ def VincularContaDetalhe():
 @login_required
 def DeleteSubgrupo():
     """
-    Deleta um subgrupo da hierarquia.
-    Apenas permite exclusão se não houver itens dentro.
-    
-    ATUALIZADO: Usa novos nomes de atributos
+    Deleta um subgrupo da hierarquia e TUDO que estiver dentro dele (Cascata).
+    Remove recursivamente: Filhos, Contas Vinculadas e Contas Personalizadas.
     """
     session = get_session()
     try:
@@ -491,24 +914,27 @@ def DeleteSubgrupo():
             
         db_id = int(node_id.replace('sg_', ''))
         
-        # Verificações de segurança
-        has_sub_children = session.query(DreHierarquia).filter_by(Id_Pai=db_id).count()
-        has_contas = session.query(DreContaVinculo).filter_by(Id_Hierarquia=db_id).count()
-        has_detalhes = session.query(DreContaPersonalizada).filter_by(Id_Hierarquia=db_id).count()
-        
-        if has_sub_children > 0 or has_contas > 0 or has_detalhes > 0:
-            return jsonify({
-                "error": "Não é possível excluir: Este grupo possui itens dentro dele."
-            }), 400
+        # Função Recursiva para limpar a árvore de baixo para cima
+        def delete_recursivo(id_pai):
+            # 1. Busca todos os filhos deste grupo
+            filhos = session.query(DreHierarquia).filter_by(Id_Pai=id_pai).all()
+            for filho in filhos:
+                delete_recursivo(filho.Id) # Recursão
+            
+            # 2. Deleta Contas Vinculadas a este grupo
+            session.query(DreContaVinculo).filter_by(Id_Hierarquia=id_pai).delete()
+            
+            # 3. Deleta Contas Personalizadas vinculadas a este grupo
+            session.query(DreContaPersonalizada).filter_by(Id_Hierarquia=id_pai).delete()
+            
+            # 4. Finalmente, deleta o grupo atual
+            session.query(DreHierarquia).filter_by(Id=id_pai).delete()
 
-        subgrupo = session.query(DreHierarquia).get(db_id)
+        # Executa a limpeza
+        delete_recursivo(db_id)
         
-        if subgrupo:
-            session.delete(subgrupo)
-            session.commit()
-            return jsonify({"success": True}), 200
-        else:
-            return jsonify({"error": "Subgrupo não encontrado"}), 404
+        session.commit()
+        return jsonify({"success": True, "msg": "Grupo e todos os seus itens excluídos."}), 200
 
     except Exception as e:
         session.rollback()
@@ -567,10 +993,7 @@ def DesvincularConta():
 @login_required
 def DeleteNoVirtual():
     """
-    Deleta um Nó Virtual da estrutura.
-    Apenas permite exclusão se não houver itens dentro.
-    
-    ATUALIZADO: Usa novos nomes de atributos
+    Deleta um Nó Virtual e tudo que está pendurado nele (Cascata Completa).
     """
     session = get_session()
     try:
@@ -580,36 +1003,41 @@ def DeleteNoVirtual():
         if not node_id or not node_id.startswith('virt_'):
             return jsonify({"error": "Nó inválido"}), 400
             
-        db_id = int(node_id.replace('virt_', ''))
-        
-        # Verificações de segurança
-        has_sub_children = session.query(DreHierarquia).filter_by(
-            Raiz_No_Virtual_Id=db_id
-        ).count()
-        has_contas = session.query(DreContaPersonalizada).filter_by(
-            Id_No_Virtual=db_id
-        ).count()
-        
-        if has_sub_children > 0 or has_contas > 0:
-            return jsonify({
-                "error": "Não é possível excluir: Este nó possui itens (grupos ou contas) dentro dele."
-            }), 400
+        virt_id = int(node_id.replace('virt_', ''))
 
-        no_virtual = session.query(DreNoVirtual).get(db_id)
+        # 1. Busca todos os subgrupos que pertencem a este Nó Virtual
+        subgrupos = session.query(DreHierarquia).filter_by(Raiz_No_Virtual_Id=virt_id).all()
+        ids_hierarquia = [s.Id for s in subgrupos]
+
+        if ids_hierarquia:
+            # Limpa vínculos desses subgrupos
+            session.query(DreContaVinculo).filter(
+                DreContaVinculo.Id_Hierarquia.in_(ids_hierarquia)
+            ).delete(synchronize_session=False)
+            
+            session.query(DreContaPersonalizada).filter(
+                DreContaPersonalizada.Id_Hierarquia.in_(ids_hierarquia)
+            ).delete(synchronize_session=False)
+            
+            # Deleta os subgrupos
+            session.query(DreHierarquia).filter(
+                DreHierarquia.Id.in_(ids_hierarquia)
+            ).delete(synchronize_session=False)
+
+        # 2. Deleta contas personalizadas penduradas diretamente no Nó Virtual
+        session.query(DreContaPersonalizada).filter_by(Id_No_Virtual=virt_id).delete()
+
+        # 3. Finalmente, deleta o Nó Virtual
+        session.query(DreNoVirtual).filter_by(Id=virt_id).delete()
         
-        if no_virtual:
-            session.delete(no_virtual)
-            session.commit()
-            return jsonify({"success": True}), 200
-        else:
-            return jsonify({"error": "Nó virtual não encontrado"}), 404
+        session.commit()
+        return jsonify({"success": True, "msg": "Estrutura virtual excluída."}), 200
 
     except Exception as e:
         session.rollback()
         return jsonify({"error": str(e)}), 500
     finally:
         session.close()
-
 
 @dre_config_bp.route('/Configuracao/ReplicarEstrutura', methods=['POST'])
 @login_required
