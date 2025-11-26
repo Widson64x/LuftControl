@@ -1,50 +1,187 @@
-<nav class="navbar">
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Menu.css') }}">
+{% endblock %}
+<nav class="navbar navbar-expand-lg navbar-custom sticky-top">
     <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">
             <i class="fas fa-chart-line"></i>
-            DRE Control
+            <span>T-Controllership</span>
         </a>
         
-        <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <i class="fas fa-bars" style="color: white;"></i>
+        <button class="navbar-toggler" type="button" style="border: none; background: transparent; color: white;">
+            <i class="fas fa-bars fa-lg"></i>
         </button>
         
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
+        <div class="collapse navbar-collapse d-flex justify-between align-center w-100" id="navbarNav">
+            
+            <ul class="navbar-nav d-flex align-center gap-sm">
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" 
                        href="{{ url_for('main.dashboard') }}">
-                        <i class="fas fa-home"></i> Dashboard
+                        <i class="fas fa-home"></i> Home
                     </a>
                 </li>
+                
                 <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'Reports.PaginaRelatorios' %}active{% endif %}" 
+                    <a class="nav-link {% if 'Reports' in request.endpoint %}active{% endif %}" 
                        href="{{ url_for('Reports.PaginaRelatorios') }}">
-                        <i class="fas fa-file-alt"></i> Relatórios
+                        <i class="fas fa-table"></i> Relatórios
                     </a>
                 </li>
+
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
-                        <i class="fas fa-chart-bar"></i> Análises
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link cursor-pointer" onclick="configModal.open()">
                         <i class="fas fa-cog"></i> Configurações
                     </a>
                 </li>
             </ul>
             
-            <div class="d-flex align-items-center gap-md">
-                <span class="navbar-text">
+            <div class="d-flex align-center gap-md">
+                <div class="navbar-text d-none d-md-flex">
                     <i class="fas fa-user-circle"></i>
-                    {{ current_user.nome }}
-                </span>
+                    <span class="font-medium">{{ current_user.nome }}</span>
+                </div>
                 
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-danger btn-sm">
-                    <i class="fas fa-sign-out-alt"></i> Sair
+                <a href="{{ url_for('auth.logout') }}" 
+                   class="btn btn-logout d-flex align-center gap-xs text-xs"
+                   title="Sair do Sistema">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sair</span>
                 </a>
             </div>
         </div>
     </div>
 </nav>
+
+<div id="modalConfig" class="modal-overlay">
+    <div class="modal-container" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <i class="fas fa-sliders-h"></i> Configurações
+            </h2>
+            <button class="modal-close" onclick="configModal.close()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="config-section mb-4">
+                <h3 class="text-lg font-bold mb-3 border-bottom border-secondary pb-2">Aparência</h3>
+                
+                <div class="d-flex justify-between align-center p-3 rounded-md bg-tertiary hover-effect">
+                    <div class="d-flex align-center gap-md">
+                        <div class="icon-box">
+                            <i class="fas fa-adjust" id="themeIcon"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold">Tema do Sistema</div>
+                            <div class="text-sm text-secondary" id="themeLabel">Modo Escuro (Padrão)</div>
+                        </div>
+                    </div>
+                    
+                    <label class="switch">
+                        <input type="checkbox" id="themeToggle" onchange="themeManager.toggle()">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3 class="text-lg font-bold mb-3 border-bottom border-secondary pb-2">Conta</h3>
+                <div class="p-3">
+                    <p class="text-sm text-secondary mb-2">Usuário logado:</p>
+                    <div class="bg-primary bg-opacity-10 p-2 rounded text-center font-mono">
+                        {{ current_user.nome }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="configModal.close()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Gerenciador do Modal de Configuração (Simples, sem depender do Main.js)
+    const configModal = {
+        element: document.getElementById('modalConfig'),
+        open() {
+            this.element.classList.add('active');
+        },
+        close() {
+            this.element.classList.remove('active');
+        }
+    };
+
+    // Gerenciador de Tema
+    const themeManager = {
+        init() {
+            // Verifica se há preferência salva
+            const savedTheme = localStorage.getItem('dre_theme');
+            const toggle = document.getElementById('themeToggle');
+            
+            if (savedTheme === 'light') {
+                this.applyLight();
+                if(toggle) toggle.checked = true;
+            } else {
+                this.applyDark();
+                if(toggle) toggle.checked = false;
+            }
+        },
+
+        toggle() {
+            const toggle = document.getElementById('themeToggle');
+            if (toggle.checked) {
+                this.applyLight();
+                localStorage.setItem('dre_theme', 'light');
+            } else {
+                this.applyDark();
+                localStorage.setItem('dre_theme', 'dark');
+            }
+        },
+
+        applyLight() {
+            document.documentElement.setAttribute('data-theme', 'light');
+            const label = document.getElementById('themeLabel');
+            const icon = document.getElementById('themeIcon');
+            if(label) label.textContent = 'Modo Claro';
+            if(icon) {
+                icon.className = 'fas fa-sun text-warning'; // Sol amarelo
+            }
+        },
+
+        applyDark() {
+            document.documentElement.removeAttribute('data-theme');
+            const label = document.getElementById('themeLabel');
+            const icon = document.getElementById('themeIcon');
+            if(label) label.textContent = 'Modo Escuro (Padrão)';
+            if(icon) {
+                icon.className = 'fas fa-moon text-primary'; // Lua roxa/azul
+            }
+        }
+    };
+
+    // Inicializa o gerenciador de tema assim que carregar
+    document.addEventListener('DOMContentLoaded', () => {
+        themeManager.init();
+        
+        // Mobile menu toggle (mantendo a funcionalidade existente)
+        const toggler = document.querySelector('.navbar-toggler');
+        if(toggler) {
+            toggler.addEventListener('click', function() {
+                const menu = document.getElementById('navbarNav');
+                menu.classList.toggle('show'); // Bootstrap class ou custom logic
+                if (menu.style.display === 'block') {
+                    menu.style.display = 'none';
+                } else {
+                    menu.style.display = 'block';
+                    menu.style.flexDirection = 'column';
+                    menu.style.alignItems = 'flex-start';
+                    menu.style.padding = '1rem 0';
+                }
+            });
+        }
+    });
+</script>

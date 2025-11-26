@@ -1,5 +1,5 @@
 /* ============================================
-   DRE CONTROL SYSTEM - THEME VARIABLES
+   T-Controllership - THEME VARIABLES
    Arquivo: Static/css/themes.css
    ============================================ */
 
@@ -158,7 +158,7 @@
     --opacity-100: 1;
 }
 
-/* ========== TEMA CLARO (OPCIONAL) ========== */
+/* ========== TEMA CLARO (OPCIONAL) ========== vairai */
 [data-theme="light"] {
     --bg-primary: #FFFFFF;
     --bg-secondary: #F7FAFC;

@@ -127,3 +127,4 @@ class RazaoFarmaDist(Base):
     cod_cl_valor = Column('Cod Cl. Valor', Text)
     debito = Column('Debito', Float)
     credito = Column('Credito', Float)
+    

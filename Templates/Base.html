@@ -7,11 +7,11 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="description" content="Sistema de Controle DRE - Análise Financeira e Relatórios Gerenciais">
     <meta name="keywords" content="DRE, Controle Financeiro, Relatórios, Análise, Dashboard">
-    <meta name="author" content="DRE Control System">
+    <meta name="author" content="T-Controllership">
     <meta name="robots" content="noindex, nofollow">
     
     <!-- ========== TÍTULO ========== -->
-    <title>{% block title %}DRE Control System{% endblock %}</title>
+    <title>{% block title %}T-Controllership{% endblock %}</title>
     
     <!-- ========== FAVICON ========== -->
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='IMG/Favicon.ico') }}">
@@ -31,18 +31,8 @@
           referrerpolicy="no-referrer">
     
     <!-- ========== CSS MODULAR ========== -->
-    <!-- 1. Tema e Variáveis -->
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Themes.css') }}">
-    
-    <!-- 2. Base e Utilitários -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Base.css') }}">
-    
-    <!-- 3. Componentes UI -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Components.css') }}">
-    
-    <!-- 4. Main CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Main.css') }}">
-    
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Global.css') }}">   
     <!-- ========== CSS ADICIONAL (POR PÁGINA) ========== -->
     {% block extra_css %}{% endblock %}
     
@@ -125,10 +115,10 @@
                 <div>
                     <p class="text-secondary text-sm mb-1">
                         <i class="fas fa-chart-line text-primary"></i>
-                        <strong>DRE Control System</strong>
+                        <strong>T-Controllership</strong>
                     </p>
                     <p class="text-secondary text-xs">
-                        Sistema de Controle e Análise Financeira &copy; 2024
+                        Sistema de Controle e Análise Financeira &copy; 2025
                     </p>
                 </div>
                 <div class="d-flex gap-md">

@@ -1,183 +1,52 @@
 {% extends "Base.html" %}
 
-{% block title %}Relatórios - DRE Control System{% endblock %}
+{% block title %}Dashboard - T-Controllership{% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='JS/Relatorios.js') }}" defer></script>
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Home.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="card mb-5 text-center fade-in">
-    <div class="card-header">
-        <h1 class="card-title">
-            <i class="fas fa-chart-bar"></i> Relatórios Financeiros
-        </h1>
-        <p class="card-subtitle">Acesse e visualize todos os relatórios disponíveis no sistema</p>
-    </div>
+<div class="hero-section fade-in">
+    <h1 class="welcome-title">Olá, {{ current_user.nome }}!</h1>
+    <p class="welcome-subtitle">
+        Bem-vindo ao T-Controllership. Selecione um módulo abaixo para iniciar suas atividades.
+    </p>
 </div>
 
-<!-- Filter Bar -->
-<div class="card mb-5 fade-in">
-    <div class="card-body">
-        <div class="d-flex gap-md flex-wrap">
-            <div style="flex: 1; min-width: 200px;">
-                <label class="form-label">
-                    <i class="fas fa-filter"></i> Categoria
-                </label>
-                <select class="form-control">
-                    <option value="all">Todos os Relatórios</option>
-                    <option value="financeiro">Financeiro</option>
-                    <option value="operacional">Operacional</option>
-                    <option value="gerencial">Gerencial</option>
-                </select>
-            </div>
-
-            <div style="flex: 1; min-width: 200px;">
-                <label class="form-label">
-                    <i class="fas fa-calendar"></i> Período
-                </label>
-                <select class="form-control">
-                    <option value="current">Mês Atual</option>
-                    <option value="last">Último Mês</option>
-                    <option value="quarter">Trimestre</option>
-                    <option value="year">Ano</option>
-                </select>
-            </div>
-
-            <div style="flex: 1; min-width: 200px;">
-                <label class="form-label">
-                    <i class="fas fa-sort"></i> Ordenar por
-                </label>
-                <select class="form-control">
-                    <option value="name">Nome</option>
-                    <option value="date">Data</option>
-                    <option value="popular">Mais Usados</option>
-                </select>
-            </div>
+<div class="modules-grid">
+    
+    <a href="{{ url_for('Reports.PaginaRelatorios') }}" class="module-card slide-in-up" style="animation-delay: 0.1s;">
+        <div class="module-icon">
+            <i class="fas fa-file-invoice-dollar"></i>
         </div>
-    </div>
-</div>
+        <h3 class="module-title">Relatórios Financeiros</h3>
+        <p class="module-desc">
+            Acesse bases analíticas, Razão Contábil Completo e exportação de dados brutos.
+        </p>
+    </a>
 
-<!-- Relatórios Grid -->
-<div class="d-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem;">
-    <!-- Relatório de Razão -->
-    <div class="card slide-in-up" style="animation-delay: 0.1s;">
-        <div class="card-body text-center">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">📈</div>
-            <h3 class="card-title">Relatório de Razão</h3>
-            <p class="card-subtitle">
-                Visualize o relatório consolidado de razão com dados de débito, crédito e saldo.
-            </p>
-            <div class="mb-3">
-                <span class="badge badge-success">Ativo</span>
-            </div>
-            <button class="btn btn-primary" onclick="carregarRelatorioRazao()" style="width: 100%;">
-                <i class="fas fa-eye"></i> Visualizar Relatório
-            </button>
+    <div class="module-card disabled slide-in-up" style="animation-delay: 0.2s;">
+        <div class="module-icon">
+            <i class="fas fa-chart-pie"></i>
         </div>
+        <h3 class="module-title">Dashboards Visuais</h3>
+        <p class="module-desc">
+            Indicadores gráficos, KPIs de performance e análise executiva. <br>
+            <span class="badge badge-warning mt-2">Em Breve</span>
+        </p>
     </div>
 
-    <!-- DRE Consolidada -->
-    <div class="card slide-in-up" style="animation-delay: 0.2s;">
-        <div class="card-body text-center">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">💰</div>
-            <h3 class="card-title">DRE Consolidada</h3>
-            <p class="card-subtitle">
-                Demonstração do Resultado do Exercício com análise completa de receitas e despesas.
-            </p>
-            <div class="mb-3">
-                <span class="badge badge-warning">Em Desenvolvimento</span>
-            </div>
-            <button class="btn btn-secondary" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')" style="width: 100%;">
-                <i class="fas fa-clock"></i> Em Breve
-            </button>
+    <div class="module-card disabled slide-in-up" style="animation-delay: 0.3s;">
+        <div class="module-icon">
+            <i class="fas fa-cogs"></i>
         </div>
+        <h3 class="module-title">Configurações</h3>
+        <p class="module-desc">
+            Gerenciamento de usuários, permissões e parâmetros do sistema. <br>
+            <span class="badge badge-warning mt-2">Em Breve</span>
+        </p>
     </div>
 
-    <!-- Centro de Custo -->
-    <div class="card slide-in-up" style="animation-delay: 0.3s;">
-        <div class="card-body text-center">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">🏢</div>
-            <h3 class="card-title">Centro de Custo</h3>
-            <p class="card-subtitle">
-                Análise detalhada por centro de custo com alocação de despesas por departamento.
-            </p>
-            <div class="mb-3">
-                <span class="badge badge-warning">Em Desenvolvimento</span>
-            </div>
-            <button class="btn btn-secondary" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')" style="width: 100%;">
-                <i class="fas fa-clock"></i> Em Breve
-            </button>
-        </div>
-    </div>
-
-    <!-- Despesas com Pessoal -->
-    <div class="card slide-in-up" style="animation-delay: 0.4s;">
-        <div class="card-body text-center">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
-            <h3 class="card-title">Despesas com Pessoal</h3>
-            <p class="card-subtitle">
-                Classificação e análise completa das despesas relacionadas a recursos humanos.
-            </p>
-            <div class="mb-3">
-                <span class="badge badge-warning">Em Desenvolvimento</span>
-            </div>
-            <button class="btn btn-secondary" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')" style="width: 100%;">
-                <i class="fas fa-clock"></i> Em Breve
-            </button>
-        </div>
-    </div>
-
-    <!-- Fluxo de Caixa -->
-    <div class="card slide-in-up" style="animation-delay: 0.5s;">
-        <div class="card-body text-center">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">💸</div>
-            <h3 class="card-title">Fluxo de Caixa</h3>
-            <p class="card-subtitle">
-                Análise detalhada das entradas e saídas de caixa com projeções mensais.
-            </p>
-            <div class="mb-3">
-                <span class="badge badge-warning">Em Desenvolvimento</span>
-            </div>
-            <button class="btn btn-secondary" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')" style="width: 100%;">
-                <i class="fas fa-clock"></i> Em Breve
-            </button>
-        </div>
-    </div>
-
-    <!-- Balanço Patrimonial -->
-    <div class="card slide-in-up" style="animation-delay: 0.6s;">
-        <div class="card-body text-center">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-            <h3 class="card-title">Balanço Patrimonial</h3>
-            <p class="card-subtitle">
-                Demonstração completa do patrimônio com ativos, passivos e patrimônio líquido.
-            </p>
-            <div class="mb-3">
-                <span class="badge badge-warning">Em Desenvolvimento</span>
-            </div>
-            <button class="btn btn-secondary" onclick="NotificationSystem.show('Relatório em desenvolvimento', 'info')" style="width: 100%;">
-                <i class="fas fa-clock"></i> Em Breve
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de Relatórios -->
-<div id="modalRelatorio" class="modal-overlay">
-    <div class="modal-container">
-        <div class="modal-header">
-            <h2 class="modal-title">Relatório</h2>
-            <button class="modal-close" onclick="fecharModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">Carregando...</div>
-            </div>
-        </div>
-    </div>
 </div>
 {% endblock %}

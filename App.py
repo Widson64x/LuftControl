@@ -7,6 +7,7 @@ import os
 from Routes.Auth import auth_bp
 from Routes.Main import main_bp
 from Routes.Reports import reports_bp
+from Routes.DreConfig import dre_config_bp
 
 # Carrega variáveis de ambiente
 load_dotenv()
@@ -35,6 +36,7 @@ def load_user(user_id):
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(reports_bp, url_prefix='/Reports')
+app.register_blueprint(dre_config_bp)
 
 # Rota raiz redireciona para o dashboard (que vai pedir login se não tiver)
 @app.route('/')

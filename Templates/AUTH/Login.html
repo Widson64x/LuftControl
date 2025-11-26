@@ -1,6 +1,8 @@
 {% extends "Base.html" %}
-
-{% block title %}Login - DRE Control System{% endblock %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Login.css') }}">
+{% endblock %}
+{% block title %}Login - T-Controllership{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-center align-center" style="min-height: 100vh; margin-top: -100px;">
@@ -60,7 +62,7 @@
         </div>
 
         <div class="card-footer text-center">
-            <p class="text-secondary text-sm">DRE Control System &copy; 2024</p>
+            <p class="text-secondary text-sm">T-Controllership &copy; 2024</p>
             <p class="text-secondary text-xs">
                 <i class="fas fa-shield-alt"></i> Sistema Seguro e Confiável
             </p>

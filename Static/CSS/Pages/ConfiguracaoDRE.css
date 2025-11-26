@@ -1,0 +1,249 @@
+/* Static/CSS/Pages/ConfiguracaoDRE.css */
+
+/* --- Container da Árvore --- */
+.tree-wrapper {
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-secondary);
+    padding: var(--spacing-xl);
+    min-height: 600px;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+}
+
+.tree-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-primary);
+    padding-bottom: var(--spacing-md);
+}
+
+/* --- Tree View Lines & Structure --- */
+ul.tree, ul.tree ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+ul.tree ul {
+    margin-left: 24px;
+    position: relative;
+}
+
+/* Linha Vertical Conectora */
+ul.tree ul::before {
+    content: "";
+    display: block;
+    width: 0;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    border-left: 1px solid var(--text-tertiary);
+    opacity: 0.3;
+}
+
+ul.tree li {
+    margin: 0;
+    padding: 4px 0 4px 15px;
+    position: relative;
+    transition: all var(--transition-fast);
+}
+
+/* Linha Horizontal Conectora */
+ul.tree li::before {
+    content: "";
+    display: block;
+    width: 12px;
+    height: 0;
+    border-top: 1px solid var(--text-tertiary);
+    margin-top: -1px;
+    position: absolute;
+    top: 18px;
+    left: 0;
+    opacity: 0.3;
+}
+
+ul.tree li:last-child::before {
+    background: var(--bg-secondary);
+    height: auto;
+    top: 18px;
+    bottom: 0;
+}
+
+/* --- Estilo dos Nós --- */
+.node-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    cursor: context-menu;
+    border: 1px solid transparent;
+    font-family: var(--font-primary);
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.node-content:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+    transform: translateX(4px);
+}
+
+.node-content i {
+    font-size: 1.1em;
+}
+
+/* Cores por Tipo */
+.type-root_tipo { color: var(--text-primary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 10px;}
+.type-root_cc   { color: var(--info); font-weight: 600; }
+.type-subgrupo  { color: var(--warning); }
+.type-conta     { color: var(--success); font-family: var(--font-mono); font-size: 0.85em; opacity: 0.9; }
+
+/* Nó Selecionado */
+.selected-node {
+    background-color: rgba(108, 92, 231, 0.15) !important;
+    border-color: var(--primary) !important;
+    color: var(--primary-light) !important;
+}
+
+/* --- Context Menu (Menu Flutuante) --- */
+#contextMenu {
+    display: none;
+    position: absolute;
+    z-index: var(--z-popover);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xl);
+    min-width: 180px;
+    padding: 6px;
+    animation: fadeIn 0.1s ease-out;
+}
+
+.ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-sm);
+    transition: background 0.2s;
+}
+
+.ctx-item:hover {
+    background-color: var(--primary);
+    color: white;
+}
+
+.ctx-item.danger:hover {
+    background-color: var(--danger);
+}
+
+.ctx-divider {
+    height: 1px;
+    background: var(--border-secondary);
+    margin: 4px 0;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* --- MODAIS ESPECÍFICOS DO DRE --- 
+   Renomeamos as classes para dre-modal-* para evitar conflito com modais globais
+*/
+
+.dre-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; 
+    left: 0; 
+    width: 100vw; 
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 9999 !important; /* Alta prioridade */
+    align-items: center;
+    justify-content: center;
+}
+
+/* Garante que o display flex funcione via JS */
+.dre-modal-overlay[style*="display: flex"] {
+    display: flex !important;
+}
+
+.dre-modal-box {
+    background-color: var(--bg-secondary, #1A1F2E);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    width: 400px;
+    max-width: 90%;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    position: relative;
+    z-index: 10000;
+    animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPop {
+    from { opacity: 0; transform: scale(0.8) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* Form Elements inside Modal */
+.custom-input {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-secondary);
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    margin-top: 5px;
+}
+.custom-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.2);
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-secondary); }
+.btn-secondary:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* Adicione ao Static/CSS/Pages/ConfiguracaoDRE.css */
+
+.type-root_virtual { 
+    color: #f1c40f; /* Amarelo Dourado */
+    font-weight: bold; 
+    text-transform: uppercase;
+}
+
+.type-conta_detalhe {
+    color: #2ecc71; /* Verde brilhante */
+    font-style: italic;
+    font-family: var(--font-mono);
+}

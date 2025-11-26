@@ -1,0 +1,540 @@
+{% extends 'Base.html' %}
+
+{% block title %}Configuração DRE | T-Controllership{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/ConfiguracaoDRE.css') }}">
+    
+    <style>
+        /* --- VARIÁVEIS DE CORES --- */
+        :root {
+            --color-virtual: #f1c40f; /* Gold */
+            --color-cc: #3498db;      /* Blue */
+            --color-group: #e67e22;   /* Orange */
+            --color-conta: #2ecc71;   /* Green */
+            --bg-panel: #1A1F2E;
+            --bg-hover: rgba(255,255,255,0.05);
+            --border: rgba(255,255,255,0.1);
+        }
+
+        /* --- LAYOUT PRINCIPAL --- */
+        .dre-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 100px); /* Ocupa altura útil */
+            gap: 20px;
+        }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-panel);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* --- ÁRVORE (TREE VIEW) --- */
+        .tree-panel {
+            flex: 1;
+            background: var(--bg-panel);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow-y: auto; /* Scroll interno */
+            padding: 10px;
+            position: relative;
+        }
+
+        ul.tree {
+            list-style: none;
+            padding-left: 20px;
+            margin: 0;
+        }
+        
+        /* Linhas de Conexão Sutis */
+        ul.tree ul {
+            border-left: 1px solid rgba(255,255,255,0.05);
+            margin-left: 10px;
+            padding-left: 15px;
+            display: none; /* Começa fechado por padrão? Ou aberto? Vamos controlar via JS */
+        }
+        
+        /* Classe para mostrar filhos */
+        ul.tree ul.expanded {
+            display: block;
+            animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        li {
+            margin: 2px 0;
+            position: relative;
+        }
+
+        /* --- NÓ (O ITEM CLICÁVEL) --- */
+        .node-wrapper {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            user-select: none;
+        }
+
+        .node-wrapper:hover {
+            background-color: var(--bg-hover);
+        }
+
+        .node-wrapper.selected {
+            background-color: rgba(52, 152, 219, 0.2);
+            border: 1px solid rgba(52, 152, 219, 0.4);
+        }
+
+        /* --- ÍCONES E TOGGLES --- */
+        .toggle-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 5px;
+            color: #7f8c8d;
+            font-size: 0.7em;
+            transition: transform 0.2s;
+            border-radius: 4px;
+        }
+        
+        .toggle-icon:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .toggle-icon.rotated { transform: rotate(90deg); color: #fff; }
+        .toggle-icon.invisible { visibility: hidden; } /* Para folhas */
+
+        .type-icon { margin-right: 8px; font-size: 1em; }
+
+        /* --- ESTILIZAÇÃO POR TIPO --- */
+        .node-text { font-size: 0.9rem; color: #bdc3c7; }
+        
+        /* Raiz Virtual */
+        .node-virtual .node-text { color: var(--color-virtual); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .node-virtual .type-icon { color: var(--color-virtual); }
+
+        /* Centro de Custo */
+        .node-cc .node-text { color: var(--color-cc); font-weight: 600; }
+        .node-cc .type-icon { color: var(--color-cc); }
+
+        /* Subgrupo */
+        .node-sg .node-text { color: var(--color-group); }
+        .node-sg .type-icon { color: var(--color-group); }
+
+        /* Conta */
+        .node-conta .node-text { color: var(--color-conta); font-family: monospace; font-size: 0.85rem; }
+        .node-conta .type-icon { color: var(--color-conta); font-size: 0.8em; opacity: 0.7; }
+
+        /* --- MODAIS E OVERLAYS (Mantidos funcionais) --- */
+        .dre-modal-overlay { display: none; position: fixed !important; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .dre-modal-overlay.active { display: flex !important; }
+        .dre-modal-box { background: #1e2736; border: 1px solid rgba(255,255,255,0.1); width: 500px; border-radius: 12px; padding: 25px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        
+        .custom-input { width: 100%; background: #131722; border: 1px solid #2c3e50; padding: 10px; color: #fff; border-radius: 6px; margin-top: 5px; }
+        .custom-input:focus { border-color: #3498db; outline: none; }
+        
+        /* --- MENU DE CONTEXTO --- */
+        #contextMenu {
+            display: none; position: absolute; z-index: 10000;
+            background: #2c3e50; border: 1px solid #34495e;
+            border-radius: 8px; padding: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            min-width: 180px;
+        }
+        .ctx-item { padding: 8px 12px; cursor: pointer; color: #ecf0f1; font-size: 0.85rem; border-radius: 4px; display: flex; align-items: center; gap: 8px; }
+        .ctx-item:hover { background: #34495e; color: #fff; }
+        .ctx-item i { width: 16px; text-align: center; }
+        .ctx-divider { height: 1px; background: #34495e; margin: 4px 0; }
+        .ctx-badge { margin-left: auto; font-size: 0.7em; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); }
+
+        /* Toast */
+        #toast { visibility: hidden; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #27ae60; color: white; padding: 12px 24px; border-radius: 30px; font-weight: 600; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 10001; }
+        #toast.show { visibility: visible; animation: slideUpFade 0.3s ease-out; }
+        @keyframes slideUpFade { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container dre-container">
+    
+    <div class="header-actions">
+        <div>
+            <h2 class="text-xl font-bold text-primary mb-1"><i class="fas fa-layer-group"></i> Gerenciador DRE</h2>
+            <p class="text-xs text-secondary mb-0">Estruture a visão financeira (Virtual) e departamental (Centros de Custo).</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-light" onclick="toggleAllTree(true)"><i class="fas fa-expand-alt"></i> Expandir</button>
+            <button class="btn btn-sm btn-outline-light" onclick="toggleAllTree(false)"><i class="fas fa-compress-alt"></i> Recolher</button>
+            <div class="vr mx-2" style="border-left: 1px solid #444;"></div>
+            <button class="btn btn-warning btn-sm font-bold" onclick="openModal('modalAddVirtual')"><i class="fas fa-plus"></i> Raiz Virtual</button>
+            <button class="btn btn-primary btn-sm" onclick="loadTree()"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+    </div>
+
+    <div class="tree-panel" id="treeContainer">
+        <ul id="treeRoot" class="tree">
+            <li class="text-center text-secondary mt-5" style="opacity: 0.7;">
+                <i class="fas fa-circle-notch fa-spin fa-2x mb-2"></i><br>Carregando estrutura...
+            </li>
+        </ul>
+    </div>
+
+</div>
+
+<div id="toast"><i class="fas fa-check"></i> Operação realizada!</div>
+
+<div id="contextMenu">
+    <div class="ctx-item" id="ctxAddSub" onclick="openModal('modalAddSub')"><i class="fas fa-folder-plus text-warning"></i> Criar Subgrupo</div>
+    
+    <div class="ctx-item" id="ctxCopy" onclick="copyNode()"><i class="fas fa-copy text-light"></i> Copiar Estrutura</div>
+    <div class="ctx-item" id="ctxPaste" onclick="pasteNode()"><i class="fas fa-paste text-light"></i> Colar Aqui</div>
+    <div class="ctx-divider" id="divCopy"></div>
+
+    <div class="ctx-item" id="ctxLinkConta" onclick="openModal('modalLinkConta')"><i class="fas fa-link text-info"></i> Vincular Conta <span class="ctx-badge" style="background:#2980b9">CC</span></div>
+    <div class="ctx-item" id="ctxLinkDetalhe" onclick="openModal('modalLinkDetalhe')"><i class="fas fa-tag text-success"></i> Vincular Conta <span class="ctx-badge" style="background:#27ae60">Virt</span></div>
+    <div class="ctx-item" id="ctxReplicar" onclick="openReplicarModal()"><i class="fas fa-clone text-light"></i> Replicar em Massa...</div>
+    
+    <div class="ctx-divider" id="ctxDivider"></div>
+    <div class="ctx-item" id="ctxDelete" onclick="deleteNode()" style="color:#e74c3c"><i class="fas fa-trash-alt"></i> <span id="lblDelete">Excluir</span></div>
+</div>
+
+<div id="modalAddVirtual" class="dre-modal-overlay"><div class="dre-modal-box"><h3 class="text-lg font-bold text-warning mb-3">Novo Nó Virtual (Raiz)</h3><label class="text-xs text-secondary uppercase font-bold">Nome da Estrutura</label><input type="text" id="inputVirtualName" class="custom-input" placeholder="Ex: RECEITA OPERACIONAL LÍQUIDA" autocomplete="off"><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModals()">Cancelar</button><button class="btn btn-warning" onclick="submitAddVirtual()">Criar</button></div></div></div>
+
+<div id="modalAddSub" class="dre-modal-overlay"><div class="dre-modal-box"><h3 class="text-lg font-bold text-primary mb-3">Novo Subgrupo</h3><p class="text-sm text-secondary mb-3">Dentro de: <strong id="lblParentName" class="text-white">...</strong></p><label class="text-xs text-secondary uppercase font-bold">Nome do Grupo</label><input type="text" id="inputSubName" class="custom-input" placeholder="Ex: Pessoal e Encargos" autocomplete="off"><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModals()">Cancelar</button><button class="btn btn-primary" onclick="submitAddSub()">Criar</button></div></div></div>
+
+<div id="modalLinkConta" class="dre-modal-overlay"><div class="dre-modal-box"><h3 class="text-lg font-bold text-primary mb-3">Vincular Conta (Padrão)</h3><p class="text-sm text-secondary mb-3">Para Centros de Custo. Mantém o nome original.</p><label class="text-xs text-secondary uppercase font-bold">Buscar Conta</label><input type="text" id="inputContaSearch" list="contasDataList" class="custom-input" placeholder="Digite nome ou número..." autocomplete="off"><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModals()">Cancelar</button><button class="btn btn-primary" onclick="submitLinkConta()">Vincular</button></div></div></div>
+
+<div id="modalLinkDetalhe" class="dre-modal-overlay"><div class="dre-modal-box"><h3 class="text-lg font-bold text-success mb-3">Vincular Conta (Virtual)</h3><p class="text-sm text-secondary mb-3">Para Estrutura Virtual. Permite renomear.</p><label class="text-xs text-secondary uppercase font-bold">1. Conta Real</label><input type="text" id="inputDetailConta" list="contasDataList" class="custom-input mb-3" placeholder="6010..." autocomplete="off"><label class="text-xs text-secondary uppercase font-bold">2. Nome na DRE (Opcional)</label><input type="text" id="inputDetailName" class="custom-input" placeholder="Ex: Venda Matriz" autocomplete="off"><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModals()">Cancelar</button><button class="btn btn-success" onclick="submitLinkDetalhe()">Salvar</button></div></div></div>
+
+<div id="modalReplicar" class="dre-modal-overlay"><div class="dre-modal-box" style="width: 600px;"><h3 class="text-lg font-bold text-primary mb-3">Replicar Estrutura</h3><p class="text-sm text-secondary mb-3">Copiar de: <strong id="lblOrigemReplicar" class="text-white">...</strong></p><div id="listaDestinos" style="height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px;"></div><div class="d-flex justify-content-between mt-2"><button class="btn btn-sm btn-link text-secondary" onclick="toggleAllDestinos()" style="text-decoration:none">Inverter Seleção</button><span id="lblTotalSelecionados" class="text-xs text-muted pt-2">0 selecionados</span></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModals()">Cancelar</button><button class="btn btn-primary" onclick="submitReplicar()">Replicar Agora</button></div></div></div>
+
+<datalist id="contasDataList"></datalist>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let contextNode = { id: null, type: null, text: null };
+    let clipboard = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadTree();
+        loadContasList();
+        document.addEventListener('click', () => document.getElementById('contextMenu').style.display = 'none');
+        document.querySelectorAll('.dre-modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target === o) closeModals(); }));
+    });
+
+    // --- RENDERIZAÇÃO DA ÁRVORE (Nova Lógica Colapsável) ---
+    async function loadTree() {
+        const rootUl = document.getElementById('treeRoot');
+        try {
+            const response = await fetch('/Configuracao/GetDadosArvore');
+            const data = await response.json();
+            rootUl.innerHTML = '';
+            
+            if (!data || data.length === 0) { 
+                rootUl.innerHTML = '<li class="text-secondary p-4 text-center">Nenhuma estrutura encontrada.<br>Comece criando um Nó Virtual ou importe do ERP.</li>'; 
+                return; 
+            }
+            
+            data.forEach(item => rootUl.appendChild(createNodeHTML(item)));
+            
+        } catch (error) { 
+            console.error(error); 
+            rootUl.innerHTML = '<li class="text-danger p-4">Erro ao carregar dados.</li>'; 
+        }
+    }
+
+    function createNodeHTML(node) {
+        const li = document.createElement('li');
+        
+        // 1. Wrapper do Conteúdo (Linha clicável)
+        const wrapper = document.createElement('div');
+        
+        // Classes de estilo baseadas no tipo
+        let typeClass = 'node-std';
+        let icon = 'fa-circle';
+        
+        if(node.type === 'root_tipo') { typeClass = 'node-folder'; icon = 'fa-folder'; }
+        else if(node.type === 'root_cc') { typeClass = 'node-cc'; icon = 'fa-building'; }
+        else if(node.type === 'root_virtual') { typeClass = 'node-virtual'; icon = 'fa-layer-group'; }
+        else if(node.type === 'subgrupo') { typeClass = 'node-sg'; icon = 'fa-folder-open'; }
+        else if(node.type.includes('conta')) { typeClass = 'node-conta'; icon = 'fa-file-invoice'; }
+
+        wrapper.className = `node-wrapper ${typeClass}`;
+        wrapper.setAttribute('data-id', node.id);
+        
+        // 2. Ícone de Toggle (Seta)
+        const hasChildren = node.children && node.children.length > 0;
+        const toggle = document.createElement('div');
+        toggle.className = `toggle-icon ${hasChildren ? '' : 'invisible'}`;
+        toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+        
+        if(hasChildren) {
+            toggle.onclick = (e) => {
+                e.stopPropagation(); // Não seleciona, só expande
+                toggleNode(li, toggle);
+            };
+            // Clique duplo na linha também expande
+            wrapper.ondblclick = (e) => {
+                e.stopPropagation();
+                toggleNode(li, toggle);
+            };
+        }
+
+        // 3. Ícone e Texto
+        const contentHtml = `
+            <i class="fas ${icon} type-icon"></i>
+            <span class="node-text">${node.text}</span>
+        `;
+        
+        const contentSpan = document.createElement('span');
+        contentSpan.innerHTML = contentHtml;
+        contentSpan.style.display = 'flex';
+        contentSpan.style.alignItems = 'center';
+
+        wrapper.appendChild(toggle);
+        wrapper.appendChild(contentSpan);
+        
+        // Eventos
+        wrapper.onclick = () => selectNodeUI(wrapper);
+        wrapper.oncontextmenu = (e) => handleRightClick(e, node, wrapper);
+
+        li.appendChild(wrapper);
+
+        // 4. Filhos (Recursivo)
+        if (hasChildren) {
+            const ul = document.createElement('ul');
+            // Se for Raiz (Tipo), começa aberto. Outros fechados.
+            if (node.type === 'root_tipo' || node.type === 'root_virtual') {
+                ul.classList.add('expanded');
+                toggle.classList.add('rotated');
+            }
+            
+            node.children.forEach(child => ul.appendChild(createNodeHTML(child)));
+            li.appendChild(ul);
+        }
+
+        return li;
+    }
+
+    function toggleNode(li, toggleIcon) {
+        const ul = li.querySelector('ul');
+        if (ul) {
+            ul.classList.toggle('expanded');
+            toggleIcon.classList.toggle('rotated');
+        }
+    }
+
+    function toggleAllTree(expand) {
+        const uls = document.querySelectorAll('#treeRoot ul');
+        const toggles = document.querySelectorAll('.toggle-icon:not(.invisible)');
+        
+        uls.forEach(ul => expand ? ul.classList.add('expanded') : ul.classList.remove('expanded'));
+        toggles.forEach(t => expand ? t.classList.add('rotated') : t.classList.remove('rotated'));
+    }
+
+    function selectNodeUI(element) {
+        document.querySelectorAll('.node-wrapper').forEach(el => el.classList.remove('selected'));
+        element.classList.add('selected');
+    }
+
+    // --- MENU DE CONTEXTO & CLIPBOARD ---
+    function handleRightClick(e, node, element) {
+        e.preventDefault();
+        selectNodeUI(element); // Seleciona visualmente
+        contextNode = node;
+        
+        const menu = document.getElementById('contextMenu');
+        
+        // Esconde tudo
+        const els = ['ctxAddSub', 'ctxCopy', 'ctxPaste', 'divCopy', 'ctxLinkConta', 'ctxLinkDetalhe', 'ctxReplicar', 'ctxDelete', 'ctxDivider'];
+        els.forEach(id => document.getElementById(id).style.display = 'none');
+
+        // Lógica de Exibição
+        const show = (id) => document.getElementById(id).style.display = 'flex';
+        const showDiv = (id) => document.getElementById(id).style.display = 'block';
+
+        // Paste Logic
+        if (clipboard) {
+            const pasteBtn = document.getElementById('ctxPaste');
+            pasteBtn.style.display = 'flex';
+            pasteBtn.innerHTML = `<i class="fas fa-paste text-white"></i> Colar "${clipboard.text.substring(0,15)}..."`;
+        }
+
+        if (node.type === 'root_cc') {
+            show('ctxAddSub');
+            show('ctxReplicar'); // Replicar Estrutura
+            if(clipboard) show('ctxPaste');
+        } 
+        else if (node.type === 'subgrupo') {
+            show('ctxAddSub');
+            show('ctxCopy');
+            if(clipboard) show('ctxPaste');
+            showDiv('divCopy');
+            show('ctxLinkConta');
+            show('ctxLinkDetalhe');
+            showDiv('ctxDivider');
+            show('ctxDelete');
+        }
+        else if (node.type === 'root_virtual') {
+            show('ctxAddSub');
+            if(clipboard) show('ctxPaste');
+            show('ctxLinkDetalhe');
+            showDiv('ctxDivider');
+            show('ctxDelete');
+        }
+        else if (node.type.includes('conta')) {
+            show('ctxDelete');
+        }
+
+        if (node.type === 'root_tipo') return; // Nada na raiz pura
+
+        // Posiciona Menu
+        const clickX = e.clientX;
+        const clickY = e.clientY;
+        menu.style.left = `${clickX}px`;
+        menu.style.top = `${clickY}px`;
+        menu.style.display = 'block';
+    }
+
+    // Clipboard Functions
+    function copyNode() {
+        if (!contextNode.id.startsWith('sg_')) return alert('Apenas subgrupos podem ser copiados.');
+        clipboard = { id: contextNode.id, text: contextNode.text };
+        showToast(`Copiado: ${contextNode.text}`);
+        document.getElementById('contextMenu').style.display = 'none';
+    }
+
+    async function pasteNode() {
+        if (!clipboard) return;
+        if (!confirm(`Colar "${clipboard.text}" dentro de "${contextNode.text}"?`)) return;
+        fetchAPI('/Configuracao/ColarEstrutura', { origem_id: clipboard.id, destino_id: contextNode.id }, 'Estrutura colada!');
+    }
+
+    // --- LÓGICA DE REPLICAÇÃO ---
+    async function openReplicarModal() {
+        openModal('modalReplicar');
+        document.getElementById('lblOrigemReplicar').innerText = contextNode.text;
+        const list = document.getElementById('listaDestinos');
+        list.innerHTML = '<div class="text-center p-3">Carregando...</div>';
+        
+        try {
+            // Pega tudo da árvore e filtra CCs
+            const res = await fetch('/Configuracao/GetDadosArvore');
+            const data = await res.json();
+            let targets = [];
+            
+            // Navega para achar CCs
+            data.forEach(root => {
+                if(root.type === 'root_tipo' && root.id !== 'root_virtual_group') {
+                    if(root.children) {
+                        root.children.forEach(cc => {
+                            if(cc.id !== contextNode.id) { // Remove eu mesmo
+                                targets.push({ id: cc.id.replace('cc_', ''), text: cc.text, group: root.text });
+                            }
+                        });
+                    }
+                }
+            });
+
+            // Render
+            let html = '';
+            let lastGroup = '';
+            targets.forEach(t => {
+                if(t.group !== lastGroup) {
+                    html += `<div class="text-xs font-bold text-primary mt-2 mb-1 border-bottom border-secondary p-1 sticky-top" style="background:#1e2736">${t.group}</div>`;
+                    lastGroup = t.group;
+                }
+                html += `
+                    <div class="d-flex align-items-center gap-2 py-1 px-2 hover-bg">
+                        <input type="checkbox" class="chk-dest" value="${t.id}">
+                        <span class="text-sm">${t.text}</span>
+                    </div>
+                `;
+            });
+            list.innerHTML = html;
+        } catch(e) { list.innerHTML = 'Erro ao carregar lista.'; }
+    }
+
+    function toggleAllDestinos() {
+        const chks = document.querySelectorAll('.chk-dest');
+        chks.forEach(c => c.checked = !c.checked);
+        const count = document.querySelectorAll('.chk-dest:checked').length;
+        document.getElementById('lblTotalSelecionados').innerText = `${count} selecionados`;
+    }
+
+    async function submitReplicar() {
+        const ids = Array.from(document.querySelectorAll('.chk-dest:checked')).map(c => c.value);
+        if(ids.length === 0) return alert("Selecione destinos.");
+        if(!confirm(`Replicar para ${ids.length} locais?`)) return;
+        fetchAPI('/Configuracao/ReplicarEstrutura', { origem_node_id: contextNode.id, destinos_ids: ids }, 'Replicação concluída!');
+    }
+
+    // --- UTILITÁRIOS E CRUD ---
+    function openModal(id) {
+        const m = document.getElementById(id);
+        document.getElementById('contextMenu').style.display = 'none';
+        m.classList.add('active'); m.style.setProperty('display', 'flex', 'important');
+        if(id==='modalAddSub') { document.getElementById('lblParentName').innerText = contextNode.text; resetInput('inputSubName'); }
+        if(id==='modalLinkConta') { document.getElementById('lblGroupTarget').innerText = contextNode.text; resetInput('inputContaSearch'); }
+        if(id==='modalLinkDetalhe') { document.getElementById('lblDetailTarget').innerText = contextNode.text; resetInput('inputDetailConta'); document.getElementById('inputDetailName').value = ''; }
+        if(id==='modalAddVirtual') resetInput('inputVirtualName');
+    }
+    
+    function resetInput(id){ const e = document.getElementById(id); if(e){ e.value=''; setTimeout(()=>e.focus(),100); } }
+    function closeModals(){ document.querySelectorAll('.dre-modal-overlay').forEach(m=>{ m.classList.remove('active'); m.style.display='none'; }); }
+    function showToast(msg) { const t = document.getElementById("toast"); t.innerHTML = `<i class="fas fa-check"></i> ${msg}`; t.className = "show"; setTimeout(() => t.className = "", 3000); }
+
+    // API Wrappers
+    async function fetchAPI(url, body, successMsg='Sucesso!') {
+        try {
+            const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+            if(r.ok) { 
+                showToast(successMsg); 
+                closeModals(); 
+                loadTree(); 
+            } else { 
+                const e = await r.json(); 
+                alert("Erro: "+e.error); 
+            }
+        } catch(e) { alert("Erro de conexão."); }
+        document.getElementById('contextMenu').style.display = 'none';
+    }
+
+    async function submitAddVirtual() { const n=document.getElementById('inputVirtualName').value; if(!n)return alert('Nome?'); fetchAPI('/Configuracao/AddNoVirtual', {nome:n}); }
+    async function submitAddSub() { const n=document.getElementById('inputSubName').value; if(!n)return alert('Nome?'); fetchAPI('/Configuracao/AddSubgrupo', {nome:n, parent_id:contextNode.id}); }
+    async function submitLinkConta() { const c=document.getElementById('inputContaSearch').value; if(!c)return alert('Conta?'); fetchAPI('/Configuracao/VincularConta', {conta:c, subgrupo_id:contextNode.id}); }
+    async function submitLinkDetalhe() { const c=document.getElementById('inputDetailConta').value; const n=document.getElementById('inputDetailName').value; if(!c)return alert('Conta?'); fetchAPI('/Configuracao/VincularContaDetalhe', {conta:c, nome_personalizado:n, parent_id:contextNode.id}); }
+    
+    async function deleteNode() {
+        if(!confirm(`Remover "${contextNode.text}"?`)) return;
+        let url = '';
+        if(contextNode.type==='subgrupo') url='/Configuracao/DeleteSubgrupo';
+        if(contextNode.type.includes('conta')) url='/Configuracao/DesvincularConta';
+        if(contextNode.type==='root_virtual') url='/Configuracao/DeleteNoVirtual';
+        if(!url) return;
+        fetchAPI(url, {id:contextNode.id}, 'Item removido.');
+    }
+
+    async function loadContasList() {
+        try {
+            const r = await fetch('/Configuracao/GetContasDisponiveis');
+            const d = await r.json();
+            const dl = document.getElementById('contasDataList'); dl.innerHTML = '';
+            d.forEach(c => { const o=document.createElement('option'); o.value=c.numero; o.label=c.nome; dl.appendChild(o); });
+        } catch(e){}
+    }
+</script>
+{% endblock %}

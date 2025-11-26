@@ -1,10 +1,10 @@
 // ============================================
-// DRE CONTROL SYSTEM - MAIN JAVASCRIPT
+// T-Controllership - MAIN JAVASCRIPT
 // Arquivo: Static/js/main.js
 // ============================================
 
 /**
- * Sistema Principal do DRE Control
+ * Sistema Principal do T-Controllership
  * Gerencia funcionalidades globais do sistema
  */
 class DRESystem {
@@ -16,7 +16,7 @@ class DRESystem {
         this.setupEventListeners();
         this.setupAnimations();
         this.setupKeyboardShortcuts();
-        console.log('✅ DRE Control System inicializado');
+        console.log('✅ T-Controllership inicializado');
     }
 
     /**
