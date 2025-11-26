@@ -1,130 +1,207 @@
+# Models/POSTGRESS/Rentabilidade.py
+"""
+Modelos ORM para Dados de Rentabilidade e Razão Contábil.
+Consolida lançamentos contábeis de múltiplas origens (FARMA, FARMADIST).
+"""
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
 Base = declarative_base()
 
-class AgrupamentoConta(Base):
-    __tablename__ = 'Tb_Agrupamento_Conta'
+
+class ClassificacaoContaAgrupamento(Base):
+    """
+    Agrupamentos de Contas Contábeis para análises gerenciais.
+    
+    Antiga: Tb_Agrupamento_Conta
+    Nova: Classificacao_Conta_Agrupamento
+    """
+    __tablename__ = 'Classificacao_Conta_Agrupamento'
     __table_args__ = {'schema': 'Dre_Schema'}
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    conta = Column('Conta', String(50))
-    agrupamento = Column('Agrupamento', String(100))
-    grupo_nivel1 = Column('Grupo_nivel1', String(100))
-    grupo_nivel2 = Column('Grupo_nivel2', String(100))
-    ordem = Column('Ordem', Integer)
-    data_criacao = Column('Data_Criacao', DateTime, default=datetime.now)
-    data_atualizacao = Column('Data_Atualizacao', DateTime, onupdate=datetime.now)
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    Conta = Column(String(50))
+    Nome_Conta = Column(String(100))  # ⚠️ Coluna real do banco
+    Grupo_Nivel1 = Column(String(100))
+    Grupo_Nivel2 = Column(String(100))
+    Ordem = Column(Integer)
+    Data_Criacao = Column(DateTime, default=datetime.now)
+    Data_Atualizacao = Column(DateTime, onupdate=datetime.now)
 
     def __repr__(self):
-        return f"<Agrupamento {self.conta} - {self.agrupamento}>"
+        return f"<ClassificacaoContaAgrupamento(Conta='{self.Conta}', Nome='{self.Nome_Conta}')>"
 
 
-class CentroCustoClassificacao(Base):
-    __tablename__ = 'Tb_Centro_Custo_Classificacao'
+class ClassificacaoCentroCusto(Base):
+    """
+    Classificação dos Centros de Custo do ERP.
+    Define tipos (Adm, Oper, Coml) e hierarquia dos CCs.
+    
+    Antiga: Tb_Centro_Custo_Classificacao
+    Nova: Classificacao_Centro_Custo
+    """
+    __tablename__ = 'Classificacao_Centro_Custo'
     __table_args__ = {'schema': 'Dre_Schema'}
 
-    codigo_cc = Column('Codigo CC.', Integer, primary_key=True)
-    nome = Column('Nome', Text)
-    tipo = Column('Tipo', Text)
+    Codigo = Column(Integer, primary_key=True)
+    Nome = Column(Text)
+    Tipo = Column(Text)  # 'Adm', 'Oper', 'Coml'
+
+    def __repr__(self):
+        return f"<ClassificacaoCentroCusto(Codigo={self.Codigo}, Nome='{self.Nome}', Tipo='{self.Tipo}')>"
 
 
 class ClassificacaoDespesasPessoal(Base):
-    __tablename__ = 'Tb_Classificacao_Despesas_Pesso'
+    """
+    Classificação de Despesas com Pessoal por Fornecedor/Serviço.
+    
+    ⚠️ IMPORTANTE: Esta tabela NÃO possui coluna "id" - é apenas uma tabela auxiliar.
+    
+    Antiga: Tb_Classificacao_Despesas_Pesso
+    Nova: Classificacao_Despesas_Pessoal
+    """
+    __tablename__ = 'Classificacao_Despesas_Pessoal'
     __table_args__ = {'schema': 'Dre_Schema'}
 
-    id = Column(Integer, primary_key=True, autoincrement=True) 
-    fornecedor = Column('Fornecedor', Text)
-    servico = Column('Servico', Text)
-    classe = Column('Classe', Text)
+    Fornecedor = Column(Text, primary_key=True)  # Usamos como PK composta
+    Servico = Column(Text, primary_key=True)
+    Classe = Column(Text)
+
+    def __repr__(self):
+        return f"<ClassificacaoDespesasPessoal(Fornecedor='{self.Fornecedor}', Classe='{self.Classe}')>"
 
 
-class PlanoContasFiliais(Base):
-    __tablename__ = 'Tb_Plano_Contas_Filiais'
+class ClassificacaoPlanoContasFilial(Base):
+    """
+    Plano de Contas por Filial.
+    Permite mapeamento específico de contas para cada unidade.
+    
+    Antiga: Tb_Plano_Contas_Filiais
+    Nova: Classificacao_Plano_Contas_Filial
+    """
+    __tablename__ = 'Classificacao_Plano_Contas_Filial'
     __table_args__ = {'schema': 'Dre_Schema'}
 
-    item_conta = Column('Item Conta', String(50), primary_key=True)
-    denominacao = Column('Denomicao', Text)
-    filial = Column('Filial', Text)
+    Item_Conta = Column(String(50), primary_key=True)
+    Denominacao = Column(Text)  # Corrigido: era "Denomicao"
+    Filial = Column(Text)
+
+    def __repr__(self):
+        return f"<ClassificacaoPlanoContasFilial(Item='{self.Item_Conta}', Filial='{self.Filial}')>"
 
 
-class RazaoConsolidada(Base):
+class RazaoConsolidado(Base):
     """
-    VIEW que consolida Tb_Razao_FARMA e Tb_Razao_FARMADIST
-    Localização: Dre_Schema.Tb_Razao_CONSOLIDADA
-    ALTERAÇÃO: Adicionado primary_key=True em múltiplas colunas para criar uma 
-    chave composta única e evitar a desduplicação de linhas pelo SQLAlchemy.
+    VIEW que consolida Razao_Dados_Origem_FARMA e Razao_Dados_Origem_FARMADIST.
+    
+    ⚠️ IMPORTANTE: Esta é uma VIEW, não uma tabela física.
+    ⚠️ MANTÉM OS NOMES ORIGINAIS DAS COLUNAS DO EXCEL (não renomeia)
+    
+    Chave Composta: (Conta, Data, Numero, Filial, Debito, Credito)
+    
+    Antiga: Tb_Razao_CONSOLIDADA
+    Nova: Razao_Dados_Consolidado (VIEW)
     """
-    __tablename__ = 'Tb_Razao_CONSOLIDADA'
+    __tablename__ = 'Razao_Dados_Consolidado'
     __table_args__ = {'schema': 'Dre_Schema'}
     
+    # ⚠️ Mantém nomes originais do Excel
     origem = Column('origem', Text)
-    # Chave Composta Expandida: Garante que linhas com mesma conta/data mas valores diferentes apareçam
-    conta = Column('Conta', Text, primary_key=True)
-    titulo_conta = Column('Título Conta', Text)
-    data = Column('Data', DateTime, primary_key=True)
-    numero = Column('Numero', Text, primary_key=True) # Adicionado como PK
-    descricao = Column('Descricao', Text)
-    contra_partida_credito = Column('Contra Partida - Credito', Text)
-    filial_id = Column('Filial', BigInteger, primary_key=True) # Adicionado como PK
-    centro_custo_id = Column('Centro de Custo', BigInteger)
-    item = Column('Item', String(50))
-    cod_cl_valor = Column('Cod Cl. Valor', Text)
-    debito = Column('Debito', Float, primary_key=True) # Adicionado como PK (Diferencia valores iguais)
-    credito = Column('Credito', Float, primary_key=True) # Adicionado como PK
-    saldo = Column('Saldo', Float)
-    mes = Column('Mes', Text)
-    cc_cod = Column('CC', Text)
-    nome_cc = Column('Nome CC', Text)
-    cliente = Column('Cliente', Text)
-    filial_cliente = Column('Filial Cliente', Text)
+    
+    # Chave Composta
+    Conta = Column('Conta', Text, primary_key=True)
+    Titulo_Conta = Column('Título Conta', Text)
+    Data = Column('Data', DateTime, primary_key=True)
+    Numero = Column('Numero', Text, primary_key=True)
+    Descricao = Column('Descricao', Text)
+    Contra_Partida_Credito = Column('Contra Partida - Credito', Text)
+    Filial = Column('Filial', BigInteger, primary_key=True)
+    Centro_Custo = Column('Centro de Custo', BigInteger)
+    Item = Column('Item', String(50))
+    Cod_Cl_Valor = Column('Cod Cl. Valor', Text)
+    Debito = Column('Debito', Float, primary_key=True)
+    Credito = Column('Credito', Float, primary_key=True)
+    Saldo = Column('Saldo', Float)
+    Mes = Column('Mes', Text)
+    CC_Cod = Column('CC', Text)
+    Nome_CC = Column('Nome CC', Text)
+    Cliente = Column('Cliente', Text)
+    Filial_Cliente = Column('Filial Cliente', Text)
     
     # Chaves auxiliares
-    chv_mes_conta = Column('Chv_Mes_Conta', Text)
-    chv_mes_conta_cc = Column('Chv_Mes_Conta_CC', Text)
-    chv_mes_nomecc_conta = Column('Chv_Mes_NomeCC_Conta', Text)
-    chv_mes_nomecc_conta_cc = Column('Chv_Mes_NomeCC_Conta_CC', Text)
-    chv_conta_formatada = Column('Chv_Conta_Formatada', Text)
-    chv_conta_cc = Column('Chv_Conta_CC', Text)
+    Chv_Mes_Conta = Column('Chv_Mes_Conta', Text)
+    Chv_Mes_Conta_CC = Column('Chv_Mes_Conta_CC', Text)
+    Chv_Mes_NomeCC_Conta = Column('Chv_Mes_NomeCC_Conta', Text)
+    Chv_Mes_NomeCC_Conta_CC = Column('Chv_Mes_NomeCC_Conta_CC', Text)
+    Chv_Conta_Formatada = Column('Chv_Conta_Formatada', Text)
+    Chv_Conta_CC = Column('Chv_Conta_CC', Text)
+
+    def __repr__(self):
+        return f"<RazaoConsolidado(Conta='{self.Conta}', Data='{self.Data}', Saldo={self.Saldo})>"
 
 
-class RazaoFarma(Base):
-    __tablename__ = 'Tb_Razao_FARMA'
+class RazaoOrigemFARMA(Base):
+    """
+    Lançamentos contábeis da origem FARMA.
+    
+    ⚠️ CRÍTICO: Tabela SEM coluna "id" - dados importados do Excel
+    ⚠️ TODOS os nomes de colunas são mantidos do Excel (não renomear)
+    
+    Antiga: Tb_Razao_FARMA
+    Nova: Razao_Dados_Origem_FARMA
+    """
+    __tablename__ = 'Razao_Dados_Origem_FARMA'
     __table_args__ = {'schema': 'Dre_Schema'}
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    # ⚠️ NÃO TEM "Id" - Usamos chave composta
+    Conta = Column('Conta', Text, primary_key=True)
+    Data = Column('Data', DateTime, primary_key=True)
+    Numero = Column('Numero', Text, primary_key=True)
+    Filial = Column('Filial', BigInteger, primary_key=True)
     
-    conta = Column('Conta', Text)
-    titulo_conta = Column('Título Conta', Text)
-    data = Column('Data', DateTime)
-    numero = Column('Numero', Text)
-    descricao = Column('Descricao', Text)
-    contra_partida_credito = Column('Contra Partida - Credito', Text)
-    filial_id = Column('Filial', BigInteger)
-    centro_custo_id = Column('Centro de Custo', BigInteger)
-    item = Column('Item', String(50))
-    cod_cl_valor = Column('Cod Cl. Valor', Text)
-    debito = Column('Debito', Float)
-    credito = Column('Credito', Float)
+    # Mantém nomes originais do Excel
+    Titulo_Conta = Column('Título Conta', Text)
+    Descricao = Column('Descricao', Text)
+    Contra_Partida_Credito = Column('Contra Partida - Credito', Text)
+    Centro_Custo = Column('Centro de Custo', BigInteger)
+    Item = Column('Item', String(50))
+    Cod_Cl_Valor = Column('Cod Cl. Valor', Text)
+    Debito = Column('Debito', Float)
+    Credito = Column('Credito', Float)
+
+    def __repr__(self):
+        return f"<RazaoOrigemFARMA(Conta='{self.Conta}', Data='{self.Data}')>"
 
 
-class RazaoFarmaDist(Base):
-    __tablename__ = 'Tb_Razao_FARMADIST'
+class RazaoOrigemFARMADIST(Base):
+    """
+    Lançamentos contábeis da origem FARMADIST.
+    
+    ⚠️ CRÍTICO: Tabela SEM coluna "id" - dados importados do Excel
+    ⚠️ TODOS os nomes de colunas são mantidos do Excel (não renomear)
+    
+    Antiga: Tb_Razao_FARMADIST
+    Nova: Razao_Dados_Origem_FARMADIST
+    """
+    __tablename__ = 'Razao_Dados_Origem_FARMADIST'
     __table_args__ = {'schema': 'Dre_Schema'}
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    # ⚠️ NÃO TEM "Id" - Usamos chave composta
+    Conta = Column('Conta', Text, primary_key=True)
+    Data = Column('Data', DateTime, primary_key=True)
+    Numero = Column('Numero', Text, primary_key=True)
+    Filial = Column('Filial', BigInteger, primary_key=True)
 
-    conta = Column('Conta', Text)
-    titulo_conta = Column('Título Conta', Text)
-    data = Column('Data', DateTime)
-    numero = Column('Numero', Text)
-    descricao = Column('Descricao', Text)
-    contra_partida_credito = Column('Contra Partida - Credito', Text)
-    filial_id = Column('Filial', BigInteger)
-    centro_custo_id = Column('Centro de Custo', BigInteger)
-    item = Column('Item', String(50))
-    cod_cl_valor = Column('Cod Cl. Valor', Text)
-    debito = Column('Debito', Float)
-    credito = Column('Credito', Float)
-    
+    # Mantém nomes originais do Excel
+    Titulo_Conta = Column('Título Conta', Text)
+    Descricao = Column('Descricao', Text)
+    Contra_Partida_Credito = Column('Contra Partida - Credito', Text)
+    Centro_Custo = Column('Centro de Custo', BigInteger)
+    Item = Column('Item', String(50))
+    Cod_Cl_Valor = Column('Cod Cl. Valor', Text)
+    Debito = Column('Debito', Float)
+    Credito = Column('Credito', Float)
+
+    def __repr__(self):
+        return f"<RazaoOrigemFARMADIST(Conta='{self.Conta}', Data='{self.Data}')>"
