@@ -385,6 +385,10 @@
             <button class="btn btn-sm btn-outline-success" id="btnNormalizarOrdem" onclick="normalizarOrdenamento()" style="display: none;">
                 <i class="fas fa-sort-numeric-down"></i> Normalizar
             </button>
+
+            <button class="btn btn-sm btn-outline-light" onclick="sincronizarOrdem()" title="Busca itens novos no banco e adiciona à árvore">
+                <i class="fas fa-sync"></i> Sincronizar
+            </button>
         </div>
     </div>
 
@@ -409,6 +413,9 @@
 
 <!-- MENU DE CONTEXTO -->
 <div id="contextMenu">
+    <div class="ctx-item" id="ctxRename" onclick="renameNode()">
+        <i class="fas fa-edit text-warning"></i> Renomear
+    </div>
     <div class="ctx-item" id="ctxMoveUp" onclick="moverParaCima()">
         <i class="fas fa-arrow-up text-info"></i> Mover para Cima
         <span class="ctx-badge">Alt+↑</span>
@@ -644,10 +651,33 @@
     let currentSelectedGroup = null;
     let ordenamentoAtivo = false;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        loadTree();
+document.addEventListener('DOMContentLoaded', async () => {
+        // 1. Carrega as listas de contas (independente)
         loadContasList();
-        verificarOrdenamento();
+        
+        // 2. PRIMEIRO verifica se o ordenamento está ativo
+        // O await garante que o código pare aqui até o servidor responder
+        await verificarOrdenamento(); 
+        
+        // 3. SÓ AGORA carrega a árvore, já sabendo o estado correto do ordenamento
+        loadTree(); 
+        
+        // Event listeners globais
+        document.addEventListener('click', () => document.getElementById('contextMenu').style.display = 'none');
+        document.querySelectorAll('.dre-modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target === o) closeModals(); }));
+        
+        // Atalhos de teclado
+        document.addEventListener('keydown', (e) => {
+            if (!contextNode.id) return;
+            
+            if (e.altKey && e.key === 'ArrowUp') {
+                e.preventDefault();
+                moverParaCima();
+            } else if (e.altKey && e.key === 'ArrowDown') {
+                e.preventDefault();
+                moverParaBaixo();
+            }
+        });
         
         document.addEventListener('click', () => document.getElementById('contextMenu').style.display = 'none');
         document.querySelectorAll('.dre-modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target === o) closeModals(); }));
@@ -988,10 +1018,16 @@
 
         if (hasChildren) {
             const ul = document.createElement('ul');
+            
+            // Expande automaticamente os tipos e virtuais na carga inicial
+
             if (node.type === 'root_tipo' || node.type === 'root_virtual') {
                 ul.classList.add('expanded');
                 toggle.classList.add('rotated');
             }
+
+            // ------------------------------------
+
             node.children.forEach(child => ul.appendChild(createNodeHTML(child)));
             li.appendChild(ul);
         }
@@ -1028,14 +1064,19 @@
         
         const menu = document.getElementById('contextMenu');
         
-        // Oculta tudo primeiro
-        const els = ['ctxMoveUp', 'ctxMoveDown', 'divOrdem', 'ctxMassManager', 'divSystematic', 'ctxAddSub', 'ctxCopy', 'ctxPaste', 'divCopy', 'ctxLinkConta', 'ctxLinkDetalhe', 'ctxReplicar', 'ctxDelete', 'ctxDivider'];
-        els.forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.style.display = 'none';
+        // Esconde tudo primeiro
+        const els = ['ctxRename', /* ... seus outros IDs ... */]; 
+        els.forEach(id => { 
+            const el = document.getElementById(id); 
+            if(el) el.style.display = 'none'; 
         });
 
         const show = (id) => { const el = document.getElementById(id); if(el) el.style.display = 'flex'; };
+
+        // Lógica de exibição do Renomear
+        if (node.type === 'root_virtual' || node.type === 'subgrupo' || node.type === 'conta_detalhe') {
+            show('ctxRename');
+        }
         const showDiv = (id) => { const el = document.getElementById(id); if(el) el.style.display = 'block'; };
 
         // Opções de ordenamento (sempre mostrar se ativo)
@@ -1077,23 +1118,47 @@
 
         const clickX = e.clientX;
         const clickY = e.clientY;
-        menu.style.left = `${clickX}px`;
-        menu.style.top = `${clickY}px`;
+        menu.style.left = `${e.clientX}px`;
+        menu.style.top = `${e.clientY}px`;
         menu.style.display = 'block';
     }
 
-    // --- RESTANTE DAS FUNÇÕES (IGUAIS AO ORIGINAL) ---
-    // ... copyNode, pasteNode, openReplicarModal, toggleAllDestinos, submitReplicar
-    // ... openMassManager, switchMassTab, loadMassGroupsList, selectMassGroup
-    // ... submitMassCreate, submitMassDelete, submitMassUnlink
-    // ... addAccountToGroup, removeAccountFromGroup
-    // ... openModal, resetInput, closeModals, showToast
-    // ... fetchAPI, submitAddVirtual, submitAddSub, submitLinkConta, submitLinkDetalhe
-    // ... deleteNode, loadContasList, updateMassDatalist, loadStdGroupAccounts
-    // ... updateStdDatalist, removeStdAccount
+    // 2. NOVA FUNÇÃO PARA EXECUTAR O RENOMEAR
+    async function renameNode() {
+        // Usa um prompt simples do navegador (pode trocar por modal se quiser mais elegância)
+        const novoNome = prompt("Novo nome para: " + contextNode.text, contextNode.text);
+        
+        if (!novoNome || novoNome === contextNode.text) return;
 
-    // [COLE AQUI O RESTANTE DO CÓDIGO JAVASCRIPT DO TEMPLATE ORIGINAL]
-    // (Mantendo todas as funções que já existiam)
+        let url = '';
+        
+        if (contextNode.type === 'root_virtual') url = '/Configuracao/RenameNoVirtual';
+        else if (contextNode.type === 'subgrupo') url = '/Configuracao/RenameSubgrupo';
+        else if (contextNode.type === 'conta_detalhe') url = '/Configuracao/RenameContaPersonalizada';
+        
+        if (!url) return alert('Este item não pode ser renomeado.');
+
+        try {
+            const r = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: contextNode.id, novo_nome: novoNome })
+            });
+            
+            if (r.ok) {
+                showToast('Renomeado com sucesso!');
+                loadTree(); // Recarrega a árvore para mostrar o novo nome
+            } else {
+                const d = await r.json();
+                alert('Erro: ' + d.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Erro de conexão ao renomear.');
+        }
+        
+        document.getElementById('contextMenu').style.display = 'none';
+    }
 
     function copyNode() {
         if (!contextNode.id.startsWith('sg_')) return alert('Apenas subgrupos podem ser copiados.');
@@ -1517,6 +1582,37 @@
                 loadTree();
             }
         } catch(e) { alert("Erro ao remover"); }
+    }
+
+    // ADICIONE NO FINAL DO SCRIPT
+    async function sincronizarOrdem() {
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+        btn.disabled = true;
+
+        try {
+            // Chama a rota Inicializar com limpar=false (apenas adiciona novos)
+            const r = await fetch('/Ordenamento/Inicializar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ limpar: false })
+            });
+            
+            if (r.ok) {
+                const data = await r.json();
+                showToast(data.msg || 'Sincronização concluída!');
+                loadTree(); // Recarrega a árvore para mostrar os novos itens
+            } else {
+                alert('Erro na sincronização');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Erro de conexão');
+        } finally {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
     }
 
 </script>

@@ -18,6 +18,8 @@ from Models.POSTGRESS.DreEstrutura import (
     DreContaPersonalizada
 )
 from Models.POSTGRESS.Rentabilidade import RazaoConsolidado
+# Imports adicionais para o sistema de ordem
+from Models.POSTGRESS.DreOrdenamento import DreOrdenamento, calcular_proxima_ordem
 
 dre_config_bp = Blueprint('DreConfig', __name__)
 
@@ -56,6 +58,74 @@ def ViewConfiguracao():
     return render_template('MENUS/ConfiguracaoDRE.html')
 
 
+# --- ADICIONE ESTAS ROTAS NO FINAL DO ARQUIVO ---
+
+@dre_config_bp.route('/Configuracao/RenameNoVirtual', methods=['POST'])
+@login_required
+def RenameNoVirtual():
+    session = get_session()
+    try:
+        data = request.json
+        # O ID vem como "virt_5", precisamos limpar
+        node_id = data.get('id').replace('virt_', '')
+        novo_nome = data.get('novo_nome')
+        
+        node = session.query(DreNoVirtual).get(int(node_id))
+        if node:
+            node.Nome = novo_nome
+            session.commit()
+            return jsonify({"success": True}), 200
+        return jsonify({"error": "Nó não encontrado"}), 404
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+@dre_config_bp.route('/Configuracao/RenameSubgrupo', methods=['POST'])
+@login_required
+def RenameSubgrupo():
+    session = get_session()
+    try:
+        data = request.json
+        # O ID vem como "sg_10", precisamos limpar
+        node_id = data.get('id').replace('sg_', '')
+        novo_nome = data.get('novo_nome')
+        
+        node = session.query(DreHierarquia).get(int(node_id))
+        if node:
+            node.Nome = novo_nome
+            session.commit()
+            return jsonify({"success": True}), 200
+        return jsonify({"error": "Subgrupo não encontrado"}), 404
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+@dre_config_bp.route('/Configuracao/RenameContaPersonalizada', methods=['POST'])
+@login_required
+def RenameContaPersonalizada():
+    session = get_session()
+    try:
+        data = request.json
+        # O ID vem como "cd_55", precisamos limpar
+        node_id = data.get('id').replace('cd_', '')
+        novo_nome = data.get('novo_nome')
+        
+        conta = session.query(DreContaPersonalizada).get(int(node_id))
+        if conta:
+            conta.Nome_Personalizado = novo_nome
+            session.commit()
+            return jsonify({"success": True}), 200
+        return jsonify({"error": "Conta detalhe não encontrada"}), 404
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+        
 @dre_config_bp.route('/Configuracao/GetContasDisponiveis', methods=['GET'])
 @login_required
 def GetContasDisponiveis():
@@ -308,12 +378,6 @@ def GetContasDoSubgrupo():
 @dre_config_bp.route('/Configuracao/AddSubgrupo', methods=['POST'])
 @login_required
 def AddSubgrupo():
-    """
-    Adiciona um novo subgrupo à hierarquia.
-    Pode ser filho de: Centro de Custo, Nó Virtual ou outro Subgrupo.
-    
-    ATUALIZADO: Usa novos nomes de atributos
-    """
     session = get_session()
     try:
         data = request.json
@@ -322,65 +386,67 @@ def AddSubgrupo():
 
         novo_sub = DreHierarquia(Nome=nome)
 
-        # CASO 1: Pai é Raiz CC (ERP) - Ex: "cc_25110501"
+        # Variáveis para o Ordenamento
+        contexto_pai_ordem = ""
+
+        # LÓGICA DE CRIAÇÃO (Mantida)
         if parent_node_id.startswith("cc_"):
             codigo_cc_str = parent_node_id.replace("cc_", "")
             codigo_cc_int = int(codigo_cc_str)
-            
-            # Busca info do CC
-            sql_info = text("""
-                SELECT "Tipo", "Nome" 
-                FROM "Dre_Schema"."Classificacao_Centro_Custo" 
-                WHERE "Codigo" = :cod LIMIT 1
-            """)
-            result_info = session.execute(sql_info, {"cod": codigo_cc_int}).first()
-            
-            if result_info:
-                novo_sub.Raiz_Centro_Custo_Tipo = result_info[0]
-                novo_sub.Raiz_Centro_Custo_Nome = result_info[1]
-            else:
-                novo_sub.Raiz_Centro_Custo_Tipo = "Indefinido"
-                novo_sub.Raiz_Centro_Custo_Nome = "Indefinido"
 
+            sql_info = text('SELECT "Tipo", "Nome" FROM "Dre_Schema"."Classificacao_Centro_Custo" WHERE "Codigo" = :cod LIMIT 1')
+            result_info = session.execute(sql_info, {"cod": codigo_cc_int}).first()
+
+            novo_sub.Raiz_Centro_Custo_Tipo = result_info[0] if result_info else "Indefinido"
+            novo_sub.Raiz_Centro_Custo_Nome = result_info[1] if result_info else "Indefinido"
             novo_sub.Raiz_Centro_Custo_Codigo = codigo_cc_int
-            novo_sub.Id_Pai = None
-            
-        # CASO 2: Pai é NÓ VIRTUAL - Ex: "virt_5"
+
+            contexto_pai_ordem = f"cc_{codigo_cc_int}"
+
         elif parent_node_id.startswith("virt_"):
             virt_id = int(parent_node_id.replace("virt_", ""))
             no_virt = session.query(DreNoVirtual).get(virt_id)
-            
-            if no_virt:
-                novo_sub.Raiz_No_Virtual_Id = virt_id
-                novo_sub.Raiz_No_Virtual_Nome = no_virt.Nome
-                novo_sub.Id_Pai = None
-            else:
-                raise Exception("Nó virtual não encontrado")
+            novo_sub.Raiz_No_Virtual_Id = virt_id
+            novo_sub.Raiz_No_Virtual_Nome = no_virt.Nome
 
-        # CASO 3: Pai é OUTRO SUBGRUPO - Ex: "sg_15"
+            contexto_pai_ordem = f"virt_{virt_id}"
+
         elif parent_node_id.startswith("sg_"):
             parent_id = int(parent_node_id.replace("sg_", ""))
             novo_sub.Id_Pai = parent_id
-            
-            # Herança Híbrida: Verifica se o pai pertence a CC ou Virtual
+
+            # Herança...
             pai = session.query(DreHierarquia).get(parent_id)
             if pai:
-                if pai.Raiz_No_Virtual_Id:
-                    # Herda estrutura Virtual
-                    novo_sub.Raiz_No_Virtual_Id = pai.Raiz_No_Virtual_Id
-                    novo_sub.Raiz_No_Virtual_Nome = pai.Raiz_No_Virtual_Nome
-                elif pai.Raiz_Centro_Custo_Codigo:
-                    # Herda estrutura CC
-                    novo_sub.Raiz_Centro_Custo_Codigo = pai.Raiz_Centro_Custo_Codigo
-                    novo_sub.Raiz_Centro_Custo_Tipo = pai.Raiz_Centro_Custo_Tipo
-                    novo_sub.Raiz_Centro_Custo_Nome = pai.Raiz_Centro_Custo_Nome
-        else:
-            raise Exception("Nó pai inválido.")
+                novo_sub.Raiz_Centro_Custo_Codigo = pai.Raiz_Centro_Custo_Codigo
+                novo_sub.Raiz_Centro_Custo_Tipo = pai.Raiz_Centro_Custo_Tipo
+                novo_sub.Raiz_No_Virtual_Id = pai.Raiz_No_Virtual_Id
 
+            contexto_pai_ordem = f"sg_{parent_id}"
+
+        # Salva na Estrutura
         session.add(novo_sub)
+        session.flush() # Gera o ID
+
+        # --- NOVO: Salva no Ordenamento ---
+        nova_ordem = calcular_proxima_ordem(session, contexto_pai_ordem)
+
+        # Define o nível de profundidade (simplificado)
+        nivel = 2 if "cc_" in parent_node_id or "virt_" in parent_node_id else 3
+
+        reg_ordem = DreOrdenamento(
+            tipo_no='subgrupo',
+            id_referencia=str(novo_sub.Id),
+            contexto_pai=contexto_pai_ordem,
+            ordem=nova_ordem,
+            nivel_profundidade=nivel
+        )
+        session.add(reg_ordem)
+        # ----------------------------------
+
         session.commit()
         return jsonify({"success": True}), 200
-        
+
     except Exception as e:
         session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -772,12 +838,6 @@ def AddNoVirtual():
 @dre_config_bp.route('/Configuracao/VincularConta', methods=['POST'])
 @login_required
 def VincularConta():
-    """ 
-    Vincula conta padrão (sem renomear).
-    Funciona tanto para Subgrupos de CC quanto para Subgrupos Virtuais.
-    
-    ATUALIZADO: Usa novos nomes de atributos e tabelas
-    """
     session = get_session()
     try:
         data = request.json
@@ -788,11 +848,10 @@ def VincularConta():
             raise Exception("Contas só podem ser vinculadas a Subgrupos.")
 
         sg_id = int(subgrupo_node_id.replace("sg_", ""))
-        
-        # 1. Busca o Subgrupo
+
+        # Busca info do grupo
         subgrupo = session.query(DreHierarquia).get(sg_id)
-        if not subgrupo:
-            raise Exception("Subgrupo não encontrado.")
+        if not subgrupo: raise Exception("Subgrupo não encontrado.")
             
         # 2. Lógica de Rastreamento da Raiz (Recursiva)
         temp_parent = subgrupo
@@ -800,35 +859,19 @@ def VincularConta():
         root_virt_id = temp_parent.Raiz_No_Virtual_Id
         root_tipo = temp_parent.Raiz_Centro_Custo_Tipo or "Virtual"
 
-        # Sobe a árvore até achar a raiz se as infos estiverem vazias
         while (root_cc_code is None and root_virt_id is None) and temp_parent.Id_Pai is not None:
             temp_parent = session.query(DreHierarquia).get(temp_parent.Id_Pai)
             root_cc_code = temp_parent.Raiz_Centro_Custo_Codigo
             root_virt_id = temp_parent.Raiz_No_Virtual_Id
             root_tipo = temp_parent.Raiz_Centro_Custo_Tipo or "Virtual"
 
-        # 3. Geração das Chaves
         chave_tipo = f"{conta}{root_tipo}"
-        
-        if root_cc_code is not None:
-            # É estrutura de Centro de Custo
-            chave_cod = f"{conta}{root_cc_code}"
-        elif root_virt_id is not None:
-            # É estrutura Virtual
-            chave_cod = f"{conta}VIRTUAL{root_virt_id}"
-        else:
-            raise Exception("Erro de integridade: Subgrupo sem raiz definida (CC ou Virtual).")
+        chave_cod = f"{conta}{root_cc_code}" if root_cc_code else f"{conta}VIRTUAL{root_virt_id}"
 
-        # 4. Salva ou Atualiza
+        # Salva ou Atualiza Vínculo
         vinculo = session.query(DreContaVinculo).filter_by(Conta_Contabil=conta).first()
-        
-        if vinculo:
-            # Se já existe, move para o novo grupo
-            vinculo.Id_Hierarquia = sg_id
-            vinculo.Chave_Conta_Tipo_CC = chave_tipo
-            vinculo.Chave_Conta_Codigo_CC = chave_cod
-        else:
-            # Cria novo
+
+        if not vinculo:
             vinculo = DreContaVinculo(
                 Conta_Contabil=conta, 
                 Id_Hierarquia=sg_id,
@@ -836,10 +879,33 @@ def VincularConta():
                 Chave_Conta_Codigo_CC=chave_cod
             )
             session.add(vinculo)
-        
+        else:
+            # Se já existe, removemos a ordem antiga para criar a nova no novo lugar
+            session.query(DreOrdenamento).filter_by(
+                tipo_no='conta', id_referencia=conta
+            ).delete()
+
+            vinculo.Id_Hierarquia = sg_id
+            vinculo.Chave_Conta_Tipo_CC = chave_tipo
+            vinculo.Chave_Conta_Codigo_CC = chave_cod
+
+        # --- NOVO: Salva no Ordenamento ---
+        contexto_pai = f"sg_{sg_id}"
+        nova_ordem = calcular_proxima_ordem(session, contexto_pai)
+
+        reg_ordem = DreOrdenamento(
+            tipo_no='conta',
+            id_referencia=conta,
+            contexto_pai=contexto_pai,
+            ordem=nova_ordem,
+            nivel_profundidade=99 # Folha
+        )
+        session.add(reg_ordem)
+        # ----------------------------------
+
         session.commit()
         return jsonify({"success": True}), 200
-        
+
     except Exception as e:
         session.rollback()
         return jsonify({"error": str(e)}), 500

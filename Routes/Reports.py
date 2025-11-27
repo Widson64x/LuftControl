@@ -169,224 +169,155 @@ def RelatorioRazaoResumo():
 @login_required
 def RelatorioRentabilidade():
     """
-    Retorna DRE Híbrida Ordenada.
-    
-    Estrutura:
-    1. Nós Virtuais (Faturamento, Impostos...) - Ordenados pelo campo 'ordem'
-    2. Centros de Custo Reais (Adm, Oper, Coml) - Ordenação fixa no SQL
-    
-    Cada linha contém:
-    - Origem (FARMA/FARMADIST)
-    - Conta contábil
-    - Título da conta
-    - Tipo_CC (Nome do Nó Virtual ou Tipo de CC)
-    - Nome_CC (Nome do Centro de Custo, se aplicável)
-    - Caminho_Subgrupos (hierarquia completa)
-    - Valores mensais (Jan-Dez)
-    - Total_Ano
-    - ordem_prioridade (para ordenação)
-    
-    ATUALIZADO: Usa nomes novos de tabelas e colunas
+    DRE Gerencial Rigorosa.
+    - Regra 1: Só exibe contas VINCULADAS (INNER JOIN).
+    - Regra 2: Segue ordenamento configurado.
+    - Regra 3: Estrutura Tipo > Grupo > Conta.
     """
     session = None
     try: 
         session = get_pg_session()
         
         sql_query = text("""
-            -- ================================================================
-            -- CTE RECURSIVA: Constrói caminho completo da hierarquia
-            -- ================================================================
-            WITH RECURSIVE TreePath AS (
+            WITH RECURSIVE 
+            -- 1. Mapeia toda a hierarquia de Grupos (TreePath)
+            TreePath AS (
                 SELECT 
-                    "Id", 
-                    "Nome", 
-                    "Id_Pai", 
-                    "Raiz_Centro_Custo_Codigo", 
-                    "Raiz_No_Virtual_Id", 
-                    CAST("Nome" AS TEXT) as full_path
-                FROM "Dre_Schema"."DRE_Estrutura_Hierarquia"
-                WHERE "Id_Pai" IS NULL
+                    h."Id", 
+                    h."Nome", 
+                    h."Id_Pai", 
+                    h."Raiz_Centro_Custo_Codigo", 
+                    h."Raiz_No_Virtual_Id", 
+                    h."Raiz_Centro_Custo_Tipo",
+                    CAST(h."Nome" AS TEXT) as full_path
+                FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" h
+                WHERE h."Id_Pai" IS NULL
                 
                 UNION ALL
                 
                 SELECT 
-                    s."Id", 
-                    s."Nome", 
-                    s."Id_Pai", 
+                    child."Id", 
+                    child."Nome", 
+                    child."Id_Pai", 
                     tp."Raiz_Centro_Custo_Codigo", 
                     tp."Raiz_No_Virtual_Id",
-                    CAST(tp.full_path || '||' || s."Nome" AS TEXT)
-                FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" s
-                JOIN TreePath tp ON s."Id_Pai" = tp."Id"
+                    tp."Raiz_Centro_Custo_Tipo",
+                    CAST(tp.full_path || '||' || child."Nome" AS TEXT)
+                FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" child
+                JOIN TreePath tp ON child."Id_Pai" = tp."Id"
             ),
-            
-            -- ================================================================
-            -- CTE: Mapa de vínculos válidos (conta -> grupo)
-            -- ================================================================
-            VinculosValidos AS (
+
+            -- 2. Busca a Ordem dos Blocos Principais (Raiz) na tabela de Ordenamento
+            OrdemRaiz AS (
+                SELECT id_referencia, ordem 
+                FROM "Dre_Schema"."DRE_Ordenamento" 
+                WHERE contexto_pai = 'root'
+            )
+
+            -- =================================================================
+            -- QUERY PRINCIPAL (União de CCs Padrão + Virtuais)
+            -- =================================================================
+            SELECT * FROM (
+                -- PARTE A: ESTRUTURA PADRÃO (Vinculada a CCs: Adm, Oper, Coml)
                 SELECT 
-                    v."Conta_Contabil", 
-                    tp."Raiz_Centro_Custo_Codigo" AS codigo_cc_dono, 
-                    tp.full_path AS caminho_grupo
-                FROM "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v
-                JOIN TreePath tp ON v."Id_Hierarquia" = tp."Id"
-            )
+                    'PADRAO' as origem_dado,
+                    tca."origem", 
+                    tca."Conta",
+                    MAX(tca."Título Conta") AS "Titulo_Conta",
+                    
+                    -- Nível 1: TIPO (Ex: (-) DESPESAS OPERACIONAIS)
+                    COALESCE(tp."Raiz_Centro_Custo_Tipo", 'Outros') AS "Tipo_CC",
+                    
+                    -- Nível 2: GRUPO (Ex: Pessoal, Veículos)
+                    tp.full_path AS "Caminho_Subgrupos",
+                    
+                    -- Valores Mensais (Invertendo sinal para DRE: Crédito aumenta, Débito diminui resultado)
+                    (COALESCE(SUM(tca."Saldo"), 0.0) * -1) AS "Total_Ano",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 1 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jan",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 2 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Fev",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 3 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mar",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 4 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Abr",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 5 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mai",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 6 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jun",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 7 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jul",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 8 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Ago",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 9 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Set",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 10 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Out",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 11 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Nov",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 12 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Dez",
 
-            -- ================================================================
-            -- QUERY 1: ESTRUTURA PADRÃO (CENTROS DE CUSTO: ADM, OPER, COML)
-            -- ================================================================
-            SELECT 
-                tca."origem", 
-                tca."Conta",
-                MAX(tca."Título Conta") AS "Titulo_Conta",
+                    -- Ordenamento Prioritário
+                    COALESCE(MAX(ord.ordem), 
+                        CASE 
+                            WHEN tp."Raiz_Centro_Custo_Tipo" = 'Oper' THEN 500 
+                            WHEN tp."Raiz_Centro_Custo_Tipo" = 'Coml' THEN 510 
+                            WHEN tp."Raiz_Centro_Custo_Tipo" = 'Adm' THEN 520 
+                            ELSE 999 
+                        END
+                    ) as ordem_prioridade
+
+                FROM "Dre_Schema"."Razao_Dados_Consolidado" tca
+                -- INNER JOIN OBRIGATÓRIO: Só traz o que tem vínculo na estrutura
+                INNER JOIN "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v 
+                    ON tca."Conta" = v."Conta_Contabil" 
+                    -- Garante que o vínculo é do CC correto
+                    AND (tca."Conta" || CAST(tca."Centro de Custo" AS TEXT)) = v."Chave_Conta_Codigo_CC"
+                INNER JOIN TreePath tp 
+                    ON v."Id_Hierarquia" = tp."Id"
+                LEFT JOIN OrdemRaiz ord 
+                    ON ord.id_referencia = tp."Raiz_Centro_Custo_Tipo" 
+                    AND ord.id_referencia IN ('Adm', 'Oper', 'Coml')
+
+                WHERE tca."origem" IN ('FARMA', 'FARMADIST')
+                GROUP BY tca."origem", tca."Conta", tp."Raiz_Centro_Custo_Tipo", tp.full_path
+
+                UNION ALL
+
+                -- PARTE B: ESTRUTURA VIRTUAL (Contas personalizadas ou vinculadas a nós virtuais)
+                SELECT 
+                    'VIRTUAL' as origem_dado,
+                    tca."origem", 
+                    tca."Conta",
+                    COALESCE(MAX(cd."Nome_Personalizado"), MAX(tca."Título Conta")) AS "Titulo_Conta",
+                    
+                    MAX(nv."Nome") AS "Tipo_CC",
+                    COALESCE(MAX(tp.full_path), 'Direto') AS "Caminho_Subgrupos",
+
+                    (COALESCE(SUM(tca."Saldo"), 0.0) * -1) AS "Total_Ano",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 1 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jan",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 2 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Fev",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 3 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mar",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 4 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Abr",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 5 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mai",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 6 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jun",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 7 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jul",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 8 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Ago",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 9 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Set",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 10 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Out",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 11 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Nov",
+                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 12 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Dez",
+
+                    -- Ordem: Pega do Nó Virtual ou da Tabela de Ordenamento
+                    COALESCE(MAX(ord.ordem), MAX(nv."Ordem"), 0) as ordem_prioridade
+
+                FROM "Dre_Schema"."Razao_Dados_Consolidado" tca
+                -- Tenta achar vínculo normal em grupo virtual
+                LEFT JOIN "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v ON tca."Conta" = v."Conta_Contabil"
+                LEFT JOIN TreePath tp ON v."Id_Hierarquia" = tp."Id" AND tp."Raiz_No_Virtual_Id" IS NOT NULL
+                -- Tenta achar conta personalizada direta
+                LEFT JOIN "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" cd ON tca."Conta" = cd."Conta_Contabil"
+                LEFT JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv_direto ON cd."Id_No_Virtual" = nv_direto."Id"
                 
-                MAX(tcc."Tipo") AS "Tipo_CC",
-                MAX(tcc."Nome") AS "Nome_CC",
+                -- JOIN FINAL para pegar o nome do Nó Virtual (de um jeito ou de outro)
+                INNER JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv 
+                    ON (tp."Raiz_No_Virtual_Id" = nv."Id" OR nv_direto."Id" = nv."Id")
                 
-                COALESCE(MAX(vv.caminho_grupo), 'Não Classificado') AS "Caminho_Subgrupos",
-                
-                -- Valores Mensais (multiplicados por -1 para inverter sinal)
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 1 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jan",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 2 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Fev",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 3 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mar",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 4 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Abr",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 5 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mai",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 6 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jun",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 7 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jul",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 8 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Ago",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 9 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Set",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 10 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Out",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 11 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Nov",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 12 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Dez",
-                (COALESCE(SUM(tca."Saldo"), 0.0) * -1) AS "Total_Ano",
-                
-                -- Ordem de Exibição (Despesas ficam após Receitas Virtuais)
-                CASE 
-                    WHEN MAX(tcc."Tipo") = 'Oper' THEN 500
-                    WHEN MAX(tcc."Tipo") = 'Coml' THEN 510
-                    WHEN MAX(tcc."Tipo") = 'Adm'  THEN 520
-                    ELSE 999 
-                END as ordem_prioridade
+                LEFT JOIN OrdemRaiz ord ON CAST(nv."Id" AS VARCHAR) = ord.id_referencia
 
-            FROM "Dre_Schema"."Razao_Dados_Consolidado" tca
-            JOIN "Dre_Schema"."Classificacao_Centro_Custo" tcc 
-                ON tca."Centro de Custo" = tcc."Codigo"
-            LEFT JOIN VinculosValidos vv 
-                ON tca."Conta" = vv."Conta_Contabil" 
-                AND CAST(tca."Centro de Custo" AS INTEGER) = vv.codigo_cc_dono
-
-            WHERE tca."origem" IN ('FARMA', 'FARMADIST')
-            -- Exclui contas que estão em estruturas virtuais
-            AND tca."Conta" NOT IN (
-                SELECT "Conta_Contabil" 
-                FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada"
-            )
-            AND tca."Conta" NOT IN (
-                SELECT v2."Conta_Contabil" 
-                FROM "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v2
-                JOIN "Dre_Schema"."DRE_Estrutura_Hierarquia" sg2 
-                    ON v2."Id_Hierarquia" = sg2."Id"
-                WHERE sg2."Raiz_No_Virtual_Id" IS NOT NULL
-            )
-            
-            GROUP BY tca."origem", tca."Conta", tcc."Codigo"
-
-            UNION ALL
-
-            -- ================================================================
-            -- QUERY 2: ESTRUTURA VIRTUAL - CONTAS PERSONALIZADAS (DETALHE)
-            -- ================================================================
-            SELECT 
-                tca."origem", 
-                tca."Conta",
-                COALESCE(MAX(cd."Nome_Personalizado"), MAX(tca."Título Conta")) AS "Titulo_Conta",
-                
-                -- Nome do Nó Virtual (ex: "1. FATURAMENTO LÍQUIDO")
-                COALESCE(MAX(nv_direto."Nome"), MAX(nv_via_grupo."Nome")) AS "Tipo_CC",
-                CAST(NULL AS VARCHAR) AS "Nome_CC", 
-                
-                COALESCE(MAX(tp.full_path), 'Direto') AS "Caminho_Subgrupos",
-
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 1 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jan",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 2 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Fev",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 3 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mar",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 4 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Abr",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 5 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mai",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 6 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jun",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 7 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jul",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 8 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Ago",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 9 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Set",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 10 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Out",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 11 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Nov",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 12 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Dez",
-                (COALESCE(SUM(tca."Saldo"), 0.0) * -1) AS "Total_Ano",
-                
-                -- Usa ordem definida no banco para Nós Virtuais
-                COALESCE(MAX(nv_direto."Ordem"), MAX(nv_via_grupo."Ordem")) as ordem_prioridade
-
-            FROM "Dre_Schema"."Razao_Dados_Consolidado" tca
-            JOIN "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" cd 
-                ON tca."Conta" = cd."Conta_Contabil"
-            LEFT JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv_direto 
-                ON cd."Id_No_Virtual" = nv_direto."Id"
-            LEFT JOIN TreePath tp 
-                ON cd."Id_Hierarquia" = tp."Id"
-            LEFT JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv_via_grupo 
-                ON tp."Raiz_No_Virtual_Id" = nv_via_grupo."Id"
-
-            WHERE tca."origem" IN ('FARMA', 'FARMADIST')
-            GROUP BY tca."origem", tca."Conta"
-
-            UNION ALL
-
-            -- ================================================================
-            -- QUERY 3: ESTRUTURA VIRTUAL - CONTAS NORMAIS EM GRUPO VIRTUAL
-            -- ================================================================
-            SELECT 
-                tca."origem", 
-                tca."Conta",
-                MAX(tca."Título Conta") AS "Titulo_Conta",
-                
-                MAX(nv."Nome") AS "Tipo_CC", 
-                CAST(NULL AS VARCHAR) AS "Nome_CC",
-                MAX(tp.full_path) AS "Caminho_Subgrupos",
-
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 1 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jan",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 2 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Fev",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 3 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mar",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 4 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Abr",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 5 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mai",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 6 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jun",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 7 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jul",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 8 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Ago",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 9 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Set",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 10 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Out",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 11 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Nov",
-                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 12 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Dez",
-                (COALESCE(SUM(tca."Saldo"), 0.0) * -1) AS "Total_Ano",
-                
-                MAX(nv."Ordem") as ordem_prioridade
-
-            FROM "Dre_Schema"."Razao_Dados_Consolidado" tca
-            JOIN "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v 
-                ON tca."Conta" = v."Conta_Contabil"
-            JOIN TreePath tp 
-                ON v."Id_Hierarquia" = tp."Id"
-            JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv 
-                ON tp."Raiz_No_Virtual_Id" = nv."Id"
-
-            WHERE tca."origem" IN ('FARMA', 'FARMADIST')
-            AND tca."Conta" NOT IN (
-                SELECT "Conta_Contabil" 
-                FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada"
-            )
-
-            GROUP BY tca."origem", tca."Conta"
-
-            -- ================================================================
-            -- ORDENAÇÃO FINAL
-            -- ================================================================
-            ORDER BY ordem_prioridade ASC, "Tipo_CC", "Nome_CC", "Conta";
+                WHERE tca."origem" IN ('FARMA', 'FARMADIST')
+                GROUP BY tca."origem", tca."Conta"
+            ) AS FinalResult
+            ORDER BY ordem_prioridade ASC, "Tipo_CC", "Caminho_Subgrupos", "Conta";
         """)
 
         result = session.execute(sql_query)
@@ -398,5 +329,4 @@ def RelatorioRentabilidade():
         current_app.logger.error(f"Erro no Relatório Rentabilidade: {e}") 
         abort(500, description=f"Erro SQL: {str(e)}")
     finally:
-        if session:
-            session.close()
+        if session: session.close()
