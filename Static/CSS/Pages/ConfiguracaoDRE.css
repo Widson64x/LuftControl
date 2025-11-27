@@ -1,250 +1,755 @@
-/* Static/CSS/Pages/ConfiguracaoDRE.css */
+/* ==========================================================================
+   T-CONTROLLERSHIP - CONFIGURAÇÃO DRE (FINAL VERSION)
+   Arquivo: Static/CSS/Pages/ConfiguracaoDRE.css
+   Descrição: Layout robusto (Flex/Grid) com as cores originais do tema.
+   ========================================================================== */
 
-/* --- Container da Árvore --- */
-.tree-wrapper {
-    background-color: var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-secondary);
-    padding: var(--spacing-xl);
-    min-height: 600px;
-    box-shadow: var(--shadow-lg);
-    position: relative;
-    overflow: hidden;
+/* --------------------------------------------------------------------------
+   1. VARIÁVEIS & CORES ORIGINAIS
+   -------------------------------------------------------------------------- */
+:root {
+    /* Cores Específicas da Árvore (Vibrantes) */
+    --tree-virtual: #f1c40f; /* Dourado */
+    --tree-cc: #3498db;      /* Azul Claro */
+    --tree-group: #e67e22;   /* Laranja */
+    --tree-conta: #2ecc71;   /* Verde Neon */
+    --tree-pers: #9b59b6;    /* Roxo (Personalizada) */
+    
+    /* Dimensões e Espaçamentos */
+    --indent-step: 24px;
+    --header-height: 80px;
 }
 
-.tree-header {
+/* Scrollbar Global Customizada */
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 4px; }
+*::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* Reset básico para garantir layouts */
+.dre-layout-wrapper * { box-sizing: border-box; }
+
+/* --------------------------------------------------------------------------
+   2. LAYOUT PRINCIPAL (GRID RÍGIDO)
+   -------------------------------------------------------------------------- */
+.dre-layout-wrapper {
+    display: grid;
+    grid-template-rows: auto auto 1fr; /* Header, Toolbar, Tree */
+    height: calc(100vh - 100px); /* Altura total menos header global */
+    gap: var(--spacing-md);
+    padding-bottom: var(--spacing-lg);
+    overflow: hidden; /* Impede scroll na página inteira */
+}
+
+/* --------------------------------------------------------------------------
+   3. HEADER DA PÁGINA
+   -------------------------------------------------------------------------- */
+.dre-page-header {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--spacing-lg);
-    border-bottom: 1px solid var(--border-primary);
-    padding-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-md);
 }
 
-/* --- Tree View Lines & Structure --- */
-ul.tree, ul.tree ul {
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.header-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.2), rgba(108, 92, 231, 0.1));
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--primary);
+}
+
+.header-text h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.header-text p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.separator-vertical {
+    width: 1px;
+    height: 24px;
+    background: var(--border-primary);
+    margin: 0 var(--spacing-sm);
+}
+
+/* --------------------------------------------------------------------------
+   4. TOOLBAR DE ORDENAMENTO
+   -------------------------------------------------------------------------- */
+.dre-toolbar {
+    background: rgba(108, 92, 231, 0.05); /* Tinted background */
+    border: 1px dashed var(--primary);
+    border-radius: var(--radius-md);
+    padding: 0 var(--spacing-md);
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+}
+
+/* Estado Inativo (Cinza) */
+.dre-toolbar.inactive {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-secondary);
+    border-style: solid;
+    opacity: 0.8;
+}
+
+.toolbar-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.05);
+}
+
+.status-dot.active {
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+    animation: pulse 2s infinite;
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.toolbar-help {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    cursor: help;
+    margin-right: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* --------------------------------------------------------------------------
+   5. ÁREA DA ÁRVORE (MAIN CONTENT)
+   -------------------------------------------------------------------------- */
+.dre-tree-container {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    position: relative;
+    overflow: hidden; /* O filho rola, não o pai */
+    display: flex;
+    flex-direction: column;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.2);
+}
+
+.tree-scroll-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-lg);
+}
+
+/* --------------------------------------------------------------------------
+   6. TREE VIEW STYLING (ESTILO DA ÁRVORE)
+   -------------------------------------------------------------------------- */
+ul.tree-root, ul.tree-root ul {
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
-ul.tree ul {
-    margin-left: 24px;
-    position: relative;
-}
-
-/* Linha Vertical Conectora */
-ul.tree ul::before {
-    content: "";
-    display: block;
-    width: 0;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    border-left: 1px solid var(--text-tertiary);
-    opacity: 0.3;
-}
-
-ul.tree li {
-    margin: 0;
-    padding: 4px 0 4px 15px;
-    position: relative;
-    transition: all var(--transition-fast);
-}
-
-/* Linha Horizontal Conectora */
-ul.tree li::before {
-    content: "";
-    display: block;
-    width: 12px;
-    height: 0;
-    border-top: 1px solid var(--text-tertiary);
-    margin-top: -1px;
-    position: absolute;
-    top: 18px;
-    left: 0;
-    opacity: 0.3;
-}
-
-ul.tree li:last-child::before {
-    background: var(--bg-secondary);
-    height: auto;
-    top: 18px;
-    bottom: 0;
-}
-
-/* --- Estilo dos Nós --- */
-.node-content {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    border-radius: var(--radius-sm);
-    cursor: context-menu;
-    border: 1px solid transparent;
-    font-family: var(--font-primary);
-    font-size: var(--font-sm);
-    color: var(--text-secondary);
-    transition: all var(--transition-fast);
-}
-
-.node-content:hover {
-    background-color: var(--bg-hover);
-    color: var(--text-primary);
-    transform: translateX(4px);
-}
-
-.node-content i {
-    font-size: 1.1em;
-}
-
-/* Cores por Tipo */
-.type-root_tipo { color: var(--text-primary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 10px;}
-.type-root_cc   { color: var(--info); font-weight: 600; }
-.type-subgrupo  { color: var(--warning); }
-.type-conta     { color: var(--success); font-family: var(--font-mono); font-size: 0.85em; opacity: 0.9; }
-
-/* Nó Selecionado */
-.selected-node {
-    background-color: rgba(108, 92, 231, 0.15) !important;
-    border-color: var(--primary) !important;
-    color: var(--primary-light) !important;
-}
-
-/* --- Context Menu (Menu Flutuante) --- */
-#contextMenu {
+ul.tree-root ul {
+    margin-left: var(--indent-step);
+    border-left: 1px solid var(--border-secondary);
     display: none;
+}
+
+ul.tree-root ul.expanded {
+    display: block;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+ul.tree-root li {
+    position: relative;
+    margin: 2px 0;
+}
+
+/* Linha Conectora */
+ul.tree-root ul li::before {
+    content: "";
     position: absolute;
-    z-index: var(--z-popover);
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-xl);
-    min-width: 180px;
-    padding: 6px;
-    animation: fadeIn 0.1s ease-out;
-}
-
-.ctx-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    color: var(--text-primary);
-    cursor: pointer;
-    border-radius: var(--radius-sm);
-    font-size: var(--font-sm);
-    transition: background 0.2s;
-}
-
-.ctx-item:hover {
-    background-color: var(--primary);
-    color: white;
-}
-
-.ctx-item.danger:hover {
-    background-color: var(--danger);
-}
-
-.ctx-divider {
+    top: 17px;
+    left: 0;
+    width: 12px;
     height: 1px;
     background: var(--border-secondary);
-    margin: 4px 0;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+/* Node Wrapper */
+.node-wrapper {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+    color: var(--text-secondary);
+    user-select: none;
 }
 
-/* --- MODAIS ESPECÍFICOS DO DRE --- 
-   Renomeamos as classes para dre-modal-* para evitar conflito com modais globais
-*/
+.node-wrapper:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    transform: translateX(2px);
+}
 
-.dre-modal-overlay {
+.node-wrapper.selected {
+    background: rgba(108, 92, 231, 0.15); /* Primary Alpha */
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+/* Elementos do Nó */
+.toggle-icon {
+    width: 20px;
+    text-align: center;
+    margin-right: 4px;
+    font-size: 0.75rem;
+    transition: transform 0.2s;
+    color: var(--text-tertiary);
+}
+.toggle-icon:hover { color: var(--text-primary); }
+.toggle-icon.rotated { transform: rotate(90deg); color: var(--text-primary); }
+.toggle-icon.invisible { visibility: hidden; }
+
+.type-icon {
+    width: 24px;
+    text-align: center;
+    margin-right: 8px;
+    font-size: 1rem;
+}
+
+.node-text {
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.drag-handle {
+    opacity: 0;
+    cursor: grab;
+    color: var(--text-tertiary);
+    margin-right: 8px;
+}
+.node-wrapper:hover .drag-handle { opacity: 1; }
+
+/* --- CORES ESPECÍFICAS POR TIPO (As antigas bonitas!) --- */
+.node-folder .type-icon { color: var(--warning); }
+.node-folder .node-text { font-weight: 700; text-transform: uppercase; color: var(--text-primary); }
+
+.node-virtual .type-icon { color: var(--tree-virtual); }
+.node-virtual .node-text { font-weight: 700; color: var(--tree-virtual); text-transform: uppercase; }
+
+.node-cc .type-icon { color: var(--tree-cc); }
+.node-cc .node-text { font-weight: 600; color: var(--info-light); }
+
+.node-sg .type-icon { color: var(--tree-group); }
+.node-sg .node-text { color: var(--text-primary); }
+
+.node-conta .type-icon { color: var(--tree-conta); font-size: 0.9em; opacity: 0.8; }
+.node-conta .node-text { font-family: 'Consolas', monospace; font-size: 0.85rem; color: var(--text-secondary); }
+
+.node-conta_detalhe .type-icon { color: var(--tree-pers); }
+.node-conta_detalhe .node-text { font-style: italic; color: #d6a2e8; } /* Um roxo claro */
+
+/* Loading State */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    gap: 10px;
+}
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--primary);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* --------------------------------------------------------------------------
+   7. MODAIS - ESTRUTURA PROFISSIONAL
+   -------------------------------------------------------------------------- */
+.modal-backdrop {
     display: none;
     position: fixed;
-    top: 0; 
-    left: 0; 
-    width: 100vw; 
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.6);
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(4px);
-    z-index: 9999 !important; /* Alta prioridade */
+    z-index: 9999;
     align-items: center;
     justify-content: center;
 }
 
-/* Garante que o display flex funcione via JS */
-.dre-modal-overlay[style*="display: flex"] {
+.modal-backdrop.active {
     display: flex !important;
 }
 
-.dre-modal-box {
-    background-color: var(--bg-secondary, #1A1F2E);
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.1);
-    width: 400px;
-    max-width: 90%;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+.modal-window {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-2xl);
+    animation: zoomIn 0.2s ease-out;
+    max-height: 90vh; /* Limite de altura */
     position: relative;
-    z-index: 10000;
-    animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@keyframes modalPop {
-    from { opacity: 0; transform: scale(0.8) translateY(20px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+@keyframes zoomIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
 }
 
-.modal-actions {
+/* Tamanhos */
+.modal-sm { width: 400px; }
+.modal-md { width: 600px; }
+.modal-xl { width: 900px; height: 80vh; }
+
+/* Modal Header */
+.modal-header {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.modal-title { display: flex; align-items: center; gap: var(--spacing-md); }
+.modal-title i { font-size: 1.5rem; color: var(--primary); }
+.modal-title h3 { margin: 0; font-size: 1.1rem; color: var(--text-primary); }
+.modal-title p { margin: 0; font-size: 0.8rem; color: var(--text-secondary); }
+
+/* BOTÃO DE FECHAR (CORRIGIDO) */
+.modal-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.modal-close-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    transform: rotate(90deg);
+}
+
+/* Modal Body */
+.modal-body {
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-body.full-height {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Modal Footer */
+.modal-footer {
+    flex-shrink: 0;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--border-primary);
+    background: var(--bg-secondary);
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
+    gap: var(--spacing-sm);
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
 }
 
-/* Form Elements inside Modal */
-.custom-input {
+/* --------------------------------------------------------------------------
+   8. MODAL SPLIT VIEW (GERENCIADOR EM MASSA)
+   -------------------------------------------------------------------------- */
+.modal-body-split {
+    display: flex;
+    flex: 1; /* Ocupa todo espaço */
+    min-height: 0; /* CRUCIAL para scroll */
+    overflow: hidden;
+}
+
+/* Sidebar */
+.modal-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.2);
+    border-right: 1px solid var(--border-primary);
+    overflow-y: auto;
+    padding: var(--spacing-md) 0;
+}
+
+.nav-btn {
     width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 12px 20px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-btn.active {
+    background: rgba(108, 92, 231, 0.15);
+    color: var(--primary);
+    border-left-color: var(--primary);
+    font-weight: 600;
+}
+
+/* Content Area */
+.modal-content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+    overflow: hidden;
+    position: relative;
+    padding: 0; /* Padding vai nas abas */
+}
+
+.tab-pane {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    padding: var(--spacing-xl);
+    overflow-y: auto; /* Scroll individual */
+    animation: fadeIn 0.2s;
+}
+
+.tab-pane.active { display: flex; }
+.tab-pane.full-height { padding: 0; overflow: hidden; }
+
+.tab-header { margin-bottom: var(--spacing-lg); border-bottom: 1px solid var(--border-secondary); padding-bottom: var(--spacing-md); }
+.tab-header h4 { margin: 0 0 5px 0; color: var(--text-primary); }
+.tab-header p { margin: 0; font-size: 0.9rem; color: var(--text-secondary); }
+
+/* --- DASHBOARD DUAS COLUNAS (O FIX DO BUG) --- */
+.dual-pane-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-tertiary);
+}
+
+.pane-left {
+    width: 35%;
+    min-width: 250px;
+    border-right: 1px solid var(--border-primary);
+    display: flex;
+    flex-direction: column;
+    background: rgba(0,0,0,0.1);
+}
+
+.pane-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.pane-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+
+.pane-header {
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.2);
+}
+
+.group-list-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-secondary);
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+}
+.group-list-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.group-list-item.active {
+    background: rgba(108, 92, 231, 0.2);
+    color: var(--primary-light);
+    border-left: 3px solid var(--primary);
+}
+
+/* Detalhes e Lista de Contas */
+.details-view { display: flex; flex-direction: column; height: 100%; }
+
+.details-header {
+    padding: 15px;
+    border-bottom: 1px solid var(--border-primary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.details-header h5 { margin: 0; color: var(--text-primary); font-size: 1rem; }
+
+.accounts-list-wrapper {
+    flex: 1;
+    overflow-y: auto; /* SCROLL AQUI */
+    padding: 15px;
+}
+
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 8px;
+}
+
+.add-account-footer {
+    flex-shrink: 0;
+    padding: 15px;
+    background: rgba(0,0,0,0.2);
+    border-top: 1px solid var(--border-primary);
+}
+
+/* --------------------------------------------------------------------------
+   9. COMPONENTES (INPUTS, BOTÕES, TAGS)
+   -------------------------------------------------------------------------- */
+.form-group { margin-bottom: var(--spacing-md); }
+.form-group label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-secondary); }
+
+.form-input, .form-select {
+    width: 100%;
+    padding: 10px 12px;
     background: var(--bg-primary);
     border: 1px solid var(--border-secondary);
-    padding: 10px;
     border-radius: var(--radius-sm);
     color: var(--text-primary);
-    margin-top: 5px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
 }
-.custom-input:focus {
-    outline: none;
+.form-input:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.2);
+    outline: none;
 }
 
+/* Botões */
 .btn {
     padding: 8px 16px;
     border-radius: var(--radius-sm);
-    border: none;
     font-weight: 500;
     cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    font-size: 0.9rem;
 }
+
 .btn-primary { background: var(--primary); color: white; }
-.btn-primary:hover { background: var(--primary-dark); }
-.btn-secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-secondary); }
-.btn-secondary:hover { background: var(--bg-hover); color: var(--text-primary); }
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
 
-/* Adicione ao Static/CSS/Pages/ConfiguracaoDRE.css */
+.btn-outline { background: transparent; border: 1px solid var(--border-primary); color: var(--text-primary); }
+.btn-outline:hover { background: var(--bg-hover); }
 
-.type-root_virtual { 
-    color: #f1c40f; /* Amarelo Dourado */
-    font-weight: bold; 
-    text-transform: uppercase;
+.btn-ghost { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+
+.btn-accent { background: var(--warning); color: #2d3436; font-weight: 700; }
+.btn-accent:hover { filter: brightness(1.1); }
+
+.btn-danger { background: var(--danger); color: white; }
+.btn-danger:hover { background: var(--danger-dark); }
+
+.btn-block { width: 100%; }
+.btn-xs { padding: 4px 8px; font-size: 0.8rem; }
+.btn-text { background: transparent; color: var(--text-secondary); }
+.btn-text:hover { color: var(--text-primary); text-decoration: underline; }
+
+.btn-icon { width: 36px; padding: 0; background: var(--primary); color: white; border-radius: var(--radius-sm); }
+
+/* Input Group */
+.input-group { display: flex; gap: 8px; }
+.input-group input { flex: 1; }
+
+/* Tags de Conta */
+.account-tag {
+    background: rgba(16, 185, 129, 0.15); /* Verde Transparente */
+    border: 1px solid var(--success);
+    color: var(--success-light);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.type-conta_detalhe {
-    color: #2ecc71; /* Verde brilhante */
-    font-style: italic;
-    font-family: var(--font-mono);
+.account-tag.pers {
+    background: rgba(155, 89, 182, 0.15); /* Roxo Transparente */
+    border-color: #9b59b6;
+    color: #e0aaff;
 }
 
+.account-tag .remove-btn {
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    transition: 0.2s;
+}
+.account-tag .remove-btn:hover { opacity: 1; color: var(--danger); }
+
+/* Switch Toggle */
+.toggle-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 0.85rem; color: var(--text-secondary); }
+.switch { position: relative; display: inline-block; width: 36px; height: 20px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-primary); border: 1px solid var(--text-secondary); transition: .4s; border-radius: 20px; }
+.slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 2px; bottom: 3px; background-color: var(--text-secondary); transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: var(--primary); border-color: var(--primary); }
+input:checked + .slider:before { transform: translateX(16px); background-color: white; }
+
+/* --------------------------------------------------------------------------
+   10. MENU DE CONTEXTO E TOAST
+   -------------------------------------------------------------------------- */
+.context-menu {
+    display: none;
+    position: absolute;
+    z-index: 99999;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xl);
+    width: 220px;
+    padding: 4px;
+}
+
+.ctx-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    border-radius: var(--radius-sm);
+}
+.ctx-item:hover { background: var(--primary); color: white; }
+.ctx-item.danger:hover { background: var(--danger); }
+.ctx-item.highlight { color: var(--warning); }
+.ctx-separator { height: 1px; background: var(--border-secondary); margin: 4px 0; }
+.shortcut { margin-left: auto; font-size: 0.7rem; opacity: 0.5; }
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--success);
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 50px;
+    font-weight: 600;
+    box-shadow: var(--shadow-lg);
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s;
+    visibility: hidden;
+}
+.toast.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+
+/* Empty States */
+.empty-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-tertiary);
+}
+.empty-selection i { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
+
+/* Utils */
+.badge { background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid var(--border-primary); }
+.fade-in { animation: fadeIn 0.5s ease forwards; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }

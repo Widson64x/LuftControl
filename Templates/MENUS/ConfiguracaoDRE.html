@@ -4,640 +4,389 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/ConfiguracaoDRE.css') }}">
-    
-    <style>
-        /* --- VARIÁVEIS DE CORES --- */
-        :root {
-            --color-virtual: #f1c40f; /* Gold */
-            --color-cc: #3498db;      /* Blue */
-            --color-group: #e67e22;   /* Orange */
-            --color-conta: #2ecc71;   /* Green */
-            --bg-panel: #1A1F2E;
-            --bg-hover: rgba(255,255,255,0.05);
-            --border: rgba(255,255,255,0.1);
-        }
-
-        /* --- LAYOUT PRINCIPAL --- */
-        .dre-container {
-            display: flex;
-            flex-direction: column;
-            height: calc(100vh - 100px);
-            gap: 20px;
-        }
-
-        .header-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--bg-panel);
-            padding: 15px 20px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        /* --- BARRA DE FERRAMENTAS DE ORDENAMENTO --- */
-        .ordenamento-toolbar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 15px;
-            background: rgba(52, 152, 219, 0.1);
-            border: 1px solid rgba(52, 152, 219, 0.3);
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-
-        .ordenamento-toolbar.inactive {
-            background: rgba(241, 196, 15, 0.1);
-            border-color: rgba(241, 196, 15, 0.3);
-        }
-
-        .ordenamento-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-        }
-
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        .status-indicator.active {
-            background: #2ecc71;
-            box-shadow: 0 0 8px rgba(46, 204, 113, 0.6);
-        }
-
-        .status-indicator.inactive {
-            background: #f39c12;
-            box-shadow: 0 0 8px rgba(243, 156, 18, 0.6);
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* --- ÁRVORE (TREE VIEW) --- */
-        .tree-panel {
-            flex: 1;
-            background: var(--bg-panel);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            overflow-y: auto;
-            padding: 10px;
-            position: relative;
-        }
-
-        ul.tree {
-            list-style: none;
-            padding-left: 20px;
-            margin: 0;
-        }
-        
-        ul.tree ul {
-            border-left: 1px solid rgba(255,255,255,0.05);
-            margin-left: 10px;
-            padding-left: 15px;
-            display: none;
-        }
-        
-        ul.tree ul.expanded {
-            display: block;
-            animation: slideDown 0.2s ease-out;
-        }
-
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        li {
-            margin: 2px 0;
-            position: relative;
-        }
-
-        /* --- NÓ (O ITEM CLICÁVEL) --- */
-        .node-wrapper {
-            display: flex;
-            align-items: center;
-            padding: 6px 10px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.1s ease;
-            user-select: none;
-            border: 2px solid transparent;
-        }
-
-        .node-wrapper:hover {
-            background-color: var(--bg-hover);
-        }
-
-        .node-wrapper.selected {
-            background-color: rgba(52, 152, 219, 0.2);
-            border-color: rgba(52, 152, 219, 0.4);
-        }
-
-        /* --- DRAG HANDLE --- */
-        .drag-handle {
-            opacity: 0;
-            transition: opacity 0.2s;
-            margin-right: 8px;
-            color: #7f8c8d;
-            cursor: grab;
-            font-size: 0.8em;
-        }
-
-        .node-wrapper:hover .drag-handle {
-            opacity: 0.5;
-        }
-
-        .node-wrapper[draggable="true"]:hover .drag-handle {
-            opacity: 1;
-        }
-
-        .node-wrapper.dragging {
-            opacity: 0.5;
-            transform: scale(0.95);
-            background: rgba(52, 152, 219, 0.2) !important;
-            border: 2px dashed #3498db !important;
-        }
-
-        .node-wrapper.drop-target-valid {
-            background: rgba(46, 204, 113, 0.15) !important;
-            border: 2px solid #2ecc71 !important;
-            box-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
-        }
-
-        .node-wrapper.drop-target-invalid {
-            background: rgba(231, 76, 60, 0.15) !important;
-            border: 2px solid #e74c3c !important;
-        }
-
-        /* --- ÍCONES E TOGGLES --- */
-        .toggle-icon {
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 5px;
-            color: #7f8c8d;
-            font-size: 0.7em;
-            transition: transform 0.2s;
-            border-radius: 4px;
-        }
-        
-        .toggle-icon:hover { background: rgba(255,255,255,0.1); color: #fff; }
-        .toggle-icon.rotated { transform: rotate(90deg); color: #fff; }
-        .toggle-icon.invisible { visibility: hidden; }
-
-        .type-icon { margin-right: 8px; font-size: 1em; }
-
-        /* --- BADGE DE ORDEM --- */
-        .ordem-badge {
-            margin-left: auto;
-            padding: 2px 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            font-size: 0.7em;
-            color: #95a5a6;
-            font-family: monospace;
-        }
-
-        .ordem-badge:hover {
-            background: rgba(52, 152, 219, 0.3);
-            color: #3498db;
-        }
-
-        /* --- ESTILIZAÇÃO POR TIPO --- */
-        .node-text { font-size: 0.9rem; color: #bdc3c7; }
-        
-        .node-folder .node-text { color: #ecf0f1; font-weight: 700; text-transform: uppercase; }
-        .node-folder .type-icon { color: #f39c12; }
-
-        .node-virtual .node-text { color: var(--color-virtual); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        .node-virtual .type-icon { color: var(--color-virtual); }
-
-        .node-cc .node-text { color: var(--color-cc); font-weight: 600; }
-        .node-cc .type-icon { color: var(--color-cc); }
-
-        .node-sg .node-text { color: var(--color-group); }
-        .node-sg .type-icon { color: var(--color-group); }
-
-        .node-conta .node-text { color: var(--color-conta); font-family: monospace; font-size: 0.85rem; }
-        .node-conta .type-icon { color: var(--color-conta); font-size: 0.8em; opacity: 0.7; }
-
-        /* --- DROP INDICATOR --- */
-        .drop-indicator {
-            display: none;
-            position: fixed;
-            z-index: 10000;
-            pointer-events: none;
-            transition: all 0.1s ease;
-        }
-
-        .drop-indicator .drop-line {
-            height: 3px;
-            background: linear-gradient(90deg, #3498db, #2ecc71);
-            border-radius: 3px;
-            box-shadow: 0 0 8px rgba(52, 152, 219, 0.8);
-        }
-
-        .drop-indicator.position-inside {
-            background: rgba(46, 204, 113, 0.1);
-            border: 2px solid #2ecc71;
-            border-radius: 6px;
-        }
-
-        /* --- MODAIS E OVERLAYS --- */
-        .dre-modal-overlay { display: none; position: fixed !important; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
-        .dre-modal-overlay.active { display: flex !important; }
-        .dre-modal-box { background: #1e2736; border: 1px solid rgba(255,255,255,0.1); width: 500px; border-radius: 12px; padding: 25px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-        
-        .custom-input { width: 100%; background: #131722; border: 1px solid #2c3e50; padding: 10px; color: #fff; border-radius: 6px; margin-top: 5px; }
-        .custom-input:focus { border-color: #3498db; outline: none; }
-        
-        /* --- CSS DO GERENCIADOR EM MASSA (MODAL GRANDE) --- */
-        .mass-modal-body { display: flex; height: 400px; background: #1e2736; border-radius: 8px; overflow: hidden; margin-top: 10px; border: 1px solid rgba(255,255,255,0.05); }
-        .mass-sidebar { width: 180px; background: rgba(0,0,0,0.2); padding: 15px 0; border-right: 1px solid rgba(255,255,255,0.05); }
-        .mass-nav-item { padding: 12px 20px; color: #95a5a6; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
-        .mass-nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
-        .mass-nav-item.active { background: rgba(52, 152, 219, 0.1); color: #3498db; border-right: 3px solid #3498db; }
-        .mass-content { flex: 1; padding: 25px; overflow-y: auto; }
-        .mass-tab { display: none; }
-        .mass-tab.active { display: block; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        /* --- CSS DO DASHBOARD INTERATIVO (Aba Vincular) --- */
-        .mass-dashboard { display: flex; height: 320px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; background: rgba(0,0,0,0.2); }
-        
-        .col-groups { width: 35%; border-right: 1px solid rgba(255,255,255,0.1); overflow-y: auto; background: rgba(0,0,0,0.1); }
-        .group-list-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); color: #bdc3c7; transition: all 0.2s; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
-        .group-list-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
-        .group-list-item.active { background: rgba(52, 152, 219, 0.2); color: #3498db; border-left: 3px solid #3498db; }
-        
-        .col-accounts { flex: 1; padding: 15px; display: flex; flex-direction: column; }
-        .accounts-header { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .linked-accounts-area { flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
-        
-        .account-tag { background: rgba(46, 204, 113, 0.15); border: 1px solid rgba(46, 204, 113, 0.3); color: #2ecc71; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
-        .account-tag .remove-btn { cursor: pointer; color: #e74c3c; font-size: 0.9em; padding: 2px; border-radius: 50%; }
-        .account-tag .remove-btn:hover { background: rgba(231, 76, 60, 0.2); }
-        .empty-state { color: #7f8c8d; font-size: 0.9rem; text-align: center; margin-top: 40px; width: 100%; }
-
-        /* --- MENU DE CONTEXTO --- */
-        #contextMenu {
-            display: none; position: absolute; z-index: 10000;
-            background: #2c3e50; border: 1px solid #34495e;
-            border-radius: 8px; padding: 5px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            min-width: 220px;
-        }
-        .ctx-item { padding: 8px 12px; cursor: pointer; color: #ecf0f1; font-size: 0.85rem; border-radius: 4px; display: flex; align-items: center; gap: 8px; }
-        .ctx-item:hover { background: #34495e; color: #fff; }
-        .ctx-item i { width: 16px; text-align: center; }
-        .ctx-divider { height: 1px; background: #34495e; margin: 4px 0; }
-        .ctx-badge { margin-left: auto; font-size: 0.7em; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); }
-
-        /* Toast */
-        #toast { visibility: hidden; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #27ae60; color: white; padding: 12px 24px; border-radius: 30px; font-weight: 600; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 10001; }
-        #toast.show { visibility: visible; animation: slideUpFade 0.3s ease-out; }
-        @keyframes slideUpFade { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
-
-        /* --- HELP TOOLTIP --- */
-        .help-tooltip {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            cursor: help;
-        }
-
-        .help-tooltip::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #2c3e50;
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.2s;
-            z-index: 1000;
-        }
-
-        .help-tooltip:hover::after {
-            opacity: 1;
-            visibility: visible;
-        }
-    </style>
 {% endblock %}
 
 {% block content %}
-<div class="container dre-container">
+<div class="dre-layout-wrapper">
     
-    <!-- HEADER COM AÇÕES -->
-    <div class="header-actions">
-        <div>
-            <h2 class="text-xl font-bold text-primary mb-1"><i class="fas fa-layer-group"></i> Gerenciador DRE</h2>
-            <p class="text-xs text-secondary mb-0">Estruture a visão financeira (Virtual) e departamental (Centros de Custo).</p>
-        </div>
-        <div class="d-flex gap-2 flex-wrap">
-            <button class="btn btn-sm btn-outline-light" onclick="toggleAllTree(true)"><i class="fas fa-expand-alt"></i> Expandir</button>
-            <button class="btn btn-sm btn-outline-light" onclick="toggleAllTree(false)"><i class="fas fa-compress-alt"></i> Recolher</button>
-            <div class="vr mx-2" style="border-left: 1px solid #444;"></div>
-            <button class="btn btn-warning btn-sm font-bold" onclick="openModal('modalAddVirtual')"><i class="fas fa-plus"></i> Raiz Virtual</button>
-            <button class="btn btn-primary btn-sm" onclick="loadTree()"><i class="fas fa-sync-alt"></i> Atualizar</button>
-        </div>
-    </div>
-
-    <!-- BARRA DE ORDENAMENTO -->
-    <div class="ordenamento-toolbar" id="ordenamentoToolbar">
-        <div class="ordenamento-status">
-            <div class="status-indicator" id="ordenamentoIndicator"></div>
-            <span id="ordenamentoStatusText">Verificando...</span>
+    <header class="dre-page-header fade-in">
+        <div class="header-content">
+            <div class="header-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <div class="header-text">
+                <h1>Gerenciador DRE</h1>
+                <p>Estruturação financeira e hierarquia de contas</p>
+            </div>
         </div>
         
-        <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
-            <span class="help-tooltip" data-tooltip="Arraste os itens para reordenar. A ordem é salva automaticamente.">
-                <i class="fas fa-question-circle text-secondary"></i>
+        <div class="header-controls">
+            <div class="btn-group">
+                <button class="btn btn-outline" onclick="toggleAllTree(true)" title="Expandir Tudo">
+                    <i class="fas fa-expand-alt"></i>
+                </button>
+                <button class="btn btn-outline" onclick="toggleAllTree(false)" title="Recolher Tudo">
+                    <i class="fas fa-compress-alt"></i>
+                </button>
+            </div>
+            
+            <div class="separator-vertical"></div>
+
+            <button class="btn btn-accent" onclick="openModal('modalAddVirtual')">
+                <i class="fas fa-plus"></i> Novo Nó Virtual
+            </button>
+            
+            <button class="btn btn-primary" onclick="loadTree()">
+                <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+        </div>
+    </header>
+
+    <div class="dre-toolbar fade-in delay-1" id="ordenamentoToolbar">
+        <div class="toolbar-status">
+            <div class="status-dot" id="ordenamentoIndicator"></div>
+            <span id="ordenamentoStatusText">Verificando status...</span>
+        </div>
+        
+        <div class="toolbar-actions">
+            <span class="toolbar-help" data-tooltip="Arraste os itens na árvore para reordenar.">
+                <i class="far fa-question-circle"></i> Ajuda
             </span>
             
-            <button class="btn btn-sm btn-outline-info" id="btnInicializarOrdem" onclick="inicializarOrdenamento()" style="display: none;">
-                <i class="fas fa-magic"></i> Inicializar Ordenamento
+            <button class="btn btn-xs btn-ghost" id="btnInicializarOrdem" onclick="inicializarOrdenamento()" style="display: none;">
+                <i class="fas fa-magic"></i> Inicializar
             </button>
-            
-            <button class="btn btn-sm btn-outline-warning" id="btnResetarOrdem" onclick="resetarOrdenamento()" style="display: none;">
-                <i class="fas fa-redo"></i> Resetar Ordem
+            <button class="btn btn-xs btn-ghost" id="btnResetarOrdem" onclick="resetarOrdenamento()" style="display: none;">
+                <i class="fas fa-undo"></i> Resetar
             </button>
-            
-            <button class="btn btn-sm btn-outline-success" id="btnNormalizarOrdem" onclick="normalizarOrdenamento()" style="display: none;">
+            <button class="btn btn-xs btn-ghost" id="btnNormalizarOrdem" onclick="normalizarOrdenamento()" style="display: none;">
                 <i class="fas fa-sort-numeric-down"></i> Normalizar
             </button>
-
-            <button class="btn btn-sm btn-outline-light" onclick="sincronizarOrdem()" title="Busca itens novos no banco e adiciona à árvore">
+            <button class="btn btn-xs btn-ghost" onclick="sincronizarOrdem()">
                 <i class="fas fa-sync"></i> Sincronizar
             </button>
         </div>
     </div>
 
-    <!-- PAINEL DA ÁRVORE -->
-    <div class="tree-panel" id="treeContainer">
-        <ul id="treeRoot" class="tree">
-            <li class="text-center text-secondary mt-5" style="opacity: 0.7;">
-                <i class="fas fa-circle-notch fa-spin fa-2x mb-2"></i><br>Carregando estrutura...
-            </li>
-        </ul>
-    </div>
+    <main class="dre-tree-container fade-in delay-2">
+        <div class="tree-scroll-wrapper" id="treeContainer">
+            <ul id="treeRoot" class="tree-root">
+                <li class="loading-state">
+                    <div class="spinner"></div>
+                    <span>Carregando estrutura...</span>
+                </li>
+            </ul>
+        </div>
+    </main>
 
 </div>
 
-<!-- TOAST -->
-<div id="toast"><i class="fas fa-check"></i> Operação realizada!</div>
-
-<!-- DROP INDICATOR -->
-<div id="dropIndicator" class="drop-indicator">
-    <div class="drop-line"></div>
-</div>
-
-<!-- MENU DE CONTEXTO -->
-<div id="contextMenu">
-    <div class="ctx-item" id="ctxRename" onclick="renameNode()">
-        <i class="fas fa-edit text-warning"></i> Renomear
-    </div>
-    <div class="ctx-item" id="ctxMoveUp" onclick="moverParaCima()">
-        <i class="fas fa-arrow-up text-info"></i> Mover para Cima
-        <span class="ctx-badge">Alt+↑</span>
-    </div>
-    <div class="ctx-item" id="ctxMoveDown" onclick="moverParaBaixo()">
-        <i class="fas fa-arrow-down text-info"></i> Mover para Baixo
-        <span class="ctx-badge">Alt+↓</span>
-    </div>
-    <div class="ctx-divider" id="divOrdem"></div>
-    
-    <div class="ctx-item" id="ctxMassManager" onclick="openMassManager()">
-        <i class="fas fa-tools text-warning"></i> Gerenciador em Massa
-    </div>
-    <div class="ctx-divider" id="divSystematic"></div>
-
-    <div class="ctx-item" id="ctxAddSub" onclick="openModal('modalAddSub')"><i class="fas fa-folder-plus text-primary"></i> Criar Subgrupo</div>
-    
-    <div class="ctx-item" id="ctxCopy" onclick="copyNode()"><i class="fas fa-copy text-light"></i> Copiar Estrutura</div>
-    <div class="ctx-item" id="ctxPaste" onclick="pasteNode()"><i class="fas fa-paste text-light"></i> Colar Aqui</div>
-    <div class="ctx-divider" id="divCopy"></div>
-
-    <div class="ctx-item" id="ctxLinkConta" onclick="openModal('modalLinkConta')"><i class="fas fa-link text-info"></i> Vincular Conta <span class="ctx-badge" style="background:#2980b9">CC</span></div>
-    <div class="ctx-item" id="ctxLinkDetalhe" onclick="openModal('modalLinkDetalhe')"><i class="fas fa-tag text-success"></i> Vincular Conta <span class="ctx-badge" style="background:#27ae60">Virt</span></div>
-    <div class="ctx-item" id="ctxReplicar" onclick="openReplicarModal()"><i class="fas fa-clone text-light"></i> Replicar em Massa...</div>
-    
-    <div class="ctx-divider" id="ctxDivider"></div>
-    <div class="ctx-item" id="ctxDelete" onclick="deleteNode()" style="color:#e74c3c"><i class="fas fa-trash-alt"></i> <span id="lblDelete">Excluir</span></div>
-</div>
-
-<!-- MODAIS (mesmos do original) -->
-<div id="modalMassManager" class="dre-modal-overlay">
-    <div class="dre-modal-box" style="width: 750px; padding: 0;">
-        <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary">
-            <div>
-                <h3 class="text-lg font-bold text-white mb-0">Gestão de Tipo: <span id="lblMassType" class="text-warning">...</span></h3>
-                <p class="text-xs text-secondary mb-0">As ações aqui afetam TODOS os centros de custo deste tipo.</p>
+<div id="modalMassManager" class="modal-backdrop">
+    <div class="modal-window modal-xl">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-cubes"></i>
+                <div>
+                    <h3>Gestão em Massa</h3>
+                    <p>Tipo: <span id="lblMassType" class="text-highlight">...</span></p>
+                </div>
             </div>
-            <button class="btn btn-sm btn-outline-secondary" onclick="closeModals()">✕</button>
+            <button class="modal-close-btn" onclick="closeModals()">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
 
-        <div class="mass-modal-body">
-            <div class="mass-sidebar">
-                <div class="mass-nav-item active" onclick="switchMassTab('tabCreateGroup', this)">
-                    <i class="fas fa-folder-plus"></i> Criar Grupo
-                </div>
-                <div class="mass-nav-item" onclick="switchMassTab('tabDeleteGroup', this)">
-                    <i class="fas fa-folder-minus"></i> Excluir Grupo
-                </div>
-                <div class="mass-nav-item" onclick="switchMassTab('tabLinkAccount', this)">
-                    <i class="fas fa-link"></i> Vincular Conta
-                </div>
-                <div class="mass-nav-item" onclick="switchMassTab('tabUnlinkAccount', this)">
-                    <i class="fas fa-unlink"></i> Desvincular
-                </div>
-            </div>
+        <div class="modal-body-split">
+            <aside class="modal-sidebar">
+                <nav class="sidebar-nav">
+                    <button class="nav-btn active" onclick="switchMassTab('tabCreateGroup', this)">
+                        <i class="fas fa-folder-plus"></i> Criar Grupo
+                    </button>
+                    <button class="nav-btn" onclick="switchMassTab('tabDeleteGroup', this)">
+                        <i class="fas fa-folder-minus"></i> Excluir Grupo
+                    </button>
+                    <button class="nav-btn" onclick="switchMassTab('tabLinkAccount', this)">
+                        <i class="fas fa-link"></i> Vincular Contas
+                    </button>
+                    <button class="nav-btn" onclick="switchMassTab('tabUnlinkAccount', this)">
+                        <i class="fas fa-unlink"></i> Desvincular
+                    </button>
+                </nav>
+            </aside>
 
-            <div class="mass-content">
-                <div id="tabCreateGroup" class="mass-tab active">
-                    <h4 class="text-white font-bold mb-3">Criar Grupo em Massa</h4>
-                    <p class="text-sm text-secondary mb-4">Cria uma nova pasta em todos os CCs do tipo selecionado.</p>
-                    <label class="text-xs text-secondary uppercase font-bold">Nome do Novo Grupo</label>
-                    <input type="text" id="inputMassCreateName" class="custom-input mb-4" placeholder="Ex: Despesas Gerais">
-                    <button class="btn btn-warning w-100" onclick="submitMassCreate()">
-                        <i class="fas fa-plus-circle"></i> Executar Criação
+            <section class="modal-content-area">
+                
+                <div id="tabCreateGroup" class="tab-pane active">
+                    <div class="tab-header">
+                        <h4>Criar Novo Grupo</h4>
+                        <p>Adiciona uma nova pasta em todos os Centros de Custo deste tipo.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Nome do Grupo</label>
+                        <input type="text" id="inputMassCreateName" class="form-input" placeholder="Ex: Despesas Administrativas">
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="submitMassCreate()">
+                        <i class="fas fa-plus-circle"></i> Criar Grupo
                     </button>
                 </div>
 
-                <div id="tabDeleteGroup" class="mass-tab">
-                    <h4 class="text-white font-bold mb-3">Excluir Grupo em Massa</h4>
-                    <p class="text-sm text-secondary mb-4">Remove a pasta e <span class="text-danger">tudo que estiver dentro dela</span> de todos os CCs.</p>
-                    <label class="text-xs text-secondary uppercase font-bold">Selecione o Grupo para Excluir</label>
-                    <select id="selectMassDeleteGroup" class="custom-input mb-4"></select>
-                    <button class="btn btn-danger w-100" onclick="submitMassDelete()">
-                        <i class="fas fa-trash-alt"></i> Executar Exclusão
+                <div id="tabDeleteGroup" class="tab-pane">
+                    <div class="tab-header">
+                        <h4>Excluir Grupo</h4>
+                        <p class="text-danger">Atenção: Remove o grupo e todo seu conteúdo recursivamente.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Selecione o Grupo</label>
+                        <div class="select-wrapper">
+                            <select id="selectMassDeleteGroup" class="form-select"></select>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger btn-block" onclick="submitMassDelete()">
+                        <i class="fas fa-trash-alt"></i> Excluir Definitivamente
                     </button>
                 </div>
 
-                <div id="tabLinkAccount" class="mass-tab">
-                    <h4 class="text-white font-bold mb-2">Gerenciador de Vínculos</h4>
-                    <p class="text-sm text-secondary mb-3">Selecione um grupo na esquerda para gerenciar suas contas.</p>
-                    
-                    <div class="mass-dashboard">
-                        <div class="col-groups" id="listMassGroups">
-                            <div class="text-center p-3 text-secondary">Carregando grupos...</div>
+                <div id="tabLinkAccount" class="tab-pane full-height">
+                    <div class="dual-pane-layout">
+                        <div class="pane-left">
+                            <div class="pane-header">
+                                <span>Grupos Disponíveis</span>
+                            </div>
+                            <div class="pane-list" id="listMassGroups">
+                                </div>
                         </div>
 
-                        <div class="col-accounts">
-                            <div id="noGroupSelected" class="h-100 d-flex flex-column align-items-center justify-content-center text-secondary">
-                                <i class="fas fa-arrow-left fa-2x mb-3"></i>
-                                <p>Selecione um grupo ao lado.</p>
+                        <div class="pane-right">
+                            <div id="noGroupSelected" class="empty-selection">
+                                <i class="fas fa-mouse-pointer"></i>
+                                <p>Selecione um grupo à esquerda</p>
                             </div>
 
-                            <div id="groupDetails" style="display: none;" class="h-100 d-flex flex-column">
-                                <div class="accounts-header d-flex justify-content-between align-items-center">
-                                    <strong class="text-white" id="lblSelectedGroup">...</strong>
-                                    <span class="badge bg-secondary" id="lblCountAccounts">0 contas</span>
+                            <div id="groupDetails" class="details-view" style="display: none;">
+                                <div class="details-header">
+                                    <h5 id="lblSelectedGroup">Nome do Grupo</h5>
+                                    <span class="badge" id="lblCountAccounts">0 contas</span>
                                 </div>
 
-                                <label class="text-xs text-secondary uppercase font-bold mb-2">Contas Vinculadas</label>
-                                <div class="linked-accounts-area" id="listLinkedAccounts"></div>
+                                <div class="accounts-list-wrapper">
+                                    <label>Contas Vinculadas</label>
+                                    <div id="listLinkedAccounts" class="tags-container"></div>
+                                </div>
 
-                                <div class="add-account-area mt-auto">
-                                    <label class="text-xs text-secondary uppercase font-bold">Adicionar Nova Conta</label>
-                                    <div class="d-flex gap-2">
-                                        <input type="text" id="inputMassLinkConta" list="massContasDataList" class="custom-input mt-0" placeholder="Busque a conta...">
-                                        <button class="btn btn-info" onclick="addAccountToGroup()">
+                                <div class="add-account-footer">
+                                    <div class="toggle-wrapper">
+                                        <label class="switch">
+                                            <input type="checkbox" id="chkMassPersonalizada" onchange="toggleMassCustomInput()">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span>Personalizada?</span>
+                                    </div>
+                                    
+                                    <div id="divMassCustomName" style="display: none;" class="mt-2 mb-2">
+                                        <input type="text" id="inputMassCustomName" class="form-input" placeholder="Nome personalizado (Opcional)">
+                                    </div>
+
+                                    <div class="input-group">
+                                        <input type="text" id="inputMassLinkConta" list="massContasDataList" class="form-input" placeholder="Buscar conta...">
+                                        <button class="btn btn-icon" onclick="addAccountToGroup()">
                                             <i class="fas fa-plus"></i>
                                         </button>
                                     </div>
                                 </div>
-                                <datalist id="massContasDataList"></datalist>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div id="tabUnlinkAccount" class="mass-tab">
-                    <h4 class="text-white font-bold mb-3">Desvincular Conta em Massa</h4>
-                    <p class="text-sm text-secondary mb-4">Remove o vínculo desta conta de todos os CCs deste tipo.</p>
-                    <label class="text-xs text-secondary uppercase font-bold">Conta Contábil para Remover</label>
-                    <input type="text" id="inputMassUnlinkConta" list="contasDataList" class="custom-input mb-4" placeholder="Digite a conta...">
-                    <button class="btn btn-danger w-100" onclick="submitMassUnlink()">
-                        <i class="fas fa-cut"></i> Executar Desvínculo
+                <div id="tabUnlinkAccount" class="tab-pane">
+                    <div class="tab-header">
+                        <h4>Desvincular Conta</h4>
+                        <p>Remove o vínculo de uma conta específica em massa.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Número da Conta</label>
+                        <input type="text" id="inputMassUnlinkConta" list="contasDataList" class="form-input" placeholder="Digite a conta...">
+                    </div>
+                    <button class="btn btn-danger btn-block" onclick="submitMassUnlink()">
+                        <i class="fas fa-unlink"></i> Remover Vínculo
                     </button>
+                </div>
+
+            </section>
+        </div>
+    </div>
+</div>
+
+<div id="modalAddVirtual" class="modal-backdrop">
+    <div class="modal-window modal-sm">
+        <div class="modal-header">
+            <h3>Novo Nó Virtual</h3>
+            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Nome da Estrutura</label>
+                <input type="text" id="inputVirtualName" class="form-input" placeholder="Ex: RECEITA LÍQUIDA">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitAddVirtual()">Criar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalAddSub" class="modal-backdrop">
+    <div class="modal-window modal-sm">
+        <div class="modal-header">
+            <h3>Novo Subgrupo</h3>
+            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Pai: <strong id="lblParentName">...</strong></p>
+            <div class="form-group">
+                <label>Nome do Grupo</label>
+                <input type="text" id="inputSubName" class="form-input" placeholder="Ex: Pessoal">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitAddSub()">Criar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalLinkConta" class="modal-backdrop">
+    <div class="modal-window modal-md">
+        <div class="modal-header">
+            <h3>Gerenciar Contas</h3>
+            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="stats-bar">
+                <span>Grupo: <strong id="lblGroupTarget">...</strong></span>
+                <span class="badge" id="lblCountStd">0</span>
+            </div>
+            
+            <div class="scrollable-list" id="listStdLinkedAccounts">
+                </div>
+
+            <div class="footer-input-area">
+                <label>Adicionar Conta</label>
+                <div class="input-group">
+                    <input type="text" id="inputContaSearch" list="stdContasDataList" class="form-input" placeholder="Buscar conta...">
+                    <button class="btn btn-primary" onclick="submitLinkConta()">Adicionar</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<div id="modalAddVirtual" class="dre-modal-overlay">
-    <div class="dre-modal-box">
-        <h3 class="text-lg font-bold text-warning mb-3">Novo Nó Virtual (Raiz)</h3>
-        <label class="text-xs text-secondary uppercase font-bold">Nome da Estrutura</label>
-        <input type="text" id="inputVirtualName" class="custom-input" placeholder="Ex: RECEITA OPERACIONAL LÍQUIDA" autocomplete="off">
-        <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="closeModals()">Cancelar</button>
-            <button class="btn btn-warning" onclick="submitAddVirtual()">Criar</button>
+<div id="modalLinkDetalhe" class="modal-backdrop">
+    <div class="modal-window modal-sm">
+        <div class="modal-header">
+            <h3>Vincular Personalizada</h3>
+            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
         </div>
-    </div>
-</div>
-
-<div id="modalAddSub" class="dre-modal-overlay">
-    <div class="dre-modal-box">
-        <h3 class="text-lg font-bold text-primary mb-3">Novo Subgrupo</h3>
-        <p class="text-sm text-secondary mb-3">Dentro de: <strong id="lblParentName" class="text-white">...</strong></p>
-        <label class="text-xs text-secondary uppercase font-bold">Nome do Grupo</label>
-        <input type="text" id="inputSubName" class="custom-input" placeholder="Ex: Pessoal e Encargos" autocomplete="off">
-        <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="closeModals()">Cancelar</button>
-            <button class="btn btn-primary" onclick="submitAddSub()">Criar</button>
-        </div>
-    </div>
-</div>
-
-<div id="modalLinkConta" class="dre-modal-overlay">
-    <div class="dre-modal-box" style="width: 600px;">
-        <h3 class="text-lg font-bold text-primary mb-2">Gerenciar Contas do Grupo</h3>
-        <p class="text-sm text-secondary mb-4">
-            Grupo: <strong id="lblGroupTarget" class="text-white">...</strong>
-        </p>
-
-        <div class="mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
-                <label class="text-xs text-secondary uppercase font-bold m-0">Contas Já Vinculadas</label>
-                <span id="lblCountStd" class="badge bg-secondary text-xs">0</span>
+        <div class="modal-body">
+            <p class="modal-subtitle">Destino: <strong id="lblDetailTarget">...</strong></p>
+            <div class="form-group">
+                <label>1. Conta Contábil</label>
+                <input type="text" id="inputDetailConta" list="contasDataList" class="form-input" placeholder="6010...">
             </div>
-            
-            <div id="listStdLinkedAccounts" class="linked-accounts-area" style="height: 120px; background: rgba(0,0,0,0.2); border-radius: 6px; padding: 10px; overflow-y: auto;"></div>
-        </div>
-
-        <div class="add-account-area">
-            <label class="text-xs text-secondary uppercase font-bold">Adicionar Nova Conta</label>
-            <div class="d-flex gap-2">
-                <input type="text" id="inputContaSearch" list="stdContasDataList" class="custom-input mt-0" placeholder="Busque a conta disponível..." autocomplete="off">
-                <button class="btn btn-primary" onclick="submitLinkConta()">
-                    <i class="fas fa-plus"></i> Vincular
-                </button>
+            <div class="form-group">
+                <label>2. Nome de Exibição (Opcional)</label>
+                <input type="text" id="inputDetailName" class="form-input" placeholder="Ex: Venda Matriz">
             </div>
         </div>
-
-        <div class="modal-actions mt-4 pt-3 border-top border-secondary justify-content-end">
-            <button class="btn btn-secondary" onclick="closeModals()">Fechar</button>
-        </div>
-    </div>
-</div>
-
-<datalist id="stdContasDataList"></datalist>
-
-<div id="modalLinkDetalhe" class="dre-modal-overlay">
-    <div class="dre-modal-box">
-        <h3 class="text-lg font-bold text-success mb-3">Vincular Conta (Virtual)</h3>
-        <p class="text-sm text-secondary mb-3">Para Estrutura Virtual. Permite renomear.</p>
-        <p class="text-sm text-secondary">Destino: <strong id="lblDetailTarget" class="text-white">...</strong></p>
-        <label class="text-xs text-secondary uppercase font-bold">1. Conta Real</label>
-        <input type="text" id="inputDetailConta" list="contasDataList" class="custom-input mb-3" placeholder="6010..." autocomplete="off">
-        <label class="text-xs text-secondary uppercase font-bold">2. Nome na DRE (Opcional)</label>
-        <input type="text" id="inputDetailName" class="custom-input" placeholder="Ex: Venda Matriz" autocomplete="off">
-        <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="closeModals()">Cancelar</button>
+        <div class="modal-footer">
+            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
             <button class="btn btn-success" onclick="submitLinkDetalhe()">Salvar</button>
         </div>
     </div>
 </div>
 
-<div id="modalReplicar" class="dre-modal-overlay">
-    <div class="dre-modal-box" style="width: 600px;">
-        <h3 class="text-lg font-bold text-primary mb-3">Replicar Estrutura</h3>
-        <p class="text-sm text-secondary mb-3">Copiar de: <strong id="lblOrigemReplicar" class="text-white">...</strong></p>
-        <div id="listaDestinos" style="height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px;"></div>
-        <div class="d-flex justify-content-between mt-2">
-            <button class="btn btn-sm btn-link text-secondary" onclick="toggleAllDestinos()" style="text-decoration:none">Inverter Seleção</button>
-            <span id="lblTotalSelecionados" class="text-xs text-muted pt-2">0 selecionados</span>
+<div id="modalReplicar" class="modal-backdrop">
+    <div class="modal-window modal-md">
+        <div class="modal-header">
+            <h3>Replicar Estrutura</h3>
+            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
         </div>
-        <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="closeModals()">Cancelar</button>
-            <button class="btn btn-primary" onclick="submitReplicar()">Replicar Agora</button>
+        <div class="modal-body full-height">
+            <p class="modal-subtitle">Origem: <strong id="lblOrigemReplicar">...</strong></p>
+            <div class="selection-controls">
+                <button class="btn btn-xs btn-text" onclick="toggleAllDestinos()">Inverter Seleção</button>
+                <span id="lblTotalSelecionados">0 selecionados</span>
+            </div>
+            <div id="listaDestinos" class="checklist-container">
+                </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitReplicar()">Replicar</button>
         </div>
     </div>
 </div>
 
 <datalist id="contasDataList"></datalist>
+<datalist id="stdContasDataList"></datalist>
+<datalist id="massContasDataList"></datalist>
+
+<div id="toast" class="toast">Notificação</div>
+<div id="dropIndicator" class="drop-indicator"><div class="drop-line"></div></div>
+
+<div id="contextMenu" class="context-menu">
+    <div class="ctx-group">
+        <div class="ctx-item" id="ctxRename" onclick="renameNode()">
+            <i class="fas fa-pen"></i> Renomear
+        </div>
+    </div>
+    
+    <div class="ctx-separator" id="divOrdem"></div>
+    
+    <div class="ctx-group">
+        <div class="ctx-item" id="ctxMoveUp" onclick="moverParaCima()">
+            <i class="fas fa-arrow-up"></i> Mover p/ Cima
+            <span class="shortcut">Alt+↑</span>
+        </div>
+        <div class="ctx-item" id="ctxMoveDown" onclick="moverParaBaixo()">
+            <i class="fas fa-arrow-down"></i> Mover p/ Baixo
+            <span class="shortcut">Alt+↓</span>
+        </div>
+    </div>
+
+    <div class="ctx-separator" id="divSystematic"></div>
+
+    <div class="ctx-item highlight" id="ctxMassManager" onclick="openMassManager()">
+        <i class="fas fa-layer-group"></i> Gerenciar em Massa
+    </div>
+
+    <div class="ctx-separator" id="divCopy"></div>
+
+    <div class="ctx-group">
+        <div class="ctx-item" id="ctxAddSub" onclick="openModal('modalAddSub')">
+            <i class="fas fa-folder-plus"></i> Novo Subgrupo
+        </div>
+        <div class="ctx-item" id="ctxLinkConta" onclick="openModal('modalLinkConta')">
+            <i class="fas fa-link"></i> Vincular Conta
+        </div>
+        <div class="ctx-item" id="ctxLinkDetalhe" onclick="openModal('modalLinkDetalhe')">
+            <i class="fas fa-tag"></i> Vincular Personalizada
+        </div>
+    </div>
+
+    <div class="ctx-group">
+        <div class="ctx-item" id="ctxCopy" onclick="copyNode()"><i class="fas fa-copy"></i> Copiar</div>
+        <div class="ctx-item" id="ctxPaste" onclick="pasteNode()"><i class="fas fa-paste"></i> Colar</div>
+        <div class="ctx-item" id="ctxReplicar" onclick="openReplicarModal()"><i class="fas fa-clone"></i> Replicar</div>
+    </div>
+
+    <div class="ctx-separator" id="ctxDivider"></div>
+
+    <div class="ctx-item danger" id="ctxDelete" onclick="deleteNode()">
+        <i class="fas fa-trash"></i> <span id="lblDelete">Excluir</span>
+    </div>
+</div>
 
 {% endblock %}
 

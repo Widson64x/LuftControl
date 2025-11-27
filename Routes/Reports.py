@@ -34,13 +34,6 @@ def PaginaRelatorios():
 def RelatorioRazaoDados():
     """
     Retorna dados paginados do Razão Consolidado com filtro de busca.
-    
-    Query Params:
-        - page (int): Número da página (default: 1)
-        - search (str): Termo de busca (opcional)
-    
-    ATUALIZADO: Usa nome novo da VIEW (Razao_Dados_Consolidado)
-    Mantém nomes originais das colunas (do Excel)
     """
     session = None
     try: 
@@ -55,7 +48,7 @@ def RelatorioRazaoDados():
         # Query base
         query = session.query(RazaoConsolidado)
         
-        # Filtro de busca
+        # Filtro de busca - inclui CC (CC_Cod), Nome_CC, Cliente e Filial Cliente
         if search_term:
             termo_like = f"%{search_term}%"
             query = query.filter(or_(
@@ -65,16 +58,19 @@ def RelatorioRazaoDados():
                 RazaoConsolidado.Numero.ilike(termo_like),
                 RazaoConsolidado.origem.ilike(termo_like),
                 RazaoConsolidado.Nome_CC.ilike(termo_like),
+                RazaoConsolidado.Cliente.ilike(termo_like),
+                RazaoConsolidado.Filial_Cliente.ilike(termo_like),
+                RazaoConsolidado.CC_Cod.ilike(termo_like),
                 func.cast(RazaoConsolidado.Debito, String).ilike(termo_like),
                 func.cast(RazaoConsolidado.Credito, String).ilike(termo_like)
             ))
 
-        # Contagem
+        # Contagem total (antes da paginação)
         total_registros = query.count()
         total_paginas = (total_registros // per_page) + (1 if total_registros % per_page > 0 else 0)
 
-        # Busca paginada
-        razoes = query.order_by(RazaoConsolidado.Data).offset(offset).limit(per_page).all()
+        # Busca paginada — ordenação determinística
+        razoes = query.order_by(RazaoConsolidado.Data, RazaoConsolidado.Conta, RazaoConsolidado.Numero).offset(offset).limit(per_page).all()
         
         # Formata resultado
         result = []
@@ -129,14 +125,6 @@ def RelatorioRazaoDados():
 def RelatorioRazaoResumo():
     """
     Retorna resumo estatístico do Razão Consolidado.
-    
-    Returns:
-        - total_registros: Quantidade de lançamentos
-        - total_debito: Soma de todos os débitos
-        - total_credito: Soma de todos os créditos
-        - saldo_total: Saldo final (débito - crédito)
-    
-    ATUALIZADO: Usa nome novo da VIEW
     """
     session = None
     try: 
@@ -164,15 +152,14 @@ def RelatorioRazaoResumo():
         if session: 
             session.close()
 
-
 @reports_bp.route('/RelatorioRazao/Rentabilidade', methods=['GET'])
 @login_required
 def RelatorioRentabilidade():
     """
-    DRE Gerencial Rigorosa.
-    - Regra 1: Só exibe contas VINCULADAS (INNER JOIN).
-    - Regra 2: Segue ordenamento configurado.
-    - Regra 3: Estrutura Tipo > Grupo > Conta.
+    DRE Gerencial Definitiva (CORRIGIDA).
+    
+    Correções de Tipagem SQL:
+    - Adicionado CAST(NULL AS INTEGER) e CAST(NULL AS TEXT) para evitar erro de DatatypeMismatch no UNION.
     """
     session = None
     try: 
@@ -180,144 +167,149 @@ def RelatorioRentabilidade():
         
         sql_query = text("""
             WITH RECURSIVE 
-            -- 1. Mapeia toda a hierarquia de Grupos (TreePath)
+            -- 1. Mapeia Hierarquia (TreePath)
             TreePath AS (
                 SELECT 
-                    h."Id", 
-                    h."Nome", 
-                    h."Id_Pai", 
-                    h."Raiz_Centro_Custo_Codigo", 
-                    h."Raiz_No_Virtual_Id", 
-                    h."Raiz_Centro_Custo_Tipo",
+                    h."Id", h."Nome", h."Id_Pai", 
+                    h."Raiz_Centro_Custo_Codigo", h."Raiz_No_Virtual_Id", h."Raiz_Centro_Custo_Tipo",
                     CAST(h."Nome" AS TEXT) as full_path
                 FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" h
                 WHERE h."Id_Pai" IS NULL
-                
                 UNION ALL
-                
                 SELECT 
-                    child."Id", 
-                    child."Nome", 
-                    child."Id_Pai", 
-                    tp."Raiz_Centro_Custo_Codigo", 
-                    tp."Raiz_No_Virtual_Id",
-                    tp."Raiz_Centro_Custo_Tipo",
+                    child."Id", child."Nome", child."Id_Pai", 
+                    tp."Raiz_Centro_Custo_Codigo", tp."Raiz_No_Virtual_Id", tp."Raiz_Centro_Custo_Tipo",
                     CAST(tp.full_path || '||' || child."Nome" AS TEXT)
                 FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" child
                 JOIN TreePath tp ON child."Id_Pai" = tp."Id"
             ),
 
-            -- 2. Busca a Ordem dos Blocos Principais (Raiz) na tabela de Ordenamento
+            -- 2. Ordem
             OrdemRaiz AS (
-                SELECT id_referencia, ordem 
-                FROM "Dre_Schema"."DRE_Ordenamento" 
-                WHERE contexto_pai = 'root'
-            )
+                SELECT id_referencia, ordem FROM "Dre_Schema"."DRE_Ordenamento" WHERE contexto_pai = 'root'
+            ),
 
-            -- =================================================================
-            -- QUERY PRINCIPAL (União de CCs Padrão + Virtuais)
-            -- =================================================================
-            SELECT * FROM (
-                -- PARTE A: ESTRUTURA PADRÃO (Vinculada a CCs: Adm, Oper, Coml)
+            -- 3. MAPA DE DEFINIÇÕES (UNION CORRIGIDO COM CASTS)
+            Definicoes AS (
+                -- 3.1 Vínculos Padrão
                 SELECT 
-                    'PADRAO' as origem_dado,
-                    tca."origem", 
-                    tca."Conta",
-                    MAX(tca."Título Conta") AS "Titulo_Conta",
-                    
-                    -- Nível 1: TIPO (Ex: (-) DESPESAS OPERACIONAIS)
-                    COALESCE(tp."Raiz_Centro_Custo_Tipo", 'Outros') AS "Tipo_CC",
-                    
-                    -- Nível 2: GRUPO (Ex: Pessoal, Veículos)
-                    tp.full_path AS "Caminho_Subgrupos",
-                    
-                    -- Valores Mensais (Invertendo sinal para DRE: Crédito aumenta, Débito diminui resultado)
-                    (COALESCE(SUM(tca."Saldo"), 0.0) * -1) AS "Total_Ano",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 1 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jan",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 2 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Fev",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 3 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mar",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 4 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Abr",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 5 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mai",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 6 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jun",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 7 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jul",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 8 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Ago",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 9 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Set",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 10 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Out",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 11 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Nov",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 12 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Dez",
-
-                    -- Ordenamento Prioritário
-                    COALESCE(MAX(ord.ordem), 
-                        CASE 
-                            WHEN tp."Raiz_Centro_Custo_Tipo" = 'Oper' THEN 500 
-                            WHEN tp."Raiz_Centro_Custo_Tipo" = 'Coml' THEN 510 
-                            WHEN tp."Raiz_Centro_Custo_Tipo" = 'Adm' THEN 520 
-                            ELSE 999 
-                        END
-                    ) as ordem_prioridade
-
-                FROM "Dre_Schema"."Razao_Dados_Consolidado" tca
-                -- INNER JOIN OBRIGATÓRIO: Só traz o que tem vínculo na estrutura
-                INNER JOIN "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v 
-                    ON tca."Conta" = v."Conta_Contabil" 
-                    -- Garante que o vínculo é do CC correto
-                    AND (tca."Conta" || CAST(tca."Centro de Custo" AS TEXT)) = v."Chave_Conta_Codigo_CC"
-                INNER JOIN TreePath tp 
-                    ON v."Id_Hierarquia" = tp."Id"
-                LEFT JOIN OrdemRaiz ord 
-                    ON ord.id_referencia = tp."Raiz_Centro_Custo_Tipo" 
-                    AND ord.id_referencia IN ('Adm', 'Oper', 'Coml')
-
-                WHERE tca."origem" IN ('FARMA', 'FARMADIST')
-                GROUP BY tca."origem", tca."Conta", tp."Raiz_Centro_Custo_Tipo", tp.full_path
+                    v."Conta_Contabil",
+                    tp."Raiz_Centro_Custo_Codigo" as "CC_Alvo",
+                    tp."Id" as "Id_Hierarquia",
+                    CAST(NULL AS INTEGER) as "Id_No_Virtual", -- CAST CORRIGIDO
+                    CAST(NULL AS TEXT) as "Nome_Personalizado_Def", -- CAST CORRIGIDO
+                    tp.full_path,
+                    tp."Raiz_Centro_Custo_Tipo",
+                    tp."Raiz_No_Virtual_Id" as "Root_Virtual_Id_Hierarquia"
+                FROM "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v
+                JOIN TreePath tp ON v."Id_Hierarquia" = tp."Id"
 
                 UNION ALL
 
-                -- PARTE B: ESTRUTURA VIRTUAL (Contas personalizadas ou vinculadas a nós virtuais)
+                -- 3.2 Vínculos Personalizados em Grupos
                 SELECT 
-                    'VIRTUAL' as origem_dado,
+                    p."Conta_Contabil",
+                    tp."Raiz_Centro_Custo_Codigo" as "CC_Alvo",
+                    p."Id_Hierarquia",
+                    CAST(NULL AS INTEGER) as "Id_No_Virtual", -- CAST CORRIGIDO
+                    p."Nome_Personalizado",
+                    tp.full_path,
+                    tp."Raiz_Centro_Custo_Tipo",
+                    tp."Raiz_No_Virtual_Id"
+                FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p
+                JOIN TreePath tp ON p."Id_Hierarquia" = tp."Id"
+                WHERE p."Id_Hierarquia" IS NOT NULL
+
+                UNION ALL
+
+                -- 3.3 Vínculos Personalizados Diretos
+                SELECT 
+                    p."Conta_Contabil",
+                    CAST(NULL AS INTEGER) as "CC_Alvo", -- CAST CORRIGIDO
+                    CAST(NULL AS INTEGER) as "Id_Hierarquia", -- CAST CORRIGIDO
+                    p."Id_No_Virtual",
+                    p."Nome_Personalizado",
+                    'Direto' as full_path,
+                    nv."Nome" as "Raiz_Centro_Custo_Tipo",
+                    nv."Id"
+                FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p
+                JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv ON p."Id_No_Virtual" = nv."Id"
+                WHERE p."Id_No_Virtual" IS NOT NULL
+            ),
+
+            -- 4. DADOS BRUTOS
+            DadosBrutos AS (
+                SELECT 
                     tca."origem", 
-                    tca."Conta",
-                    COALESCE(MAX(cd."Nome_Personalizado"), MAX(tca."Título Conta")) AS "Titulo_Conta",
+                    tca."Conta", 
                     
-                    MAX(nv."Nome") AS "Tipo_CC",
-                    COALESCE(MAX(tp.full_path), 'Direto') AS "Caminho_Subgrupos",
-
-                    (COALESCE(SUM(tca."Saldo"), 0.0) * -1) AS "Total_Ano",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 1 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jan",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 2 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Fev",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 3 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mar",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 4 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Abr",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 5 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Mai",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 6 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jun",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 7 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Jul",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 8 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Ago",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 9 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Set",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 10 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Out",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 11 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Nov",
-                    (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM tca."Data") = 12 THEN tca."Saldo" ELSE 0 END), 0.0) * -1) AS "Dez",
-
-                    -- Ordem: Pega do Nó Virtual ou da Tabela de Ordenamento
-                    COALESCE(MAX(ord.ordem), MAX(nv."Ordem"), 0) as ordem_prioridade
+                    COALESCE(def."Nome_Personalizado_Def", tca."Título Conta") AS "Titulo_Final",
+                    
+                    COALESCE(def."Raiz_Centro_Custo_Tipo", 'Outros') AS "Tipo_CC",
+                    COALESCE(def.full_path, 'Não Classificado') AS "Caminho_Subgrupos",
+                    
+                    tca."Saldo",
+                    tca."Data",
+                    
+                    COALESCE(ord.ordem, 
+                        CASE 
+                            WHEN def."Raiz_Centro_Custo_Tipo" = 'Oper' THEN 500 
+                            WHEN def."Raiz_Centro_Custo_Tipo" = 'Coml' THEN 510 
+                            WHEN def."Raiz_Centro_Custo_Tipo" = 'Adm' THEN 520 
+                            ELSE 999 
+                        END
+                    ) as ordem_base
 
                 FROM "Dre_Schema"."Razao_Dados_Consolidado" tca
-                -- Tenta achar vínculo normal em grupo virtual
-                LEFT JOIN "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v ON tca."Conta" = v."Conta_Contabil"
-                LEFT JOIN TreePath tp ON v."Id_Hierarquia" = tp."Id" AND tp."Raiz_No_Virtual_Id" IS NOT NULL
-                -- Tenta achar conta personalizada direta
-                LEFT JOIN "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" cd ON tca."Conta" = cd."Conta_Contabil"
-                LEFT JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv_direto ON cd."Id_No_Virtual" = nv_direto."Id"
                 
-                -- JOIN FINAL para pegar o nome do Nó Virtual (de um jeito ou de outro)
-                INNER JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv 
-                    ON (tp."Raiz_No_Virtual_Id" = nv."Id" OR nv_direto."Id" = nv."Id")
+                INNER JOIN Definicoes def 
+                    ON tca."Conta" = def."Conta_Contabil"
+                    AND (
+                        (def."CC_Alvo" IS NOT NULL AND CAST(tca."Centro de Custo" AS INTEGER) = def."CC_Alvo")
+                        OR 
+                        (def."CC_Alvo" IS NULL)
+                    )
                 
-                LEFT JOIN OrdemRaiz ord ON CAST(nv."Id" AS VARCHAR) = ord.id_referencia
+                LEFT JOIN OrdemRaiz ord 
+                    ON (ord.id_referencia = def."Raiz_Centro_Custo_Tipo" 
+                        OR ord.id_referencia = CAST(def."Root_Virtual_Id_Hierarquia" AS TEXT)
+                        OR ord.id_referencia = CAST(def."Id_No_Virtual" AS TEXT))
 
                 WHERE tca."origem" IN ('FARMA', 'FARMADIST')
-                GROUP BY tca."origem", tca."Conta"
-            ) AS FinalResult
-            ORDER BY ordem_prioridade ASC, "Tipo_CC", "Caminho_Subgrupos", "Conta";
+            )
+
+            -- 5. AGRUPAMENTO FINAL
+            SELECT 
+                MAX("origem") as "origem",
+                
+                CASE 
+                    WHEN COUNT(DISTINCT "Conta") > 1 THEN 'Agrupado' 
+                    ELSE MAX("Conta") 
+                END as "Conta",
+                
+                "Titulo_Final" as "Titulo_Conta",
+                "Tipo_CC",
+                "Caminho_Subgrupos",
+
+                (COALESCE(SUM("Saldo"), 0.0) * -1) AS "Total_Ano",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 1 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Jan",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 2 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Fev",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 3 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Mar",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 4 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Abr",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 5 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Mai",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 6 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Jun",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 7 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Jul",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 8 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Ago",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 9 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Set",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 10 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Out",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 11 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Nov",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 12 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Dez",
+
+                MIN("ordem_base") as ordem_prioridade
+
+            FROM DadosBrutos
+            GROUP BY "Tipo_CC", "Caminho_Subgrupos", "Titulo_Final"
+            ORDER BY ordem_prioridade ASC, "Tipo_CC", "Caminho_Subgrupos", "Titulo_Final";
         """)
 
         result = session.execute(sql_query)
