@@ -1,7 +1,7 @@
 """
 Routes/Reports.py
 Rotas para Relatórios de Rentabilidade e Razão Contábil
-VERSÃO ATUALIZADA - Nomenclatura refatorada
+VERSÃO CORRIGIDA - Consulta SQL dinâmica para evitar problemas de mapeamento ORM
 """
 
 from flask import Blueprint, jsonify, request, current_app, abort, render_template
@@ -9,7 +9,6 @@ from flask_login import login_required
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func, or_, String, text
 
-from Models.POSTGRESS.Rentabilidade import RazaoConsolidado
 from Db.Connections import get_postgres_engine
 
 reports_bp = Blueprint('Reports', __name__) 
@@ -34,6 +33,7 @@ def PaginaRelatorios():
 def RelatorioRazaoDados():
     """
     Retorna dados paginados do Razão Consolidado com filtro de busca.
+    VERSÃO CORRIGIDA - Novas chaves atualizadas
     """
     session = None
     try: 
@@ -45,80 +45,128 @@ def RelatorioRazaoDados():
         per_page = 1000
         offset = (page - 1) * per_page
         
-        # Query base
-        query = session.query(RazaoConsolidado)
+        # Monta a query SQL dinâmica
+        base_sql = """
+            SELECT 
+                "origem",
+                "Conta",
+                "Título Conta",
+                "Data",
+                "Numero",
+                "Descricao",
+                "Contra Partida - Credito",
+                "Filial",
+                "Centro de Custo",
+                "Item",
+                "Cod Cl. Valor",
+                "Debito",
+                "Credito",
+                "Saldo",
+                "Mes",
+                "CC",
+                "Nome do CC",
+                "Cliente",
+                "Filial Cliente",
+                "Chv_Mes_Conta",
+                "Chv_Mes_Conta_CC",
+                "Chv_Mes_NomeCC_Conta",
+                "Chv_Mes_NomeCC_Conta_CC",
+                "Chv_Conta_Formatada",
+                "Chv_Mes_NomeCC_Conta_CodCC"
+            FROM "Dre_Schema"."Razao_Dados_Consolidado"
+        """
         
-        # Filtro de busca - inclui CC (CC_Cod), Nome_CC, Cliente e Filial Cliente
+        count_sql = 'SELECT COUNT(*) FROM "Dre_Schema"."Razao_Dados_Consolidado"'
+        
+        # Filtro de busca
+        where_clause = ""
+        params = {}
+        
         if search_term:
-            termo_like = f"%{search_term}%"
-            query = query.filter(or_(
-                RazaoConsolidado.Conta.ilike(termo_like),
-                RazaoConsolidado.Titulo_Conta.ilike(termo_like),
-                RazaoConsolidado.Descricao.ilike(termo_like),
-                RazaoConsolidado.Numero.ilike(termo_like),
-                RazaoConsolidado.origem.ilike(termo_like),
-                RazaoConsolidado.Nome_CC.ilike(termo_like),
-                RazaoConsolidado.Cliente.ilike(termo_like),
-                RazaoConsolidado.Filial_Cliente.ilike(termo_like),
-                RazaoConsolidado.CC_Cod.ilike(termo_like),
-                func.cast(RazaoConsolidado.Debito, String).ilike(termo_like),
-                func.cast(RazaoConsolidado.Credito, String).ilike(termo_like)
-            ))
-
-        # Contagem total (antes da paginação)
-        total_registros = query.count()
+            where_clause = """
+                WHERE (
+                    "Conta"::TEXT ILIKE :termo 
+                    OR "Título Conta" ILIKE :termo
+                    OR "Descricao" ILIKE :termo
+                    OR "Numero"::TEXT ILIKE :termo
+                    OR "origem" ILIKE :termo
+                    OR "Nome do CC" ILIKE :termo
+                    OR "Cliente" ILIKE :termo
+                    OR "Filial Cliente" ILIKE :termo
+                    OR "CC"::TEXT ILIKE :termo
+                    OR "Debito"::TEXT ILIKE :termo
+                    OR "Credito"::TEXT ILIKE :termo
+                )
+            """
+            params['termo'] = f"%{search_term}%"
+        
+        # Query de contagem
+        count_result = session.execute(
+            text(count_sql + (" " + where_clause if where_clause else "")), 
+            params
+        ).scalar()
+        
+        total_registros = count_result or 0
         total_paginas = (total_registros // per_page) + (1 if total_registros % per_page > 0 else 0)
 
-        # Busca paginada — ordenação determinística
-        razoes = query.order_by(RazaoConsolidado.Data, RazaoConsolidado.Conta, RazaoConsolidado.Numero).offset(offset).limit(per_page).all()
+        # Query de dados
+        data_sql = base_sql + where_clause + """
+            ORDER BY "Data", "Conta", "Numero"
+            LIMIT :limit OFFSET :offset
+        """
+        params['limit'] = per_page
+        params['offset'] = offset
+        
+        result = session.execute(text(data_sql), params)
+        rows = result.fetchall()
         
         # Formata resultado
-        result = []
-        for i, r in enumerate(razoes, 1):
+        result_list = []
+        for i, r in enumerate(rows, 1):
             item = {
                 'id': i + offset,
-                'origem': r.origem,
-                'conta': r.Conta, 
-                'titulo_conta': r.Titulo_Conta,
-                'data': r.Data.isoformat() if r.Data else None,
-                'numero': r.Numero,
-                'descricao': r.Descricao,
-                'debito': float(r.Debito) if r.Debito else 0.0,
-                'credito': float(r.Credito) if r.Credito else 0.0,
-                'saldo': float(r.Saldo) if r.Saldo else 0.0,
-                'mes': r.Mes,
-                'filial_id': r.Filial,
-                'centro_custo_id': r.Centro_Custo,
-                'cc_cod': r.CC_Cod,
-                'nome_cc': r.Nome_CC,
-                'cliente': r.Cliente,
-                'filial_cliente': r.Filial_Cliente,
-                'item': r.Item,
-                'cod_cl_valor': r.Cod_Cl_Valor,
-                'contra_partida_credito': r.Contra_Partida_Credito,
-                'chv_mes_conta': r.Chv_Mes_Conta,
-                'chv_mes_conta_cc': r.Chv_Mes_Conta_CC,
-                'chv_mes_nomecc_conta': r.Chv_Mes_NomeCC_Conta,
-                'chv_mes_nomecc_conta_cc': r.Chv_Mes_NomeCC_Conta_CC,
-                'chv_conta_formatada': r.Chv_Conta_Formatada,
-                'chv_conta_cc': r.Chv_Conta_CC
+                'origem': r[0],
+                'conta': r[1], 
+                'titulo_conta': r[2],
+                'data': r[3].isoformat() if r[3] else None,
+                'numero': r[4],
+                'descricao': r[5],
+                'contra_partida_credito': r[6],
+                'filial_id': r[7],
+                'centro_custo_id': r[8],
+                'item': r[9],
+                'cod_cl_valor': r[10],
+                'debito': float(r[11]) if r[11] else 0.0,
+                'credito': float(r[12]) if r[12] else 0.0,
+                'saldo': float(r[13]) if r[13] else 0.0,
+                'mes': r[14],
+                'cc_cod': r[15],
+                'nome_cc': r[16],
+                'cliente': r[17],
+                'filial_cliente': r[18],
+                'chv_mes_conta': r[19],
+                'chv_mes_conta_cc': r[20],
+                'chv_mes_nomecc_conta': r[21],
+                'chv_mes_nomecc_conta_cc': r[22],
+                'chv_conta_formatada': r[23],
+                'chv_mes_nomecc_conta_codcc': r[24]
             }
-            result.append(item)
+            result_list.append(item)
         
         return jsonify({
             'pagina_atual': page,
             'total_paginas': total_paginas,
             'total_registros': total_registros,
             'termo_busca': search_term,
-            'dados': result
+            'dados': result_list
         }), 200
         
     except Exception as e: 
+        current_app.logger.error(f"Erro no RelatorioRazaoDados: {e}")
         abort(500, description=f"Erro: {str(e)}")
     finally:
         if session: 
             session.close()
-
 
 @reports_bp.route('/RelatorioRazao/Resumo', methods=['GET']) 
 @login_required 
@@ -130,21 +178,23 @@ def RelatorioRazaoResumo():
     try: 
         session = get_pg_session()
         
-        resumo = session.query(
-            func.count().label('total_registros'),
-            func.sum(RazaoConsolidado.Debito).label('total_debito'),
-            func.sum(RazaoConsolidado.Credito).label('total_credito'),
-            func.sum(RazaoConsolidado.Saldo).label('saldo_total')
-        ).first()
+        sql = text("""
+            SELECT 
+                COUNT(*) as total_registros,
+                COALESCE(SUM("Debito"), 0) as total_debito,
+                COALESCE(SUM("Credito"), 0) as total_credito,
+                COALESCE(SUM("Saldo"), 0) as saldo_total
+            FROM "Dre_Schema"."Razao_Dados_Consolidado"
+        """)
         
-        result = {
-            'total_registros': resumo.total_registros or 0,
-            'total_debito': float(resumo.total_debito) if resumo.total_debito else 0.0,
-            'total_credito': float(resumo.total_credito) if resumo.total_credito else 0.0,
-            'saldo_total': float(resumo.saldo_total) if resumo.saldo_total else 0.0
-        }
+        result = session.execute(sql).fetchone()
         
-        return jsonify(result), 200
+        return jsonify({
+            'total_registros': result[0] or 0,
+            'total_debito': float(result[1]) if result[1] else 0.0,
+            'total_credito': float(result[2]) if result[2] else 0.0,
+            'saldo_total': float(result[3]) if result[3] else 0.0
+        }), 200
         
     except Exception as e: 
         abort(500, description=str(e))
@@ -158,8 +208,9 @@ def RelatorioRentabilidade():
     """
     DRE Gerencial Definitiva (CORRIGIDA).
     
-    Correções de Tipagem SQL:
-    - Adicionado CAST(NULL AS INTEGER) e CAST(NULL AS TEXT) para evitar erro de DatatypeMismatch no UNION.
+    Correções:
+    1. Tipagem (CAST de NULLs) para evitar erro no UNION.
+    2. Correção de 'Outros': Agora busca o 'Raiz_No_Virtual_Nome' para exibir o nome correto do Nó Virtual.
     """
     session = None
     try: 
@@ -171,14 +222,20 @@ def RelatorioRentabilidade():
             TreePath AS (
                 SELECT 
                     h."Id", h."Nome", h."Id_Pai", 
-                    h."Raiz_Centro_Custo_Codigo", h."Raiz_No_Virtual_Id", h."Raiz_Centro_Custo_Tipo",
+                    h."Raiz_Centro_Custo_Codigo", h."Raiz_No_Virtual_Id", 
+                    h."Raiz_Centro_Custo_Tipo",
+                    h."Raiz_No_Virtual_Nome", -- ADICIONADO: Nome do Nó Virtual
                     CAST(h."Nome" AS TEXT) as full_path
                 FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" h
                 WHERE h."Id_Pai" IS NULL
+                
                 UNION ALL
+                
                 SELECT 
                     child."Id", child."Nome", child."Id_Pai", 
-                    tp."Raiz_Centro_Custo_Codigo", tp."Raiz_No_Virtual_Id", tp."Raiz_Centro_Custo_Tipo",
+                    tp."Raiz_Centro_Custo_Codigo", tp."Raiz_No_Virtual_Id", 
+                    tp."Raiz_Centro_Custo_Tipo",
+                    tp."Raiz_No_Virtual_Nome", -- ADICIONADO: Repassa o nome para os filhos
                     CAST(tp.full_path || '||' || child."Nome" AS TEXT)
                 FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" child
                 JOIN TreePath tp ON child."Id_Pai" = tp."Id"
@@ -189,17 +246,18 @@ def RelatorioRentabilidade():
                 SELECT id_referencia, ordem FROM "Dre_Schema"."DRE_Ordenamento" WHERE contexto_pai = 'root'
             ),
 
-            -- 3. MAPA DE DEFINIÇÕES (UNION CORRIGIDO COM CASTS)
+            -- 3. MAPA DE DEFINIÇÕES
             Definicoes AS (
-                -- 3.1 Vínculos Padrão
+                -- 3.1 Vínculos Padrão (Subgrupos)
                 SELECT 
                     v."Conta_Contabil",
                     tp."Raiz_Centro_Custo_Codigo" as "CC_Alvo",
                     tp."Id" as "Id_Hierarquia",
-                    CAST(NULL AS INTEGER) as "Id_No_Virtual", -- CAST CORRIGIDO
-                    CAST(NULL AS TEXT) as "Nome_Personalizado_Def", -- CAST CORRIGIDO
+                    CAST(NULL AS INTEGER) as "Id_No_Virtual",
+                    CAST(NULL AS TEXT) as "Nome_Personalizado_Def",
                     tp.full_path,
-                    tp."Raiz_Centro_Custo_Tipo",
+                    -- CORREÇÃO: Se não tiver Tipo (Adm/Oper), usa o Nome do Nó Virtual
+                    COALESCE(tp."Raiz_Centro_Custo_Tipo", tp."Raiz_No_Virtual_Nome") as "Raiz_Centro_Custo_Tipo",
                     tp."Raiz_No_Virtual_Id" as "Root_Virtual_Id_Hierarquia"
                 FROM "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v
                 JOIN TreePath tp ON v."Id_Hierarquia" = tp."Id"
@@ -211,10 +269,11 @@ def RelatorioRentabilidade():
                     p."Conta_Contabil",
                     tp."Raiz_Centro_Custo_Codigo" as "CC_Alvo",
                     p."Id_Hierarquia",
-                    CAST(NULL AS INTEGER) as "Id_No_Virtual", -- CAST CORRIGIDO
+                    CAST(NULL AS INTEGER) as "Id_No_Virtual",
                     p."Nome_Personalizado",
                     tp.full_path,
-                    tp."Raiz_Centro_Custo_Tipo",
+                    -- CORREÇÃO: Mesmo aqui, garante o nome correto
+                    COALESCE(tp."Raiz_Centro_Custo_Tipo", tp."Raiz_No_Virtual_Nome") as "Raiz_Centro_Custo_Tipo",
                     tp."Raiz_No_Virtual_Id"
                 FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p
                 JOIN TreePath tp ON p."Id_Hierarquia" = tp."Id"
@@ -222,15 +281,15 @@ def RelatorioRentabilidade():
 
                 UNION ALL
 
-                -- 3.3 Vínculos Personalizados Diretos
+                -- 3.3 Vínculos Personalizados Diretos (Sem Subgrupo)
                 SELECT 
                     p."Conta_Contabil",
-                    CAST(NULL AS INTEGER) as "CC_Alvo", -- CAST CORRIGIDO
-                    CAST(NULL AS INTEGER) as "Id_Hierarquia", -- CAST CORRIGIDO
+                    CAST(NULL AS INTEGER) as "CC_Alvo",
+                    CAST(NULL AS INTEGER) as "Id_Hierarquia",
                     p."Id_No_Virtual",
                     p."Nome_Personalizado",
                     'Direto' as full_path,
-                    nv."Nome" as "Raiz_Centro_Custo_Tipo",
+                    nv."Nome" as "Raiz_Centro_Custo_Tipo", -- Aqui já pegava o nome certo
                     nv."Id"
                 FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p
                 JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv ON p."Id_No_Virtual" = nv."Id"
@@ -245,7 +304,9 @@ def RelatorioRentabilidade():
                     
                     COALESCE(def."Nome_Personalizado_Def", tca."Título Conta") AS "Titulo_Final",
                     
+                    -- Agora o 'Raiz_Centro_Custo_Tipo' virá preenchido corretamente (Nome do Nó ou Tipo do CC)
                     COALESCE(def."Raiz_Centro_Custo_Tipo", 'Outros') AS "Tipo_CC",
+                    
                     COALESCE(def.full_path, 'Não Classificado') AS "Caminho_Subgrupos",
                     
                     tca."Saldo",

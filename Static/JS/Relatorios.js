@@ -1,11 +1,16 @@
 // ============================================================================
 // T-Controllership - SISTEMA DE RELATÓRIOS FINANCEIROS
 // Arquivo: Static/js/Relatorios.js
+// VERSÃO CORRIGIDA - Inicialização robusta
 // ============================================================================
+
+// Guard contra múltiplas inicializações
+if (typeof window.relatorioSystemInitialized === 'undefined') {
+    window.relatorioSystemInitialized = true;
 
 class RelatorioSystem {
     constructor() {
-        this.modal = new ModalSystem('modalRelatorio');
+        this.modal = null;
         
         // Estado Razão
         this.currentData = null;
@@ -17,24 +22,27 @@ class RelatorioSystem {
 
         // Estado BI (Rentabilidade / DRE)
         this.cachedBiData = null;     
-        this.biViewMode = 'direct'; // Padrão: Visão direta (Grupos -> Contas)
-        
-        // Hooks globais
-        window.toggleBiRow = (id) => this.handleBiToggle(id);
-        window.relatorioSystem = this;
+        this.biViewMode = 'direct';
 
         this.init();
     }
 
     init() {
+        // Aguarda DOM estar pronto
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.setupEventListeners());
+            document.addEventListener('DOMContentLoaded', () => this.setupSystem());
         } else {
-            this.setupEventListeners();
+            this.setupSystem();
         }
     }
 
-    setupEventListeners() {
+    setupSystem() {
+        // Inicializa modal
+        this.modal = new ModalSystem('modalRelatorio');
+        
+        // Hooks globais
+        window.toggleBiRow = (id) => this.handleBiToggle(id);
+        
         console.log('✅ RelatorioSystem Inicializado');
     }
 
@@ -42,6 +50,11 @@ class RelatorioSystem {
     // PARTE 1: RELATÓRIO DE RAZÃO (BASE COMPLETA)
     // =========================================================================
     async loadRazaoReport(page = 1) {
+        // Garante que modal está inicializado
+        if (!this.modal) {
+            this.modal = new ModalSystem('modalRelatorio');
+        }
+
         this.currentPage = page;
         let title = '📈 Relatório de Razão';
         if (this.currentSearch) title += ` - Buscando: "${this.currentSearch}"`;
@@ -107,8 +120,8 @@ class RelatorioSystem {
                     ${this.currentSearch ? `<small class="ms-2 text-info">(Filtrado por: ${this.currentSearch})</small>` : ''}
                 </div>
                 <div class="btn-group">
-                    <button class="btn btn-secondary btn-sm" onclick="relatorioSystem.loadRazaoReport(${this.currentPage - 1})" ${isFirst ? 'disabled' : ''}><i class="fas fa-chevron-left"></i> Anterior</button>
-                    <button class="btn btn-secondary btn-sm" onclick="relatorioSystem.loadRazaoReport(${this.currentPage + 1})" ${isLast ? 'disabled' : ''}>Próxima <i class="fas fa-chevron-right"></i></button>
+                    <button class="btn btn-secondary btn-sm" onclick="window.relatorioSystem.loadRazaoReport(${this.currentPage - 1})" ${isFirst ? 'disabled' : ''}><i class="fas fa-chevron-left"></i> Anterior</button>
+                    <button class="btn btn-secondary btn-sm" onclick="window.relatorioSystem.loadRazaoReport(${this.currentPage + 1})" ${isLast ? 'disabled' : ''}>Próxima <i class="fas fa-chevron-right"></i></button>
                 </div>
             </div>`;
     }
@@ -154,7 +167,7 @@ class RelatorioSystem {
                 <td>${item.origem || '-'}</td>
             </tr>`).join('');
 
-        return `<div class="table-fixed-container"><table class="table-modern table-hover table-fixed-header" id="razaoTable" style="min-width: 1600px;"><thead><tr><th onclick="relatorioSystem.sortColumn(0)">Conta</th><th>Título</th><th>Data</th><th>Núm.</th><th>Histórico</th><th>Débito</th><th>Crédito</th><th>Saldo</th><th>Filial</th><th>C.C.</th><th>Centro Custo</th><th>Origem</th></tr></thead><tbody>${rows}</tbody></table></div><div class="mt-2 text-end text-muted"><small>Exibindo ${data.length} de ${metaData.total_registros} registros.</small></div>`;
+        return `<div class="table-fixed-container"><table class="table-modern table-hover table-fixed-header" id="razaoTable" style="min-width: 1600px;"><thead><tr><th onclick="window.relatorioSystem.sortColumn(0)">Conta</th><th>Título</th><th>Data</th><th>Núm.</th><th>Histórico</th><th>Débito</th><th>Crédito</th><th>Saldo</th><th>Filial</th><th>C.C.</th><th>Centro Custo</th><th>Origem</th></tr></thead><tbody>${rows}</tbody></table></div><div class="mt-2 text-end text-muted"><small>Exibindo ${data.length} de ${metaData.total_registros} registros.</small></div>`;
     }
 
     sortColumn(columnIndex) {
@@ -170,11 +183,15 @@ class RelatorioSystem {
     // =========================================================================
 
     async loadRentabilidadeReport() {
+        // Garante que modal está inicializado
+        if (!this.modal) {
+            this.modal = new ModalSystem('modalRelatorio');
+        }
+
         this.modal.open('📊 Análise de Rentabilidade');
         this.modal.showLoading('Calculando estrutura e saldos...');
 
         try {
-            // Sempre busca dados frescos para garantir consistência com o cadastro
             const response = await APIUtils.get(`/Reports/RelatorioRazao/Rentabilidade`);
             this.cachedBiData = response || [];
             
@@ -190,7 +207,6 @@ class RelatorioSystem {
     }
 
     renderBiView() {
-        // Reconstrói a hierarquia com base nos dados ordenados do SQL
         const treeData = this.buildHierarchy(this.cachedBiData);
         const tableHtml = this.renderTreeTable(treeData);
         
@@ -201,29 +217,22 @@ class RelatorioSystem {
                     <small class="text-muted ms-2">(Contas cadastradas e ordenadas)</small>
                 </div>
                 <div class="btn-group">
-                    <button class="btn btn-sm btn-outline-light" onclick="relatorioSystem.expandAll()"><i class="fas fa-expand-arrows-alt"></i> Expandir Tudo</button>
-                    <button class="btn btn-sm btn-outline-light" onclick="relatorioSystem.collapseAll()"><i class="fas fa-compress-arrows-alt"></i> Recolher Tudo</button>
+                    <button class="btn btn-sm btn-outline-light" onclick="window.relatorioSystem.expandAll()"><i class="fas fa-expand-arrows-alt"></i> Expandir Tudo</button>
+                    <button class="btn btn-sm btn-outline-light" onclick="window.relatorioSystem.collapseAll()"><i class="fas fa-compress-arrows-alt"></i> Recolher Tudo</button>
                 </div>
             </div>`;
 
         this.modal.setContent(controlsHtml + tableHtml);
     }
 
-    /**
-     * CONSTRUÇÃO DA ÁRVORE DRE
-     * Estrutura Fixa: Tipo (Nível 1) -> Grupos/Subgrupos (Nível 2+) -> Conta (Folha)
-     * Ignora Centro de Custo intermediário conforme solicitado.
-     */
     buildHierarchy(data) {
         const root = {};
 
         data.forEach(row => {
             let levels = [];
 
-            // NÍVEL 1: Tipo (ex: "(-) DESPESAS OPERACIONAIS")
             levels.push(row.Tipo_CC || 'Outros');
 
-            // NÍVEL 2+: Grupos (ex: "Pessoal", "Pessoal||Encargos")
             const subgruposRaw = row.Caminho_Subgrupos;
             if (subgruposRaw && subgruposRaw !== 'Não Classificado' && subgruposRaw !== 'Direto') {
                 const dynamicLevels = subgruposRaw.split('||');
@@ -232,10 +241,8 @@ class RelatorioSystem {
                 levels.push('Não Classificado');
             }
 
-            // Processa a hierarquia de pastas
             let currentLevel = root;
             levels.forEach((key) => {
-                // Cria o nó se não existir
                 if (!currentLevel[key]) {
                     currentLevel[key] = { 
                         _isLeaf: false, 
@@ -243,19 +250,15 @@ class RelatorioSystem {
                         _children: {} 
                     };
                 }
-                // Acumula valores nos níveis pais (drill-up automático)
                 this.accumulateValues(currentLevel[key]._data, row);
                 currentLevel = currentLevel[key]._children;
             });
 
-            // NÍVEL FINAL: Conta + Título (Folha)
-            // Ex: "📄 603010... - SALARIOS"
             const contaLabel = `📄 ${row.Conta} - ${row.Titulo_Conta || 'Sem Título'}`; 
             
             if (!currentLevel[contaLabel]) {
                 currentLevel[contaLabel] = { _isLeaf: true, _data: this.createZeroedMonths() };
             }
-            // Acumula valores na conta
             this.accumulateValues(currentLevel[contaLabel]._data, row);
         });
 
@@ -284,11 +287,10 @@ class RelatorioSystem {
                 .bi-row { border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.15s; }
                 .bi-row:hover { background: rgba(255,255,255,0.08); }
                 
-                /* Estilização Hierárquica (Cores DRE) */
-                .level-0 { background: #252530; font-weight: 800; color: #ffca28; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.1); } /* TIPO */
-                .level-1 { background: #20202a; font-weight: 700; color: #90caf9; } /* GRUPO PRINCIPAL */
-                .level-2 { background: #1a1a22; font-weight: 600; color: #e0e0e0; } /* SUBGRUPO */
-                .level-3 { font-weight: normal; color: #b0bec5; font-size: 0.9em; font-style: italic;} /* CONTA */
+                .level-0 { background: #252530; font-weight: 800; color: #ffca28; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+                .level-1 { background: #20202a; font-weight: 700; color: #90caf9; }
+                .level-2 { background: #1a1a22; font-weight: 600; color: #e0e0e0; }
+                .level-3 { font-weight: normal; color: #b0bec5; font-size: 0.9em; font-style: italic;}
                 
                 .bi-cell { padding: 8px; text-align: right; white-space: nowrap; border-right: 1px solid rgba(255,255,255,0.02); }
                 .bi-name { text-align: left; border-right: none; display: flex; align-items: center;}
@@ -308,21 +310,17 @@ class RelatorioSystem {
         let html = '';
         const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Total_Ano'];
 
-        // IMPORTANTE: Iteramos as chaves na ordem que foram inseridas (que respeita a ordem do SQL)
-        // NÃO FAZEMOS SORT AQUI para manter a ordem do banco de dados
         Object.keys(nodes).forEach((key, index) => {
             const node = nodes[key];
             const isLeaf = node._isLeaf;
             const uniqueId = `${parentId}-${index}`;
             
-            // Indentação visual
             const padding = level * 24; 
             const values = node._data;
             
             const cellsHtml = months.map(m => {
                 const val = values[m];
                 let colorClass = val < 0 ? 'text-neg' : (val > 0 ? 'text-pos' : 'text-zero');
-                // Formatação de moeda
                 const formatted = val === 0 ? '-' : new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
                 return `<td class="bi-cell ${colorClass}">${formatted}</td>`;
             }).join('');
@@ -330,14 +328,12 @@ class RelatorioSystem {
             let icon = isLeaf ? '<i class="fas fa-file-alt toggle-icon" style="font-size: 0.8em;"></i>' : `<i id="icon-${uniqueId}" class="fas fa-chevron-right toggle-icon"></i>`;
             let clickAction = isLeaf ? '' : `onclick="window.toggleBiRow('${uniqueId}')"`;
             
-            // Nível 0 (Tipo) vem aberto, outros fechados por padrão
             const rowDisplay = level === 0 ? 'table-row' : 'none';
             
             if(level === 0 && !isLeaf) {
                 icon = `<i id="icon-${uniqueId}" class="fas fa-chevron-down toggle-icon"></i>`;
             }
 
-            // Classe de estilo baseada no nível (máximo level-3 para contas)
             const levelClass = isLeaf ? 'level-3' : `level-${Math.min(level, 2)}`;
 
             html += `
@@ -360,18 +356,15 @@ class RelatorioSystem {
         const icon = document.getElementById(`icon-${id}`);
         if (children.length === 0) return;
         
-        // Verifica se o primeiro filho está visível
         const isClosed = children[0].style.display === 'none';
 
         if (isClosed) {
-            // Abrir
             children.forEach(child => child.style.display = 'table-row');
             if(icon) {
                 icon.classList.remove('fa-chevron-right');
                 icon.classList.add('fa-chevron-down');
             }
         } else {
-            // Fechar (Recursivo)
             this.closeChildrenRecursively(id);
             if(icon) {
                 icon.classList.remove('fa-chevron-down');
@@ -386,7 +379,6 @@ class RelatorioSystem {
             child.style.display = 'none';
             const childId = child.getAttribute('data-id');
             
-            // Reseta ícone do filho se ele tiver filhos (para estado fechado)
             const icon = document.getElementById(`icon-${childId}`);
             if(icon && icon.classList.contains('fa-chevron-down')) {
                 icon.classList.remove('fa-chevron-down');
@@ -408,21 +400,18 @@ class RelatorioSystem {
     }
 
     collapseAll() {
-        // Fecha tudo que não é nível 0
         const allRows = document.querySelectorAll('.bi-row');
         allRows.forEach(row => {
             if (row.getAttribute('data-parent') !== 'root') {
                 row.style.display = 'none';
             }
         });
-        // Reseta ícones para direita
         const allIcons = document.querySelectorAll('.toggle-icon.fa-chevron-down');
         allIcons.forEach(icon => {
             icon.classList.remove('fa-chevron-down');
             icon.classList.add('fa-chevron-right');
         });
         
-        // Garante que nível 0 fique com ícone certo (aberto)
         const rootIcons = document.querySelectorAll('[data-parent="root"] .toggle-icon');
         rootIcons.forEach(icon => {
             icon.classList.remove('fa-chevron-right');
@@ -434,9 +423,14 @@ class RelatorioSystem {
     exportToPDF() { NotificationSystem.show('Em breve...', 'info'); }
 }
 
-let relatorioSystem;
-document.addEventListener('DOMContentLoaded', () => {
-    relatorioSystem = new RelatorioSystem();
-    window.relatorioSystem = relatorioSystem;
-});
-window.fecharModal = () => window.relatorioSystem.modal.close();
+// Cria instância global IMEDIATAMENTE
+window.relatorioSystem = new RelatorioSystem();
+
+// Função auxiliar global
+window.fecharModal = function() {
+    if (window.relatorioSystem && window.relatorioSystem.modal) {
+        window.relatorioSystem.modal.close();
+    }
+};
+
+} // Fim do guard
