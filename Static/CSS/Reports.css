@@ -961,3 +961,199 @@
 .table-hover tr {
     transition: background-color 0.1s ease;
 }
+
+/* ==========================================================================
+   ORIGEM FILTER STYLES - Adicionar ao Reports.css
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   FILTRO DE ORIGEM - Toggle Button Group
+   -------------------------------------------------------------------------- */
+.origem-filter-group {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+}
+
+.origem-toggle-group {
+    display: inline-flex;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-primary);
+}
+
+.origem-toggle-btn {
+    background: var(--bg-tertiary);
+    border: none;
+    border-right: 1px solid var(--border-secondary);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.origem-toggle-btn:last-child {
+    border-right: none;
+}
+
+.origem-toggle-btn:hover:not(.active) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.origem-toggle-btn.active {
+    background: var(--gradient-primary);
+    color: white;
+    font-weight: 600;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.origem-toggle-btn.active i {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Ícones específicos por origem */
+.origem-toggle-btn[data-origem="Consolidado"] i {
+    color: var(--primary-light);
+}
+
+.origem-toggle-btn[data-origem="FARMA"] i {
+    color: #10B981; /* Verde farmácia */
+}
+
+.origem-toggle-btn[data-origem="FARMADIST"] i {
+    color: #F59E0B; /* Laranja distribuição */
+}
+
+.origem-toggle-btn.active i {
+    color: white !important;
+}
+
+/* Badge de contagem */
+#biOrigemBadge {
+    background: rgba(var(--primary-rgb), 0.2);
+    color: var(--primary-light);
+    border: 1px solid rgba(var(--primary-rgb), 0.3);
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+/* Loading state para o badge */
+#biOrigemBadge.loading {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   BI FOOTER - Info bar
+   -------------------------------------------------------------------------- */
+.bi-footer {
+    background: linear-gradient(90deg, var(--bg-tertiary), var(--bg-secondary));
+}
+
+.bi-footer strong {
+    color: var(--primary-light);
+}
+
+/* --------------------------------------------------------------------------
+   LOADING CONTAINER dentro do grid
+   -------------------------------------------------------------------------- */
+#biGridContainer .loading-container {
+    background: var(--bg-secondary);
+    min-height: 300px;
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVIDADE
+   -------------------------------------------------------------------------- */
+@media (max-width: 992px) {
+    .origem-filter-group {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .origem-toggle-group {
+        width: 100%;
+    }
+    
+    .origem-toggle-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 10px;
+    }
+    
+    .bi-toolbar {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .bi-toolbar > div {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .origem-toggle-btn span {
+        display: none;
+    }
+    
+    .origem-toggle-btn {
+        padding: 8px 16px;
+    }
+    
+    .origem-toggle-btn i {
+        font-size: 1rem;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   TEMA CLARO - Overrides
+   -------------------------------------------------------------------------- */
+[data-theme="light"] .origem-filter-group {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .origem-toggle-btn {
+    background: #FFFFFF;
+    color: #4A5568;
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .origem-toggle-btn:hover:not(.active) {
+    background: #F7FAFC;
+    color: #2D3748;
+}
+
+[data-theme="light"] .origem-toggle-btn.active {
+    background: var(--gradient-primary);
+    color: white;
+}
+
+[data-theme="light"] #biOrigemBadge {
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary);
+    border-color: rgba(var(--primary-rgb), 0.2);
+}
+
+[data-theme="light"] .bi-footer {
+    background: linear-gradient(90deg, #EDF2F7, #F7FAFC);
+}
+
+[data-theme="light"] .bi-footer strong {
+    color: var(--primary);
+}

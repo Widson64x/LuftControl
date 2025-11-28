@@ -211,12 +211,24 @@ def RelatorioRentabilidade():
     Correções:
     1. Tipagem (CAST de NULLs) para evitar erro no UNION.
     2. Correção de 'Outros': Agora busca o 'Raiz_No_Virtual_Nome' para exibir o nome correto do Nó Virtual.
+    3. Filtro de Origem: Aceita parâmetro 'origem' (FARMA, FARMADIST, Consolidado)
     """
     session = None
     try: 
         session = get_pg_session()
         
-        sql_query = text("""
+        # Captura o filtro de origem da query string
+        filtro_origem = request.args.get('origem', 'Consolidado')
+        
+        # Monta a cláusula WHERE baseada no filtro
+        if filtro_origem == 'FARMA':
+            origem_clause = "tca.\"origem\" = 'FARMA'"
+        elif filtro_origem == 'FARMADIST':
+            origem_clause = "tca.\"origem\" = 'FARMADIST'"
+        else:  # Consolidado (padrão)
+            origem_clause = "tca.\"origem\" IN ('FARMA', 'FARMADIST')"
+        
+        sql_query = text(f"""
             WITH RECURSIVE 
             -- 1. Mapeia Hierarquia (TreePath)
             TreePath AS (
@@ -336,7 +348,7 @@ def RelatorioRentabilidade():
                         OR ord.id_referencia = CAST(def."Root_Virtual_Id_Hierarquia" AS TEXT)
                         OR ord.id_referencia = CAST(def."Id_No_Virtual" AS TEXT))
 
-                WHERE tca."origem" IN ('FARMA', 'FARMADIST')
+                WHERE {origem_clause}
             )
 
             -- 5. AGRUPAMENTO FINAL

@@ -27,9 +27,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 filters: {},                 // Filtros por coluna { coluna: valor }
                 globalSearch: '',            // Busca global
                 sort: { col: null, dir: 'asc' }, // Ordenação
-                columnsOrder: []             // Ordem das colunas (meses)
+                columnsOrder: [],            // Ordem das colunas (meses)
+                origemFilter: 'Consolidado'  // NOVO: Filtro de origem (FARMA, FARMADIST, Consolidado)
             };
             this.biDebounceTimer = null;
+            this.biIsLoading = false;        // NOVO: Flag de loading
 
             this.init();
         }
@@ -189,22 +191,30 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         // MÓDULO 2: MOTOR BI RENTABILIDADE (Árvore, Filtros, Colunas)
         // =========================================================================
 
-        async loadRentabilidadeReport() {
+        async loadRentabilidadeReport(origem = null) {
             if (!this.modal) this.modal = new ModalSystem('modalRelatorio');
             
-            // Reseta estado básico do BI se for recarga completa
-            this.biState.filters = {};
-            this.biState.globalSearch = '';
+            // Se não foi passada origem, usa a do estado atual (ou Consolidado como padrão)
+            if (origem !== null) {
+                this.biState.origemFilter = origem;
+            }
+            
+            // Reseta estado básico do BI se for recarga completa (primeira carga)
+            if (origem === null) {
+                this.biState.filters = {};
+                this.biState.globalSearch = '';
+            }
             
             this.modal.open('<i class="fas fa-cubes"></i> Análise Gerencial (BI DRE)', '');
             this.modal.showLoading('Construindo cubo de dados...');
 
             try {
-                // 1. Busca dados do backend
-                const rawData = await APIUtils.get('/Reports/RelatorioRazao/Rentabilidade');
+                // 1. Busca dados do backend COM o filtro de origem
+                const origemParam = encodeURIComponent(this.biState.origemFilter);
+                const rawData = await APIUtils.get(`/Reports/RelatorioRazao/Rentabilidade?origem=${origemParam}`);
                 
                 if (!rawData || rawData.length === 0) {
-                    this.modal.setContent('<div class="p-4 alert alert-warning">Sem dados disponíveis para gerar o BI.</div>');
+                    this.renderBiEmptyState();
                     return;
                 }
 
@@ -221,6 +231,159 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 console.error(error);
                 this.modal.showError(`Erro no BI: ${error.message}`);
             }
+        }
+
+        /**
+         * Renderiza estado vazio quando não há dados
+         */
+        renderBiEmptyState() {
+            const emptyHtml = `
+                <div class="bi-toolbar d-flex justify-content-between align-items-center p-3 border-bottom border-primary bg-tertiary">
+                    <div class="d-flex gap-2 align-items-center">
+                        ${this.renderOrigemFilter()}
+                    </div>
+                </div>
+                <div class="p-4 text-center" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                    <h4 class="text-secondary">Sem dados disponíveis</h4>
+                    <p class="text-muted">Não há registros para a origem "${this.biState.origemFilter}".</p>
+                    <p class="text-muted text-sm">Tente selecionar outra origem no filtro acima.</p>
+                </div>
+            `;
+            this.modal.setContent(`<div style="display: flex; flex-direction: column; height: 100%;">${emptyHtml}</div>`);
+            this.setupOrigemFilterEvents();
+        }
+
+        /**
+         * Recarrega dados do BI de forma assíncrona (sem fechar/reabrir modal)
+         */
+        async reloadBiDataAsync(novaOrigem) {
+            if (this.biIsLoading) return; // Evita chamadas duplicadas
+            
+            this.biIsLoading = true;
+            this.biState.origemFilter = novaOrigem;
+            
+            // Mostra indicador de loading na tabela
+            const container = document.getElementById('biGridContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="loading-container" style="height: 100%;">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Recarregando dados para "${novaOrigem}"...</div>
+                    </div>
+                `;
+            }
+
+            try {
+                const origemParam = encodeURIComponent(novaOrigem);
+                const rawData = await APIUtils.get(`/Reports/RelatorioRazao/Rentabilidade?origem=${origemParam}`);
+                
+                if (!rawData || rawData.length === 0) {
+                    this.biRawData = [];
+                    this.biTreeData = [];
+                    if (container) {
+                        container.innerHTML = `
+                            <div class="p-4 text-center" style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                                <p class="text-muted">Nenhum dado encontrado para "${novaOrigem}".</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    this.biRawData = rawData;
+                    this.processBiTree();
+                    this.renderBiTable();
+                }
+                
+                // Atualiza o badge de contagem
+                this.updateOrigemBadge();
+                
+            } catch (error) {
+                console.error('Erro ao recarregar BI:', error);
+                if (container) {
+                    container.innerHTML = `
+                        <div class="p-4 text-center text-danger">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <p>Erro ao carregar dados: ${error.message}</p>
+                        </div>
+                    `;
+                }
+            } finally {
+                this.biIsLoading = false;
+            }
+        }
+
+        /**
+         * Atualiza o badge de contagem de registros
+         */
+        updateOrigemBadge() {
+            const badge = document.getElementById('biOrigemBadge');
+            if (badge) {
+                badge.textContent = `${this.biRawData.length} registros`;
+            }
+        }
+
+        /**
+         * Gera o HTML do filtro de origem
+         */
+        renderOrigemFilter() {
+            const opcoes = ['Consolidado', 'FARMA', 'FARMADIST'];
+            
+            return `
+                <div class="origem-filter-group d-flex align-items-center gap-2">
+                    <label class="text-secondary text-sm me-1">
+                        <i class="fas fa-filter"></i> Origem:
+                    </label>
+                    <div class="btn-group origem-toggle-group" role="group">
+                        ${opcoes.map(op => `
+                            <button type="button" 
+                                    class="btn btn-sm origem-toggle-btn ${this.biState.origemFilter === op ? 'active' : ''}" 
+                                    data-origem="${op}"
+                                    onclick="relatorioSystem.handleOrigemChange('${op}')">
+                                ${this.getOrigemIcon(op)} ${op}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <span id="biOrigemBadge" class="badge badge-secondary ms-2">
+                        ${this.biRawData.length} registros
+                    </span>
+                </div>
+            `;
+        }
+
+        /**
+         * Retorna o ícone apropriado para cada origem
+         */
+        getOrigemIcon(origem) {
+            const icons = {
+                'Consolidado': '<i class="fas fa-layer-group"></i>',
+                'FARMA': '<i class="fas fa-pills"></i>',
+                'FARMADIST': '<i class="fas fa-truck"></i>'
+            };
+            return icons[origem] || '';
+        }
+
+        /**
+         * Manipula mudança de filtro de origem
+         */
+        handleOrigemChange(novaOrigem) {
+            if (novaOrigem === this.biState.origemFilter || this.biIsLoading) return;
+            
+            // Atualiza visual dos botões imediatamente
+            document.querySelectorAll('.origem-toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.origem === novaOrigem);
+            });
+            
+            // Recarrega dados de forma assíncrona
+            this.reloadBiDataAsync(novaOrigem);
+        }
+
+        /**
+         * Setup dos eventos do filtro de origem após renderização
+         */
+        setupOrigemFilterEvents() {
+            // Os eventos já são configurados inline via onclick
+            // Este método existe para extensibilidade futura
         }
 
         /**
@@ -299,41 +462,61 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
          * Renderiza a estrutura completa da interface do BI
          */
         renderBiInterface() {
-            // Toolbar Superior
+            // Toolbar Superior COM filtro de origem
             const toolbar = `
                 <div class="bi-toolbar d-flex justify-content-between align-items-center p-3 border-bottom border-primary bg-tertiary">
-                    <div class="d-flex gap-2 align-items-center">
-                        <div class="input-group input-group-sm me-2" style="width: 250px;">
-                            <i class="input-group-icon fas fa-filter"></i>
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        ${this.renderOrigemFilter()}
+                        <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
+                        <div class="input-group input-group-sm" style="width: 200px;">
+                            <i class="input-group-icon fas fa-search"></i>
                             <input type="text" id="biGlobalSearch" class="form-control" 
                                    placeholder="Filtrar estrutura..." value="${this.biState.globalSearch}"
                                    oninput="relatorioSystem.handleBiGlobalSearch(this.value)">
                         </div>
-                        <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
-                        <button class="btn btn-sm btn-outline" onclick="relatorioSystem.toggleAllNodes(true)"><i class="fas fa-expand-arrows-alt"></i> Expandir</button>
-                        <button class="btn btn-sm btn-outline" onclick="relatorioSystem.toggleAllNodes(false)"><i class="fas fa-compress-arrows-alt"></i> Recolher</button>
-                        <button class="btn btn-sm btn-outline" onclick="relatorioSystem.openColumnManager()"><i class="fas fa-columns"></i> Colunas</button>
                     </div>
-                    <div>
-                        <button class="btn btn-sm btn-success" onclick="relatorioSystem.exportBiToCsv()"><i class="fas fa-file-csv"></i> Exportar CSV</button>
+                    <div class="d-flex gap-2 align-items-center">
+                        <button class="btn btn-sm btn-outline" onclick="relatorioSystem.toggleAllNodes(true)" title="Expandir Tudo">
+                            <i class="fas fa-expand-arrows-alt"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="relatorioSystem.toggleAllNodes(false)" title="Recolher Tudo">
+                            <i class="fas fa-compress-arrows-alt"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="relatorioSystem.openColumnManager()" title="Gerenciar Colunas">
+                            <i class="fas fa-columns"></i>
+                        </button>
+                        <div class="separator-vertical mx-1" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
+                        <button class="btn btn-sm btn-success" onclick="relatorioSystem.exportBiToCsv()">
+                            <i class="fas fa-file-csv"></i> Exportar
+                        </button>
                     </div>
                 </div>`;
 
             // Container da Tabela
             const gridContainer = `
                 <div id="biGridContainer" class="table-fixed-container" style="flex: 1; overflow: auto; background: var(--bg-secondary);">
-                    </div>`;
+                </div>`;
 
             // Footer
             const footer = `
-                <div class="p-2 bg-tertiary border-top border-primary text-end text-secondary text-xs">
-                    <i class="fas fa-info-circle"></i> Valores consolidados. Filtros ocultam linhas mas mantêm totais dos grupos.
+                <div class="bi-footer p-2 bg-tertiary border-top border-primary d-flex justify-content-between align-items-center">
+                    <span class="text-secondary text-xs">
+                        <i class="fas fa-info-circle"></i> 
+                        Fonte: <strong>${this.biState.origemFilter}</strong> | 
+                        Valores consolidados por estrutura DRE
+                    </span>
+                    <span class="text-muted text-xs">
+                        Última atualização: ${new Date().toLocaleTimeString('pt-BR')}
+                    </span>
                 </div>`;
 
             this.modal.setContent(`<div style="display: flex; flex-direction: column; height: 100%;">${toolbar}${gridContainer}${footer}</div>`);
             
             // Renderiza a tabela em si
             this.renderBiTable();
+            
+            // Setup eventos adicionais
+            this.setupOrigemFilterEvents();
         }
 
         /**
@@ -369,8 +552,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             // --- BODY (Recursivo) ---
             let bodyRows = '';
             
-            // Dentro de Static/JS/Relatorios.js -> renderBiTable -> renderNode
-
             const renderNode = (node, level) => {
                 if (!node.isVisible) return;
 
@@ -387,28 +568,24 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     icon = `<i class="far fa-file-alt me-2 opacity-50" style="margin-left: 4px;"></i>`;
                 }
 
-                // --- CORREÇÃO AQUI: Classes Semânticas em vez de Cores Fixas ---
+                // Classes Semânticas
                 let rowClass = '';
                 
                 if (node.type === 'root') { 
-                    // Raiz (Ex: FATURAMENTO)
                     rowClass = 'bi-row-root'; 
                 } 
                 else if (node.type === 'group') { 
-                    // Grupo (Ex: Despesas)
                     rowClass = 'bi-row-group'; 
                 } 
                 else { 
-                    // Conta (Ex: Salários)
                     rowClass = 'bi-row-account'; 
                 }
 
                 // Células de Valor
                 const cellsHtml = cols.map(c => {
                     const val = node.values[c];
-                    let colorClass = 'text-muted'; // Cor padrão (cinza/apagado)
+                    let colorClass = 'text-muted';
                     
-                    // As cores de texto (danger/success) já usam variáveis no Themes.css, então funcionam
                     if (val < 0) colorClass = 'text-danger fw-bold';
                     else if (val > 0) colorClass = 'text-success fw-bold';
                     
@@ -479,7 +656,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 }
 
                 // O nó é visível se ele mesmo der match OU se tiver filhos visíveis
-                // (Se tiver filtro ativo, expandimos automaticamente os grupos com matches)
                 const isVisible = (matchesGlobal && matchesCols) || hasVisibleChildren;
                 node.isVisible = isVisible;
 
@@ -535,7 +711,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         // --- GERENCIADOR DE COLUNAS ---
 
         openColumnManager() {
-            // Cria um modal simples dinâmico para checkbox das colunas
             const allCols = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Total_Ano'];
             
             const checksHtml = allCols.map(c => `
@@ -554,14 +729,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     <h5>Gerenciar Colunas Visíveis</h5>
                     <div class="row mt-3">${checksHtml}</div>
                     <div class="mt-3 text-end">
-                        <button class="btn btn-sm btn-primary" onclick="closeModals(); relatorioSystem.renderBiTable()">Aplicar</button>
+                        <button class="btn btn-sm btn-primary" onclick="this.closest('.modal-backdrop').remove(); relatorioSystem.renderBiTable()">Aplicar</button>
                     </div>
                 </div>
             `;
             
-            // Reutiliza um modal secundário ou injeta um dialog temporário
-            // Para simplificar, vou usar um alert customizado ou apenas assumir que temos um modal genérico
-            // Aqui, vou usar o próprio ModalSystem se ele suportar replace, senão um overlay simples
             const colModal = document.createElement('div');
             colModal.className = 'modal-backdrop active';
             colModal.innerHTML = `<div class="modal-window modal-sm"><div class="modal-body">${modalHtml}</div></div>`;
@@ -572,7 +744,35 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         toggleBiColumn(col) {
             if (this.biState.hiddenCols.has(col)) this.biState.hiddenCols.delete(col);
             else this.biState.hiddenCols.add(col);
-            // Re-render acontece ao fechar o modal ou pode ser imediato se desejar
+        }
+
+        // --- ORDENAÇÃO ---
+        
+        sortBiBy(col) {
+            // Toggle direção se mesma coluna
+            if (this.biState.sort.col === col) {
+                this.biState.sort.dir = this.biState.sort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.biState.sort.col = col;
+                this.biState.sort.dir = 'desc'; // Começa descendente (maiores primeiro)
+            }
+            
+            // Função recursiva para ordenar nós
+            const sortNodes = (nodes) => {
+                nodes.sort((a, b) => {
+                    const valA = a.values[col] || 0;
+                    const valB = b.values[col] || 0;
+                    return this.biState.sort.dir === 'asc' ? valA - valB : valB - valA;
+                });
+                nodes.forEach(n => {
+                    if (n.children && n.children.length > 0) {
+                        sortNodes(n.children);
+                    }
+                });
+            };
+            
+            sortNodes(this.biTreeData);
+            this.renderBiTable();
         }
 
         // --- EXPORTAÇÃO ---
@@ -581,7 +781,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             let csvContent = "data:text/csv;charset=utf-8,";
             const visibleCols = this.biState.columnsOrder.filter(c => !this.biState.hiddenCols.has(c));
             
-            // Header
+            // Header com info da origem
+            csvContent += `# Análise Gerencial - Origem: ${this.biState.origemFilter}\r\n`;
+            csvContent += `# Exportado em: ${new Date().toLocaleString('pt-BR')}\r\n`;
+            csvContent += "\r\n";
+            
+            // Header de colunas
             csvContent += "Estrutura;" + visibleCols.join(";") + "\r\n";
 
             // Rows (Recursivo)
@@ -600,7 +805,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "analise_dre_bi.csv");
+            link.setAttribute("download", `analise_dre_${this.biState.origemFilter.toLowerCase()}_${new Date().toISOString().slice(0,10)}.csv`);
             document.body.appendChild(link);
             link.click();
             link.remove();
