@@ -4,11 +4,11 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports.css') }}">
+    <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
 <div class="page-header fade-in">
-    <!-- Elementos decorativos -->
     <div class="header-decoration decoration-1"></div>
     <div class="header-decoration decoration-2"></div>
     
@@ -17,7 +17,7 @@
             <h1 class="page-title">
                 <i class="fas fa-chart-bar"></i> Relatórios Financeiros
             </h1>
-            <p class="page-subtitle">Visualização de bases completas e configurações de BI</p>
+            <p class="page-subtitle">Central de análises gerenciais e contábeis</p>
         </div>
     </div>
 </div>
@@ -26,64 +26,53 @@
     <div class="relatorio-card">
         <div class="relatorio-icon">📈</div>
         <h3>Relatório de Razão (Full)</h3>
-        <p>Carrega a base completa da Razão Contábil. Inclui todas as chaves, centros de custos e movimentações (+34k registros).</p>
-        <div style="margin-bottom: 1.25rem;">
-            <span class="status-badge status-active">Disponível</span>
+        <p>Base analítica completa. Detalhamento por lançamento, histórico e contra-partidas.</p>
+        <div class="mb-3">
+            <span class="status-badge status-active">Operacional</span>
         </div>
         <button class="btn-primary-custom" onclick="relatorioSystem.loadRazaoReport()">
-            <i class="fas fa-database"></i> Carregar Base Completa
+            <i class="fas fa-database"></i> Acessar Razão
         </button>
     </div>
 
     <div class="relatorio-card">
-        <div class="relatorio-icon">💰</div>
-        <h3>Análise por Centro de Custo</h3>
-        <p>Visão hierárquica por Tipo, Nome do CC e Contas. Com drill-down e somas mensais pivotadas.</p>
-        <div style="margin-bottom: 1.25rem;">
-            <span class="status-badge status-active" style="background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4);">Novo</span>
+        <div class="relatorio-icon">📊</div>
+        <h3>Análise Gerencial (BI)</h3>
+        <p>Visão hierárquica dinâmica (DRE). Filtros tipo Excel, ordenação por arraste e drill-down.</p>
+        <div class="mb-3">
+            <span class="status-badge status-active" style="background: rgba(108, 92, 231, 0.2); border-color: var(--primary);">Novo Motor</span>
         </div>
         <button class="btn-primary-custom" onclick="relatorioSystem.loadRentabilidadeReport()">
-            <i class="fas fa-layer-group"></i> Abrir Análise por CC
+            <i class="fas fa-cubes"></i> Abrir Cubo BI
         </button>
     </div>
 
-    <div class="relatorio-card" style="border-color: rgba(139, 233, 253, 0.2);">
+    <div class="relatorio-card" style="border-color: rgba(255,255,255,0.1);">
         <div class="relatorio-icon">🛠️</div>
-        <h3>Configuração de Hierarquia</h3>
-        <p>Gerencie a estrutura da DRE, crie grupos personalizados, subníveis e vincule as contas contábeis.</p>
-        <div style="margin-bottom: 1.25rem;">
-            <span class="status-badge" style="background: rgba(139, 233, 253, 0.15); color: #8be9fd; border: 1px solid rgba(139, 233, 253, 0.3);">Admin</span>
+        <h3>Configuração de DRE</h3>
+        <p>Gestão da estrutura hierárquica, vínculos de contas e parametrização.</p>
+        <div class="mb-3">
+            <span class="status-badge status-development">Admin</span>
         </div>
         <button class="btn-primary-custom" onclick="window.location.href='/Configuracao/Arvore'">
-            <i class="fas fa-sitemap"></i> Gerenciar Estrutura
-        </button>
-    </div>
-
-    <div class="relatorio-card">
-        <div class="relatorio-icon">🏢</div>
-        <h3>Rentabilidade</h3>
-        <p>Análise consolidada de margens e resultados operacionais por unidade de negócio.</p>
-        <div style="margin-bottom: 1.25rem;">
-            <span class="status-badge status-development">Em Desenvolvimento</span>
-        </div>
-        <button class="btn-secondary-custom" onclick="NotificationSystem.show('Em breve!', 'info')">
-            <i class="fas fa-lock"></i> Indisponível
+            <i class="fas fa-sitemap"></i> Configurar
         </button>
     </div>
 </div>
 
 <div id="modalRelatorio" class="modal-overlay">
-    <div class="modal-container" style="max-width: 95vw;">
+    <div class="modal-container" style="max-width: 98vw; height: 92vh; display: flex; flex-direction: column;">
         <div class="modal-header">
-            <h2 class="modal-title"><i class="fas fa-table"></i> Base de Dados Completa</h2>
+            <h2 class="modal-title"><i class="fas fa-table"></i> <span id="modalTitleText">Visualização de Dados</span></h2>
             <button class="modal-close" onclick="fecharModal()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <div class="modal-body">
+        
+        <div class="modal-body" id="modalBodyContent" style="padding: 0; flex: 1; position: relative; display: flex; flex-direction: column;">
             <div class="loading-container">
                 <div class="loading-spinner"></div>
-                <div class="loading-text">Inicializando...</div>
+                <div class="loading-text">Aguardando comando...</div>
             </div>
         </div>
     </div>
@@ -91,5 +80,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+<script type="text/javascript" src="https://oss.sheetjs.com/sheetjs/xlsx.full.min.js"></script>
+
 <script src="{{ url_for('static', filename='JS/Relatorios.js') }}"></script>
 {% endblock %}
