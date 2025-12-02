@@ -12,6 +12,7 @@ from Routes.Reports import reports_bp
 from Routes.DreConfig import dre_config_bp
 from Routes.DreOrdenamento import dre_ordem_bp
 from Routes.Auth import carregar_usuario_flask
+from Routes.SecurityConfig import security_bp
 
 # --- IMPORTS PARA BANCO DE DADOS ---
 # 1. Importa a string de conexão que já configuramos
@@ -53,10 +54,11 @@ def load_user(user_id):
 
 # --- Registro de Blueprints ---
 app.register_blueprint(auth_bp, url_prefix=ROUTE_PREFIX + '/Auth')
-app.register_blueprint(main_bp , url_prefix=ROUTE_PREFIX + '/Main')
+app.register_blueprint(main_bp , url_prefix=ROUTE_PREFIX + '/')
 app.register_blueprint(reports_bp, url_prefix=ROUTE_PREFIX + '/Reports')
 app.register_blueprint(dre_config_bp, url_prefix=ROUTE_PREFIX + '/DreConfig')
 app.register_blueprint(dre_ordem_bp, url_prefix=ROUTE_PREFIX + '/DreOrdenamento')
+app.register_blueprint(security_bp, url_prefix=ROUTE_PREFIX + '/SecurityConfig')
 
 @app.route('/')
 def index():

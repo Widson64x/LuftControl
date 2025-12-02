@@ -1,0 +1,611 @@
+{% extends "Base.html" %}
+
+{% block title %}Mapa de Segurança | T-Controllership{% endblock %}
+
+{% block extra_css %}
+<link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
+
+<style>
+    /* =========================================
+       MAPA & CONTAINER
+       ========================================= */
+    .map-wrapper {
+        position: relative;
+        width: 100%;
+        height: calc(100vh - 100px); /* Ajuste conforme seu header */
+        background: radial-gradient(circle at center, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: inset 0 0 80px rgba(0,0,0,0.5);
+    }
+
+    #securityNetwork {
+        width: 100%; height: 100%;
+        outline: none;
+    }
+
+    /* =========================================
+       CONTROLES FLUTUANTES (Glassmorphism)
+       ========================================= */
+    .floating-panel {
+        position: absolute;
+        background: rgba(var(--bg-secondary-rgb), 0.85); /* Exige variaveis RGB ou cor sólida com alpha */
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        z-index: 10;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    /* Topo: Título e Ações (esquerda) */
+    .map-header {
+        top: 20px; left: 20px;
+        display: flex; gap: 20px; align-items: center;
+    }
+
+    /* === Page manager: estilo tipo "Visualizar Mapa" === */
+    .page-manager {
+        position: absolute;
+        right: 20px;
+        z-index: 15;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 4px;
+        background: transparent;
+    }
+
+    .page-manager .pm-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background .12s ease, box-shadow .12s ease, color .12s ease, transform .12s ease;
+    }
+
+    /* Link principal estilo "Visualizar Mapa" */
+    .page-manager .pm-link {
+        color: #8b5cf6;            /* roxo */
+        font-weight: 600;
+        background: transparent;
+        border: none;
+    }
+    .page-manager .pm-link:hover{
+        background: rgba(139,92,246,0.06);
+        box-shadow: 0 6px 20px rgba(139,92,246,0.08);
+        color: #a78bfa;
+        transform: translateY(-2px);
+    }
+
+    /* Botão secundário voltar (ghost) */
+    .page-manager .pm-ghost {
+        color: var(--text-secondary);
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.03);
+        padding: 6px 8px;
+        border-radius: 8px;
+    }
+    .page-manager .pm-ghost:hover{
+        background: rgba(255,255,255,0.03);
+        transform: translateY(-1px);
+    }
+
+    /* Ícones */
+    .page-manager .fa { font-size: 14px; display:inline-block; }
+
+    /* Para telas pequenas: reduzir espaçamento */
+    @media (max-width:720px){
+        .page-manager { top: 12px; right: 12px; gap:6px; }
+        .page-manager .pm-btn { padding:6px 8px; font-size:0.9rem; }
+    }
+
+    /* Rodapé: Legenda */
+    .map-legend {
+        bottom: 20px; right: 20px;
+        font-size: 0.85rem;
+        display: flex; flex-direction: column; gap: 8px;
+    }
+
+    .legend-item { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); }
+    .dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+
+    /* =========================================
+       CONTEXT MENU (Botão Direito)
+       ========================================= */
+    .ctx-menu {
+        display: none;
+        position: absolute;
+        z-index: 1000;
+        width: 220px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        border-radius: 8px;
+        overflow: hidden;
+        animation: scaleIn 0.15s ease forwards;
+        transform-origin: top left;
+    }
+
+    @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+    .ctx-header {
+        padding: 10px 15px;
+        background: rgba(var(--primary-rgb), 0.1);
+        border-bottom: 1px solid var(--border-secondary);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--primary);
+        letter-spacing: 0.5px;
+    }
+
+    .ctx-item {
+        padding: 12px 15px;
+        color: var(--text-primary);
+        cursor: pointer;
+        display: flex; align-items: center; gap: 12px;
+        font-size: 0.9rem;
+        transition: background 0.2s;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .ctx-item:last-child { border-bottom: none; }
+    .ctx-item:hover { background: var(--primary); color: white; }
+    .ctx-item.danger:hover { background: var(--danger); }
+
+    /* =========================================
+       LOADING OVERLAY
+       ========================================= */
+    .map-loader {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: var(--bg-primary);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        z-index: 20; transition: opacity 0.5s;
+    }
+
+    /* Grid de Permissões dentro do Modal */
+    .perm-grid-modal {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px; max-height: 300px; overflow-y: auto; padding: 5px;
+        background: var(--bg-primary); border-radius: 6px;
+    }
+
+    .angle-left {
+        font-size: 1.1rem;
+        display: flex;
+        justify-content: right;
+        align-items: flex-end;
+        vertical-align: middle;
+    }
+
+    /* Pequenas correções e fallback para ícones FontAwesome */
+    .fa, .fas { display: inline-block; }
+
+    /* =========================================
+    MODAL THEME - DARK TECH (Baseado na Imagem)
+    ========================================= */
+
+    /* 1. Container e Animação */
+    .modal-overlay {
+        background: rgba(0, 0, 0, 0.75); /* Fundo mais escuro para foco total */
+        backdrop-filter: blur(5px); /* Desfoque no fundo da página */
+    }
+
+    .modal-container {
+        background-color: #161b22; /* Fundo base muito escuro (GitHub Dark Dimmed style) */
+        border: 1px solid #30363d;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        border-radius: 12px; /* Cantos arredondados conforme imagem */
+        overflow: hidden;
+        font-family: 'Inter', sans-serif;
+        transform-origin: center;
+        animation: modalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes modalPop {
+        from { opacity: 0; transform: scale(0.95) translateY(15px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* 2. Header (O Degradê Roxo) */
+    .modal-header {
+        background: linear-gradient(90deg, #6C5CE7 0%, #8e7bf8 100%);
+        padding: 16px 24px;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .modal-title {
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 700;
+        text-transform: none; /* Imagem usa CamelCase normal */
+        letter-spacing: 0.3px;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .modal-close {
+        background: rgba(255,255,255,0.15);
+        border: none;
+        color: white;
+        width: 28px; height: 28px;
+        border-radius: 6px; /* Botão quadrado arredondado */
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.9rem;
+    }
+    .modal-close:hover { background: rgba(255,255,255,0.3); }
+
+    /* 3. Corpo (Inputs e Labels) */
+    .modal-body {
+        padding: 24px;
+        color: #c9d1d9; /* Texto cinza claro */
+        background-color: #161b22;
+    }
+
+    .modal-body label {
+        font-size: 0.85rem;
+        color: #e6edf3; /* Quase branco para títulos */
+        font-weight: 600;
+        margin-bottom: 6px;
+        display: block;
+    }
+
+    /* Inputs Escuros */
+    .form-control, .form-select {
+        background-color: #0d1117 !important; /* Mais escuro que o fundo */
+        border: 1px solid #30363d !important;
+        color: #e6edf3 !important;
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #6C5CE7 !important;
+        box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+        outline: none;
+    }
+
+    /* Placeholder discreto */
+    .form-control::placeholder { color: #6e7681; }
+
+    /* 4. Grids e Listas de Permissão */
+    /* Container para a lista de checkboxes */
+    .perm-grid-modal {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 8px;
+        max-height: 220px;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    /* Scrollbar escura */
+    .perm-grid-modal::-webkit-scrollbar { width: 6px; }
+    .perm-grid-modal::-webkit-scrollbar-track { background: #0d1117; }
+    .perm-grid-modal::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+    /* Item de Permissão (Cardzinho) */
+    .perm-check-item {
+        position: relative;
+        cursor: pointer;
+        margin: 0;
+    }
+    .role-perm-check { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+
+    .perm-check-item div {
+        background: #21262d; /* Cinza levemente mais claro */
+        border: 1px solid #30363d;
+        padding: 10px;
+        border-radius: 6px;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .perm-check-item:hover div { border-color: #8b949e; }
+
+    /* Estado Selecionado (Brilho Roxo) */
+    .role-perm-check:checked + div {
+        background: rgba(108, 92, 231, 0.15);
+        border-color: #6C5CE7;
+        position: relative;
+    }
+    .role-perm-check:checked + div::after {
+        content: '\f00c'; /* FontAwesome check */
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        position: absolute;
+        top: 8px; right: 8px;
+        color: #6C5CE7;
+        font-size: 0.8rem;
+    }
+
+    /* 5. Listas de Permissão Direta (Estilo Tag/List) */
+    .direct-perm-item {
+        background: #21262d;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 8px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #e6edf3;
+        font-size: 0.9rem;
+    }
+
+    /* 6. Footer e Botões */
+    .modal-footer {
+        padding: 16px 24px;
+        background-color: #161b22; /* Mesmo fundo do corpo */
+        border-top: 1px solid #30363d;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end; /* Padrão direita */
+        gap: 12px;
+    }
+    .modal-footer.justify-between { justify-content: space-between; }
+
+    /* Botões Customizados conforme Imagem */
+
+    /* Botão Salvar (Roxo Sólido/Degradê) */
+    .btn-save {
+        background: linear-gradient(90deg, #6C5CE7 0%, #7d6ce9 100%);
+        color: white;
+        border: none;
+        padding: 8px 24px;
+        border-radius: 6px;
+        font-weight: 600;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        transition: transform 0.1s;
+    }
+    .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 12px rgba(108, 92, 231, 0.3); color: white; }
+
+    /* Botão Cancelar (Cinza Claro/Branco Sujo) */
+    .btn-cancel {
+        background: #e6edf3;
+        color: #1f2328;
+        border: 1px solid #d0d7de;
+        padding: 8px 20px;
+        border-radius: 6px;
+        font-weight: 600;
+    }
+    .btn-cancel:hover { background: #ffffff; }
+
+    /* Botão Excluir (Branco com ícone, estilo "Danger Light") */
+    .btn-delete {
+        background: #fff0f0; /* Fundo avermelhado bem claro ou branco */
+        color: #cf222e;
+        border: 1px solid rgba(207, 34, 46, 0.2);
+        padding: 8px 20px;
+        border-radius: 6px;
+        font-weight: 600;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .btn-delete:hover {
+        background: #ffe3e6;
+        border-color: #cf222e;
+    }
+
+    /* Botão Adicionar (Amarelo/Laranja p/ Permissões) */
+    .btn-add {
+        background: #d29922;
+        color: #161b22;
+        border: none;
+        font-weight: bold;
+        border-radius: 6px;
+        padding: 0 16px;
+    }
+    .btn-add:hover { background: #eac54f; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+
+
+<div class="map-wrapper fade-in">
+<!-- Botões gerenciais no topo direito (estilo "Visualizar Mapa") -->
+<div class="page-manager" aria-label="Ações da página">
+    <a href="{{ url_for('SecurityConfig.ViewSecurityManager') }}" class="pm-btn pm-link" title="Visualizar Mapa / Home do Security Manager">
+        <i class="fas fa-map-marker-alt"></i>
+        <span>Central de Segurança</span>
+    </a>
+</div>
+    <div id="loader" class="map-loader">
+        <div class="spinner mb-3"></div>
+        <span class="text-secondary tracking-widest text-sm">MAPEANDO REDE DE SEGURANÇA...</span>
+    </div>
+
+    <div id="securityNetwork"></div>
+
+    <div class="floating-panel map-header slide-in-down">
+        <div>
+            <h2 class="m-0 text-white text-lg font-bold"><i class="fas fa-project-diagram text-primary"></i> Mapa de Acesso</h2>
+            <span class="text-xs text-secondary">Botão Direito nos nós para editar.</span>
+        </div>
+        <div class="h-8 w-px bg-secondary opacity-50"></div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="networkManager.fit()" title="Centralizar">
+                <i class="fas fa-compress-arrows-alt"></i>
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="networkManager.reload()" title="Atualizar Dados">
+                <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+        </div>
+    </div>
+
+    <div class="floating-panel map-legend slide-in-up">
+        <div class="legend-item"><div class="dot" style="background: #00B894;"></div> Usuário (OK)</div>
+        <div class="legend-item"><div class="dot" style="background: #fdcb6e;"></div> Usuário (Exceção)</div>
+        <div class="legend-item"><div class="dot" style="background: #6C5CE7;"></div> Grupo / Role</div>
+        <div class="legend-item"><div class="dot" style="background: #2d3436; border: 1px solid #FD79A8;"></div> Permissão</div>
+        <div class="legend-item"><div class="dot" style="background: #e17055;"></div> Sem Acesso</div>
+    </div>
+
+    <div id="contextMenuNetwork" class="ctx-menu">
+        <div id="ctxHeader" class="ctx-header">Opções</div>
+        <div id="ctxItems"></div>
+    </div>
+</div>
+
+<div id="modalChangeRole" class="modal-overlay">
+    <div class="modal-container modal-sm">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-user-tag"></i> Alterar Grupo</h3>
+            <button class="modal-close" onclick="closeModal('modalChangeRole')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="targetUserLogin">
+            <div class="d-flex align-items-center gap-3 mb-4 p-3 rounded" style="background: rgba(255,255,255,0.03); border: 1px solid #30363d;">
+                <div class="avatar-circle bg-primary text-white d-flex align-items-center justify-content-center" 
+                     style="width:40px; height:40px; border-radius:50%; font-size:1.1rem;">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div>
+                    <label class="m-0 text-white" style="font-size:0.75rem;">Usuário Alvo</label>
+                    <h4 id="lblTargetUser" class="m-0 text-white font-weight-bold">...</h4>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Novo Grupo de Acesso</label>
+                <select id="selectNewRole" class="form-select w-100">
+                    </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-cancel" onclick="closeModal('modalChangeRole')">Cancelar</button>
+            <button class="btn btn-save" onclick="networkManager.saveUserRole()">Salvar Mudança</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalDirectPerms" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header" style="background: linear-gradient(90deg, #d29922 0%, #f2c94c 100%);"> 
+            <h3 class="modal-title text-dark"><i class="fas fa-exclamation-triangle"></i> Permissões Diretas</h3>
+            <button class="modal-close" style="color:black; background:rgba(0,0,0,0.1);" onclick="closeModal('modalDirectPerms')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="directUserLogin">
+            <p class="text-secondary text-sm mb-3">
+                Conceda permissões específicas para <strong id="lblDirectUser" class="text-white">...</strong> que não estão no grupo padrão.
+            </p>
+            
+            <div class="d-flex gap-2 mb-4">
+                <select id="selectDirectPerm" class="form-select flex-grow-1">
+                    </select>
+                <button class="btn btn-add" onclick="networkManager.addDirectPermission()">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <label class="text-xs text-uppercase mb-2">Permissões Adicionais Ativas</label>
+            <div id="listDirectPerms" class="d-flex flex-column gap-2" style="max-height: 200px; overflow-y: auto;">
+                </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-cancel" onclick="closeModal('modalDirectPerms')">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalEditRole" class="modal-overlay">
+    <div class="modal-container modal-lg">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-users-cog"></i> Configurar Grupo</h3>
+            <button class="modal-close" onclick="closeModal('modalEditRole')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editRoleId">
+            
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label>Nome do Grupo</label>
+                    <input type="text" id="editRoleName" class="form-control" placeholder="Ex: Administrador">
+                </div>
+                <div class="col-md-6">
+                    <label>Descrição</label>
+                    <input type="text" id="editRoleDesc" class="form-control" placeholder="Função do grupo...">
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-end mb-2">
+                <label class="m-0">Permissões do Grupo</label>
+                <div class="position-relative">
+                    <input type="text" 
+                        class="form-control form-control-sm" 
+                        style="width: 200px; padding-right: 30px;" 
+                        placeholder="Filtrar..." 
+                        onkeyup="networkManager.filterPermChecks(this.value)">
+                    <i class="fas fa-search position-absolute text-secondary" style="right: 10px; top: 10px; font-size: 0.8rem;"></i>
+                </div>
+            </div>
+
+            <div id="editRolePermsContainer" class="perm-grid-modal">
+                </div>
+        </div>
+        <div class="modal-footer justify-between">
+            <button class="btn btn-delete" onclick="networkManager.deleteRole()">
+                <i class="fas fa-trash-alt"></i> Excluir Grupo
+            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-cancel" onclick="closeModal('modalEditRole')">Cancelar</button>
+                <button class="btn btn-save" onclick="networkManager.saveRole()">Salvar Grupo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script>
+    // Configuração de Rotas para o JS externo
+    const API = {
+        getData: "{{ url_for('SecurityConfig.GetSecurityGraph') }}",
+        getRoles: "{{ url_for('SecurityConfig.GetRolesAndPermissions') }}",
+        updateUserRole: "{{ url_for('SecurityConfig.UpdateUserRole') }}",
+        toggleDirect: "{{ url_for('SecurityConfig.ToggleDirectPermission') }}",
+        saveRole: "{{ url_for('SecurityConfig.SaveRole') }}",
+        deleteRole: "{{ url_for('SecurityConfig.DeleteRole') }}"
+    };
+    
+    // Utilitários de Modal globais
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('active');
+        setTimeout(() => document.getElementById(id).style.display = 'none', 300);
+    }
+    function openModal(id) {
+        const el = document.getElementById(id);
+        el.style.display = 'flex';
+        setTimeout(() => el.classList.add('active'), 10);
+    }
+</script>
+<script src="{{ url_for('static', filename='JS/SecurityMap.js') }}"></script>
+{% endblock %}

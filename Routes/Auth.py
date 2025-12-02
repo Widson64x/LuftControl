@@ -5,8 +5,9 @@ from sqlalchemy.orm import sessionmaker
 from ldap3 import Server, Connection, SIMPLE, core
 
 # Importações locais do seu projeto
-from Db.Connections import get_sqlserver_engine
+from Db.Connections import get_sqlserver_engine, get_postgres_engine
 from Models.SQL_SERVER.Usuario import Usuario, UsuarioGrupo, MenuAcesso, Menu
+from Models.POSTGRESS.Seguranca import SecUserExtension, SecRole
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -18,20 +19,54 @@ LDAP_DOMAIN = os.getenv("LDAP_DOMAIN", "luftfarma")         # Coloque o domínio
 engine = get_sqlserver_engine()
 Session = sessionmaker(bind=engine)
 
+def get_pg_session():
+    engine = get_postgres_engine()
+    return sessionmaker(bind=engine)()
+
 # --- Classe Wrapper para o Flask-Login ---
 # Necessária para adaptar o objeto do SQLAlchemy para o que o Flask-Login espera
 class UserWrapper(UserMixin):
     def __init__(self, usuario_db, nome_grupo="", lista_menus=[]):
         self.id = usuario_db.Codigo_Usuario
         self.nome = usuario_db.Login_Usuario
-        self.nome_completo = usuario_db.Nome_Usuario # Adicionado para exibição bonita
+        self.nome_completo = usuario_db.Nome_Usuario
         self.email = usuario_db.Email_Usuario
         self.grupo_id = usuario_db.codigo_usuariogrupo
         
-        # Novos campos
-        self.nome_grupo = nome_grupo
-        self.menus = lista_menus # Será uma lista de strings
+        # Permissões calculadas
+        self.all_permissions = set() 
+        self._load_security_context()
 
+    def _load_security_context(self):
+        session_pg = get_pg_session()
+        try:
+            # Busca usuário no Postgres
+            pg_user = session_pg.query(SecUserExtension).filter_by(Login_Usuario=self.nome).first()
+            
+            if pg_user:
+                # 1. Adiciona permissões do GRUPO (Role)
+                if pg_user.role:
+                    for perm in pg_user.role.permissions:
+                        self.all_permissions.add(perm.Slug)
+                
+                # 2. Adiciona permissões DIRETAS (User)
+                for perm in pg_user.direct_permissions:
+                    self.all_permissions.add(perm.Slug)
+            
+            # Se usuário não existir no PG, será criado no próximo login, 
+            # mas por enquanto fica sem permissões (set vazio)
+            
+        except Exception as e:
+            print(f"Erro Security Context: {e}")
+        finally:
+            session_pg.close()
+
+    def has_permission(self, slug):
+        # Admin sempre pode tudo (opcional)
+        if 'admin.master' in self.all_permissions:
+            return True
+        return slug in self.all_permissions
+    
 # --- Função de Autenticação no AD ---
 def autenticar_ad(usuario, senha):
     """
@@ -120,6 +155,14 @@ def login():
                     # SUCESSO TOTAL: Validado no AD e Encontrado no Banco
                     usuario_flask = carregar_usuario_flask(user_db.Codigo_Usuario)
                     login_user(usuario_flask)
+                    
+                    # Acesso só com esse grupos:
+                    
+                    grupos = ['CONTROLADORIA ADMIN', 'CONTROLADORIA BÁSICO', 'GRUPO ADMIN', 'GRUPO TI']
+                    if usuario_flask.nome_grupo not in grupos:
+                        logout_user()
+                        flash('Usuário não possui permissão para acessar o sistema.', 'danger')
+                        return redirect(url_for('auth.login'))
                     
                     flash(f'Bem-vindo(a), {user_db.Nome_Usuario}!', 'success')
                     

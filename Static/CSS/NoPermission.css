@@ -1,0 +1,190 @@
+/* ============================================
+   NO PERMISSION PAGE STYLES
+   Dependência: Themes.css
+   ============================================ */
+
+.noPermission-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+}
+
+.noPermission-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-3xl);
+    max-width: 500px;
+    width: 100%;
+    text-align: center;
+    box-shadow: var(--shadow-xl);
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+    animation: slideInDown 0.6s ease-out;
+}
+
+.noPermission-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gradient-primary);
+}
+
+.noPermission-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(108, 92, 231, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.noPermission-icon {
+    font-size: var(--font-4xl);
+    color: var(--danger);
+    margin-bottom: var(--spacing-xl);
+    position: relative;
+    z-index: 1;
+    animation: bounce 1s ease-in-out infinite;
+}
+
+.noPermission-title {
+    font-size: var(--font-3xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+    position: relative;
+    z-index: 1;
+}
+
+.noPermission-message {
+    font-size: var(--font-base);
+    color: var(--text-secondary);
+    line-height: var(--line-height-relaxed);
+    margin-bottom: var(--spacing-2xl);
+    position: relative;
+    z-index: 1;
+}
+
+.noPermission-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+}
+
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-base);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: var(--transition-normal);
+    text-decoration: none;
+    min-height: 44px;
+}
+
+.btn-back:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateX(-4px);
+}
+
+.btn-back:active {
+    transform: translateX(-2px);
+}
+
+.btn-contact {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-base);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: var(--transition-normal);
+    text-decoration: none;
+    min-height: 44px;
+}
+
+.btn-contact:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.btn-contact:active {
+    transform: translateY(0);
+}
+
+/* ========== ANIMAÇÕES ========== */
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+/* ========== RESPONSIVO ========== */
+@media (max-width: 640px) {
+    .noPermission-wrapper {
+        padding: var(--spacing-md);
+    }
+    
+    .noPermission-card {
+        padding: var(--spacing-2xl) var(--spacing-lg);
+    }
+    
+    .noPermission-title {
+        font-size: var(--font-2xl);
+    }
+    
+    .noPermission-icon {
+        font-size: var(--font-3xl);
+    }
+    
+    .noPermission-actions {
+        flex-direction: column;
+    }
+    
+    .btn-back,
+    .btn-contact {
+        width: 100%;
+    }
+}

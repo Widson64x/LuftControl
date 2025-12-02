@@ -48,8 +48,16 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         }
 
         setupSystem() {
-            this.modal = new ModalSystem('modalRelatorio');
-            console.log('✅ RelatorioSystem Nativo Inicializado');
+            const modalElement = document.getElementById('modalRelatorio');
+            
+            // CORREÇÃO: Só instancia se o modal existir na página atual
+            if (modalElement) {
+                this.modal = new ModalSystem('modalRelatorio');
+                console.log('✅ RelatorioSystem Nativo Inicializado');
+            } else {
+                // Silencioso em outras páginas para não poluir o console
+                // console.log('ℹ️ RelatorioSystem em standby (página sem modal)');
+            }
         }
 
         // =========================================================================
@@ -57,8 +65,16 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         // =========================================================================
 
         async loadRazaoReport(page = 1) {
-            if (!this.modal) this.modal = new ModalSystem('modalRelatorio');
-            
+            // Verifica se o modal existe antes de tentar abrir
+            if (!this.modal) {
+                const modalElement = document.getElementById('modalRelatorio');
+                if (modalElement) {
+                    this.modal = new ModalSystem('modalRelatorio');
+                } else {
+                    console.error("Modal de relatórios não encontrado nesta página.");
+                    return;
+                }
+            }            
             this.razaoPage = page;
             const title = this.razaoSearch 
                 ? `📈 Razão Contábil - Buscando: "${this.razaoSearch}"` 

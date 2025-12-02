@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func, or_, String, text
 
 from Db.Connections import get_postgres_engine
+from Helpers.Security import requires_permission
 
 reports_bp = Blueprint('Reports', __name__) 
 

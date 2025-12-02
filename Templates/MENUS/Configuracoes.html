@@ -1,0 +1,307 @@
+{% extends "Base.html" %}
+
+{% block title %}Configurações | T-Controllership{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ==========================================================================
+       SETTINGS HUB STYLES
+       Baseado em Themes.css
+       ========================================================================== */
+
+    .settings-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding-bottom: var(--spacing-3xl);
+    }
+
+    /* --- 1. HERO HEADER --- */
+    .settings-hero {
+        background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-xl);
+        padding: var(--spacing-2xl);
+        margin-bottom: var(--spacing-2xl);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xl);
+        box-shadow: var(--shadow-lg);
+    }
+
+    /* Efeito de luz de fundo */
+    .settings-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.1) 0%, transparent 70%);
+        filter: blur(60px);
+        pointer-events: none;
+    }
+
+    .hero-icon-box {
+        width: 80px;
+        height: 80px;
+        background: var(--gradient-primary);
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        color: white;
+        box-shadow: 0 10px 25px rgba(var(--primary-rgb), 0.4);
+        flex-shrink: 0;
+        z-index: 1;
+    }
+
+    .hero-text {
+        z-index: 1;
+    }
+
+    .hero-title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: var(--spacing-xs);
+        letter-spacing: -0.02em;
+    }
+
+    .hero-description {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        max-width: 600px;
+    }
+
+    /* --- 2. GRID DE CARDS --- */
+    .modules-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: var(--spacing-xl);
+    }
+
+    /* --- 3. CONFIG CARD DESIGN --- */
+    .config-card {
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-xl);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-lg);
+        text-decoration: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+        height: 100%;
+    }
+
+    /* Hover Effects */
+    .config-card:hover:not(.disabled) {
+        transform: translateY(-6px);
+        border-color: rgba(var(--primary-rgb), 0.5);
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
+        background-color: var(--bg-hover);
+    }
+
+    /* Barra de destaque no hover */
+    .config-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0; left: 0; width: 100%; height: 3px;
+        background: var(--gradient-primary);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .config-card:hover:not(.disabled)::after {
+        transform: scaleX(1);
+    }
+
+    /* Icon Wrapper */
+    .card-header-flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .card-icon {
+        width: 56px;
+        height: 56px;
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(var(--primary-rgb), 0.1);
+    }
+
+    .config-card:hover:not(.disabled) .card-icon {
+        background: var(--gradient-primary);
+        color: white;
+        transform: rotate(-5deg) scale(1.1);
+        box-shadow: 0 8px 20px rgba(var(--primary-rgb), 0.3);
+    }
+
+    /* Typography */
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .card-desc {
+        font-size: 0.95rem;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        flex-grow: 1;
+    }
+
+    /* Action Arrow */
+    .card-action {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--primary);
+        margin-top: var(--spacing-md);
+        opacity: 0.8;
+        transition: all 0.3s ease;
+    }
+
+    .config-card:hover:not(.disabled) .card-action {
+        opacity: 1;
+        gap: 12px; /* Animação de espaçamento */
+    }
+
+    /* --- 4. DISABLED STATE --- */
+    .config-card.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background: rgba(0, 0, 0, 0.2); /* Mais escuro */
+        border-style: dashed;
+    }
+
+    .config-card.disabled .card-icon {
+        background: var(--bg-tertiary);
+        color: var(--text-tertiary);
+        filter: grayscale(1);
+    }
+
+    /* Badge Customizada */
+    .badge-soon {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warning);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        padding: 4px 10px;
+        border-radius: var(--radius-full);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    /* Botão de Voltar */
+    .btn-back-wrapper {
+        margin-top: var(--spacing-2xl);
+        padding-top: var(--spacing-lg);
+        border-top: 1px solid var(--border-primary);
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="settings-container fade-in">
+    
+    <header class="settings-hero">
+        <div class="hero-icon-box">
+            <i class="fas fa-sliders-h"></i>
+        </div>
+        <div class="hero-text">
+            <h1 class="hero-title">Central de Configurações</h1>
+            <p class="hero-description">
+                Gerencie parâmetros técnicos, controle de acesso e estrutura financeira do sistema em um único lugar.
+            </p>
+        </div>
+    </header>
+
+    <div class="modules-grid">
+
+        <a href="{{ url_for('DreConfig.ViewConfiguracao') }}" class="config-card slide-in-up" style="animation-delay: 0.1s;">
+            <div class="card-header-flex">
+                <div class="card-icon">
+                    <i class="fas fa-sitemap"></i>
+                </div>
+                </div>
+            
+            <div>
+                <h3 class="card-title">Estrutura DRE</h3>
+                <p class="card-desc">
+                    Modele a hierarquia financeira. Crie nós virtuais, defina fórmulas de cálculo e gerencie o vínculo de contas contábeis.
+                </p>
+            </div>
+
+            <div class="card-action">
+                <span>Acessar Configuração</span>
+                <i class="fas fa-arrow-right"></i>
+            </div>
+        </a>
+
+        <a href="{{ url_for('SecurityConfig.ViewSecurityManager') }}" class="config-card slide-in-up" style="animation-delay: 0.2s;">
+            <div class="card-header-flex">
+                <div class="card-icon">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+            </div>
+            
+            <div>
+                <h3 class="card-title">Segurança & Permissões</h3>
+                <p class="card-desc">
+                    Controle de acesso granular (RBAC). Gerencie usuários, crie perfis de acesso e atribua permissões específicas por módulo.
+                </p>
+            </div>
+
+            <div class="card-action">
+                <span>Gerenciar Acessos</span>
+                <i class="fas fa-arrow-right"></i>
+            </div>
+        </a>
+
+        <div class="config-card disabled slide-in-up" style="animation-delay: 0.3s;">
+            <div class="card-header-flex">
+                <div class="card-icon">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <span class="badge-soon">Em Breve</span>
+            </div>
+            
+            <div>
+                <h3 class="card-title">Parâmetros Globais</h3>
+                <p class="card-desc">
+                    Definições avançadas do sistema, configurações de SMTP, integração com Active Directory e logs de auditoria.
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="btn-back-wrapper">
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-ghost text-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Voltar ao Dashboard
+        </a>
+    </div>
+
+</div>
+
+{% endblock %}

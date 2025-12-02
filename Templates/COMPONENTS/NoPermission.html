@@ -1,0 +1,32 @@
+{% extends "Base.html" %}
+
+{% block title %}Acesso Negado - T-Controllership{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/NoPermission.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="noPermission-wrapper">
+    <div class="noPermission-card">
+        <div class="noPermission-icon">
+            <i class="fas fa-lock"></i>
+        </div>
+        <h2 class="noPermission-title">Acesso Negado</h2>
+        <p class="noPermission-message">
+            Você não possui permissão para acessar este módulo.<br>
+            Por favor, entre em contato com o administrador do sistema.
+        </p>
+        <div class="noPermission-actions">
+            <button class="btn-back" onclick="history.back()">
+                <i class="fas fa-arrow-left"></i>
+                Voltar à Página Anterior
+            </button>
+            <a href="{{ url_for('main.dashboard') }}" class="btn-contact">
+                <i class="fas fa-home"></i>
+                Ir para Home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

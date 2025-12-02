@@ -17,34 +17,40 @@
             <ul class="navbar-nav d-flex align-center gap-sm">
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" 
-                       href="{{ url_for('main.dashboard') }}">
+                    href="{{ url_for('main.dashboard') }}">
                         <i class="fas fa-home"></i> Home
                     </a>
                 </li>
                 
                 <li class="nav-item">
                     <a class="nav-link {% if 'Reports' in request.endpoint %}active{% endif %}" 
-                       href="{{ url_for('Reports.PaginaRelatorios') }}">
+                    href="{{ url_for('Reports.PaginaRelatorios') }}">
                         <i class="fas fa-table"></i> Relatórios
                     </a>
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link cursor-pointer" onclick="configModal.open()">
-                        <i class="fas fa-cog"></i> Configurações
+                    <a class="nav-link {% if 'Settings' in request.endpoint %}active{% endif %}" 
+                    href="{{ url_for('main.settings_hub') }}">
+                        <i class="fas fa-cog"></i> Sistema
                     </a>
                 </li>
             </ul>
             
             <div class="d-flex align-center gap-md">
+                
+                <a class="btn btn-secondary btn-sm" onclick="configModal.open()" title="Aparência e Minha Conta" style="border: none; background: rgba(255,255,255,0.1);">
+                    <i class="fas fa-sliders-h"></i>
+                </a>
+
                 <div class="navbar-text d-none d-md-flex">
                     <i class="fas fa-user-circle"></i>
                     <span class="font-medium">{{ current_user.nome }}</span>
                 </div>
                 
                 <a href="{{ url_for('auth.logout') }}" 
-                   class="btn btn-logout d-flex align-center gap-xs text-xs"
-                   title="Sair do Sistema">
+                class="btn btn-logout d-flex align-center gap-xs text-xs"
+                title="Sair do Sistema">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Sair</span>
                 </a>

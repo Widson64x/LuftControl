@@ -17,7 +17,7 @@
     align-items: center;
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: var(--z-fixed);
     backdrop-filter: blur(12px); /* Efeito vidro sutil */
     -webkit-backdrop-filter: blur(12px);
     transition: all 0.3s ease;
@@ -48,6 +48,7 @@
     padding: 8px 12px;
     border-radius: var(--radius-md);
     transition: background-color 0.2s;
+    white-space: nowrap;
 }
 
 .navbar-brand:hover {
@@ -181,7 +182,7 @@
     inset: 0;
     background-color: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(4px);
-    z-index: 2000;
+    z-index: var();
     display: flex;
     align-items: center;
     justify-content: center;
@@ -228,6 +229,7 @@
 .modal-title {
     font-size: 1.1rem;
     font-weight: 700;
+    color: white;
     display: flex;
     align-items: center;
     gap: 10px;
