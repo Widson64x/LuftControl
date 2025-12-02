@@ -28,10 +28,13 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 globalSearch: '',            // Busca global
                 sort: { col: null, dir: 'asc' }, // Ordenação
                 columnsOrder: [],            // Ordem das colunas (meses)
-                origemFilter: 'Consolidado'  // NOVO: Filtro de origem (FARMA, FARMADIST, Consolidado)
+                origemFilter: 'Consolidado'  // Filtro de origem (FARMA, FARMADIST, Consolidado)
             };
             this.biDebounceTimer = null;
-            this.biIsLoading = false;        // NOVO: Flag de loading
+            this.biIsLoading = false;        // Flag de loading
+
+            // Cache de nós calculados
+            this.nosCalculados = [];
 
             this.init();
         }
@@ -68,8 +71,15 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
 
             try {
+                let urlBase = '/Reports/RelatorioRazao/Dados'; 
+                if (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRazaoData) {
+                    urlBase = API_ROUTES.getRazaoData;
+                }
+
                 const term = encodeURIComponent(this.razaoSearch);
-                const response = await APIUtils.get(`/Reports/RelatorioRazao/Dados?page=${page}&search=${term}`);
+                const fullUrl = `${urlBase}?page=${page}&search=${term}`;
+
+                const response = await APIUtils.get(fullUrl);
                 
                 this.razaoData = response.dados || [];
                 this.razaoTotalPages = response.total_paginas || 1;
@@ -82,14 +92,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         }
 
         renderRazaoView(metaData) {
-            // 1. Calcular Totais da Página
             const totals = this.razaoData.reduce((acc, item) => ({
                 deb: acc.deb + (item.debito || 0),
                 cred: acc.cred + (item.credito || 0),
                 saldo: acc.saldo + (item.saldo || 0)
             }), { deb: 0, cred: 0, saldo: 0 });
 
-            // 2. HTML dos Cards de Resumo
             const summaryHtml = `
                 <div class="summary-grid mb-3">
                     <div class="summary-card">
@@ -112,7 +120,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     </div>
                 </div>`;
 
-            // 3. Barra de Controle (Busca e Paginação)
             const controlsHtml = `
                 <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-tertiary rounded">
                     <div class="input-group" style="max-width: 400px;">
@@ -138,7 +145,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     </div>
                 </div>`;
 
-            // 4. Tabela de Dados
             const rows = this.razaoData.map(r => `
                 <tr>
                     <td class="font-mono text-xs">${r.conta}</td>
@@ -173,10 +179,9 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
             this.modal.setContent(`<div style="padding: 1.5rem;">${summaryHtml}${controlsHtml}${tableHtml}</div>`);
 
-            // Event Listener para Busca com Debounce
             const input = document.getElementById('razaoSearchInput');
             if (input) {
-                input.selectionStart = input.selectionEnd = input.value.length; // Cursor no final
+                input.selectionStart = input.selectionEnd = input.value.length; 
                 input.addEventListener('input', (e) => {
                     clearTimeout(this.razaoSearchTimer);
                     this.razaoSearchTimer = setTimeout(() => {
@@ -194,12 +199,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         async loadRentabilidadeReport(origem = null) {
             if (!this.modal) this.modal = new ModalSystem('modalRelatorio');
             
-            // Se não foi passada origem, usa a do estado atual (ou Consolidado como padrão)
             if (origem !== null) {
                 this.biState.origemFilter = origem;
             }
             
-            // Reseta estado básico do BI se for recarga completa (primeira carga)
             if (origem === null) {
                 this.biState.filters = {};
                 this.biState.globalSearch = '';
@@ -209,9 +212,13 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.modal.showLoading('Construindo cubo de dados...');
 
             try {
-                // 1. Busca dados do backend COM o filtro de origem
+                let urlBase = '/Reports/RelatorioRazao/Rentabilidade';
+                if (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData) {
+                    urlBase = API_ROUTES.getRentabilidadeData;
+                }
+
                 const origemParam = encodeURIComponent(this.biState.origemFilter);
-                const rawData = await APIUtils.get(`/Reports/RelatorioRazao/Rentabilidade?origem=${origemParam}`);
+                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}`);
                 
                 if (!rawData || rawData.length === 0) {
                     this.renderBiEmptyState();
@@ -219,12 +226,9 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 }
 
                 this.biRawData = rawData;
-                
-                // 2. Define colunas iniciais (Meses)
                 this.biState.columnsOrder = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Total_Ano'];
 
-                // 3. Processa e Renderiza
-                this.processBiTree();
+                await this.processBiTreeWithCalculated();
                 this.renderBiInterface();
 
             } catch (error) {
@@ -233,9 +237,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
         }
 
-        /**
-         * Renderiza estado vazio quando não há dados
-         */
         renderBiEmptyState() {
             const emptyHtml = `
                 <div class="bi-toolbar d-flex justify-content-between align-items-center p-3 border-bottom border-primary bg-tertiary">
@@ -254,16 +255,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.setupOrigemFilterEvents();
         }
 
-        /**
-         * Recarrega dados do BI de forma assíncrona (sem fechar/reabrir modal)
-         */
         async reloadBiDataAsync(novaOrigem) {
-            if (this.biIsLoading) return; // Evita chamadas duplicadas
+            if (this.biIsLoading) return;
             
             this.biIsLoading = true;
             this.biState.origemFilter = novaOrigem;
             
-            // Mostra indicador de loading na tabela
             const container = document.getElementById('biGridContainer');
             if (container) {
                 container.innerHTML = `
@@ -275,8 +272,13 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
 
             try {
+                let urlBase = '/Reports/RelatorioRazao/Rentabilidade';
+                if (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData) {
+                    urlBase = API_ROUTES.getRentabilidadeData;
+                }
+
                 const origemParam = encodeURIComponent(novaOrigem);
-                const rawData = await APIUtils.get(`/Reports/RelatorioRazao/Rentabilidade?origem=${origemParam}`);
+                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}`);
                 
                 if (!rawData || rawData.length === 0) {
                     this.biRawData = [];
@@ -291,11 +293,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     }
                 } else {
                     this.biRawData = rawData;
-                    this.processBiTree();
+                    await this.processBiTreeWithCalculated();
                     this.renderBiTable();
                 }
                 
-                // Atualiza o badge de contagem
                 this.updateOrigemBadge();
                 
             } catch (error) {
@@ -313,9 +314,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
         }
 
-        /**
-         * Atualiza o badge de contagem de registros
-         */
         updateOrigemBadge() {
             const badge = document.getElementById('biOrigemBadge');
             if (badge) {
@@ -323,12 +321,8 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
         }
 
-        /**
-         * Gera o HTML do filtro de origem
-         */
         renderOrigemFilter() {
             const opcoes = ['Consolidado', 'FARMA', 'FARMADIST'];
-            
             return `
                 <div class="origem-filter-group d-flex align-items-center gap-2">
                     <label class="text-secondary text-sm me-1">
@@ -351,9 +345,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             `;
         }
 
-        /**
-         * Retorna o ícone apropriado para cada origem
-         */
         getOrigemIcon(origem) {
             const icons = {
                 'Consolidado': '<i class="fas fa-layer-group"></i>',
@@ -363,48 +354,32 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             return icons[origem] || '';
         }
 
-        /**
-         * Manipula mudança de filtro de origem
-         */
         handleOrigemChange(novaOrigem) {
             if (novaOrigem === this.biState.origemFilter || this.biIsLoading) return;
-            
-            // Atualiza visual dos botões imediatamente
             document.querySelectorAll('.origem-toggle-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.origem === novaOrigem);
             });
-            
-            // Recarrega dados de forma assíncrona
             this.reloadBiDataAsync(novaOrigem);
         }
 
-        /**
-         * Setup dos eventos do filtro de origem após renderização
-         */
-        setupOrigemFilterEvents() {
-            // Os eventos já são configurados inline via onclick
-            // Este método existe para extensibilidade futura
-        }
+        setupOrigemFilterEvents() {}
 
-        /**
-         * Transforma lista plana em árvore hierárquica e calcula somas
-         */
         processBiTree() {
             const root = [];
             const map = {}; 
             const meses = this.biState.columnsOrder;
 
-            // Helper para criar ou recuperar nó
-            const getOrCreateNode = (id, label, type, parentList) => {
+            const getOrCreateNode = (id, label, type, parentList, defaultOrder = 9999) => {
                 if (!map[id]) {
                     const node = { 
                         id: id, 
                         label: label, 
-                        type: type, // 'root', 'group', 'account'
+                        type: type, 
                         children: [], 
                         values: {},
-                        isVisible: true, // Controle de filtro
-                        isExpanded: this.biState.expanded.has(id) // Persistência de expansão
+                        isVisible: true,
+                        isExpanded: this.biState.expanded.has(id),
+                        ordem: defaultOrder 
                     };
                     meses.forEach(m => node.values[m] = 0);
                     map[id] = node;
@@ -413,18 +388,27 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 return map[id];
             };
 
-            // Helper para somar valores no nó
             const sumValues = (node, row) => {
                 meses.forEach(m => node.values[m] += (parseFloat(row[m]) || 0));
             };
 
-            this.biRawData.forEach(row => {
-                // 1. Nível 1: Tipo (Adm, Oper...)
+            this.biRawData.forEach((row, index) => {
+                // CORREÇÃO: Garante que 0 não seja tratado como false
+                const ordemVal = (row.ordem_prioridade !== null && row.ordem_prioridade !== undefined) 
+                    ? row.ordem_prioridade 
+                    : (row.Ordem || row.ordem || (index * 10) + 1000);
+
                 const tipoId = `T_${row.Tipo_CC}`;
-                const tipoNode = getOrCreateNode(tipoId, row.Tipo_CC, 'root', root);
+                const tipoNode = getOrCreateNode(tipoId, row.Tipo_CC, 'root', root, ordemVal);
+                
+                // CORREÇÃO: Atualiza a ordem do nó existente se a linha atual tiver uma ordem válida e menor
+                // Isso corrige o bug onde a primeira linha pode não ter ordem, mas a segunda sim
+                if ((row.ordem_prioridade !== null || row.Ordem) && tipoNode.ordem >= 1000) {
+                    tipoNode.ordem = (row.ordem_prioridade !== null) ? row.ordem_prioridade : row.Ordem;
+                }
+                
                 sumValues(tipoNode, row);
 
-                // 2. Níveis Dinâmicos (Subgrupos)
                 let currentNode = tipoNode;
                 let currentId = tipoId;
 
@@ -438,16 +422,15 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     });
                 }
 
-                // 3. Nível Folha (Conta)
                 const contaId = `C_${row.Conta}`;
-                // Conta única dentro do grupo
                 const contaNode = {
-                    id: contaId + currentId, // ID único composto
+                    id: contaId + currentId,
                     label: `📄 ${row.Conta} - ${row.Titulo_Conta}`,
                     type: 'account',
                     children: [],
                     values: {},
-                    isVisible: true
+                    isVisible: true,
+                    ordem: 0 
                 };
                 meses.forEach(m => contaNode.values[m] = parseFloat(row[m]) || 0);
                 
@@ -455,14 +438,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             });
 
             this.biTreeData = root;
-            this.applyBiFilters(); // Aplica filtros iniciais (se houver)
+            this.applyBiFilters();
         }
 
-        /**
-         * Renderiza a estrutura completa da interface do BI
-         */
         renderBiInterface() {
-            // Toolbar Superior COM filtro de origem
             const toolbar = `
                 <div class="bi-toolbar d-flex justify-content-between align-items-center p-3 border-bottom border-primary bg-tertiary">
                     <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -492,12 +471,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     </div>
                 </div>`;
 
-            // Container da Tabela
             const gridContainer = `
                 <div id="biGridContainer" class="table-fixed-container" style="flex: 1; overflow: auto; background: var(--bg-secondary);">
                 </div>`;
 
-            // Footer
             const footer = `
                 <div class="bi-footer p-2 bg-tertiary border-top border-primary d-flex justify-content-between align-items-center">
                     <span class="text-secondary text-xs">
@@ -512,23 +489,16 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
             this.modal.setContent(`<div style="display: flex; flex-direction: column; height: 100%;">${toolbar}${gridContainer}${footer}</div>`);
             
-            // Renderiza a tabela em si
             this.renderBiTable();
-            
-            // Setup eventos adicionais
             this.setupOrigemFilterEvents();
         }
 
-        /**
-         * Gera o HTML da Tabela BI baseada no estado atual
-         */
         renderBiTable() {
             const container = document.getElementById('biGridContainer');
             if (!container) return;
 
             const cols = this.biState.columnsOrder.filter(c => !this.biState.hiddenCols.has(c));
             
-            // --- HEADER (Com Filtros) ---
             let headerHtml = `
                 <thead style="position: sticky; top: 0; z-index: 20;">
                     <tr>
@@ -549,7 +519,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     </tr>
                 </thead>`;
 
-            // --- BODY (Recursivo) ---
             let bodyRows = '';
             
             const renderNode = (node, level) => {
@@ -565,23 +534,25 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     icon = `<i class="fas fa-chevron-${isExpanded ? 'down' : 'right'} me-2 toggle-icon" 
                             onclick="event.stopPropagation(); relatorioSystem.toggleNode('${node.id}')"></i>`;
                 } else {
-                    icon = `<i class="far fa-file-alt me-2 opacity-50" style="margin-left: 4px;"></i>`;
+                    // Diferencia ícone para nó calculado
+                    if (node.type === 'calculated') {
+                         // ADICIONADO: title="${node.formulaDescricao || ''}"
+                         icon = `<i class="fas fa-calculator me-2 text-info" 
+                                    style="margin-left: 4px; cursor: help;" 
+                                    title="${node.formulaDescricao || 'Nó Calculado'}"></i>`;
+                    } else {
+                         icon = `<i class="far fa-file-alt me-2 opacity-50" style="margin-left: 4px;"></i>`;
+                    }
                 }
 
-                // Classes Semânticas
                 let rowClass = '';
-                
-                if (node.type === 'root') { 
-                    rowClass = 'bi-row-root'; 
-                } 
-                else if (node.type === 'group') { 
-                    rowClass = 'bi-row-group'; 
-                } 
-                else { 
-                    rowClass = 'bi-row-account'; 
-                }
+                if (node.type === 'root') rowClass = 'bi-row-root'; 
+                else if (node.type === 'group') rowClass = 'bi-row-group'; 
+                else if (node.type === 'calculated') rowClass = 'bi-row-calculated';
+                else rowClass = 'bi-row-account'; 
 
-                // Células de Valor
+                const customStyle = node.estiloCss ? `style="${node.estiloCss}"` : '';
+
                 const cellsHtml = cols.map(c => {
                     const val = node.values[c];
                     let colorClass = 'text-muted';
@@ -589,17 +560,22 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     if (val < 0) colorClass = 'text-danger fw-bold';
                     else if (val > 0) colorClass = 'text-success fw-bold';
                     
+                    let displayVal = val !== 0 ? FormatUtils.formatNumber(val) : '-';
+                    if (node.tipoExibicao === 'percentual' && val !== 0) {
+                        displayVal = val.toFixed(2) + '%';
+                    }
+
                     return `<td class="text-end font-mono ${colorClass}">
-                                ${val !== 0 ? FormatUtils.formatNumber(val) : '-'}
+                                ${displayVal}
                             </td>`;
                 }).join('');
 
                 bodyRows += `
-                    <tr class="${rowClass}">
+                    <tr class="${rowClass}" ${customStyle}>
                         <td style="padding-left: ${padding}px;">
                             <div class="d-flex align-items-center cell-label">
                                 ${icon}
-                                <span class="text-truncate">${node.label}</span>
+                                <span class="text-truncate" title="${node.formulaDescricao || ''}">${node.label}</span>
                             </div>
                         </td>
                         ${cellsHtml}
@@ -613,41 +589,34 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
             this.biTreeData.forEach(node => renderNode(node, 0));
 
-            // Injeta na DOM
             container.innerHTML = `<table class="table-modern w-100" style="border-collapse: separate; border-spacing: 0;">${headerHtml}<tbody>${bodyRows}</tbody></table>`;
         }
-
-        // --- LÓGICA DE FILTROS E ÁRVORE ---
 
         applyBiFilters() {
             const globalTerm = this.biState.globalSearch.toLowerCase();
             const colFilters = this.biState.filters;
             const hasColFilters = Object.keys(colFilters).length > 0;
 
-            // Função recursiva para verificar visibilidade
             const checkVisibility = (node) => {
                 let matchesGlobal = !globalTerm || node.label.toLowerCase().includes(globalTerm);
                 let matchesCols = true;
 
-                // Verifica filtros de coluna (ex: > 1000)
                 if (hasColFilters) {
                     for (const [col, filterVal] of Object.entries(colFilters)) {
                         if (!filterVal) continue;
                         const nodeVal = node.values[col];
                         
-                        // Suporte simples a operadores >, <, =
                         let pass = false;
                         const cleanFilter = filterVal.replace(',', '.').trim();
                         
                         if (cleanFilter.startsWith('>')) pass = nodeVal > parseFloat(cleanFilter.substring(1));
                         else if (cleanFilter.startsWith('<')) pass = nodeVal < parseFloat(cleanFilter.substring(1));
-                        else pass = nodeVal.toString().includes(cleanFilter); // Busca texto exato
+                        else pass = nodeVal.toString().includes(cleanFilter); 
 
                         if (!pass) { matchesCols = false; break; }
                     }
                 }
 
-                // Lógica hierárquica: Se um filho é visível, o pai também deve ser
                 let hasVisibleChildren = false;
                 if (node.children && node.children.length > 0) {
                     node.children.forEach(child => {
@@ -655,12 +624,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     });
                 }
 
-                // O nó é visível se ele mesmo der match OU se tiver filhos visíveis
                 const isVisible = (matchesGlobal && matchesCols) || hasVisibleChildren;
                 node.isVisible = isVisible;
 
                 if (isVisible && (globalTerm || hasColFilters)) {
-                    this.biState.expanded.add(node.id); // Auto-expandir ao filtrar
+                    this.biState.expanded.add(node.id); 
                 }
 
                 return isVisible;
@@ -688,8 +656,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }, 400);
         }
 
-        // --- INTERAÇÕES DA ÁRVORE ---
-
         toggleNode(id) {
             if (this.biState.expanded.has(id)) this.biState.expanded.delete(id);
             else this.biState.expanded.add(id);
@@ -707,8 +673,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             recurse(this.biTreeData);
             this.renderBiTable();
         }
-
-        // --- GERENCIADOR DE COLUNAS ---
 
         openColumnManager() {
             const allCols = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Total_Ano'];
@@ -745,19 +709,15 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             if (this.biState.hiddenCols.has(col)) this.biState.hiddenCols.delete(col);
             else this.biState.hiddenCols.add(col);
         }
-
-        // --- ORDENAÇÃO ---
         
         sortBiBy(col) {
-            // Toggle direção se mesma coluna
             if (this.biState.sort.col === col) {
                 this.biState.sort.dir = this.biState.sort.dir === 'asc' ? 'desc' : 'asc';
             } else {
                 this.biState.sort.col = col;
-                this.biState.sort.dir = 'desc'; // Começa descendente (maiores primeiro)
+                this.biState.sort.dir = 'desc'; 
             }
             
-            // Função recursiva para ordenar nós
             const sortNodes = (nodes) => {
                 nodes.sort((a, b) => {
                     const valA = a.values[col] || 0;
@@ -775,21 +735,16 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.renderBiTable();
         }
 
-        // --- EXPORTAÇÃO ---
-
         exportBiToCsv() {
             let csvContent = "data:text/csv;charset=utf-8,";
             const visibleCols = this.biState.columnsOrder.filter(c => !this.biState.hiddenCols.has(c));
             
-            // Header com info da origem
             csvContent += `# Análise Gerencial - Origem: ${this.biState.origemFilter}\r\n`;
             csvContent += `# Exportado em: ${new Date().toLocaleString('pt-BR')}\r\n`;
             csvContent += "\r\n";
             
-            // Header de colunas
             csvContent += "Estrutura;" + visibleCols.join(";") + "\r\n";
 
-            // Rows (Recursivo)
             const processRow = (node, prefix = "") => {
                 if (!node.isVisible) return;
                 const rowStr = [`"${prefix}${node.label}"`, ...visibleCols.map(c => (node.values[c] || 0).toFixed(2).replace('.', ','))].join(";");
@@ -810,12 +765,191 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             link.click();
             link.remove();
         }
+
+        async loadNosCalculados() {
+            try {
+                let url = '/Configuracao/GetNosCalculados';
+                if (typeof API_ROUTES !== 'undefined' && API_ROUTES.getNosCalculados) {
+                    url = API_ROUTES.getNosCalculados;
+                }
+                const response = await APIUtils.get(url);
+                this.nosCalculados = response || [];
+                return this.nosCalculados;
+            } catch (e) {
+                console.warn('Erro ao carregar nós calculados:', e);
+                return [];
+            }
+        }
+
+        calcularValorNo(formula, mes, valoresAgregados) {
+            if (!formula || !formula.operandos) return 0;
+            
+            const operacao = formula.operacao || 'soma';
+            const operandos = formula.operandos;
+            
+            const valores = operandos.map(op => {
+                const chave = `${op.tipo}_${op.id}`;
+                return valoresAgregados[chave]?.[mes] || 0;
+            });
+            
+            let resultado = 0;
+            
+            switch (operacao) {
+                case 'soma':
+                    resultado = valores.reduce((a, b) => a + b, 0);
+                    break;
+                case 'subtracao':
+                    resultado = valores[0] - valores.slice(1).reduce((a, b) => a + b, 0);
+                    break;
+                case 'multiplicacao':
+                    resultado = valores.reduce((a, b) => a * b, 1);
+                    break;
+                case 'divisao':
+                    resultado = valores[1] !== 0 ? valores[0] / valores[1] : 0;
+                    break;
+            }
+            
+            if (formula.multiplicador) {
+                resultado *= formula.multiplicador;
+            }
+            
+            return resultado;
+        }
+
+        async processBiTreeWithCalculated() {
+            // 1. Processa árvore normal (Dados do Banco)
+            this.processBiTree();
+            
+            // 2. Carrega nós calculados (Configuração)
+            const nosCalc = await this.loadNosCalculados();
+            
+            if (nosCalc.length > 0) {
+                // 3. Agrega valores
+                const valoresAgregados = this.agregarValoresPorTipo();
+                const meses = this.biState.columnsOrder;
+                
+                // 4. Cria e adiciona nós calculados na lista principal
+                nosCalc.forEach(noCalc => {
+                    if (!noCalc.formula) return;
+                    
+                    const valores = {};
+                    meses.forEach(mes => {
+                        valores[mes] = this.calcularValorNo(noCalc.formula, mes, valoresAgregados);
+                    });
+
+                    // --- INÍCIO DA ADIÇÃO: GERA DESCRIÇÃO AUTOMÁTICA ---
+                    let textoTooltip = noCalc.formula_descricao;
+                    
+                    if (!textoTooltip && noCalc.formula) {
+                        const ops = noCalc.formula.operandos || [];
+                        const nomesOps = ops.map(o => o.label || o.id).join(', '); // Pega o nome amigável ou o ID
+                        const opMap = {
+                            'soma': 'Soma (+)',
+                            'subtracao': 'Subtração (-)',
+                            'multiplicacao': 'Multiplicação (×)',
+                            'divisao': 'Divisão (÷)'
+                        };
+                        const opNome = opMap[noCalc.formula.operacao] || noCalc.formula.operacao;
+                        
+                        textoTooltip = `Fórmula: ${opNome}\nEnvolvendo: ${nomesOps}`;
+                        if(noCalc.formula.multiplicador) textoTooltip += `\nMultiplicador: ${noCalc.formula.multiplicador}x`;
+                    }
+                    // --- FIM DA ADIÇÃO ---
+
+                    // ... Lógica de ordem original ...
+                    const rowBackend = this.biRawData.find(r => 
+                        (r.Root_Virtual_Id == noCalc.id) || 
+                        (r.Titulo_Conta === noCalc.nome)
+                    );
+                    
+                    let ordemCorreta = 50;
+                    if (rowBackend && rowBackend.ordem_prioridade !== null) {
+                        ordemCorreta = rowBackend.ordem_prioridade;
+                    } else if (noCalc.ordem !== null && noCalc.ordem !== undefined) {
+                        ordemCorreta = noCalc.ordem;
+                    }
+                    
+                    const nodeCalc = {
+                        id: `calc_${noCalc.id}`,
+                        label: `📊 ${noCalc.nome}`, 
+                        rawLabel: noCalc.nome,     
+                        type: 'calculated',
+                        children: [],
+                        values: valores,
+                        isVisible: true,
+                        isExpanded: false,
+                        formulaDescricao: textoTooltip, // <--- AQUI USA A VARIÁVEL NOVA
+                        estiloCss: noCalc.estilo_css,
+                        tipoExibicao: noCalc.tipo_exibicao,
+                        ordem: ordemCorreta
+                    };
+                    
+                    this.biTreeData.push(nodeCalc);
+                });
+            }
+
+            // 5. DEDUPLICAÇÃO (Prioriza Calculado sobre Standard)
+            const nomesCalculados = new Set(
+                this.biTreeData
+                    .filter(n => n.type === 'calculated')
+                    .map(n => (n.rawLabel || n.label.replace('📊 ', '')).toUpperCase().trim())
+            );
+
+            this.biTreeData = this.biTreeData.filter(node => {
+                if (node.type === 'root') {
+                    const labelPadrao = node.label.toUpperCase().trim();
+                    if (nomesCalculados.has(labelPadrao)) {
+                        return false; 
+                    }
+                }
+                return true;
+            });
+
+            // 6. ORDENAÇÃO GLOBAL
+            this.biTreeData.sort((a, b) => {
+                const ordA = (a.ordem !== undefined && a.ordem !== null) ? a.ordem : 9999;
+                const ordB = (b.ordem !== undefined && b.ordem !== null) ? b.ordem : 9999;
+                return ordA - ordB;
+            });
+        }
+
+        agregarValoresPorTipo() {
+            const agregados = {};
+            const meses = this.biState.columnsOrder;
+            
+            this.biTreeData.forEach(rootNode => {
+                const tipoId = rootNode.id.replace('T_', '');
+                const chave = `tipo_cc_${tipoId}`;
+                
+                if (!agregados[chave]) {
+                    agregados[chave] = {};
+                    meses.forEach(m => agregados[chave][m] = 0);
+                }
+                
+                meses.forEach(m => {
+                    agregados[chave][m] += rootNode.values[m] || 0;
+                });
+            });
+            
+            return agregados;
+        }
+
+        inserirNoCalculadoNaArvore(nodeCalc, ordem) {
+            let posicao = this.biTreeData.findIndex(n => {
+                const ordemExistente = n.ordem || 9999; 
+                return ordemExistente > ordem;
+            });
+            
+            if (posicao === -1) {
+                this.biTreeData.push(nodeCalc);
+            } else {
+                this.biTreeData.splice(posicao, 0, nodeCalc);
+            }
+        }
     }
 
-    // Instancia Globalmente
     window.relatorioSystem = new RelatorioSystem();
 
-    // Helper Global
     window.fecharModal = function() {
         if (window.relatorioSystem && window.relatorioSystem.modal) {
             window.relatorioSystem.modal.close();

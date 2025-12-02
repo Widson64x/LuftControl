@@ -22,6 +22,8 @@ from Models.POSTGRESS.DreEstrutura import Base as DreBase
 
 load_dotenv()
 
+ROUTE_PREFIX = os.getenv("ROUTE_PREFIX", "")
+
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_PASSPHRASE", "chave_dev_super_secreta")
 
@@ -50,11 +52,11 @@ def load_user(user_id):
     return carregar_usuario_flask(user_id)
 
 # --- Registro de Blueprints ---
-app.register_blueprint(auth_bp)
-app.register_blueprint(main_bp)
-app.register_blueprint(reports_bp, url_prefix='/Reports')
-app.register_blueprint(dre_config_bp)
-app.register_blueprint(dre_ordem_bp)
+app.register_blueprint(auth_bp, url_prefix=ROUTE_PREFIX + '/Auth')
+app.register_blueprint(main_bp , url_prefix=ROUTE_PREFIX + '/Main')
+app.register_blueprint(reports_bp, url_prefix=ROUTE_PREFIX + '/Reports')
+app.register_blueprint(dre_config_bp, url_prefix=ROUTE_PREFIX + '/DreConfig')
+app.register_blueprint(dre_ordem_bp, url_prefix=ROUTE_PREFIX + '/DreOrdenamento')
 
 @app.route('/')
 def index():

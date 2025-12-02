@@ -54,7 +54,7 @@
         <div class="mb-3">
             <span class="status-badge status-development">Admin</span>
         </div>
-        <button class="btn-primary-custom" onclick="window.location.href='/Configuracao/Arvore'">
+        <button class="btn-primary-custom" onclick="window.location.href='{{ url_for('DreConfig.ViewConfiguracao') }}'">
             <i class="fas fa-sitemap"></i> Configurar
         </button>
     </div>
@@ -82,6 +82,16 @@
 {% block extra_js %}
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
 <script type="text/javascript" src="https://oss.sheetjs.com/sheetjs/xlsx.full.min.js"></script>
-
+<script>
+    // Configuração de Rotas Dinâmicas (Jinja2 + Flask)
+    const API_ROUTES = {
+        // --- RELATÓRIOS: LEITURA DE DADOS ---
+        getRazaoData:           "{{ url_for('Reports.RelatorioRazaoDados') }}",
+        getRentabilidadeData:   "{{ url_for('Reports.RelatorioRentabilidade') }}",
+        
+        // --- CONFIGURAÇÃO: NÓS CALCULADOS ---
+        getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}"
+    };
+</script>
 <script src="{{ url_for('static', filename='JS/Relatorios.js') }}"></script>
 {% endblock %}

@@ -1157,3 +1157,38 @@
 [data-theme="light"] .bi-footer strong {
     color: var(--primary);
 }
+
+/* Linha de Nó Calculado */
+.bi-row-calculated {
+    background: linear-gradient(90deg, 
+        rgba(155, 89, 182, 0.15), 
+        rgba(108, 92, 231, 0.1)) !important;
+    border-top: 2px solid var(--primary);
+    border-bottom: 2px solid var(--primary);
+}
+
+.bi-row-calculated td {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--primary-light) !important;
+}
+
+.bi-row-calculated td:first-child {
+    background: linear-gradient(90deg, 
+        rgba(155, 89, 182, 0.15), 
+        rgba(108, 92, 231, 0.1));
+}
+
+/* Ícone de fórmula */
+.formula-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-left: 8px;
+}
+
+.formula-indicator i {
+    color: var(--warning);
+}

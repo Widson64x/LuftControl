@@ -28,7 +28,7 @@ from Models.POSTGRESS.DreEstrutura import (
 
 dre_ordem_bp = Blueprint('DreOrdenamento', __name__)
 
-def get_session():
+def getSession():
     """Cria e retorna uma sessão do PostgreSQL"""
     engine = get_postgres_engine()
     Session = sessionmaker(bind=engine)
@@ -41,7 +41,7 @@ def get_session():
 
 @dre_ordem_bp.route('/Ordenamento/Inicializar', methods=['POST'])
 @login_required
-def inicializar_ordenamento():
+def inicializarOrdenamento():
     """
     Inicializa a tabela de ordenamento com base na estrutura existente.
     Deve ser executado UMA VEZ ou quando quiser resetar a ordem.
@@ -53,7 +53,7 @@ def inicializar_ordenamento():
     - Subgrupos: Ordem por ID
     - Contas: Ordem por número da conta
     """
-    session = get_session()
+    session = getSession()
     try:
         # Limpa ordenamento existente (CUIDADO!)
         if request.json.get('limpar', False):
@@ -183,72 +183,7 @@ def inicializar_ordenamento():
         # ========================================
         # NÍVEL 2+: SUBGRUPOS (Recursivo)
         # ========================================
-        def processar_subgrupos(pai_id, contexto, nivel, caminho):
-            nonlocal registros_criados
-            
-            if pai_id is None:
-                # Subgrupos raiz de CC
-                subgrupos = session.query(DreHierarquia).filter(
-                    DreHierarquia.Id_Pai == None,
-                    DreHierarquia.Raiz_Centro_Custo_Codigo != None
-                ).order_by(DreHierarquia.Id).all()
-                
-                for sg in subgrupos:
-                    ctx = f"cc_{sg.Raiz_Centro_Custo_Codigo}"
-                    cam = f"root/tipo_{sg.Raiz_Centro_Custo_Tipo}/cc_{sg.Raiz_Centro_Custo_Codigo}"
-                    processar_subgrupo_individual(sg, ctx, 2, cam)
-                
-                # Subgrupos raiz de Virtual
-                subgrupos_virt = session.query(DreHierarquia).filter(
-                    DreHierarquia.Id_Pai == None,
-                    DreHierarquia.Raiz_No_Virtual_Id != None
-                ).order_by(DreHierarquia.Id).all()
-                
-                for sg in subgrupos_virt:
-                    ctx = f"virt_{sg.Raiz_No_Virtual_Id}"
-                    cam = f"root/virt_{sg.Raiz_No_Virtual_Id}"
-                    processar_subgrupo_individual(sg, ctx, 2, cam)
-            else:
-                # Subgrupos filhos
-                subgrupos = session.query(DreHierarquia).filter(
-                    DreHierarquia.Id_Pai == pai_id
-                ).order_by(DreHierarquia.Id).all()
-                
-                for sg in subgrupos:
-                    processar_subgrupo_individual(sg, contexto, nivel, caminho)
-        
-        def processar_subgrupo_individual(sg, contexto, nivel, caminho_pai):
-            nonlocal registros_criados
-            
-            existe = session.query(DreOrdenamento).filter_by(
-                tipo_no='subgrupo',
-                id_referencia=str(sg.Id),
-                contexto_pai=contexto
-            ).first()
-            
-            novo_caminho = f"{caminho_pai}/sg_{sg.Id}"
-            
-            if not existe:
-                ordem_sg = calcular_proxima_ordem(session, contexto, intervalo)
-                reg = DreOrdenamento(
-                    tipo_no='subgrupo',
-                    id_referencia=str(sg.Id),
-                    contexto_pai=contexto,
-                    ordem=ordem_sg,
-                    nivel_profundidade=nivel,
-                    caminho_completo=novo_caminho
-                )
-                session.add(reg)
-                registros_criados += 1
-            
-            # Processa filhos recursivamente
-            novo_contexto = f"sg_{sg.Id}"
-            processar_subgrupos(sg.Id, novo_contexto, nivel + 1, novo_caminho)
-            
-            # Processa contas deste subgrupo
-            processar_contas_subgrupo(sg.Id, novo_contexto, nivel + 1, novo_caminho)
-        
-        def processar_contas_subgrupo(sg_id, contexto, nivel, caminho):
+        def processarContasSubgrupo(sg_id, contexto, nivel, caminho):
             nonlocal registros_criados
             
             # Contas normais
@@ -300,9 +235,74 @@ def inicializar_ordenamento():
                     )
                     session.add(reg)
                     registros_criados += 1
+
+        def processarSubgrupoIndividual(sg, contexto, nivel, caminho_pai):
+            nonlocal registros_criados
+            
+            existe = session.query(DreOrdenamento).filter_by(
+                tipo_no='subgrupo',
+                id_referencia=str(sg.Id),
+                contexto_pai=contexto
+            ).first()
+            
+            novo_caminho = f"{caminho_pai}/sg_{sg.Id}"
+            
+            if not existe:
+                ordem_sg = calcular_proxima_ordem(session, contexto, intervalo)
+                reg = DreOrdenamento(
+                    tipo_no='subgrupo',
+                    id_referencia=str(sg.Id),
+                    contexto_pai=contexto,
+                    ordem=ordem_sg,
+                    nivel_profundidade=nivel,
+                    caminho_completo=novo_caminho
+                )
+                session.add(reg)
+                registros_criados += 1
+            
+            # Processa filhos recursivamente
+            novo_contexto = f"sg_{sg.Id}"
+            processarSubgrupos(sg.Id, novo_contexto, nivel + 1, novo_caminho)
+            
+            # Processa contas deste subgrupo
+            processarContasSubgrupo(sg.Id, novo_contexto, nivel + 1, novo_caminho)
+
+        def processarSubgrupos(pai_id, contexto, nivel, caminho):
+            nonlocal registros_criados
+            
+            if pai_id is None:
+                # Subgrupos raiz de CC
+                subgrupos = session.query(DreHierarquia).filter(
+                    DreHierarquia.Id_Pai == None,
+                    DreHierarquia.Raiz_Centro_Custo_Codigo != None
+                ).order_by(DreHierarquia.Id).all()
+                
+                for sg in subgrupos:
+                    ctx = f"cc_{sg.Raiz_Centro_Custo_Codigo}"
+                    cam = f"root/tipo_{sg.Raiz_Centro_Custo_Tipo}/cc_{sg.Raiz_Centro_Custo_Codigo}"
+                    processarSubgrupoIndividual(sg, ctx, 2, cam)
+                
+                # Subgrupos raiz de Virtual
+                subgrupos_virt = session.query(DreHierarquia).filter(
+                    DreHierarquia.Id_Pai == None,
+                    DreHierarquia.Raiz_No_Virtual_Id != None
+                ).order_by(DreHierarquia.Id).all()
+                
+                for sg in subgrupos_virt:
+                    ctx = f"virt_{sg.Raiz_No_Virtual_Id}"
+                    cam = f"root/virt_{sg.Raiz_No_Virtual_Id}"
+                    processarSubgrupoIndividual(sg, ctx, 2, cam)
+            else:
+                # Subgrupos filhos
+                subgrupos = session.query(DreHierarquia).filter(
+                    DreHierarquia.Id_Pai == pai_id
+                ).order_by(DreHierarquia.Id).all()
+                
+                for sg in subgrupos:
+                    processarSubgrupoIndividual(sg, contexto, nivel, caminho)
         
         # Executa processamento
-        processar_subgrupos(None, None, 2, '')
+        processarSubgrupos(None, None, 2, '')
         
         session.commit()
         
@@ -324,7 +324,7 @@ def inicializar_ordenamento():
 
 @dre_ordem_bp.route('/Ordenamento/GetOrdem', methods=['POST'])
 @login_required
-def get_ordem():
+def getOrdem():
     """
     Retorna a ordem de um elemento específico.
     
@@ -333,7 +333,7 @@ def get_ordem():
         id_referencia: str
         contexto_pai: str (opcional, default='root')
     """
-    session = get_session()
+    session = getSession()
     try:
         data = request.json
         tipo_no = data.get('tipo_no')
@@ -363,14 +363,14 @@ def get_ordem():
 
 @dre_ordem_bp.route('/Ordenamento/GetFilhosOrdenados', methods=['POST'])
 @login_required
-def get_filhos_ordenados():
+def getFilhosOrdenados():
     """
     Retorna todos os filhos de um contexto, ordenados.
     
     Body:
         contexto_pai: str (ex: 'root', 'tipo_Adm', 'cc_25110501', 'sg_15')
     """
-    session = get_session()
+    session = getSession()
     try:
         data = request.json
         contexto = data.get('contexto_pai', 'root')
@@ -401,7 +401,7 @@ def get_filhos_ordenados():
 
 @dre_ordem_bp.route('/Ordenamento/Mover', methods=['POST'])
 @login_required
-def mover_no():
+def moverNo():
     """
     Move um nó para nova posição.
     
@@ -414,7 +414,7 @@ def mover_no():
         posicao_relativa: str (opcional: 'antes', 'depois', 'dentro')
         id_referencia_relativo: str (opcional: ID do elemento de referência)
     """
-    session = get_session()
+    session = getSession()
     try:
         data = request.json
         tipo_no = data.get('tipo_no')
@@ -456,7 +456,7 @@ def mover_no():
 
 @dre_ordem_bp.route('/Ordenamento/ReordenarLote', methods=['POST'])
 @login_required
-def reordenar_lote():
+def reordenarLote():
     """
     Reordena múltiplos elementos de uma vez (após drag-and-drop).
     
@@ -464,7 +464,7 @@ def reordenar_lote():
         contexto_pai: str
         nova_ordem: list[{tipo_no, id_referencia, ordem}]
     """
-    session = get_session()
+    session = getSession()
     try:
         data = request.json
         contexto = data.get('contexto_pai')
@@ -501,7 +501,7 @@ def reordenar_lote():
 
 @dre_ordem_bp.route('/Ordenamento/Normalizar', methods=['POST'])
 @login_required
-def normalizar_contexto():
+def normalizarContexto():
     """
     Normaliza a ordem de um contexto (10, 20, 30, ...).
     Útil após muitas movimentações.
@@ -509,7 +509,7 @@ def normalizar_contexto():
     Body:
         contexto_pai: str
     """
-    session = get_session()
+    session = getSession()
     try:
         data = request.json
         contexto = data.get('contexto_pai', 'root')
@@ -532,12 +532,12 @@ def normalizar_contexto():
 
 @dre_ordem_bp.route('/Ordenamento/GetArvoreOrdenada', methods=['GET'])
 @login_required
-def get_arvore_ordenada():
+def getArvoreOrdenada():
     """
     Retorna a árvore completa ORDENADA.
     Substitui a rota GetDadosArvore original quando ordenamento está ativo.
     """
-    session = get_session()
+    session = getSession()
     try:
         # Verifica se há dados de ordenamento
         tem_ordem = session.query(DreOrdenamento).first()
@@ -550,7 +550,7 @@ def get_arvore_ordenada():
             }), 400
         
         # Monta árvore recursivamente usando a tabela de ordenamento
-        def montar_filhos(contexto_pai: str):
+        def montarFilhos(contexto_pai: str):
             filhos = []
             
             # Busca registros ordenados
@@ -559,13 +559,23 @@ def get_arvore_ordenada():
             ).order_by(DreOrdenamento.ordem).all()
             
             for reg in registros:
-                node = construir_no(reg)
+                node = construirNo(reg)
                 if node:
                     filhos.append(node)
             
             return filhos
         
-        def construir_no(reg: DreOrdenamento):
+        def _clean_id(id_str: str) -> str:
+            if id_str is None:
+                return id_str
+            # Remove prefixes usados na UI para evitar problemas ao converter
+            for p in ('tipo_', 'virt_', 'cc_', 'sg_', 'conta_', 'cd_'):
+                if isinstance(id_str, str) and id_str.startswith(p):
+                    return id_str[len(p):]
+            return id_str
+
+
+        def construirNo(reg: DreOrdenamento):
             """Constrói um nó da árvore baseado no registro de ordenamento"""
             node = {
                 "id": None,
@@ -574,49 +584,61 @@ def get_arvore_ordenada():
                 "ordem": reg.ordem,
                 "children": []
             }
-            
+
             if reg.tipo_no == 'tipo_cc':
                 node["id"] = f"tipo_{reg.id_referencia}"
                 node["text"] = reg.id_referencia
                 node["type"] = "root_tipo"
-                node["children"] = montar_filhos(f"tipo_{reg.id_referencia}")
-                
+                node["children"] = montarFilhos(f"tipo_{reg.id_referencia}")
+
             elif reg.tipo_no == 'virtual':
-                virt = session.query(DreNoVirtual).get(int(reg.id_referencia))
+                try:
+                    virt_id = int(_clean_id(reg.id_referencia))
+                except Exception:
+                    return None
+                virt = session.query(DreNoVirtual).get(virt_id)
                 if virt:
                     node["id"] = f"virt_{virt.Id}"
                     node["text"] = virt.Nome
                     node["type"] = "root_virtual"
-                    node["children"] = montar_filhos(f"virt_{virt.Id}")
+                    node["children"] = montarFilhos(f"virt_{virt.Id}")
                 else:
                     return None
-                    
+
             elif reg.tipo_no == 'cc':
                 sql = text("""
                     SELECT "Codigo", "Nome", "Tipo"
                     FROM "Dre_Schema"."Classificacao_Centro_Custo"
                     WHERE "Codigo" = :cod
                 """)
-                cc = session.execute(sql, {"cod": int(reg.id_referencia)}).first()
+                try:
+                    cod = int(_clean_id(reg.id_referencia))
+                except Exception:
+                    return None
+                cc = session.execute(sql, {"cod": cod}).first()
                 if cc:
                     node["id"] = f"cc_{cc[0]}"
                     node["text"] = f"{cc[0]} - {cc[1]}"
                     node["type"] = "root_cc"
-                    node["children"] = montar_filhos(f"cc_{cc[0]}")
+                    node["children"] = montarFilhos(f"cc_{cc[0]}")
                 else:
                     return None
-                    
+
             elif reg.tipo_no == 'subgrupo':
-                sg = session.query(DreHierarquia).get(int(reg.id_referencia))
+                try:
+                    sg_id = int(_clean_id(reg.id_referencia))
+                except Exception:
+                    return None
+                sg = session.query(DreHierarquia).get(sg_id)
                 if sg:
                     node["id"] = f"sg_{sg.Id}"
                     node["db_id"] = sg.Id
                     node["text"] = sg.Nome
                     node["type"] = "subgrupo"
-                    node["children"] = montar_filhos(f"sg_{sg.Id}")
+                    node["children"] = montarFilhos(f"sg_{sg.Id}")
                 else:
                     return None
-                    
+
             elif reg.tipo_no == 'conta':
                 # Busca nome da conta
                 sql = text("""
@@ -625,27 +647,32 @@ def get_arvore_ordenada():
                     WHERE "Conta" = :conta
                     LIMIT 1
                 """)
-                conta_info = session.execute(sql, {"conta": reg.id_referencia}).first()
+                conta_ref = _clean_id(str(reg.id_referencia))
+                conta_info = session.execute(sql, {"conta": conta_ref}).first()
                 nome = conta_info[1] if conta_info else "Sem Título"
-                
-                node["id"] = f"conta_{reg.id_referencia}"
-                node["text"] = f"Conta: {reg.id_referencia} - {nome}"
+
+                node["id"] = f"conta_{conta_ref}"
+                node["text"] = f"Conta: {conta_ref} - {nome}"
                 node["type"] = "conta"
                 # Contas não têm filhos
-                
+
             elif reg.tipo_no == 'conta_detalhe':
-                cd = session.query(DreContaPersonalizada).get(int(reg.id_referencia))
+                try:
+                    cd_id = int(_clean_id(reg.id_referencia))
+                except Exception:
+                    return None
+                cd = session.query(DreContaPersonalizada).get(cd_id)
                 if cd:
                     node["id"] = f"cd_{cd.Id}"
                     node["text"] = f"{cd.Conta_Contabil} ({cd.Nome_Personalizado or 'Orig'})"
                     node["type"] = "conta_detalhe"
                 else:
                     return None
-            
+
             return node
         
         # Monta árvore a partir da raiz
-        arvore = montar_filhos('root')
+        arvore = montarFilhos('root')
         
         return jsonify(arvore), 200
         
@@ -657,7 +684,7 @@ def get_arvore_ordenada():
 
 @dre_ordem_bp.route('/Ordenamento/SincronizarNovo', methods=['POST'])
 @login_required
-def sincronizar_novo_elemento():
+def sincronizarNovoElemento():
     """
     Adiciona um novo elemento ao ordenamento.
     Chamado automaticamente ao criar subgrupos/vincular contas.
@@ -668,7 +695,7 @@ def sincronizar_novo_elemento():
         contexto_pai: str
         posicao: str (opcional: 'inicio', 'fim', ou número)
     """
-    session = get_session()
+    session = getSession()
     try:
         data = request.json
         tipo_no = data.get('tipo_no')
@@ -741,7 +768,7 @@ def sincronizar_novo_elemento():
 
 @dre_ordem_bp.route('/Ordenamento/RemoverElemento', methods=['POST'])
 @login_required
-def remover_do_ordenamento():
+def removerDoOrdenamento():
     """
     Remove um elemento do ordenamento.
     Chamado automaticamente ao deletar subgrupos/desvincular contas.
@@ -751,7 +778,7 @@ def remover_do_ordenamento():
         id_referencia: str
         contexto_pai: str (opcional - se não informado, remove de todos)
     """
-    session = get_session()
+    session = getSession()
     try:
         data = request.json
         tipo_no = data.get('tipo_no')

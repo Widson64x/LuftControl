@@ -35,7 +35,11 @@
             <button class="btn btn-accent" onclick="openModal('modalAddVirtual')">
                 <i class="fas fa-plus"></i> Novo Nó Virtual
             </button>
-            
+
+            <button class="btn btn-secondary" onclick="openModalCalculado()"> 
+                <i class="fas fa-calculator"></i> Novo Nó Calculado
+            </button>
+
             <button class="btn btn-primary" onclick="loadTree()">
                 <i class="fas fa-sync-alt"></i> Atualizar
             </button>
@@ -236,6 +240,84 @@
     </div>
 </div>
 
+<div id="modalAddCalculado" class="modal-backdrop">
+    <div class="modal-window modal-md">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-calculator"></i>
+                <div>
+                    <h3>Novo Nó Calculado</h3>
+                    <p>Crie uma linha de cálculo personalizada</p>
+                </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeModals()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Nome do Nó</label>
+                <input type="text" id="inputCalcNome" class="form-input" 
+                       placeholder="Ex: Margem Bruta, EBITDA, Lucro Líquido">
+            </div>
+            
+            <div class="form-group">
+                <label>Operação</label>
+                <select id="selectCalcOperacao" class="form-select">
+                    <option value="soma">Soma (+)</option>
+                    <option value="subtracao">Subtração (-)</option>
+                    <option value="multiplicacao">Multiplicação (×)</option>
+                    <option value="divisao">Divisão (÷)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Operandos</label>
+                <p class="text-sm text-secondary mb-2">
+                    Selecione os elementos que compõem o cálculo:
+                </p>
+                <div id="containerOperandos" class="operandos-list">
+                    <!-- Gerado dinamicamente -->
+                </div>
+                <button class="btn btn-xs btn-outline mt-2" onclick="addOperando()">
+                    <i class="fas fa-plus"></i> Adicionar Operando
+                </button>
+            </div>
+            
+            <div class="form-group">
+                <label>Ordem de Exibição</label>
+                <input type="number" id="inputCalcOrdem" class="form-input" 
+                       value="50" min="0" max="999">
+                <small class="text-muted">Números menores aparecem primeiro</small>
+            </div>
+            
+            <div class="form-group">
+                <label>Tipo de Exibição</label>
+                <select id="selectCalcTipoExibicao" class="form-select">
+                    <option value="valor">Valor Monetário</option>
+                    <option value="percentual">Percentual (%)</option>
+                    <option value="indice">Índice</option>
+                </select>
+            </div>
+            
+            <div class="preview-formula">
+                <label>Pré-visualização:</label>
+                <div id="previewFormula" class="formula-preview">
+                    <!-- Ex: Faturamento + Operacional -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitNoCalculado()">
+                <i class="fas fa-save"></i> Criar Nó
+            </button>
+        </div>
+    </div>
+</div>
+
 <div id="modalAddSub" class="modal-backdrop">
     <div class="modal-window modal-sm">
         <div class="modal-header">
@@ -391,6 +473,48 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='JS/DreOrdenamento.js') }}"></script>
-<script src="{{ url_for('static', filename='JS/DreTreeView.js') }}"></script>
+<script>
+    const API_ROUTES = {
+        // --- CONFIGURAÇÃO: LEITURA ---
+        getDadosArvore:         "{{ url_for('DreConfig.GetDadosArvore') }}",
+        getContasDisponiveis:   "{{ url_for('DreConfig.GetContasDisponiveis') }}",
+        getOperandosDisponiveis:"{{ url_for('DreConfig.GetOperandosDisponiveis') }}",
+        getSubgruposPorTipo:    "{{ url_for('DreConfig.GetSubgruposPorTipo') }}",
+        getContasDoGrupoMassa:  "{{ url_for('DreConfig.GetContasDoGrupoMassa') }}",
+        getContasDoSubgrupo:    "{{ url_for('DreConfig.GetContasDoSubgrupo') }}",
+
+        // --- CONFIGURAÇÃO: ESCRITA (RENOMEAR) ---
+        renameNoVirtual:        "{{ url_for('DreConfig.RenameNoVirtual') }}",
+        renameSubgrupo:         "{{ url_for('DreConfig.RenameSubgrupo') }}",
+        renameContaPersonalizada:"{{ url_for('DreConfig.RenameContaPersonalizada') }}",
+
+        // --- CONFIGURAÇÃO: ESCRITA (CRIAR/VINCULAR) ---
+        addNoVirtual:           "{{ url_for('DreConfig.AddNoVirtual') }}",
+        addSubgrupo:            "{{ url_for('DreConfig.AddSubgrupo') }}",
+        addSubgrupoSistematico: "{{ url_for('DreConfig.AddSubgrupoSistematico') }}", // Massa
+        addNoCalculado:         "{{ url_for('DreConfig.AddNoCalculado') }}",
+        vincularConta:          "{{ url_for('DreConfig.VincularConta') }}",
+        vincularContaDetalhe:   "{{ url_for('DreConfig.VincularContaDetalhe') }}",
+        vincularContaEmMassa:   "{{ url_for('DreConfig.VincularContaEmMassa') }}",
+        colarEstrutura:         "{{ url_for('DreConfig.ColarEstrutura') }}",
+        replicarEstrutura:      "{{ url_for('DreConfig.ReplicarEstrutura') }}",
+
+        // --- CONFIGURAÇÃO: ESCRITA (DELETAR/DESVINCULAR) ---
+        deleteSubgrupo:         "{{ url_for('DreConfig.DeleteSubgrupo') }}",
+        deleteSubgrupoEmMassa:  "{{ url_for('DreConfig.DeleteSubgrupoEmMassa') }}",
+        deleteNoVirtual:        "{{ url_for('DreConfig.DeleteNoVirtual') }}",
+        desvincularConta:       "{{ url_for('DreConfig.DesvincularConta') }}",
+        desvincularContaEmMassa:"{{ url_for('DreConfig.DesvincularContaEmMassa') }}",
+
+        // --- ORDENAMENTO ---
+        ordenamentoInicializar: "{{ url_for('DreOrdenamento.inicializarOrdenamento') }}",
+        ordenamentoNormalizar:  "{{ url_for('DreOrdenamento.normalizarContexto') }}",
+        getArvoreOrdenada:      "{{ url_for('DreOrdenamento.getArvoreOrdenada') }}",
+        getFilhosOrdenados: "{{ url_for('DreOrdenamento.getFilhosOrdenados') }}",
+        reordenarLote: "{{ url_for('DreOrdenamento.reordenarLote') }}",
+    };
+</script>
+
+<script src="{{ url_for('static', filename='js/DreOrdenamento.js') }}"></script>
+<script src="{{ url_for('static', filename='js/DreTreeView.js') }}"></script>
 {% endblock %}

@@ -10,16 +10,21 @@ let clipboard = null;
 let currentSelectedGroup = null;
 let ordenamentoAtivo = false;
 
+// DEFINIÇÃO DE PREFIXOS (Baseado nos seus logs)
+// Se API_ROUTES falhar, usaremos estes caminhos como fallback
+const PREFIX_ORDEM = '/T-controllership/DreOrdenamento';
+const PREFIX_CONFIG = '/T-controllership/DreConfig';
+
 // --- INICIALIZAÇÃO ---
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Carrega listas auxiliares
-    loadContasList();
+    await loadContasList();
     
     // 2. Verifica status do ordenamento
     await verificarOrdenamento(); 
     
     // 3. Carrega a árvore
-    loadTree(); 
+    await loadTree(); 
     
     // Event listeners globais
     document.addEventListener('click', () => {
@@ -48,14 +53,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==========================================================================
-// 1. FUNÇÕES CENTRAIS DE API E SINCRONIZAÇÃO (O FIX DO BUG)
+// 1. FUNÇÕES CENTRAIS DE API E SINCRONIZAÇÃO (CORRIGIDO)
 // ==========================================================================
 
 /**
+ * Helper para resolver rotas.
+ * Tenta usar API_ROUTES (injetado pelo HTML), senão usa o fallback com prefixo.
+ */
+function getRoute(key, fallbackPath, type='config') {
+    if (typeof API_ROUTES !== 'undefined' && API_ROUTES[key]) {
+        return API_ROUTES[key];
+    }
+    // Determina o prefixo baseado no tipo de rota
+    const prefix = type === 'ordem' ? PREFIX_ORDEM : PREFIX_CONFIG;
+    // Garante que não duplique barras
+    const cleanPath = fallbackPath.startsWith('/') ? fallbackPath : '/' + fallbackPath;
+    return `${prefix}${cleanPath}`;
+}
+
+/**
  * Função central para chamadas de API que alteram a estrutura.
- * Realiza automaticamente a Sincronização e o Reload da árvore.
  */
 async function fetchAPI(url, body, successMsg='Sucesso!') {
+    // Se a URL não começar com /, provavelmente é uma rota relativa que precisa de prefixo
+    if (!url.startsWith('/')) {
+        // Assume config por padrão se passar caminho curto
+        url = getRoute(null, url, 'config'); 
+    }
+
     try {
         const r = await fetch(url, { 
             method: 'POST', 
@@ -63,25 +88,26 @@ async function fetchAPI(url, body, successMsg='Sucesso!') {
             body: JSON.stringify(body) 
         });
         
+        // CORREÇÃO: Verifica se é OK antes de tentar ler JSON
+        if (!r.ok) {
+            throw new Error(`Erro ${r.status}: ${r.statusText}`);
+        }
+
         const data = await r.json();
 
-        if(r.ok) { 
-            showToast(data.msg || successMsg); 
+        if(data.success || r.ok) { // Aceita tanto flag success quanto status 200
+            if(successMsg) showToast(data.msg || successMsg); 
             closeModals(); 
             
-            // --- CORREÇÃO DO BUG DE VISUALIZAÇÃO ---
-            // Força uma sincronização rápida para garantir que o novo item
-            // tenha um registro na tabela de ordenamento antes de recarregar.
+            // Força sincronização e reload
             await autoSync(); 
-
-            // Recarrega a árvore visualmente
             await loadTree(); 
         } else { 
-            alert("Erro: "+ data.error); 
+            alert("Erro: "+ (data.error || "Erro desconhecido")); 
         }
     } catch(e) { 
-        console.error(e);
-        alert("Erro de conexão com o servidor."); 
+        console.error("Fetch Error:", e);
+        alert("Erro de comunicação: " + e.message); 
     }
     const menu = document.getElementById('contextMenu');
     if(menu) menu.style.display = 'none';
@@ -89,20 +115,20 @@ async function fetchAPI(url, body, successMsg='Sucesso!') {
 
 /**
  * Sincroniza a tabela de ordenamento silenciosamente.
- * Chamado automaticamente após qualquer criação/exclusão.
  */
 async function autoSync() {
     if(!ordenamentoAtivo) return;
     
-    // Atualiza indicador visual
     const statusText = document.getElementById('ordenamentoStatusText');
     if(statusText) statusText.innerText = "Sincronizando...";
 
+    const url = getRoute('inicializarOrdenamento', '/Ordenamento/Inicializar', 'ordem');
+
     try {
-        await fetch('/Ordenamento/Inicializar', {
+        await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ limpar: false }) // false = Apenas adiciona novos, não reseta a ordem de quem já tem
+            body: JSON.stringify({ limpar: false }) 
         });
         if(statusText) statusText.innerText = "Atualizado";
     } catch(e) {
@@ -117,7 +143,6 @@ async function autoSync() {
 function closeModals() {
     document.querySelectorAll('.modal-backdrop').forEach(m => {
         m.classList.remove('active');
-        // Delay para animação de fade-out
         setTimeout(() => {
             if (!m.classList.contains('active')) m.style.display = 'none';
         }, 200); 
@@ -132,11 +157,9 @@ function openModal(id) {
     if(menu) menu.style.display = 'none';
     
     m.style.display = 'flex';
-    // Força reflow
-    m.offsetHeight; 
+    m.offsetHeight; // Force reflow
     m.classList.add('active');
 
-    // Resets de formulário específicos
     if(id === 'modalAddSub') { 
         document.getElementById('lblParentName').innerText = contextNode.text || '...'; 
         resetInput('inputSubName'); 
@@ -177,39 +200,50 @@ async function loadTree() {
     rootUl.innerHTML = '<li class="loading-state"><div class="spinner"></div><span>Atualizando estrutura...</span></li>';
     
     try {
-        let response;
-        // Sempre tenta usar a rota ordenada se estiver ativa
+        let url;
+        
         if (ordenamentoAtivo) {
-            try {
-                response = await fetch('/Ordenamento/GetArvoreOrdenada');
-                if (!response.ok) throw new Error("Falha na ordenação");
-            } catch (e) {
-                // Fallback para árvore sem ordem
-                response = await fetch('/Configuracao/GetDadosArvore');
-            }
+            url = getRoute('getArvoreOrdenada', '/Ordenamento/GetArvoreOrdenada', 'ordem');
         } else {
-            response = await fetch('/Configuracao/GetDadosArvore');
+            url = getRoute('getDadosArvore', '/Configuracao/GetDadosArvore', 'config');
+        }
+        
+        console.log("LoadTree URL:", url);
+
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            // Tenta ler o erro JSON se possível, senão lança status
+            try {
+                const errData = await response.json();
+                throw new Error(errData.msg || errData.error || response.statusText);
+            } catch (jsonError) {
+                throw new Error(`Erro HTTP ${response.status}`);
+            }
         }
         
         const data = await response.json();
         rootUl.innerHTML = '';
+
+        if (data.error) throw new Error(data.msg || data.error);
         
         if (!data || data.length === 0) { 
             rootUl.innerHTML = '<li class="loading-state text-secondary">Nenhuma estrutura encontrada.<br>Crie um Nó Virtual para começar.</li>'; 
             return; 
         }
         
-        // Renderiza nós
         data.forEach(item => rootUl.appendChild(createNodeHTML(item)));
         
-        // Reabilita Drag & Drop
         if (ordenamentoAtivo && window.dreOrdenamento) {
             setTimeout(() => window.dreOrdenamento.habilitarDragDrop(), 200);
         }
         
     } catch (error) { 
-        console.error(error); 
-        rootUl.innerHTML = '<li class="loading-state text-danger">Erro ao carregar dados.</li>'; 
+        console.error("Erro no loadTree:", error); 
+        rootUl.innerHTML = `<li class="loading-state text-danger">
+            Erro ao carregar dados.<br>
+            <small>${error.message}</small>
+        </li>`; 
     }
 }
 
@@ -220,12 +254,11 @@ function createNodeHTML(node) {
     let typeClass = 'node-std';
     let icon = 'fa-circle';
     
-    // Mapeamento de ícones e classes
     if(node.type === 'root_tipo') { typeClass = 'node-folder'; icon = 'fa-folder'; }
     else if(node.type === 'root_cc') { typeClass = 'node-cc'; icon = 'fa-building'; }
     else if(node.type === 'root_virtual') { typeClass = 'node-virtual'; icon = 'fa-cube'; }
     else if(node.type === 'subgrupo') { typeClass = 'node-sg'; icon = 'fa-folder-open'; }
-    else if(node.type.includes('conta')) { typeClass = 'node-conta'; icon = 'fa-file-invoice'; }
+    else if(node.type && node.type.includes('conta')) { typeClass = 'node-conta'; icon = 'fa-file-invoice'; }
     if(node.type === 'conta_detalhe') { typeClass = 'node-conta_detalhe'; icon = 'fa-tag'; }
 
     wrapper.className = `node-wrapper ${typeClass}`;
@@ -234,10 +267,8 @@ function createNodeHTML(node) {
     
     const hasChildren = node.children && node.children.length > 0;
     
-    // Drag Handle (apenas se ordenamento ativo)
     let dragHandleHtml = ordenamentoAtivo ? '<i class="fas fa-grip-vertical drag-handle"></i>' : '';
     
-    // Toggle Icon
     const toggle = document.createElement('div');
     toggle.className = `toggle-icon ${hasChildren ? '' : 'invisible'}`;
     toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
@@ -247,7 +278,6 @@ function createNodeHTML(node) {
         wrapper.ondblclick = (e) => { e.stopPropagation(); toggleNode(li, toggle); };
     }
 
-    // Badge de Ordem (Debug/Info)
     let ordemBadge = (node.ordem && ordenamentoAtivo) 
         ? `<span class="ordem-badge">#${node.ordem}</span>` 
         : '';
@@ -264,21 +294,18 @@ function createNodeHTML(node) {
     contentSpan.style.display = 'flex';
     contentSpan.style.alignItems = 'center';
     contentSpan.style.flex = '1';
-    contentSpan.style.overflow = 'hidden'; // Previne texto estourando
+    contentSpan.style.overflow = 'hidden';
 
     wrapper.appendChild(toggle);
     wrapper.appendChild(contentSpan);
     
-    // Eventos
     wrapper.onclick = () => selectNodeUI(wrapper);
     wrapper.oncontextmenu = (e) => handleRightClick(e, node, wrapper);
 
     li.appendChild(wrapper);
 
-    // Filhos Recursivos
     if (hasChildren) {
         const ul = document.createElement('ul');
-        // Expande tipos e virtuais por padrão
         if (node.type === 'root_tipo' || node.type === 'root_virtual') {
             ul.classList.add('expanded');
             toggle.classList.add('rotated');
@@ -321,18 +348,16 @@ function handleRightClick(e, node, element) {
     
     const menu = document.getElementById('contextMenu');
     
-    // Lógica de visibilidade dos itens do menu (simplificada)
     const show = (id) => { const el = document.getElementById(id); if(el) el.style.display = 'flex'; };
     const hideAll = () => { document.querySelectorAll('.ctx-item, .ctx-separator').forEach(el => el.style.display = 'none'); };
     const showDiv = (id) => { const el = document.getElementById(id); if(el) el.style.display = 'block'; };
 
     hideAll();
 
-    // Regras de Menu
     const isRoot = node.type === 'root_tipo';
     const isVirtual = node.type === 'root_virtual';
     const isGroup = node.type === 'subgrupo' || node.type === 'root_cc';
-    const isItem = node.type.includes('conta');
+    const isItem = node.type && node.type.includes('conta');
 
     if (ordenamentoAtivo) {
         show('ctxMoveUp'); show('ctxMoveDown'); showDiv('divOrdem');
@@ -353,7 +378,6 @@ function handleRightClick(e, node, element) {
             show('ctxLinkConta'); show('ctxLinkDetalhe');
             showDiv('ctxDivider'); show('ctxDelete');
         } else {
-            // Root CC
             if(clipboard) show('ctxPaste');
         }
     } else if (isVirtual) {
@@ -364,7 +388,6 @@ function handleRightClick(e, node, element) {
         show('ctxDelete');
     }
 
-    // Posicionamento inteligente (evita sair da tela)
     const menuWidth = 220;
     const menuHeight = 300;
     let x = e.clientX;
@@ -383,14 +406,14 @@ async function renameNode() {
     const novoNome = prompt("Novo nome:", contextNode.text);
     if (!novoNome || novoNome === contextNode.text) return;
 
-    let url = '';
-    if (contextNode.type === 'root_virtual') url = '/Configuracao/RenameNoVirtual';
-    else if (contextNode.type === 'subgrupo') url = '/Configuracao/RenameSubgrupo';
-    else if (contextNode.type === 'conta_detalhe') url = '/Configuracao/RenameContaPersonalizada';
+    // Constrói URL correta usando o prefixo CONFIG
+    let endpoint = '';
+    if (contextNode.type === 'root_virtual') endpoint = '/Configuracao/RenameNoVirtual';
+    else if (contextNode.type === 'subgrupo') endpoint = '/Configuracao/RenameSubgrupo';
+    else if (contextNode.type === 'conta_detalhe') endpoint = '/Configuracao/RenameContaPersonalizada';
     
-    if (url) {
-        // Usa fetchAPI para garantir sync
-        fetchAPI(url, { id: contextNode.id, novo_nome: novoNome }, 'Renomeado!');
+    if (endpoint) {
+        fetchAPI(getRoute(null, endpoint, 'config'), { id: contextNode.id, novo_nome: novoNome }, 'Renomeado!');
     }
 }
 
@@ -404,17 +427,20 @@ function copyNode() {
 async function pasteNode() {
     if (!clipboard) return;
     if (!confirm(`Colar "${clipboard.text}" dentro de "${contextNode.text}"?`)) return;
-    fetchAPI('/Configuracao/ColarEstrutura', { origem_id: clipboard.id, destino_id: contextNode.id }, 'Estrutura colada!');
+    const url = getRoute(null, '/Configuracao/ColarEstrutura', 'config');
+    fetchAPI(url, { origem_id: clipboard.id, destino_id: contextNode.id }, 'Estrutura colada!');
 }
 
 async function deleteNode() {
     if(!confirm(`Remover "${contextNode.text}" permanentemente?`)) return;
-    let url = '';
-    if(contextNode.type==='subgrupo') url='/Configuracao/DeleteSubgrupo';
-    if(contextNode.type.includes('conta')) url='/Configuracao/DesvincularConta';
-    if(contextNode.type==='root_virtual') url='/Configuracao/DeleteNoVirtual';
+    let endpoint = '';
+    if(contextNode.type==='subgrupo') endpoint='/Configuracao/DeleteSubgrupo';
+    if(contextNode.type && contextNode.type.includes('conta')) endpoint='/Configuracao/DesvincularConta';
+    if(contextNode.type==='root_virtual') endpoint='/Configuracao/DeleteNoVirtual';
     
-    if(url) fetchAPI(url, {id:contextNode.id}, 'Item removido.');
+    if(endpoint) {
+        fetchAPI(getRoute(null, endpoint, 'config'), {id:contextNode.id}, 'Item removido.');
+    }
 }
 
 // ==========================================================================
@@ -425,12 +451,16 @@ async function verificarOrdenamento() {
     const indicator = document.getElementById('ordenamentoIndicator');
     const statusText = document.getElementById('ordenamentoStatusText');
     const toolbar = document.getElementById('ordenamentoToolbar');
+    
+    // Botões
     const btnInit = document.getElementById('btnInicializarOrdem');
     const btnReset = document.getElementById('btnResetarOrdem');
     const btnNorm = document.getElementById('btnNormalizarOrdem');
     
     try {
-        const r = await fetch('/Ordenamento/GetFilhosOrdenados', {
+        const url = getRoute('getFilhosOrdenados', '/Ordenamento/GetFilhosOrdenados', 'ordem');
+
+        const r = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contexto_pai: 'root' })
@@ -444,6 +474,7 @@ async function verificarOrdenamento() {
                 if(toolbar) toolbar.classList.remove('inactive');
                 if(indicator) { indicator.classList.add('active'); indicator.classList.remove('inactive'); }
                 if(statusText) statusText.innerHTML = 'Ordenamento <strong>Ativo</strong>';
+                
                 if(btnInit) btnInit.style.display = 'none';
                 if(btnReset) btnReset.style.display = 'inline-block';
                 if(btnNorm) btnNorm.style.display = 'inline-block';
@@ -451,42 +482,48 @@ async function verificarOrdenamento() {
                 if(toolbar) toolbar.classList.add('inactive');
                 if(indicator) { indicator.classList.remove('active'); indicator.classList.add('inactive'); }
                 if(statusText) statusText.innerHTML = 'Ordenamento <strong>Inativo</strong>';
+                
                 if(btnInit) btnInit.style.display = 'inline-block';
                 if(btnReset) btnReset.style.display = 'none';
                 if(btnNorm) btnNorm.style.display = 'none';
             }
         }
-    } catch (e) { console.warn(e); }
+    } catch (e) { 
+        console.warn("Falha na verificação de ordenamento:", e); 
+    }
 }
 
 async function inicializarOrdenamento() {
     if (!confirm('Inicializar estrutura de ordenamento?')) return;
     showToast('Inicializando...');
+    const url = getRoute('inicializarOrdenamento', '/Ordenamento/Inicializar', 'ordem');
     try {
-        const r = await fetch('/Ordenamento/Inicializar', {
+        const r = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ limpar: false })
         });
         if(r.ok) { showToast('Ordenamento Ativado!'); window.location.reload(); }
-    } catch(e) { alert('Erro'); }
+    } catch(e) { alert('Erro: ' + e); }
 }
 
 async function resetarOrdenamento() {
     if (!confirm('RESETAR toda a ordem para o padrão alfabético/código?')) return;
+    const url = getRoute('inicializarOrdenamento', '/Ordenamento/Inicializar', 'ordem');
     try {
-        const r = await fetch('/Ordenamento/Inicializar', {
+        const r = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ limpar: true })
         });
         if(r.ok) { showToast('Resetado!'); loadTree(); }
-    } catch(e) { alert('Erro'); }
+    } catch(e) { alert('Erro: ' + e); }
 }
 
 async function normalizarOrdenamento() {
+    const url = getRoute(null, '/Ordenamento/Normalizar', 'ordem');
     try {
-        const r = await fetch('/Ordenamento/Normalizar', {
+        const r = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contexto_pai: 'root' })
@@ -526,27 +563,28 @@ async function moverElemento(direcao) {
 }
 
 // ==========================================================================
-// 6. FORM SUBMISSIONS (USANDO FETCHAPI PARA AUTO-SYNC)
+// 6. FORM SUBMISSIONS
 // ==========================================================================
 
 function submitAddVirtual() { 
     const n = document.getElementById('inputVirtualName').value; 
     if(!n) return alert('Nome?'); 
-    fetchAPI('/Configuracao/AddNoVirtual', {nome:n}, 'Nó Virtual criado!');
+    fetchAPI(getRoute(null, '/Configuracao/AddNoVirtual', 'config'), {nome:n}, 'Nó Virtual criado!');
 }
 
 function submitAddSub() { 
     const n = document.getElementById('inputSubName').value; 
     if(!n) return alert('Nome?'); 
-    fetchAPI('/Configuracao/AddSubgrupo', {nome:n, parent_id:contextNode.id}, 'Grupo criado!');
+    fetchAPI(getRoute(null, '/Configuracao/AddSubgrupo', 'config'), {nome:n, parent_id:contextNode.id}, 'Grupo criado!');
 }
 
 async function submitLinkConta() {
     const c = document.getElementById('inputContaSearch').value;
     if(!c) return alert('Conta?');
-    // Este caso é especial pois atualiza a lista interna do modal E a árvore
+    const url = getRoute(null, '/Configuracao/VincularConta', 'config');
+    
     try {
-        const r = await fetch('/Configuracao/VincularConta', {
+        const r = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ conta: c, subgrupo_id: contextNode.id })
@@ -555,8 +593,8 @@ async function submitLinkConta() {
             showToast('Vinculado!');
             document.getElementById('inputContaSearch').value = '';
             loadStdGroupAccounts(contextNode.id); // Atualiza modal
-            await autoSync(); // Sync silencioso
-            loadTree(); // Atualiza fundo
+            await autoSync(); 
+            loadTree(); 
         } else {
             const d = await r.json(); alert(d.error);
         }
@@ -567,11 +605,15 @@ function submitLinkDetalhe() {
     const c = document.getElementById('inputDetailConta').value; 
     const n = document.getElementById('inputDetailName').value; 
     if(!c) return alert('Conta?'); 
-    fetchAPI('/Configuracao/VincularContaDetalhe', {conta:c, nome_personalizado:n, parent_id:contextNode.id}, 'Vinculado!');
+    fetchAPI(
+        getRoute(null, '/Configuracao/VincularContaDetalhe', 'config'), 
+        {conta:c, nome_personalizado:n, parent_id:contextNode.id}, 
+        'Vinculado!'
+    );
 }
 
 // ==========================================================================
-// 7. GERENCIADOR EM MASSA (UI LOGIC)
+// 7. GERENCIADOR EM MASSA
 // ==========================================================================
 
 function openMassManager() {
@@ -601,8 +643,10 @@ async function loadMassGroupsList(tipoCC) {
     const select = document.getElementById('selectMassDeleteGroup');
     list.innerHTML = '<div class="text-center p-3 text-secondary"><i class="fas fa-spinner fa-spin"></i></div>';
     
+    const url = getRoute(null, '/Configuracao/GetSubgruposPorTipo', 'config');
+
     try {
-        const r = await fetch('/Configuracao/GetSubgruposPorTipo', {
+        const r = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ tipo_cc: tipoCC })
@@ -643,9 +687,10 @@ async function selectMassGroup(groupName, el) {
     container.innerHTML = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin"></i></div>';
     
     const tipoCC = document.getElementById('lblMassType').innerText;
+    const url = getRoute(null, '/Configuracao/GetContasDoGrupoMassa', 'config');
     
     try {
-        const r = await fetch('/Configuracao/GetContasDoGrupoMassa', {
+        const r = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ tipo_cc: tipoCC, nome_grupo: groupName })
@@ -654,7 +699,6 @@ async function selectMassGroup(groupName, el) {
         
         document.getElementById('lblCountAccounts').innerText = `${contas.length} contas`;
         
-        // Atualiza datalist
         const dl = document.getElementById('massContasDataList');
         dl.innerHTML = '';
         const numerosVinculados = contas.map(c => c.conta);
@@ -704,9 +748,10 @@ async function addAccountToGroup() {
     
     if(!conta) return alert('Conta?');
     
-    // Usa fetchAPI para garantir sync global
+    const url = getRoute(null, '/Configuracao/VincularContaEmMassa', 'config');
+
     try {
-        const r = await fetch('/Configuracao/VincularContaEmMassa', {
+        const r = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -720,7 +765,6 @@ async function addAccountToGroup() {
         const data = await r.json();
         if(r.ok) {
             showToast(data.msg);
-            // Atualiza UI local do modal
             document.getElementById('inputMassLinkConta').value = '';
             const activeItem = document.querySelector('.group-list-item.active');
             if(activeItem) selectMassGroup(currentSelectedGroup, activeItem);
@@ -737,8 +781,10 @@ async function removeAccountFromGroup(conta, isPers) {
     const tipoCC = document.getElementById('lblMassType').innerText;
     if(!confirm('Remover vínculo?')) return;
     
+    const url = getRoute(null, '/Configuracao/DesvincularContaEmMassa', 'config');
+
     try {
-        const r = await fetch('/Configuracao/DesvincularContaEmMassa', {
+        const r = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ tipo_cc: tipoCC, conta: conta, is_personalizada: isPers })
@@ -757,7 +803,8 @@ function submitMassCreate() {
     const nome = document.getElementById('inputMassCreateName').value;
     const tipoCC = document.getElementById('lblMassType').innerText;
     if(!nome) return;
-    fetchAPI('/Configuracao/AddSubgrupoSistematico', {nome:nome, tipo_cc:tipoCC}, 'Grupo Criado!');
+    const url = getRoute(null, '/Configuracao/AddSubgrupoSistematico', 'config');
+    fetchAPI(url, {nome:nome, tipo_cc:tipoCC}, 'Grupo Criado!');
 }
 
 function submitMassDelete() {
@@ -765,14 +812,16 @@ function submitMassDelete() {
     const tipoCC = document.getElementById('lblMassType').innerText;
     if(!nome) return;
     if(!confirm('Isso apagará o grupo e contas de TODOS os CCs. Continuar?')) return;
-    fetchAPI('/Configuracao/DeleteSubgrupoEmMassa', {nome_grupo:nome, tipo_cc:tipoCC}, 'Grupo Excluído!');
+    const url = getRoute(null, '/Configuracao/DeleteSubgrupoEmMassa', 'config');
+    fetchAPI(url, {nome_grupo:nome, tipo_cc:tipoCC}, 'Grupo Excluído!');
 }
 
 function submitMassUnlink() {
     const c = document.getElementById('inputMassUnlinkConta').value;
     const tipoCC = document.getElementById('lblMassType').innerText;
     if(!c) return;
-    fetchAPI('/Configuracao/DesvincularContaEmMassa', {conta:c, tipo_cc:tipoCC}, 'Vínculo removido!');
+    const url = getRoute(null, '/Configuracao/DesvincularContaEmMassa', 'config');
+    fetchAPI(url, {conta:c, tipo_cc:tipoCC}, 'Vínculo removido!');
 }
 
 // ==========================================================================
@@ -784,11 +833,10 @@ async function openReplicarModal() {
     document.getElementById('lblOrigemReplicar').innerText = contextNode.text;
     const list = document.getElementById('listaDestinos');
     list.innerHTML = 'Carregando...';
-    // ... (Logica de popular destinos simplificada aqui para brevidade, usar a mesma de antes) ...
-    // Vou reinjetar a lógica completa se necessário, mas assume-se existente.
-    // Recriando lógica básica:
+    
     try {
-        const r = await fetch('/Configuracao/GetDadosArvore');
+        const url = getRoute('getDadosArvore', '/Configuracao/GetDadosArvore', 'config');
+        const r = await fetch(url);
         const data = await r.json();
         let html = '';
         data.forEach(root => {
@@ -802,7 +850,7 @@ async function openReplicarModal() {
             }
         });
         list.innerHTML = html;
-    } catch(e){ list.innerHTML = 'Erro'; }
+    } catch(e){ list.innerHTML = 'Erro: ' + e.message; }
 }
 
 function toggleAllDestinos() {
@@ -813,34 +861,39 @@ function toggleAllDestinos() {
 async function submitReplicar() {
     const ids = Array.from(document.querySelectorAll('.chk-dest:checked')).map(c => c.value);
     if(ids.length === 0) return alert('Selecione destinos');
-    fetchAPI('/Configuracao/ReplicarEstrutura', {origem_node_id: contextNode.id, destinos_ids: ids}, 'Replicado!');
+    const url = getRoute(null, '/Configuracao/ReplicarEstrutura', 'config');
+    fetchAPI(url, {origem_node_id: contextNode.id, destinos_ids: ids}, 'Replicado!');
 }
 
 async function loadContasList() {
     try {
-        const r = await fetch('/Configuracao/GetContasDisponiveis');
+        const url = getRoute('GetContasDisponiveis', '/Configuracao/GetContasDisponiveis', 'config');
+        const r = await fetch(url);
+        if(!r.ok) throw new Error("Falha ao carregar contas");
         const d = await r.json();
         globalTodasContas = d;
         const dl = document.getElementById('contasDataList');
         const dlStd = document.getElementById('stdContasDataList');
-        dl.innerHTML = '';
+        if(dl) dl.innerHTML = '';
         if(dlStd) dlStd.innerHTML = '';
         
         d.forEach(c => {
             const o = document.createElement('option');
             o.value = c.numero; o.label = c.nome;
-            dl.appendChild(o.cloneNode(true));
+            if(dl) dl.appendChild(o.cloneNode(true));
             if(dlStd) dlStd.appendChild(o);
         });
-    } catch(e){}
+    } catch(e){ console.error(e); }
 }
 
 async function loadStdGroupAccounts(nodeId) {
     const list = document.getElementById('listStdLinkedAccounts');
     list.innerHTML = 'Carregando...';
     const dbId = nodeId.replace('sg_', '');
+    const url = getRoute(null, '/Configuracao/GetContasDoSubgrupo', 'config');
+
     try {
-        const r = await fetch('/Configuracao/GetContasDoSubgrupo', {
+        const r = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({id: dbId})
@@ -866,8 +919,9 @@ async function loadStdGroupAccounts(nodeId) {
 
 async function removeStdAccount(c) {
     if(!confirm('Desvincular?')) return;
+    const url = getRoute(null, '/Configuracao/DesvincularConta', 'config');
     try {
-        const r = await fetch('/Configuracao/DesvincularConta', {
+        const r = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({id: `conta_${c}`})
@@ -880,3 +934,129 @@ async function removeStdAccount(c) {
         }
     } catch(e){ alert('Erro'); }
 }
+
+// ---------------------------
+// GESTÃO DE NÓS CALCULADOS
+// ---------------------------
+let operandosDisponiveis = null;
+let operandosSelecionados = [];
+
+async function openModalCalculado() {
+    // Carrega operandos disponíveis se ainda não existirem
+    if (!operandosDisponiveis) {
+        try {
+            const url = getRoute('GetOperandosDisponiveis', '/Configuracao/GetOperandosDisponiveis', 'config');
+            const r = await fetch(url);
+            
+            if (!r.ok) {
+                const err = await r.json();
+                throw new Error(err.error || "Erro ao carregar dados do servidor");
+            }
+            operandosDisponiveis = await r.json();
+        } catch (e) {
+            console.error(e);
+            alert("Erro ao carregar operandos: " + e.message);
+            return;
+        }
+    }
+    
+    operandosSelecionados = [];
+    renderOperandos();
+    openModal('modalAddCalculado');
+    atualizarPreviewFormula();
+}
+
+function renderOperandos() {
+    const container = document.getElementById('containerOperandos');
+    
+    if (!operandosDisponiveis || !operandosDisponiveis.tipos_cc) {
+        container.innerHTML = '<div class="text-danger p-2">Erro: Dados não carregados.</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    
+    operandosSelecionados.forEach((op, idx) => {
+        container.innerHTML += `
+            <div class="operando-item" data-index="${idx}">
+                <select class="form-select form-select-sm" onchange="updateOperando(${idx}, this)">
+                    <optgroup label="Tipos CC">
+                        ${operandosDisponiveis.tipos_cc.map(t => 
+                            `<option value="tipo_cc:${t.id}" ${op.tipo === 'tipo_cc' && op.id === t.id ? 'selected' : ''}>
+                                ${t.nome}
+                            </option>`
+                        ).join('')}
+                    </optgroup>
+                    <optgroup label="Nós Virtuais">
+                        ${operandosDisponiveis.nos_virtuais.filter(n => !n.is_calculado).map(n => 
+                            `<option value="no_virtual:${n.id}" ${op.tipo === 'no_virtual' && op.id === n.id ? 'selected' : ''}>
+                                ${n.nome}
+                            </option>`
+                        ).join('')}
+                    </optgroup>
+                </select>
+                <button class="btn btn-xs btn-ghost text-danger" onclick="removeOperando(${idx})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    });
+}
+
+function addOperando() {
+    operandosSelecionados.push({ tipo: 'tipo_cc', id: 'Oper', label: 'Operacional' });
+    renderOperandos();
+    atualizarPreviewFormula();
+}
+
+function removeOperando(idx) {
+    operandosSelecionados.splice(idx, 1);
+    renderOperandos();
+    atualizarPreviewFormula();
+}
+
+function updateOperando(idx, select) {
+    const [tipo, id] = select.value.split(':');
+    const label = select.options[select.selectedIndex].text;
+    operandosSelecionados[idx] = { tipo, id, label };
+    atualizarPreviewFormula();
+}
+
+function atualizarPreviewFormula() {
+    const op = document.getElementById('selectCalcOperacao').value;
+    const simbolos = { soma: '+', subtracao: '-', multiplicacao: '×', divisao: '÷' };
+    
+    const labels = operandosSelecionados.map(o => o.label || o.id);
+    const preview = labels.join(` ${simbolos[op]} `) || 'Selecione operandos...';
+    
+    document.getElementById('previewFormula').textContent = preview;
+}
+
+async function submitNoCalculado() {
+    const nome = document.getElementById('inputCalcNome').value;
+    const operacao = document.getElementById('selectCalcOperacao').value;
+    const ordem = parseInt(document.getElementById('inputCalcOrdem').value) || 50;
+    const tipoExibicao = document.getElementById('selectCalcTipoExibicao').value;
+    
+    if (!nome) return alert('Informe o nome do nó');
+    if (operandosSelecionados.length < 2) return alert('Adicione pelo menos 2 operandos');
+    
+    const formula = {
+        operacao: operacao,
+        operandos: operandosSelecionados.map(o => ({
+            tipo: o.tipo,
+            id: o.tipo === 'no_virtual' ? parseInt(o.id) : o.id,
+            label: o.label
+        }))
+    };
+    
+    const url = getRoute(null, '/Configuracao/AddNoCalculado', 'config');
+    fetchAPI(url, {
+        nome: nome,
+        formula: formula,
+        ordem: ordem,
+        tipo_exibicao: tipoExibicao
+    }, 'Nó calculado criado!');
+}
+
+document.getElementById('selectCalcOperacao')?.addEventListener('change', atualizarPreviewFormula);
