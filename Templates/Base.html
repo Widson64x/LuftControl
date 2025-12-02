@@ -104,34 +104,45 @@
 
     <!-- ========== FOOTER (OPCIONAL) ========== -->
     {% block footer %}
-    <footer style="
-        background-color: var(--bg-secondary);
-        border-top: 1px solid var(--border-primary);
-        padding: 2rem 0;
-        margin-top: 4rem;
-    ">
+    <footer class="sys-footer">
+        <div class="sys-footer-line"></div>
+
         <div class="container">
-            <div class="d-flex justify-between align-center flex-wrap gap-md">
-                <div>
-                    <p class="text-secondary text-sm mb-1">
-                        <i class="fas fa-chart-line text-primary"></i>
-                        <strong>T-Controllership</strong>
-                    </p>
-                    <p class="text-secondary text-xs">
-                        Sistema de Controle e Análise Financeira &copy; 2025
-                    </p>
+            <div class="sys-footer-content">
+                
+                <div class="sys-footer-brand">
+                    <div class="sys-footer-logo">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="sys-footer-info">
+                        <span class="sys-name">T-Controllership</span>
+                        <span class="sys-version">Enterprise Edition v2.0</span>
+                    </div>
                 </div>
-                <div class="d-flex gap-md">
-                    <a href="#" class="text-secondary text-sm">
-                        <i class="fas fa-question-circle"></i> Ajuda
+
+                <nav class="sys-footer-nav">
+                    <a href="#" class="sys-link" title="Central de Ajuda">
+                        <i class="far fa-life-ring"></i> <span>Suporte</span>
                     </a>
-                    <a href="#" class="text-secondary text-sm">
-                        <i class="fas fa-book"></i> Documentação
+                    <a href="#" class="sys-link" title="Manual do Sistema">
+                        <i class="far fa-file-alt"></i> <span>Documentação</span>
                     </a>
-                    <a href="#" class="text-secondary text-sm">
-                        <i class="fas fa-envelope"></i> Suporte
+                    <a href="#" class="sys-link" title="Histórico de Versões">
+                        <i class="fas fa-code-branch"></i> <span>Changelog</span>
                     </a>
+                    <!--
+                    <a href="#" class="sys-link" title="Status dos Serviços">
+                        <i class="fas fa-server"></i> <span>API Status</span>
+                    </a>
+                    -->
+                </nav>
+
+                <div class="sys-footer-meta">
+                    <div class="sys-copyright">
+                        &copy; 2025 T-Controllership
+                    </div>
                 </div>
+
             </div>
         </div>
     </footer>

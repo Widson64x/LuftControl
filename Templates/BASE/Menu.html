@@ -87,11 +87,51 @@
             </div>
 
             <div class="config-section">
-                <h3 class="text-lg font-bold mb-3 border-bottom border-secondary pb-2">Conta</h3>
-                <div class="p-3">
-                    <p class="text-sm text-secondary mb-2">Usuário logado:</p>
-                    <div class="bg-primary bg-opacity-10 p-2 rounded text-center font-mono">
-                        {{ current_user.nome }}
+                <h3 class="text-lg font-bold mb-3 border-bottom border-secondary pb-2">
+                    <i class="fas fa-id-card"></i> Conta & Acesso
+                </h3>
+                
+                <div class="p-2">
+                    <p class="text-xs text-secondary mb-1 uppercase font-bold tracking-wider">Usuário Logado</p>
+                    <div class="user-info-card">
+                        <strong>{{ current_user.nome_completo }}</strong>
+                        <div class="d-flex align-center gap-xs mt-1">
+                            <i class="far fa-envelope text-secondary text-xs"></i>
+                            <span class="text-sm text-secondary">{{ current_user.email }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="text-xs text-secondary mb-1 uppercase font-bold tracking-wider">Grupo de Permissão</p>
+                        <span class="badge badge-secondary d-inline-flex align-center gap-xs py-1 px-3">
+                            <i class="fas fa-users text-primary"></i> 
+                            {{ current_user.nome_grupo }}
+                        </span>
+                    </div>
+
+                    <div>
+                        <div class="d-flex justify-between align-center mb-1">
+                            <p class="text-xs text-secondary uppercase font-bold tracking-wider">Menus Liberados</p>
+                            <span class="text-xs text-muted">{{ current_user.menus|length }} itens</span>
+                        </div>
+                        
+                        <div class="menu-access-list">
+                            {% if current_user.menus %}
+                                <ul class="list-unstyled m-0 p-0">
+                                    {% for menu in current_user.menus %}
+                                        <li class="menu-item-row">
+                                            <i class="fas fa-check-circle"></i> 
+                                            <span>{{ menu }}</span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="text-center p-3 text-secondary text-sm">
+                                    <i class="fas fa-ban mb-1"></i><br>
+                                    Nenhum menu vinculado.
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>

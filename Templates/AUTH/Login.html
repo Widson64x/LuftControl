@@ -1,72 +1,93 @@
 {% extends "Base.html" %}
+{% block title %}Login - T-Controllership{% endblock %}
+
 {% block extra_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Login.css') }}">
 {% endblock %}
-{% block title %}Login - T-Controllership{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-center align-center" style="min-height: 100vh; margin-top: -100px;">
-    <div class="card" style="max-width: 450px; width: 100%;">
-        <div class="card-header text-center">
-            <div class="card-icon" style="margin: 0 auto;">
-                <i class="fas fa-chart-line"></i>
+<div class="sys-login-wrapper">
+    
+    <div class="sys-background-grid"></div>
+
+    <div class="sys-login-container">
+        
+        <div class="sys-login-header">
+            <div class="sys-brand">
+                <div class="sys-brand-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="sys-brand-text">
+                    <h1>T-Controllership</h1>
+                    <span>Enterprise Intelligence</span>
+                </div>
             </div>
-            <h1 class="card-title">Bem-vindo</h1>
-            <p class="card-subtitle">Faça login para acessar o sistema</p>
         </div>
 
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('auth.login') }}">
-                <div class="form-group">
-                    <label for="username" class="form-label">
-                        <i class="fas fa-user"></i> Usuário
-                    </label>
-                    <div class="input-group">
-                        <i class="input-group-icon fas fa-user"></i>
+        <div class="sys-login-body">
+            <div class="sys-welcome-text">
+                <h2>Acesso ao Sistema</h2>
+                <p>Insira suas credenciais para continuar.</p>
+            </div>
+
+            <form method="POST" action="{{ url_for('auth.login') }}" class="sys-form">
+                
+                <div class="sys-input-group">
+                    <label for="username" class="sys-label">Usuário Corporativo</label>
+                    <div class="sys-input-wrapper">
+                        <i class="fas fa-user sys-input-icon"></i>
                         <input type="text" 
-                               class="form-control" 
                                id="username" 
                                name="username" 
-                               placeholder="Digite seu usuário"
+                               class="sys-input" 
+                               placeholder="ex: usuario.silva" 
                                required 
-                               autofocus>
+                               autofocus 
+                               autocomplete="username">
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="password" class="form-label">
-                        <i class="fas fa-lock"></i> Senha
-                    </label>
-                    <div class="input-group">
-                        <i class="input-group-icon fas fa-lock"></i>
+                <div class="sys-input-group">
+                    <label for="password" class="sys-label">Senha de Acesso</label>
+                    <div class="sys-input-wrapper">
+                        <i class="fas fa-lock sys-input-icon"></i>
                         <input type="password" 
-                               class="form-control" 
                                id="password" 
                                name="password" 
-                               placeholder="Digite sua senha"
-                               required>
+                               class="sys-input" 
+                               placeholder="••••••••" 
+                               required 
+                               autocomplete="current-password">
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="d-flex align-center gap-sm cursor-pointer">
+                <div class="sys-form-actions">
+                    <label class="sys-checkbox">
                         <input type="checkbox" name="remember">
-                        <span class="text-secondary">Lembrar-me neste dispositivo</span>
+                        <span class="sys-checkmark"></span>
+                        <span class="sys-checkbox-label">Manter conectado</span>
                     </label>
+                    <a href="#" class="sys-link">Recuperar senha</a>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="width: 100%;">
-                    <i class="fas fa-sign-in-alt"></i> Entrar no Sistema
+                <button type="submit" class="sys-btn-submit">
+                    <span class="btn-text">Autenticar</span>
+                    <i class="fas fa-arrow-right btn-icon"></i>
                 </button>
+
             </form>
         </div>
 
-        <div class="card-footer text-center">
-            <p class="text-secondary text-sm">T-Controllership &copy; 2024</p>
-            <p class="text-secondary text-xs">
-                <i class="fas fa-shield-alt"></i> Sistema Seguro e Confiável
-            </p>
+        <div class="sys-login-footer">
+            <div class="sys-status">
+                <span class="status-dot online"></span>
+                <span>Sistema Operacional</span>
+            </div>
+            <div class="sys-copyright">
+                &copy; 2025 T-Controllership v2.0
+            </div>
         </div>
+
     </div>
 </div>
 {% endblock %}

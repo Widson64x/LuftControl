@@ -32,3 +32,10 @@ class MenuAcesso(Base):
     Codigo_MenuAcesso = Column(Integer, primary_key=True, autoincrement=True)
     Codigo_UsuarioGrupo = Column(Integer, ForeignKey("usuariogrupo.codigo_usuariogrupo"))
     Codigo_Menu = Column(Integer, ForeignKey("Menu.Codigo_Menu"))
+    
+class Menu(Base):
+    __tablename__ = "Menu"
+
+    Codigo_Menu = Column(Integer, primary_key=True)
+    Nome_Menu = Column(String)
+    Numero_Menu = Column(String) # Usado para ordenação
