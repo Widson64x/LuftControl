@@ -4,7 +4,7 @@ Rotas para Relatórios de Rentabilidade e Razão Contábil
 VERSÃO CORRIGIDA - Consulta SQL dinâmica para evitar problemas de mapeamento ORM
 """
 
-from flask import Blueprint, jsonify, request, current_app, abort, render_template
+from flask import Blueprint, jsonify, request, current_app, abort, render_template, json
 from flask_login import login_required 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func, or_, String, text
@@ -202,19 +202,20 @@ def RelatorioRazaoResumo():
         if session: 
             session.close()
 
-from flask import json # Importante para ler o JSON da fórmula
-from Models.POSTGRESS.DreEstrutura import DreNoVirtual # Importante
+# ARQUIVO: Routes/Reports.py
 
 @reports_bp.route('/RelatorioRazao/Rentabilidade', methods=['GET'])
 @login_required
 def RelatorioRentabilidade():
     """
     DRE Gerencial Híbrida: SQL busca dados reais + Python calcula fórmulas.
+    VERSÃO CORRIGIDA COM DEBUG DE FATURAMENTO
     """
     session = None
     try: 
         session = get_pg_session()
         
+        # 1. Filtros e SQL
         filtro_origem = request.args.get('origem', 'Consolidado')
         if filtro_origem == 'FARMA': origem_clause = "tca.\"origem\" = 'FARMA'"
         elif filtro_origem == 'FARMADIST': origem_clause = "tca.\"origem\" = 'FARMADIST'"
@@ -283,7 +284,6 @@ def RelatorioRentabilidade():
                 INNER JOIN Definicoes def 
                     ON tca."Conta" = def."Conta_Contabil"
                     AND ((def."CC_Alvo" IS NOT NULL AND CAST(tca."Centro de Custo" AS INTEGER) = def."CC_Alvo") OR (def."CC_Alvo" IS NULL))
-                -- CORREÇÃO: JOIN ESTRITO PARA EVITAR CONFLITOS DE ID
                 LEFT JOIN OrdemRaiz ord 
                     ON (
                         (ord.tipo_no = 'tipo_cc' AND ord.id_referencia = def."Raiz_Centro_Custo_Tipo") 
@@ -322,55 +322,59 @@ def RelatorioRentabilidade():
         data_rows = [dict(row._mapping) for row in result]
 
         # =================================================================
-        # 3. MOTOR DE CÁLCULO PYTHON (NÓS CALCULADOS)
+        # 3. MOTOR DE CÁLCULO PYTHON (CORRIGIDO E DEBUGADO)
         # =================================================================
         
         memoria_calculo = {}
         meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez','Total_Ano']
+        
+        # DEBUG VARS
+        debug_faturamento_count = 0
 
         for row in data_rows:
-            # 1. Indexa por TIPO DE CC (ex: "tipo_cc:ADM")
+            # 1. Indexa por TIPO DE CC
             nome_tipo = str(row['Tipo_CC']).strip()
             key_tipo = f"tipo_cc:{nome_tipo}"
             
             if key_tipo not in memoria_calculo: 
                 memoria_calculo[key_tipo] = {m: 0.0 for m in meses}
 
-            # 2. Indexa por NÓ VIRTUAL (Se existir)
+            # 2. Indexa por NÓ VIRTUAL
             key_virt_id = None
             key_virt_nome = None
             
             if row.get('Root_Virtual_Id'):
-                # Cria chave pelo ID (ex: "no_virtual:15")
+                # Chave por ID
                 key_virt_id = f"no_virtual:{row['Root_Virtual_Id']}"
                 if key_virt_id not in memoria_calculo: 
                     memoria_calculo[key_virt_id] = {m: 0.0 for m in meses}
                 
-                # --- O PULO DO GATO: Cria chave TAMBÉM pelo Nome (ex: "no_virtual:FATURAMENTO") ---
-                # Isso garante que se a fórmula pedir "FATURAMENTO", o sistema encontra.
-                nome_virt = str(row['Titulo_Conta']).strip() # Titulo_Conta traz o nome do nó
+                # --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+                # Pega o nome do nó virtual da coluna Tipo_CC (que vem do SQL COALESCE)
+                nome_virt = str(row['Tipo_CC']).strip() 
                 key_virt_nome = f"no_virtual:{nome_virt}"
+                
+                if "FATURAMENTO" in nome_virt.upper():
+                    debug_faturamento_count += 1
+
                 if key_virt_nome not in memoria_calculo:
                     memoria_calculo[key_virt_nome] = {m: 0.0 for m in meses}
 
-            # Soma os valores em todas as chaves possíveis
+            # Soma valores
             for m in meses:
                 val = float(row.get(m) or 0.0)
-                
-                # Soma no Tipo CC
                 memoria_calculo[key_tipo][m] += val
-                
-                # Soma no Nó Virtual (Pelo ID)
-                if key_virt_id:
-                    memoria_calculo[key_virt_id][m] += val
-                
-                # Soma no Nó Virtual (Pelo Nome)
-                if key_virt_nome:
-                    memoria_calculo[key_virt_nome][m] += val
+                if key_virt_id: memoria_calculo[key_virt_id][m] += val
+                if key_virt_nome: memoria_calculo[key_virt_nome][m] += val
 
-        # Printa o que foi carregado (para você ver no terminal se está 'Faturamento' ou 'FATURAMENTO')
-        # print(list(memoria_calculo.keys()))
+        # PRINT DEBUG NO TERMINAL
+        print(f"\n--- DEBUG RENTABILIDADE ---")
+        print(f"Linhas FATURAMENTO encontradas: {debug_faturamento_count}")
+        print(f"Chaves na memória: {list(memoria_calculo.keys())[:5]} ...")
+        print(f"Existe 'no_virtual:FATURAMENTO'? {'no_virtual:FATURAMENTO' in memoria_calculo}")
+        print(f"---------------------------\n")
 
+        # 4. Processa Fórmulas (Nós Calculados)
         sql_nos_calculados = text("""
             SELECT 
                 nv."Id", nv."Nome", nv."Formula_JSON", nv."Formula_Descricao",
@@ -407,25 +411,22 @@ def RelatorioRentabilidade():
                 for mes in meses:
                     valores_ops = []
                     for op in operandos:
-                        # NORMALIZAÇÃO NO ACESSO TAMBÉM
                         id_op = str(op['id']).strip()
                         tipo_op = op['tipo']
-                        
                         chave_memoria = f"{tipo_op}:{id_op}"
                         
-                        # Tenta buscar exato, se não achar, tenta buscar Case Insensitive (Maiuscula/Minuscula)
+                        # Tenta exato ou case-insensitive
+                        val = 0.0
                         if chave_memoria in memoria_calculo:
                             val = memoria_calculo[chave_memoria].get(mes, 0.0)
                         else:
-                            # Fallback inteligente: Procura ignorando maiúsculas/minúsculas
-                            val = 0.0
                             for k, v in memoria_calculo.items():
                                 if k.lower() == chave_memoria.lower():
                                     val = v.get(mes, 0.0)
                                     break
-                        
                         valores_ops.append(val)
                     
+                    # Realiza Operação
                     resultado = 0.0
                     if not valores_ops: resultado = 0.0
                     elif operacao == 'soma': resultado = sum(valores_ops)
@@ -440,8 +441,13 @@ def RelatorioRentabilidade():
                     resultado *= multiplicador
                     nova_linha[mes] = resultado
                     
+                # Salva o resultado calculado na memória para uso em fórmulas subsequentes
                 chave_calc = f"no_virtual:{no.Id}"
+                # Também salva pelo nome para facilitar
+                chave_calc_nome = f"no_virtual:{no.Nome}"
                 memoria_calculo[chave_calc] = {m: nova_linha[m] for m in meses}
+                memoria_calculo[chave_calc_nome] = {m: nova_linha[m] for m in meses}
+                
                 data_rows.append(nova_linha)
 
             except Exception as e:

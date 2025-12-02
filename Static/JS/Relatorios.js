@@ -400,7 +400,9 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
                 const tipoId = `T_${row.Tipo_CC}`;
                 const tipoNode = getOrCreateNode(tipoId, row.Tipo_CC, 'root', root, ordemVal);
-                
+                if (row.Root_Virtual_Id) {
+                    tipoNode.virtualId = row.Root_Virtual_Id;
+                }                
                 // CORREÇÃO: Atualiza a ordem do nó existente se a linha atual tiver uma ordem válida e menor
                 // Isso corrige o bug onde a primeira linha pode não ter ordem, mas a segunda sim
                 if ((row.ordem_prioridade !== null || row.Ordem) && tipoNode.ordem >= 1000) {
@@ -918,6 +920,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const meses = this.biState.columnsOrder;
             
             this.biTreeData.forEach(rootNode => {
+                // Lógica existente para Tipo CC
                 const tipoId = rootNode.id.replace('T_', '');
                 const chave = `tipo_cc_${tipoId}`;
                 
@@ -926,8 +929,25 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     meses.forEach(m => agregados[chave][m] = 0);
                 }
                 
+                // --- NOVO: Cria TAMBÉM a chave pelo ID do Nó Virtual ---
+                if (rootNode.virtualId) {
+                    const chaveVirt = `no_virtual_${rootNode.virtualId}`;
+                    if (!agregados[chaveVirt]) {
+                        agregados[chaveVirt] = {};
+                        meses.forEach(m => agregados[chaveVirt][m] = 0);
+                    }
+                }
+                // ------------------------------------------------------
+                
                 meses.forEach(m => {
-                    agregados[chave][m] += rootNode.values[m] || 0;
+                    const val = rootNode.values[m] || 0;
+                    agregados[chave][m] += val;
+                    
+                    // --- NOVO: Soma na chave do ID Virtual ---
+                    if (rootNode.virtualId) {
+                        const chaveVirt = `no_virtual_${rootNode.virtualId}`;
+                        agregados[chaveVirt][m] += val;
+                    }
                 });
             });
             
