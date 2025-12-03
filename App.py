@@ -15,10 +15,10 @@ from Routes.Auth import carregar_usuario_flask
 from Routes.SecurityConfig import security_bp
 
 # --- IMPORTS PARA BANCO DE DADOS ---
-# 1. Importa a string de conexão que já configuramos
-from Db.Connections import PG_DATABASE_URL
+# 1. (ALTERADO) Importamos a URL e agora a função de CHECK
+from Db.Connections import PG_DATABASE_URL, check_connections
+
 # 2. Importa a Base dos modelos que queremos migrar (DreEstrutura)
-# Isso faz o Python ler o arquivo e registrar as tabelas na memória
 from Models.POSTGRESS.DreEstrutura import Base as DreBase
 
 load_dotenv()
@@ -29,16 +29,12 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_PASSPHRASE", "chave_dev_super_secreta")
 
 # --- CONFIGURAÇÃO FLASK-SQLALCHEMY & MIGRATE ---
-# Configura a URI do banco Postgres
 app.config['SQLALCHEMY_DATABASE_URI'] = PG_DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Inicializa o objeto DB (Necessário para o Flask-Migrate rodar)
 db = SQLAlchemy(app)
 
 # Inicializa o Migrate
-# TRUQUE: Passamos 'metadata=DreBase.metadata' para ele olhar para os seus modelos
-# Se você tiver mais arquivos de modelos com 'Base' diferentes, precisará unificá-los ou passar via env.py
 migrate = Migrate(app, db, metadata=DreBase.metadata)
 
 # --- Configuração do Flask-Login ---
@@ -65,4 +61,14 @@ def index():
     return redirect(url_for('main.dashboard'))
 
 if __name__ == "__main__":
+    # Chamamos sem parâmetros. Ele vai ler do .env (DB_CONNECT_LOGS)
+    # Se quiser forçar ver o log independente do env, use check_connections(verbose=True)
+    bancos_ok = check_connections() 
+
+    if not bancos_ok:
+        # Nota: Se os logs estiverem desligados (False), 
+        # é importante ter um print aqui caso dê erro, senão o app morre em silêncio.
+        print("⚠️  [AVISO CRÍTICO] Falha na conexão com Banco de Dados.")
+        # exit(1)
+
     app.run(debug=True, host='0.0.0.0', port=5000)
