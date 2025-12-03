@@ -203,8 +203,6 @@ def RelatorioRazaoResumo():
         if session: 
             session.close()
 
-# ARQUIVO: Routes/Reports.py
-
 @reports_bp.route('/RelatorioRazao/Rentabilidade', methods=['GET'])
 @login_required
 def RelatorioRentabilidade():
@@ -355,7 +353,7 @@ def RelatorioRentabilidade():
                 nome_virt = str(row['Tipo_CC']).strip() 
                 key_virt_nome = f"no_virtual:{nome_virt}"
                 
-                if "FATURAMENTO" in nome_virt.upper():
+                if "EBTIDA" in nome_virt.upper():
                     debug_faturamento_count += 1
 
                 if key_virt_nome not in memoria_calculo:
@@ -460,6 +458,137 @@ def RelatorioRentabilidade():
 
     except Exception as e: 
         current_app.logger.error(f"Erro no Relatório Rentabilidade: {e}") 
+        abort(500, description=f"Erro SQL/Python: {str(e)}")
+    finally:
+        if session: session.close()
+
+@reports_bp.route('/RelatorioRazao/RentabilidadePorCC', methods=['GET'])
+@login_required
+def RelatorioRentabilidadePorCC():
+    """
+    DRE Gerencial detalhada por CENTRO DE CUSTO.
+    Estrutura: Tipo -> Centro de Custo -> Subgrupos -> Contas
+    """
+    session = None
+    try: 
+        session = get_pg_session()
+        
+        filtro_origem = request.args.get('origem', 'Consolidado')
+        if filtro_origem == 'FARMA': origem_clause = "tca.\"origem\" = 'FARMA'"
+        elif filtro_origem == 'FARMADIST': origem_clause = "tca.\"origem\" = 'FARMADIST'"
+        else: origem_clause = "tca.\"origem\" IN ('FARMA', 'FARMADIST')"
+        
+        sql_query = text(f"""
+            WITH RECURSIVE 
+            TreePath AS (
+                SELECT 
+                    h."Id", h."Nome", h."Id_Pai", 
+                    h."Raiz_Centro_Custo_Codigo", h."Raiz_No_Virtual_Id", 
+                    h."Raiz_Centro_Custo_Tipo", h."Raiz_No_Virtual_Nome", h."Raiz_Centro_Custo_Nome",
+                    CAST(h."Nome" AS TEXT) as full_path
+                FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" h
+                WHERE h."Id_Pai" IS NULL
+                UNION ALL
+                SELECT 
+                    child."Id", child."Nome", child."Id_Pai", 
+                    tp."Raiz_Centro_Custo_Codigo", tp."Raiz_No_Virtual_Id", 
+                    tp."Raiz_Centro_Custo_Tipo", tp."Raiz_No_Virtual_Nome", tp."Raiz_Centro_Custo_Nome",
+                    CAST(tp.full_path || '||' || child."Nome" AS TEXT)
+                FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" child
+                JOIN TreePath tp ON child."Id_Pai" = tp."Id"
+            ),
+            OrdemRaiz AS (
+                SELECT id_referencia, tipo_no, ordem 
+                FROM "Dre_Schema"."DRE_Ordenamento" 
+                WHERE contexto_pai = 'root'
+            ),
+            Definicoes AS (
+                SELECT 
+                    v."Conta_Contabil", tp."Raiz_Centro_Custo_Codigo" as "CC_Alvo",
+                    tp."Id" as "Id_Hierarquia", NULL::int as "Id_No_Virtual",
+                    NULL::text as "Nome_Personalizado_Def", tp.full_path,
+                    -- Tipo Real (Adm, Oper, ou Nome do Virtual)
+                    COALESCE(tp."Raiz_Centro_Custo_Tipo", tp."Raiz_No_Virtual_Nome") as "Tipo_Principal",
+                    -- Nome do CC (Apenas se for CC)
+                    tp."Raiz_Centro_Custo_Nome" as "Nome_CC_Detalhe",
+                    tp."Raiz_No_Virtual_Id" as "Root_Virtual_Id",
+                    tp."Raiz_Centro_Custo_Codigo" as "Codigo_CC_Raiz"
+                FROM "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v
+                JOIN TreePath tp ON v."Id_Hierarquia" = tp."Id"
+                UNION ALL
+                SELECT 
+                    p."Conta_Contabil", tp."Raiz_Centro_Custo_Codigo", p."Id_Hierarquia",
+                    NULL::int, p."Nome_Personalizado", tp.full_path,
+                    COALESCE(tp."Raiz_Centro_Custo_Tipo", tp."Raiz_No_Virtual_Nome"),
+                    tp."Raiz_Centro_Custo_Nome",
+                    tp."Raiz_No_Virtual_Id",
+                    tp."Raiz_Centro_Custo_Codigo"
+                FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p
+                JOIN TreePath tp ON p."Id_Hierarquia" = tp."Id"
+                WHERE p."Id_Hierarquia" IS NOT NULL
+                UNION ALL
+                SELECT 
+                    p."Conta_Contabil", NULL::int, NULL::int, p."Id_No_Virtual",
+                    p."Nome_Personalizado", 'Direto', nv."Nome", NULL::text, nv."Id", NULL::int
+                FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p
+                JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv ON p."Id_No_Virtual" = nv."Id"
+                WHERE p."Id_No_Virtual" IS NOT NULL
+            ),
+            DadosBrutos AS (
+                SELECT 
+                    tca."origem", tca."Conta", 
+                    COALESCE(def."Nome_Personalizado_Def", tca."Título Conta") AS "Titulo_Final",
+                    COALESCE(def."Tipo_Principal", 'Outros') AS "Tipo_CC",
+                    def."Nome_CC_Detalhe" AS "Nome_CC",
+                    COALESCE(def.full_path, 'Não Classificado') AS "Caminho_Subgrupos",
+                    def."Root_Virtual_Id",
+                    def."Codigo_CC_Raiz",
+                    tca."Saldo", tca."Data",
+                    COALESCE((
+                        SELECT ordem FROM "Dre_Schema"."DRE_Ordenamento" 
+                        WHERE (tipo_no = 'tipo_cc' AND id_referencia = def."Tipo_Principal")
+                           OR (tipo_no = 'virtual' AND id_referencia = CAST(def."Root_Virtual_Id" AS TEXT))
+                        LIMIT 1
+                    ), 999) as ordem_base
+                FROM "Dre_Schema"."Razao_Dados_Consolidado" tca
+                INNER JOIN Definicoes def 
+                    ON tca."Conta" = def."Conta_Contabil"
+                    AND ((def."CC_Alvo" IS NOT NULL AND CAST(tca."Centro de Custo" AS INTEGER) = def."CC_Alvo") OR (def."CC_Alvo" IS NULL))
+                WHERE {origem_clause}
+            )
+            SELECT 
+                MAX("origem") as "origem",
+                MAX("Conta") as "Conta",
+                "Titulo_Final" as "Titulo_Conta",
+                "Tipo_CC",
+                "Nome_CC",
+                "Root_Virtual_Id",
+                "Caminho_Subgrupos",
+                (COALESCE(SUM("Saldo"), 0.0) * -1) AS "Total_Ano",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 1 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Jan",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 2 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Fev",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 3 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Mar",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 4 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Abr",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 5 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Mai",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 6 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Jun",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 7 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Jul",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 8 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Ago",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 9 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Set",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 10 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Out",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 11 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Nov",
+                (COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM "Data") = 12 THEN "Saldo" ELSE 0 END), 0.0) * -1) AS "Dez",
+                MIN("ordem_base") as ordem_prioridade
+            FROM DadosBrutos
+            GROUP BY "Tipo_CC", "Nome_CC", "Root_Virtual_Id", "Caminho_Subgrupos", "Titulo_Final"
+            ORDER BY ordem_prioridade ASC, "Tipo_CC" ASC, "Nome_CC" ASC;
+        """)
+
+        result = session.execute(sql_query)
+        data_rows = [dict(row._mapping) for row in result]
+        return jsonify(data_rows), 200
+
+    except Exception as e: 
+        current_app.logger.error(f"Erro no Relatório Rentabilidade por CC: {e}") 
         abort(500, description=f"Erro SQL/Python: {str(e)}")
     finally:
         if session: session.close()

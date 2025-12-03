@@ -26,15 +26,20 @@ def get_pg_session():
 # --- Classe Wrapper para o Flask-Login ---
 # Necessária para adaptar o objeto do SQLAlchemy para o que o Flask-Login espera
 class UserWrapper(UserMixin):
-    def __init__(self, usuario_db, nome_grupo="", lista_menus=[]):
+    def __init__(self, usuario_db, nome_grupo="", lista_menus=None):
         self.id = usuario_db.Codigo_Usuario
         self.nome = usuario_db.Login_Usuario
         self.nome_completo = usuario_db.Nome_Usuario
         self.email = usuario_db.Email_Usuario
         self.grupo_id = usuario_db.codigo_usuariogrupo
-        
+
+        # Armazena o nome do grupo e a lista de menus recebidos
+        self.nome_grupo = nome_grupo
+        # evita usar lista mutável como default
+        self.lista_menus = lista_menus if lista_menus is not None else []
+
         # Permissões calculadas
-        self.all_permissions = set() 
+        self.all_permissions = set()
         self._load_security_context()
 
     def _load_security_context(self):

@@ -34,19 +34,19 @@
             <i class="fas fa-database"></i> Acessar Razão
         </button>
     </div>
-
+    
     <div class="relatorio-card">
         <div class="relatorio-icon">📊</div>
-        <h3>Análise Gerencial (BI)</h3>
+        <h3>Análise Gerencial</h3>
         <p>Visão hierárquica dinâmica (DRE). Filtros tipo Excel, ordenação por arraste e drill-down.</p>
         <div class="mb-3">
             <span class="status-badge status-active" style="background: rgba(108, 92, 231, 0.2); border-color: var(--primary);">Novo Motor</span>
         </div>
         <button class="btn-primary-custom" onclick="relatorioSystem.loadRentabilidadeReport()">
-            <i class="fas fa-cubes"></i> Abrir Cubo BI
+            <i class="fas fa-cubes"></i> Abrir Análise Gerencial
         </button>
     </div>
-
+    <!--
     <div class="relatorio-card" style="border-color: rgba(255,255,255,0.1);">
         <div class="relatorio-icon">🛠️</div>
         <h3>Configuração de DRE</h3>
@@ -59,7 +59,7 @@
         </button>
     </div>
 </div>
-
+-->
 <div id="modalRelatorio" class="modal-overlay">
     <div class="modal-container" style="max-width: 98vw; height: 92vh; display: flex; flex-direction: column;">
         <div class="modal-header">
@@ -88,6 +88,7 @@
         // --- RELATÓRIOS: LEITURA DE DADOS ---
         getRazaoData:           "{{ url_for('Reports.RelatorioRazaoDados') }}",
         getRentabilidadeData:   "{{ url_for('Reports.RelatorioRentabilidade') }}",
+        getRentabilidadeDataCC :   "{{ url_for('Reports.RelatorioRentabilidadePorCC') }}",
         
         // --- CONFIGURAÇÃO: NÓS CALCULADOS ---
         getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}"

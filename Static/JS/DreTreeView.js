@@ -976,24 +976,40 @@ function renderOperandos() {
 
     container.innerHTML = '';
     
+    // Separa os nós virtuais em Manuais (Inputs) e Calculados (Fórmulas)
+    const nosManuais = operandosDisponiveis.nos_virtuais.filter(n => !n.is_calculado);
+    const nosCalculados = operandosDisponiveis.nos_virtuais.filter(n => n.is_calculado);
+
     operandosSelecionados.forEach((op, idx) => {
         container.innerHTML += `
             <div class="operando-item" data-index="${idx}">
                 <select class="form-select form-select-sm" onchange="updateOperando(${idx}, this)">
-                    <optgroup label="Tipos CC">
+                    <option value="" disabled ${!op.id ? 'selected' : ''}>Selecione...</option>
+                    
+                    <optgroup label="Tipos de Centro de Custo">
                         ${operandosDisponiveis.tipos_cc.map(t => 
                             `<option value="tipo_cc:${t.id}" ${op.tipo === 'tipo_cc' && op.id === t.id ? 'selected' : ''}>
-                                ${t.nome}
+                                📂 ${t.nome}
                             </option>`
                         ).join('')}
                     </optgroup>
-                    <optgroup label="Nós Virtuais">
-                        ${operandosDisponiveis.nos_virtuais.filter(n => !n.is_calculado).map(n => 
-                            `<option value="no_virtual:${n.id}" ${op.tipo === 'no_virtual' && op.id === n.id ? 'selected' : ''}>
-                                ${n.nome}
+
+                    <optgroup label="Nós Virtuais (Input Manual)">
+                        ${nosManuais.map(n => 
+                            `<option value="no_virtual:${n.id}" ${op.tipo === 'no_virtual' && op.id == n.id ? 'selected' : ''}>
+                                📝 ${n.nome}
                             </option>`
                         ).join('')}
                     </optgroup>
+
+                    <optgroup label="Nós Calculados (Resultados)">
+                        ${nosCalculados.map(n => 
+                            `<option value="no_virtual:${n.id}" ${op.tipo === 'no_virtual' && op.id == n.id ? 'selected' : ''}>
+                                📊 ${n.nome}
+                            </option>`
+                        ).join('')}
+                    </optgroup>
+
                 </select>
                 <button class="btn btn-xs btn-ghost text-danger" onclick="removeOperando(${idx})">
                     <i class="fas fa-times"></i>
