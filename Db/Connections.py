@@ -29,7 +29,7 @@ def get_postgres_engine():
     # 1. Tenta conectar na URL configurada (Dev ou Homolog)
     try:
         # pool_pre_ping=True ajuda a evitar conexões "fantasmas"
-        engine = create_engine(PG_DATABASE_URL, pool_pre_ping=True, echo=settings.DEBUG)
+        engine = create_engine(PG_DATABASE_URL, pool_pre_ping=True, echo=settings.DEBUG) # Debugar a conexão se DEBUG=True
         return engine
     except Exception:
         # Se falhar a criação da engine inicial (raro, geralmente falha na conexão)

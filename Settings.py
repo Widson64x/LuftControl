@@ -45,12 +45,12 @@ class DevelopmentConfig(BaseConfig):
     """Ambiente de Desenvolvimento"""
     # Pode pegar do env ou fixar string 'DRE_Controladoria_DEV'
     PG_DB = os.getenv("PGDB_NAME_DEV", "DRE_Controladoria_DEV")
-    DEBUG = True
+    DEBUG = False
 
 class HomologationConfig(BaseConfig):
     """Ambiente de Homologação"""
     PG_DB = os.getenv("PGDB_NAME_HOMOLOG", "DRE_Controladoria_HML")
-    DEBUG = True
+    DEBUG = False
 
 class ProductionConfig(BaseConfig):
     """Ambiente de Produção"""
