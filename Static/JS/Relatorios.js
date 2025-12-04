@@ -9,12 +9,17 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
     class RelatorioSystem {
         constructor() {
             this.modal = null;
+            
+            // Estado do Razão
             this.razaoData = null;
+            this.razaoSummary = null; // Armazena totais globais
             this.razaoPage = 1;
             this.razaoTotalPages = 1;
             this.razaoSearch = '';
             this.razaoSearchTimer = null;
+            this.razaoViewType = 'original'; // 'original' ou 'adjusted'
 
+            // Estado do BI (DRE)
             this.biRawData = [];      
             this.biTreeData = [];     
             this.biState = {
@@ -49,60 +54,87 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
         }
 
-        // --- RAZÃO ---
+        // ====================================================================
+        // --- MÓDULO 1: RAZÃO CONTÁBIL ---
+        // ====================================================================
+
         async loadRazaoReport(page = 1) {
             if (!this.modal) this.modal = new ModalSystem('modalRelatorio');         
             this.razaoPage = page;
+            
+            const titleSuffix = this.razaoViewType === 'adjusted' ? '(VISÃO AJUSTADA)' : '(ORIGINAL)';
             const title = this.razaoSearch 
-                ? `📈 Razão Contábil - Buscando: "${this.razaoSearch}"` 
-                : '📈 Relatório de Razão (Base Completa)';
+                ? `📈 Razão Contábil ${titleSuffix} - Buscando: "${this.razaoSearch}"` 
+                : `📈 Relatório de Razão ${titleSuffix}`;
 
+            // Abre modal apenas se for primeira carga
             if (page === 1 && !document.querySelector('#razaoTableContainer')) {
                 this.modal.open(title);
                 this.modal.showLoading('Carregando lançamentos contábeis...');
             }
 
             try {
-                let urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRazaoData) 
-                    ? API_ROUTES.getRazaoData 
-                    : '/Reports/RelatorioRazao/Dados'; 
+                const urlData = (API_ROUTES?.getRazaoData) || '/Reports/RelatorioRazao/Dados'; 
+                const urlSummary = (API_ROUTES?.getRazaoResumo) || '/Reports/RelatorioRazao/Resumo';
 
                 const term = encodeURIComponent(this.razaoSearch);
-                const fullUrl = `${urlBase}?page=${page}&search=${term}`;
+                const viewType = this.razaoViewType;
+                
+                // Busca Dados da Tabela + Resumo Global em paralelo
+                const [respData, respSummary] = await Promise.all([
+                    APIUtils.get(`${urlData}?page=${page}&search=${term}&view_type=${viewType}`),
+                    APIUtils.get(`${urlSummary}?view_type=${viewType}`)
+                ]);
 
-                const response = await APIUtils.get(fullUrl);
-                this.razaoData = response.dados || [];
-                this.razaoTotalPages = response.total_paginas || 1;
-                this.renderRazaoView(response);
+                this.razaoData = respData.dados || [];
+                this.razaoTotalPages = respData.total_paginas || 1;
+                this.razaoSummary = respSummary;
+
+                this.renderRazaoView(respData, respSummary);
             } catch (error) {
                 console.error(error);
                 this.modal.showError(`Erro ao carregar Razão: ${error.message}`);
             }
         }
 
-        renderRazaoView(metaData) {
-            const totals = this.razaoData.reduce((acc, item) => ({
-                deb: acc.deb + (item.debito || 0),
-                cred: acc.cred + (item.credito || 0),
-                saldo: acc.saldo + (item.saldo || 0)
-            }), { deb: 0, cred: 0, saldo: 0 });
-
+        renderRazaoView(metaData, summaryData) {
+            // Cards de Resumo (Dados vindos do Backend agora)
             const summaryHtml = `
                 <div class="summary-grid mb-3">
                     <div class="summary-card">
                         <div class="summary-label">Total Registros</div>
-                        <div class="summary-value">${FormatUtils.formatNumber(metaData.total_registros)}</div>
+                        <div class="summary-value">${FormatUtils.formatNumber(summaryData.total_registros)}</div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-label">Saldo (Página)</div>
-                        <div class="summary-value ${totals.saldo >= 0 ? 'text-success' : 'text-danger'} font-bold">
-                            ${FormatUtils.formatCurrency(totals.saldo)}
+                        <div class="summary-label">Total Débito</div>
+                        <div class="summary-value text-danger font-bold">
+                            ${FormatUtils.formatCurrency(summaryData.total_debito)}
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">Total Crédito</div>
+                        <div class="summary-value text-success font-bold">
+                            ${FormatUtils.formatCurrency(summaryData.total_credito)}
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">Saldo Total</div>
+                        <div class="summary-value ${summaryData.saldo_total >= 0 ? 'text-success' : 'text-danger'} font-bold">
+                            ${FormatUtils.formatCurrency(summaryData.saldo_total)}
                         </div>
                     </div>
                 </div>`;
 
-            const rows = this.razaoData.map(r => `
-                <tr>
+            // Linhas da Tabela
+            const rows = this.razaoData.map(r => {
+                // Se for ajustado, aplica estilo de destaque
+                const styleClass = r.is_ajustado ? 'background-color: #fff8e1;' : '';
+                const badgeOrigem = r.is_ajustado 
+                    ? `<span class="badge badge-warning" title="Lançamento Ajustado"><i class="fas fa-pen"></i> ${r.origem}</span>`
+                    : `<span class="badge badge-secondary">${r.origem}</span>`;
+
+                return `
+                <tr style="${styleClass}">
                     <td class="font-mono text-xs">${r.conta}</td>
                     <td>${r.titulo_conta || '-'}</td>
                     <td>${FormatUtils.formatDate(r.data)}</td>
@@ -113,17 +145,30 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     <td class="text-end font-bold ${r.saldo >= 0 ? 'text-success' : 'text-danger'}">
                         ${FormatUtils.formatNumber(r.saldo)}
                     </td>
-                    <td><span class="badge badge-secondary">${r.origem}</span></td>
+                    <td>${badgeOrigem}</td>
                 </tr>
-            `).join('');
+            `}).join('');
 
+            // Toolbar com Toggle Switch
             const tableHtml = `
-                <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-tertiary rounded">
-                    <div class="input-group" style="max-width: 400px;">
-                        <i class="input-group-icon fas fa-search"></i>
-                        <input type="text" id="razaoSearchInput" class="form-control" 
-                               placeholder="Filtrar por conta, histórico..." value="${this.razaoSearch}">
+                <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-tertiary rounded flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-3" style="flex: 1;">
+                        <div class="input-group" style="max-width: 350px;">
+                            <i class="input-group-icon fas fa-search"></i>
+                            <input type="text" id="razaoSearchInput" class="form-control" 
+                                   placeholder="Filtrar por conta, histórico..." value="${this.razaoSearch}">
+                        </div>
+                        
+                        <div class="form-check form-switch d-flex align-items-center gap-2 m-0 cursor-pointer">
+                            <input class="form-check-input cursor-pointer" type="checkbox" role="switch" id="chkViewTypeRazao" 
+                                   ${this.razaoViewType === 'adjusted' ? 'checked' : ''}
+                                   onchange="relatorioSystem.toggleRazaoView(this.checked)">
+                            <label class="form-check-label text-white cursor-pointer select-none" for="chkViewTypeRazao">
+                                Visualizar Ajustes
+                            </label>
+                        </div>
                     </div>
+
                     <div class="d-flex align-items-center gap-2">
                         <small class="text-secondary me-2">Pag ${this.razaoPage}/${this.razaoTotalPages}</small>
                         <div class="btn-group">
@@ -143,10 +188,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
             this.modal.setContent(`<div style="padding: 1.5rem;">${summaryHtml}${tableHtml}</div>`);
             
+            // Reatacha listeners
             const input = document.getElementById('razaoSearchInput');
             if (input) {
                 input.focus();
-                input.setSelectionRange(input.value.length, input.value.length);
+                // input.setSelectionRange(input.value.length, input.value.length); // Mantém cursor no final
                 input.addEventListener('input', (e) => {
                     clearTimeout(this.razaoSearchTimer);
                     this.razaoSearchTimer = setTimeout(() => {
@@ -157,7 +203,16 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
         }
 
-        // --- RENTABILIDADE (BI) ---
+        toggleRazaoView(isChecked) {
+            this.razaoViewType = isChecked ? 'adjusted' : 'original';
+            // Recarrega na página 1 ao mudar o modo de visualização
+            this.loadRazaoReport(1);
+        }
+
+        // ====================================================================
+        // --- MÓDULO 2: RENTABILIDADE (BI) ---
+        // ====================================================================
+
         async loadRentabilidadeReport(origem = null) {
             if (!this.modal) this.modal = new ModalSystem('modalRelatorio');
             
@@ -176,13 +231,9 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 // Roteamento inteligente
                 let urlBase;
                 if (this.biState.viewMode === 'CC') {
-                    urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeDataCC) 
-                        ? API_ROUTES.getRentabilidadeDataCC 
-                        : '/Reports/RelatorioRazao/RentabilidadePorCC';
+                    urlBase = (API_ROUTES?.getRentabilidadeDataCC) || '/Reports/RelatorioRazao/RentabilidadePorCC';
                 } else {
-                    urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData) 
-                        ? API_ROUTES.getRentabilidadeData 
-                        : '/Reports/RelatorioRazao/Rentabilidade';
+                    urlBase = (API_ROUTES?.getRentabilidadeData) || '/Reports/RelatorioRazao/Rentabilidade';
                 }
 
                 const origemParam = encodeURIComponent(this.biState.origemFilter);
@@ -495,7 +546,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             container.innerHTML = `<table class="table-modern w-100" style="border-collapse: separate; border-spacing: 0;">${headerHtml}<tbody>${bodyRows}</tbody></table>`;
         }
 
-        // --- MÉTODOS AUXILIARES (Filtros, Sort, Export, Calc) MANTIDOS DO ORIGINAL ---
+        // --- MÉTODOS AUXILIARES ---
         applyBiFilters() {
             const globalTerm = this.biState.globalSearch.toLowerCase();
             const colFilters = this.biState.filters;
@@ -531,7 +582,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         debounceRender() { clearTimeout(this.biDebounceTimer); this.biDebounceTimer = setTimeout(() => { this.applyBiFilters(); this.renderBiTable(); }, 400); }
         toggleNode(id) { if (this.biState.expanded.has(id)) this.biState.expanded.delete(id); else this.biState.expanded.add(id); this.renderBiTable(); }
         toggleAllNodes(expand) { const recurse = (nodes) => { nodes.forEach(n => { if (expand) this.biState.expanded.add(n.id); else this.biState.expanded.delete(n.id); if (n.children) recurse(n.children); }); }; recurse(this.biTreeData); this.renderBiTable(); }
-        openColumnManager() { /* (Código do modal de colunas mantido) */ 
+        openColumnManager() { 
             const allCols = this.biState.columnsOrder;
             const checksHtml = allCols.map(c => `<div class="col-6 mb-2"><label class="d-flex align-items-center cursor-pointer"><input type="checkbox" ${!this.biState.hiddenCols.has(c) ? 'checked' : ''} onchange="relatorioSystem.toggleBiColumn('${c}')"><span class="ms-2 text-white">${c}</span></label></div>`).join('');
             const modalHtml = `<div class="p-3"><h5>Gerenciar Colunas Visíveis</h5><div class="row mt-3">${checksHtml}</div><div class="mt-3 text-end"><button class="btn btn-sm btn-primary" onclick="this.closest('.modal-backdrop').remove(); relatorioSystem.renderBiTable()">Aplicar</button></div></div>`;
@@ -539,7 +590,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             colModal.onclick = (e) => { if(e.target === colModal) colModal.remove(); }; document.body.appendChild(colModal);
         }
         toggleBiColumn(col) { if (this.biState.hiddenCols.has(col)) this.biState.hiddenCols.delete(col); else this.biState.hiddenCols.add(col); }
-        sortBiBy(col) { /* (Código de sort mantido) */
+        sortBiBy(col) { 
             if (this.biState.sort.col === col) this.biState.sort.dir = this.biState.sort.dir === 'asc' ? 'desc' : 'asc';
             else { this.biState.sort.col = col; this.biState.sort.dir = 'desc'; }
             const sortNodes = (nodes) => {
@@ -548,7 +599,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             };
             sortNodes(this.biTreeData); this.renderBiTable();
         }
-        exportBiToCsv() { /* (Código de exportação mantido) */ 
+        exportBiToCsv() { 
             let csv = "data:text/csv;charset=utf-8,";
             const visibleCols = this.biState.columnsOrder.filter(c => !this.biState.hiddenCols.has(c));
             csv += `# BI DRE - ${this.biState.origemFilter} - ${this.biState.viewMode}\r\nEstrutura;${visibleCols.join(";")}\r\n`;
@@ -562,7 +613,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         }
         async loadNosCalculados() { try { const r = await APIUtils.get((API_ROUTES?.getNosCalculados) || '/Configuracao/GetNosCalculados'); this.nosCalculados = r || []; return this.nosCalculados; } catch { return []; } }
         
-        // --- CÁLCULO DE NÓS (Mantido e ajustado para chaves) ---
+        // --- CÁLCULO DE NÓS (Mantido igual) ---
         calcularValorNo(formula, mes, valoresAgregados) {
             if (!formula || !formula.operandos) return 0;
             const valores = formula.operandos.map(op => valoresAgregados[`${op.tipo}_${op.id}`]?.[mes] || 0);
@@ -576,68 +627,36 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         }
 
         async processBiTreeWithCalculated() {
-            // 1. Processa árvore normal (Dados do Banco)
             this.processBiTree();
-            
-            // 2. Carrega nós calculados (Configuração)
             const nosCalc = await this.loadNosCalculados();
-            
             if (nosCalc.length > 0) {
-                // 3. Agrega valores iniciais (Dados Brutos do Banco)
                 const valoresAgregados = this.agregarValoresPorTipo();
                 const meses = this.biState.columnsOrder;
-                
-                // 4. Cria e adiciona nós calculados na lista principal
                 nosCalc.forEach(noCalc => {
                     if (!noCalc.formula) return;
-                    
                     const valores = {};
                     meses.forEach(mes => {
                         valores[mes] = this.calcularValorNo(noCalc.formula, mes, valoresAgregados);
                     });
 
-                    // ==========================================================
-                    // --- CORREÇÃO CASCATA: Salva o resultado para o próximo ---
-                    // ==========================================================
-                    // Isso permite que o próximo nó (ex: EBITDA) encontre o valor 
-                    // deste nó (ex: MARGEM BRUTA) dentro de 'valoresAgregados'
+                    // Correção Cascata
                     const chaveMemoria = `no_virtual_${noCalc.id}`;
-                    if (!valoresAgregados[chaveMemoria]) {
-                        valoresAgregados[chaveMemoria] = {};
-                    }
-                    // Injeta os valores calculados de volta na memória
-                    meses.forEach(mes => {
-                        valoresAgregados[chaveMemoria][mes] = valores[mes];
-                    });
-                    // ==========================================================
+                    if (!valoresAgregados[chaveMemoria]) valoresAgregados[chaveMemoria] = {};
+                    meses.forEach(mes => valoresAgregados[chaveMemoria][mes] = valores[mes]);
 
-                    // Gera Tooltip
                     let textoTooltip = noCalc.formula_descricao;
                     if (!textoTooltip && noCalc.formula) {
                         const ops = noCalc.formula.operandos || [];
                         const nomesOps = ops.map(o => o.label || o.id).join(', ');
-                        const opMap = {
-                            'soma': 'Soma (+)', 'subtracao': 'Subtração (-)',
-                            'multiplicacao': 'Multiplicação (×)', 'divisao': 'Divisão (÷)'
-                        };
-                        const opNome = opMap[noCalc.formula.operacao] || noCalc.formula.operacao;
-                        textoTooltip = `Fórmula: ${opNome}\nEnvolvendo: ${nomesOps}`;
+                        const opMap = { 'soma': 'Soma (+)', 'subtracao': 'Subtração (-)', 'multiplicacao': 'Multiplicação (×)', 'divisao': 'Divisão (÷)' };
+                        textoTooltip = `Fórmula: ${opMap[noCalc.formula.operacao] || noCalc.formula.operacao}\nEnvolvendo: ${nomesOps}`;
                     }
 
-                    // Define Ordem
-                    const rowBackend = this.biRawData.find(r => 
-                        (r.Root_Virtual_Id == noCalc.id) || 
-                        (r.Titulo_Conta === noCalc.nome)
-                    );
-                    
+                    const rowBackend = this.biRawData.find(r => (r.Root_Virtual_Id == noCalc.id) || (r.Titulo_Conta === noCalc.nome));
                     let ordemCorreta = 50;
-                    if (rowBackend && rowBackend.ordem_prioridade !== null) {
-                        ordemCorreta = rowBackend.ordem_prioridade;
-                    } else if (noCalc.ordem !== null && noCalc.ordem !== undefined) {
-                        ordemCorreta = noCalc.ordem;
-                    }
+                    if (rowBackend && rowBackend.ordem_prioridade !== null) ordemCorreta = rowBackend.ordem_prioridade;
+                    else if (noCalc.ordem !== null && noCalc.ordem !== undefined) ordemCorreta = noCalc.ordem;
                     
-                    // Adiciona na árvore visual
                     const nodeCalc = {
                         id: `calc_${noCalc.id}`,
                         label: `📊 ${noCalc.nome}`, 
@@ -652,28 +671,18 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         tipoExibicao: noCalc.tipo_exibicao,
                         ordem: ordemCorreta
                     };
-                    
                     this.biTreeData.push(nodeCalc);
                 });
             }
 
-            // 5. DEDUPLICAÇÃO E ORDENAÇÃO (Mantido igual)
-            const nomesCalculados = new Set(
-                this.biTreeData
-                    .filter(n => n.type === 'calculated')
-                    .map(n => (n.rawLabel || n.label.replace('📊 ', '')).toUpperCase().trim())
-            );
-
+            const nomesCalculados = new Set(this.biTreeData.filter(n => n.type === 'calculated').map(n => (n.rawLabel || n.label.replace('📊 ', '')).toUpperCase().trim()));
             this.biTreeData = this.biTreeData.filter(node => {
                 if (node.type === 'root') {
                     const labelPadrao = node.label.toUpperCase().trim();
-                    if (nomesCalculados.has(labelPadrao)) {
-                        return false; 
-                    }
+                    if (nomesCalculados.has(labelPadrao)) return false; 
                 }
                 return true;
             });
-
             this.biTreeData.sort((a, b) => {
                 const ordA = (a.ordem !== undefined && a.ordem !== null) ? a.ordem : 9999;
                 const ordB = (b.ordem !== undefined && b.ordem !== null) ? b.ordem : 9999;
@@ -688,12 +697,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 const rawId = rootNode.id.replace('T_', '').replace('CC_', '');
                 const chave = `tipo_cc_${rawId}`;
                 if (!agregados[chave]) agregados[chave] = {};
-                
                 if (rootNode.virtualId) {
                     const chaveVirt = `no_virtual_${rootNode.virtualId}`;
                     if (!agregados[chaveVirt]) agregados[chaveVirt] = {};
                 }
-                
                 meses.forEach(m => {
                     const val = rootNode.values[m] || 0;
                     if(agregados[chave]) agregados[chave][m] = (agregados[chave][m]||0) + val;
