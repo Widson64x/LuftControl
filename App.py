@@ -13,6 +13,7 @@ from Routes.DreConfig import dre_config_bp
 from Routes.DreOrdenamento import dre_ordem_bp
 from Routes.Auth import carregar_usuario_flask
 from Routes.SecurityConfig import security_bp
+from Routes.Adjustments import ajustes_bp
 
 # --- IMPORTS PARA BANCO DE DADOS ---
 # 1. (ALTERADO) Importamos a URL e agora a função de CHECK
@@ -54,6 +55,7 @@ app.register_blueprint(main_bp , url_prefix=ROUTE_PREFIX + '/')
 app.register_blueprint(reports_bp, url_prefix=ROUTE_PREFIX + '/Reports')
 app.register_blueprint(dre_config_bp, url_prefix=ROUTE_PREFIX + '/DreConfig')
 app.register_blueprint(dre_ordem_bp, url_prefix=ROUTE_PREFIX + '/DreOrdenamento')
+app.register_blueprint(ajustes_bp, url_prefix=ROUTE_PREFIX + '/Adjustments')
 app.register_blueprint(security_bp, url_prefix=ROUTE_PREFIX + '/SecurityConfig')
 
 @app.route('/')

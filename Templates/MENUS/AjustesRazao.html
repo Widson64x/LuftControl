@@ -1,0 +1,168 @@
+{% extends "Base.html" %}
+
+{% block title %}Ajustes Contábeis - T-Controllership{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports.css') }}">
+    
+    <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/AjustesRazao.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <div class="header-decoration decoration-1"></div>
+    <div class="header-decoration decoration-2"></div>
+    
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-balance-scale"></i> Ajustes & Espelho Razão
+            </h1>
+            <p class="page-subtitle">Gestão completa de lançamentos, inclusões e fluxo de aprovação.</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-primary-custom" onclick="ajustesSystem.openModalInclusao()">
+                <i class="fas fa-plus-circle"></i> Novo Lançamento
+            </button>
+            <button class="btn-secondary-custom" onclick="ajustesSystem.loadData()">
+                <i class="fas fa-sync-alt"></i> Atualizar Dados
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="content-card fade-in" style="margin-top: 20px; height: calc(100vh - 200px);">
+    <div id="gridAjustes" class="tabulator-custom"></div>
+</div>
+
+<div class="modal-overlay" id="modalAjuste">
+    <div class="custom-modal">
+        
+        <div class="modal-header">
+            <h2>
+                <i class="fas fa-edit"></i> 
+                <span id="modalTitleText">Editar Lançamento</span>
+            </h2>
+            <button class="modal-close" onclick="ajustesSystem.closeModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <form id="formAjuste" onsubmit="event.preventDefault(); ajustesSystem.save();">
+                
+                <input type="hidden" id="inpHashId">
+                <input type="hidden" id="inpAjusteId">
+                <input type="hidden" id="inpTipoOperacao">
+
+                <div class="form-grid-wrapper">
+                    
+                    <div class="form-group">
+                        <label>Data *</label>
+                        <input type="date" id="inpData" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Origem</label>
+                        <select id="inpOrigem" class="form-control">
+                            <option value="MANUAL">MANUAL</option>
+                            <option value="FARMA">FARMA</option>
+                            <option value="FARMADIST">FARMADIST</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Filial</label>
+                        <input type="text" id="inpFilial" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Número Doc.</label>
+                        <input type="text" id="inpNumero" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Conta Contábil *</label>
+                        <input type="text" id="inpConta" class="form-control" required>
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Título da Conta</label>
+                        <input type="text" id="inpTituloConta" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Item (Classif.)</label>
+                        <input type="text" id="inpItem" class="form-control">
+                    </div>
+
+                    <div class="form-group span-2">
+                        <label>Centro de Custo</label>
+                        <input type="text" id="inpCC" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Cód. Cl. Valor</label>
+                        <input type="text" id="inpCodCl" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Contra Partida</label>
+                        <input type="text" id="inpContraPartida" class="form-control">
+                    </div>
+
+                    <div class="form-group span-4">
+                        <label>Descrição do Lançamento *</label>
+                        <input type="text" id="inpDescricao" class="form-control" required placeholder="Descreva o motivo...">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="lbl-debito">Débito (R$)</label>
+                        <input type="number" step="0.01" id="inpDebito" class="form-control input-money">
+                    </div>
+                    <div class="form-group">
+                        <label class="lbl-credito">Crédito (R$)</label>
+                        <input type="number" step="0.01" id="inpCredito" class="form-control input-money">
+                    </div>
+                    
+                    <div class="form-group flex-center">
+                        <div class="switch-container">
+                            <label class="switch">
+                                <input type="checkbox" id="inpNaoOperacional">
+                                <span class="slider"></span>
+                            </label>
+                            <span class="switch-label">Não Operacional</span>
+                        </div>
+                    </div>
+                    <div class="form-group flex-center">
+                        <div class="switch-container">
+                            <label class="switch">
+                                <input type="checkbox" id="inpExibirSaldo" checked>
+                                <span class="slider blue"></span>
+                            </label>
+                            <span class="switch-label">Calcular Saldo</span>
+                        </div>
+                    </div>
+
+                </div> <div class="modal-footer">
+                    <button type="button" class="btn-secondary-custom" onclick="ajustesSystem.closeModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary-custom" id="btnSalvar">
+                        <i class="fas fa-save"></i> Salvar Dados
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+
+<script src="{{ url_for('static', filename='JS/AjustesRazao.js') }}"></script>
+
+<script>
+    const API_ROUTES = {
+        getDados:    "{{ url_for('Ajustes.get_dados') }}",
+        postSalvar:  "{{ url_for('Ajustes.salvar') }}",
+        postAprovar: "{{ url_for('Ajustes.aprovar') }}"
+    };
+</script>
+{% endblock %}

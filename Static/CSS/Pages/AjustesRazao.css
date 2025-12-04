@@ -1,0 +1,823 @@
+/* ============================================================================
+   T-CONTROLLERSHIP | AJUSTES RAZÃO
+   Design: Premium Dark Finance Theme
+   Base: Themes.css variables
+   ============================================================================ */
+
+/* === EXTENSÕES LOCAIS (complementam Themes.css) === */
+:root {
+    /* Glow effects específicos */
+    --ar-glow-primary: 0 0 30px rgba(var(--primary-rgb), 0.4);
+    --ar-glow-success: 0 0 20px rgba(16, 185, 129, 0.4);
+    --ar-glow-danger: 0 0 20px rgba(239, 68, 68, 0.4);
+    
+    /* Status backgrounds */
+    --ar-success-bg: rgba(16, 185, 129, 0.12);
+    --ar-warning-bg: rgba(245, 158, 11, 0.12);
+    --ar-danger-bg: rgba(239, 68, 68, 0.12);
+    --ar-info-bg: rgba(59, 130, 246, 0.12);
+}
+
+
+/* === PAGE CONTAINER === */
+.content-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.content-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent, 
+        var(--primary) 20%, 
+        var(--primary-light) 50%, 
+        var(--primary) 80%, 
+        transparent
+    );
+    opacity: 0.6;
+}
+
+
+/* ============================================================================
+   TABULATOR GRID - COMPLETE OVERRIDE
+   ============================================================================ */
+
+.tabulator {
+    border: none !important;
+    background: transparent !important;
+    font-family: var(--font-primary) !important;
+    font-size: var(--font-sm) !important;
+}
+
+/* Header */
+.tabulator .tabulator-header {
+    background: var(--bg-tertiary) !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+    font-weight: var(--font-weight-semibold) !important;
+    color: var(--text-secondary) !important;
+    font-size: var(--font-xs) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.tabulator .tabulator-header .tabulator-col {
+    background: transparent !important;
+    border-right: 1px solid var(--border-primary) !important;
+}
+
+.tabulator .tabulator-header .tabulator-col:last-child {
+    border-right: none !important;
+}
+
+.tabulator .tabulator-header .tabulator-col-content {
+    padding: 14px 12px !important;
+}
+
+.tabulator .tabulator-header .tabulator-col .tabulator-col-title {
+    color: var(--text-secondary) !important;
+}
+
+/* Header Filters */
+.tabulator .tabulator-header-filter input {
+    background: var(--bg-hover) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: var(--radius-sm) !important;
+    color: var(--text-primary) !important;
+    padding: 6px 10px !important;
+    font-size: var(--font-xs) !important;
+    transition: var(--transition-fast) !important;
+}
+
+.tabulator .tabulator-header-filter input:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15) !important;
+    outline: none !important;
+}
+
+.tabulator .tabulator-header-filter input::placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* Rows */
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row {
+    background: var(--bg-secondary) !important;
+    border-bottom: 1px solid var(--border-secondary) !important;
+    color: var(--text-primary) !important;
+    transition: var(--transition-fast) !important;
+}
+
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row:nth-child(even) {
+    background: var(--bg-tertiary) !important;
+}
+
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row:hover {
+    background: var(--bg-hover) !important;
+}
+
+/* Cells */
+.tabulator .tabulator-cell {
+    border-right: 1px solid var(--border-secondary) !important;
+    padding: 12px !important;
+}
+
+.tabulator .tabulator-cell:last-child {
+    border-right: none !important;
+}
+
+/* Frozen Columns */
+.tabulator .tabulator-frozen {
+    background: var(--bg-tertiary) !important;
+}
+
+.tabulator .tabulator-row:hover .tabulator-frozen {
+    background: var(--bg-hover) !important;
+}
+
+/* Footer / Calcs */
+.tabulator .tabulator-footer {
+    background: var(--bg-tertiary) !important;
+    border-top: 2px solid var(--primary) !important;
+    padding: 0 !important;
+}
+
+.tabulator .tabulator-calcs-holder {
+    background: var(--bg-tertiary) !important;
+    border: none !important;
+}
+
+.tabulator .tabulator-calcs-holder .tabulator-row {
+    background: var(--bg-tertiary) !important;
+}
+
+.tabulator .tabulator-calcs-holder .tabulator-cell {
+    color: var(--primary-light) !important;
+    font-weight: var(--font-weight-bold) !important;
+    font-size: var(--font-sm) !important;
+}
+
+/* Scrollbar */
+.tabulator .tabulator-tableholder::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.tabulator .tabulator-tableholder::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+.tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
+    background: var(--bg-hover);
+    border-radius: var(--radius-xs);
+}
+
+.tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+
+/* === STATUS ROWS === */
+.row-inclusao {
+    background: var(--ar-info-bg) !important;
+}
+
+.row-inclusao:nth-child(even) {
+    background: rgba(59, 130, 246, 0.08) !important;
+}
+
+.st-pendente {
+    border-left: 4px solid var(--warning) !important;
+}
+
+.st-aprovado {
+    border-left: 4px solid var(--success) !important;
+}
+
+.st-reprovado {
+    border-left: 4px solid var(--danger) !important;
+    opacity: 0.6;
+}
+
+
+/* === STATUS BADGES === */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: var(--radius-full);
+    font-size: var(--font-xs);
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-pendente {
+    background: var(--ar-warning-bg);
+    color: var(--warning);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.status-pendente::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--warning);
+    border-radius: var(--radius-full);
+    animation: pulse-warning 2s infinite;
+}
+
+.status-aprovado {
+    background: var(--ar-success-bg);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-aprovado::before {
+    content: '✓';
+    font-size: 9px;
+}
+
+.status-reprovado {
+    background: var(--ar-danger-bg);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-reprovado::before {
+    content: '✕';
+    font-size: 9px;
+}
+
+.status-original {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+}
+
+@keyframes pulse-warning {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+
+/* === ACTION BUTTONS === */
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    font-size: var(--font-xs);
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-edit {
+    color: var(--primary-light);
+    background: rgba(var(--primary-rgb), 0.1);
+}
+
+.btn-edit:hover {
+    background: var(--primary);
+    color: white;
+    box-shadow: var(--ar-glow-primary);
+}
+
+.btn-ok {
+    color: var(--success);
+    background: var(--ar-success-bg);
+}
+
+.btn-ok:hover {
+    background: var(--success);
+    color: white;
+    box-shadow: var(--ar-glow-success);
+}
+
+.btn-no {
+    color: var(--danger);
+    background: var(--ar-danger-bg);
+}
+
+.btn-no:hover {
+    background: var(--danger);
+    color: white;
+    box-shadow: var(--ar-glow-danger);
+}
+
+
+/* ============================================================================
+   MODAL SYSTEM
+   ============================================================================ */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: var(--z-modal);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: var(--spacing-lg);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+}
+
+.modal-overlay.active {
+    display: flex;
+    opacity: 1;
+}
+
+.custom-modal {
+    background: var(--bg-secondary);
+    width: 100%;
+    max-width: 1100px;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-2xl), var(--shadow-glow);
+    display: flex;
+    flex-direction: column;
+    max-height: 92vh;
+    overflow: hidden;
+    animation: modalSlideIn var(--transition-slow) ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(40px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+
+/* Modal Header */
+.modal-header {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    background: var(--primary);
+    border-bottom: 1px solid var(--border-primary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+}
+
+.modal-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: var(--spacing-xl);
+    right: var(--spacing-xl);
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent, 
+        var(--primary) 30%, 
+        var(--primary-light) 70%, 
+        transparent
+    );
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: white;
+    font-size: var(--font-xl);
+    font-weight: var(--font-weight-semibold);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.modal-header h2 i {
+    color: white;
+    font-size: var(--font-lg);
+}
+
+.modal-close {
+    background: var(--bg-hover);
+    border: 1px solid var(--border-primary);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-lg);
+    transition: var(--transition-fast);
+}
+
+.modal-close:hover {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: white;
+    transform: rotate(90deg);
+}
+
+
+/* Modal Body */
+.modal-body {
+    padding: var(--spacing-xl);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: var(--bg-hover);
+    border-radius: var(--radius-xs);
+}
+
+
+/* === FORM GRID === */
+.form-grid-wrapper {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-lg);
+}
+
+.span-2 { grid-column: span 2; }
+.span-3 { grid-column: span 3; }
+.span-4 { grid-column: span 4; }
+
+
+/* Form Groups */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.form-group label {
+    font-size: var(--font-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.form-control {
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    font-family: var(--font-primary);
+    transition: var(--transition-fast);
+}
+
+.form-control:hover {
+    border-color: var(--text-muted);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.15);
+    background: var(--bg-hover);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+/* Select Styling */
+select.form-control {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A0AEC0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 40px;
+}
+
+select.form-control option {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 10px;
+}
+
+/* Date Input Fix */
+input[type="date"].form-control {
+    cursor: pointer;
+}
+
+input[type="date"].form-control::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: var(--transition-fast);
+}
+
+input[type="date"].form-control::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+/* Money Inputs */
+.lbl-debito {
+    color: var(--danger) !important;
+}
+
+.lbl-credito {
+    color: var(--success) !important;
+}
+
+.input-money {
+    font-weight: var(--font-weight-semibold);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+}
+
+.form-group:has(.lbl-debito) .form-control:focus {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px var(--ar-danger-bg);
+}
+
+.form-group:has(.lbl-credito) .form-control:focus {
+    border-color: var(--success);
+    box-shadow: 0 0 0 4px var(--ar-success-bg);
+}
+
+
+/* === SWITCH TOGGLES === */
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-top: var(--spacing-lg);
+}
+
+.switch-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+    padding: 10px 16px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+    transition: var(--transition-fast);
+}
+
+.switch-container:hover {
+    border-color: var(--text-muted);
+}
+
+.switch-label {
+    font-size: var(--font-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    user-select: none;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-primary);
+    transition: var(--transition-fast);
+    border-radius: var(--radius-full);
+}
+
+.slider::before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background: var(--text-secondary);
+    transition: var(--transition-fast);
+    border-radius: var(--radius-full);
+}
+
+input:checked + .slider {
+    background: var(--danger);
+    border-color: var(--danger);
+}
+
+input:checked + .slider.blue {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+input:checked + .slider::before {
+    transform: translateX(20px);
+    background: white;
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+}
+
+
+/* === MODAL FOOTER === */
+.modal-footer {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-primary);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+}
+
+.btn-secondary-custom {
+    padding: 12px 24px;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.btn-secondary-custom:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.btn-primary-custom {
+    padding: 12px 28px;
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    font-size: var(--font-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    box-shadow: var(--shadow-glow);
+}
+
+.btn-primary-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow), var(--shadow-lg);
+}
+
+.btn-primary-custom:active {
+    transform: translateY(0);
+}
+
+.btn-primary-custom:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+
+/* === RESPONSIVE === */
+@media (max-width: 1024px) {
+    .form-grid-wrapper {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-md);
+    }
+    
+    .span-3, .span-4 {
+        grid-column: span 2;
+    }
+    
+    .custom-modal {
+        max-width: 95%;
+    }
+}
+
+@media (max-width: 640px) {
+    .form-grid-wrapper {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+    
+    .span-2, .span-3, .span-4 {
+        grid-column: span 1;
+    }
+    
+    .modal-header, .modal-body, .modal-footer {
+        padding: var(--spacing-md);
+    }
+    
+    .flex-center {
+        justify-content: flex-start;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+
+/* === UTILITY: Number colors in grid === */
+.tabulator .tabulator-cell[tabulator-field="Saldo"] {
+    font-weight: var(--font-weight-semibold);
+    font-variant-numeric: tabular-nums;
+}
+
+.tabulator .tabulator-cell[tabulator-field="Debito"],
+.tabulator .tabulator-cell[tabulator-field="Credito"] {
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* === TOAST NOTIFICATIONS === */
+.ar-toast {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    padding: 14px 20px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-sm);
+    font-weight: var(--font-weight-medium);
+    z-index: calc(var(--z-tooltip) + 1);
+    animation: toastSlide var(--transition-normal) ease-out;
+    color: white;
+    box-shadow: var(--shadow-xl);
+    transition: var(--transition-normal);
+}
+
+.ar-toast-success {
+    background: var(--success);
+}
+
+.ar-toast-error {
+    background: var(--danger);
+}
+
+.ar-toast-warning {
+    background: var(--warning);
+}
+
+.ar-toast-info {
+    background: var(--info);
+}
+
+@keyframes toastSlide {
+    from { 
+        transform: translateX(100%); 
+        opacity: 0; 
+    }
+    to { 
+        transform: translateX(0); 
+        opacity: 1; 
+    }
+}
