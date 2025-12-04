@@ -1,0 +1,1709 @@
+{% extends "Base.html" %}
+
+{% block title %}Modules Grid - Ajustes Manuais{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ========== CONTAINERS ========== */
+    .modules-grid-container {
+        background: var(--surface-primary);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* ========== HEADER ========== */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .page-header h1 i {
+        color: var(--accent-primary);
+    }
+
+    /* ========== ESTATÍSTICAS ========== */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        background: var(--surface-secondary);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        border: 1px solid var(--border-subtle);
+        transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+        border-color: var(--accent-primary);
+        transform: translateY(-2px);
+    }
+
+    .stat-card .icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .stat-card .icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .stat-card .icon.yellow { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+    .stat-card .icon.green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .stat-card .icon.red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+    .stat-card .info { flex: 1; }
+    .stat-card .value { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+    .stat-card .label { font-size: 0.875rem; color: var(--text-tertiary); }
+
+    /* ========== TABS ========== */
+    .tabs-container {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border-subtle);
+        padding-bottom: 0.5rem;
+    }
+
+    .tab-btn {
+        padding: 0.75rem 1.25rem;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font-weight: 500;
+        cursor: pointer;
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+
+    .tab-btn:hover {
+        color: var(--text-primary);
+        background: var(--surface-secondary);
+    }
+
+    .tab-btn.active {
+        color: var(--accent-primary);
+        background: var(--surface-secondary);
+    }
+
+    .tab-btn.active::after {
+        content: '';
+        position: absolute;
+        bottom: -0.5rem;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--accent-primary);
+    }
+
+    .tab-btn .badge {
+        background: var(--accent-primary);
+        color: white;
+        font-size: 0.75rem;
+        padding: 0.125rem 0.5rem;
+        border-radius: 999px;
+        margin-left: 0.5rem;
+    }
+
+    .tab-panel {
+        display: none;
+    }
+
+    .tab-panel.active {
+        display: block;
+    }
+
+    /* ========== FILTROS ========== */
+    .filters-container {
+        background: var(--surface-secondary);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .filters-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        align-items: end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+    }
+
+    .filter-group label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        padding: 0.625rem 0.875rem;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        background: var(--surface-primary);
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+
+    .filter-group input:focus,
+    .filter-group select:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px rgba(var(--accent-primary-rgb), 0.15);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    /* ========== TABELA ========== */
+    .table-container {
+        overflow-x: auto;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-subtle);
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    .data-table thead {
+        background: var(--surface-secondary);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .data-table th {
+        padding: 0.875rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .data-table tbody tr {
+        transition: background 0.15s ease;
+    }
+
+    .data-table tbody tr:hover {
+        background: var(--surface-secondary);
+    }
+
+    .data-table tbody tr.has-adjustment {
+        background: rgba(34, 197, 94, 0.05);
+    }
+
+    .data-table tbody tr.has-adjustment:hover {
+        background: rgba(34, 197, 94, 0.1);
+    }
+
+    .data-table tbody tr.nao-operacional {
+        background: rgba(234, 179, 8, 0.05);
+    }
+
+    .data-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        white-space: nowrap;
+    }
+
+    .data-table td.number {
+        text-align: right;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .data-table td.actions {
+        text-align: center;
+    }
+
+    /* ========== BADGES ========== */
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.625rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-status.pendente { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+    .badge-status.aprovado { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .badge-status.reprovado { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .badge-status.ajustado { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+
+    /* ========== BOTÕES ========== */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+    }
+
+    .btn-primary {
+        background: var(--accent-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--accent-primary-hover);
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: var(--surface-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-subtle);
+    }
+
+    .btn-secondary:hover {
+        background: var(--surface-tertiary);
+    }
+
+    .btn-success { background: #22c55e; color: white; }
+    .btn-success:hover { background: #16a34a; }
+
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-danger:hover { background: #dc2626; }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    /* ========== MODAL ========== */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 1rem;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+
+    .modal {
+        background: var(--surface-primary);
+        border-radius: var(--radius-lg);
+        width: 100%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .modal-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .modal-header h2 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .modal-close {
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: transparent;
+        color: var(--text-tertiary);
+        cursor: pointer;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+        background: var(--surface-secondary);
+        color: var(--text-primary);
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    /* ========== FORM GROUPS ========== */
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+    }
+
+    .form-group.full-width {
+        grid-column: span 2;
+    }
+
+    .form-group label {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 0.625rem 0.875rem;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        background: var(--surface-secondary);
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px rgba(var(--accent-primary-rgb), 0.15);
+    }
+
+    .form-group input:disabled,
+    .form-group select:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .form-group .original-value {
+        font-size: 0.75rem;
+        color: var(--text-tertiary);
+        margin-top: 0.25rem;
+    }
+
+    .form-group .changed-indicator {
+        color: var(--accent-primary);
+        font-weight: 600;
+    }
+
+    /* ========== CHECKBOX TOGGLE ========== */
+    .toggle-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .toggle {
+        position: relative;
+        width: 44px;
+        height: 24px;
+    }
+
+    .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--surface-tertiary);
+        transition: 0.3s;
+        border-radius: 24px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    .toggle input:checked + .toggle-slider {
+        background-color: var(--accent-primary);
+    }
+
+    .toggle input:checked + .toggle-slider:before {
+        transform: translateX(20px);
+    }
+
+    /* ========== PAGINAÇÃO ========== */
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .pagination-btn {
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--border-subtle);
+        background: var(--surface-primary);
+        color: var(--text-secondary);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        border-color: var(--accent-primary);
+        color: var(--accent-primary);
+    }
+
+    .pagination-btn.active {
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
+        color: white;
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-info {
+        font-size: 0.875rem;
+        color: var(--text-tertiary);
+        margin: 0 1rem;
+    }
+
+    /* ========== LOADING ========== */
+    .loading-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem;
+        color: var(--text-tertiary);
+    }
+
+    .spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid var(--border-subtle);
+        border-top-color: var(--accent-primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 0.75rem;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* ========== EMPTY STATE ========== */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-tertiary);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-state p {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .filters-row {
+            grid-template-columns: 1fr;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-group.full-width {
+            grid-column: span 1;
+        }
+
+        .tabs-container {
+            overflow-x: auto;
+            padding-bottom: 0;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="modules-grid-container">
+    <!-- Header -->
+    <div class="page-header">
+        <h1>
+            <i class="fas fa-table"></i>
+            Modules Grid - Ajustes Manuais
+        </h1>
+        <button class="btn btn-secondary" onclick="exportarDados()">
+            <i class="fas fa-download"></i>
+            Exportar
+        </button>
+    </div>
+
+    <!-- Estatísticas -->
+    <div class="stats-grid" id="statsContainer">
+        <div class="stat-card">
+            <div class="icon blue">
+                <i class="fas fa-edit"></i>
+            </div>
+            <div class="info">
+                <div class="value" id="statTotalAjustes">--</div>
+                <div class="label">Ajustes Ativos</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon yellow">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="info">
+                <div class="value" id="statPendentes">--</div>
+                <div class="label">Pendentes</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon green">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="info">
+                <div class="value" id="statAprovadosHoje">--</div>
+                <div class="label">Aprovados Hoje</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon red">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="info">
+                <div class="value" id="statReprovadosMes">--</div>
+                <div class="label">Reprovados (Mês)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-container">
+        <button class="tab-btn active" data-tab="dados" onclick="switchTab('dados')">
+            <i class="fas fa-database"></i>
+            Dados
+        </button>
+        <button class="tab-btn" data-tab="pendentes" onclick="switchTab('pendentes')">
+            <i class="fas fa-hourglass-half"></i>
+            Pendentes
+            <span class="badge" id="badgePendentes">0</span>
+        </button>
+        <button class="tab-btn" data-tab="logs" onclick="switchTab('logs')">
+            <i class="fas fa-history"></i>
+            Histórico
+        </button>
+    </div>
+
+    <!-- Tab: Dados -->
+    <div class="tab-panel active" id="tabDados">
+        <!-- Filtros -->
+        <div class="filters-container">
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label>Origem</label>
+                    <select id="filterOrigem">
+                        <option value="">Todas</option>
+                        <option value="FARMA">FARMA</option>
+                        <option value="FARMADIST">FARMADIST</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Conta</label>
+                    <input type="text" id="filterConta" placeholder="Ex: 1.1.01">
+                </div>
+                <div class="filter-group">
+                    <label>Mês</label>
+                    <select id="filterMes">
+                        <option value="">Todos</option>
+                        <option value="Janeiro">Janeiro</option>
+                        <option value="Fevereiro">Fevereiro</option>
+                        <option value="Março">Março</option>
+                        <option value="Abril">Abril</option>
+                        <option value="Maio">Maio</option>
+                        <option value="Junho">Junho</option>
+                        <option value="Julho">Julho</option>
+                        <option value="Agosto">Agosto</option>
+                        <option value="Setembro">Setembro</option>
+                        <option value="Outubro">Outubro</option>
+                        <option value="Novembro">Novembro</option>
+                        <option value="Dezembro">Dezembro</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Data Início</label>
+                    <input type="date" id="filterDataInicio">
+                </div>
+                <div class="filter-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="filterDataFim">
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="carregarDados()">
+                        <i class="fas fa-search"></i>
+                        Filtrar
+                    </button>
+                    <button class="btn btn-secondary" onclick="limparFiltros()">
+                        <i class="fas fa-eraser"></i>
+                        Limpar
+                    </button>
+                </div>
+            </div>
+            <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <input type="checkbox" id="filterApenasAjustados" onchange="carregarDados()">
+                    <span style="font-size: 0.875rem; color: var(--text-secondary);">Apenas registros ajustados</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <input type="checkbox" id="filterNaoOperacional" onchange="carregarDados()">
+                    <span style="font-size: 0.875rem; color: var(--text-secondary);">Apenas Não Operacional</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Tabela de Dados -->
+        <div class="table-container">
+            <table class="data-table" id="tableDados">
+                <thead>
+                    <tr>
+                        <th>Ações</th>
+                        <th>Origem</th>
+                        <th>Data</th>
+                        <th>Conta</th>
+                        <th>Título Conta</th>
+                        <th>Número</th>
+                        <th>Descrição</th>
+                        <th>Filial</th>
+                        <th>Centro Custo</th>
+                        <th>Item</th>
+                        <th>Débito</th>
+                        <th>Crédito</th>
+                        <th>Saldo</th>
+                        <th>NaoOp</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyDados">
+                    <tr>
+                        <td colspan="15" class="loading-container">
+                            <div class="spinner"></div>
+                            Carregando dados...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        <div class="pagination" id="paginationDados"></div>
+    </div>
+
+    <!-- Tab: Pendentes -->
+    <div class="tab-panel" id="tabPendentes">
+        <div class="table-container">
+            <table class="data-table" id="tablePendentes">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllPendentes" onchange="toggleSelectAll()"></th>
+                        <th>ID</th>
+                        <th>Origem</th>
+                        <th>Data Reg.</th>
+                        <th>Conta</th>
+                        <th>Campo</th>
+                        <th>Valor Anterior</th>
+                        <th>Valor Novo</th>
+                        <th>Usuário</th>
+                        <th>Data Alteração</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyPendentes">
+                    <tr>
+                        <td colspan="11" class="empty-state">
+                            <i class="fas fa-check-circle"></i>
+                            <p>Nenhuma alteração pendente</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 1rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <button class="btn btn-danger" onclick="reprovarSelecionados()" id="btnReprovarSelecionados" disabled>
+                <i class="fas fa-times"></i>
+                Reprovar Selecionados
+            </button>
+            <button class="btn btn-success" onclick="aprovarSelecionados()" id="btnAprovarSelecionados" disabled>
+                <i class="fas fa-check"></i>
+                Aprovar Selecionados
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab: Logs -->
+    <div class="tab-panel" id="tabLogs">
+        <div class="filters-container">
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select id="filterLogStatus" onchange="carregarLogs()">
+                        <option value="">Todos</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Aprovado">Aprovado</option>
+                        <option value="Reprovado">Reprovado</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Usuário</label>
+                    <input type="text" id="filterLogUsuario" placeholder="Nome do usuário">
+                </div>
+                <div class="filter-group">
+                    <label>Conta</label>
+                    <input type="text" id="filterLogConta" placeholder="Conta contábil">
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="carregarLogs()">
+                        <i class="fas fa-search"></i>
+                        Filtrar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="data-table" id="tableLogs">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Origem</th>
+                        <th>Conta</th>
+                        <th>Campo</th>
+                        <th>Valor Anterior</th>
+                        <th>Valor Novo</th>
+                        <th>Usuário Alt.</th>
+                        <th>Data Alt.</th>
+                        <th>Status</th>
+                        <th>Usuário Aprov.</th>
+                        <th>Data Aprov.</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyLogs">
+                    <tr>
+                        <td colspan="11" class="loading-container">
+                            <div class="spinner"></div>
+                            Carregando histórico...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination" id="paginationLogs"></div>
+    </div>
+</div>
+
+<!-- Modal de Edição -->
+<div class="modal-overlay" id="modalEdicao">
+    <div class="modal">
+        <div class="modal-header">
+            <h2><i class="fas fa-edit"></i> Editar Registro</h2>
+            <button class="modal-close" onclick="fecharModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="modalLoading" class="loading-container">
+                <div class="spinner"></div>
+                Carregando dados do registro...
+            </div>
+            <form id="formEdicao" style="display: none;">
+                <!-- Dados de identificação (readonly) -->
+                <div style="background: var(--surface-secondary); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
+                    <h4 style="font-size: 0.875rem; color: var(--text-tertiary); margin-bottom: 0.75rem;">
+                        <i class="fas fa-info-circle"></i> Identificação do Registro
+                    </h4>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Origem</label>
+                            <input type="text" id="editOrigem" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Número</label>
+                            <input type="text" id="editNumero" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Data</label>
+                            <input type="text" id="editData" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Conta</label>
+                            <input type="text" id="editConta" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campos editáveis -->
+                <h4 style="font-size: 0.875rem; color: var(--text-tertiary); margin-bottom: 0.75rem;">
+                    <i class="fas fa-pencil-alt"></i> Campos Editáveis
+                </h4>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Título da Conta</label>
+                        <input type="text" id="editTituloConta" data-field="titulo_conta">
+                        <span class="original-value" id="origTituloConta"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Item</label>
+                        <input type="text" id="editItem" data-field="item">
+                        <span class="original-value" id="origItem"></span>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Descrição</label>
+                        <textarea id="editDescricao" rows="2" data-field="descricao"></textarea>
+                        <span class="original-value" id="origDescricao"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Contra Partida</label>
+                        <input type="text" id="editContraPartida" data-field="contra_partida">
+                        <span class="original-value" id="origContraPartida"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Filial</label>
+                        <input type="text" id="editFilial" data-field="filial">
+                        <span class="original-value" id="origFilial"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Centro de Custo</label>
+                        <input type="text" id="editCentroCusto" data-field="centro_custo">
+                        <span class="original-value" id="origCentroCusto"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Cód. Cl. Valor</label>
+                        <input type="text" id="editCodClValor" data-field="cod_cl_valor">
+                        <span class="original-value" id="origCodClValor"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Débito</label>
+                        <input type="number" step="0.01" id="editDebito" data-field="debito">
+                        <span class="original-value" id="origDebito"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Crédito</label>
+                        <input type="number" step="0.01" id="editCredito" data-field="credito">
+                        <span class="original-value" id="origCredito"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Saldo (Sobrescrever)</label>
+                        <input type="number" step="0.01" id="editSaldo" data-field="saldo" placeholder="Deixe vazio para calcular">
+                        <span class="original-value" id="origSaldo"></span>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Não Operacional</label>
+                        <div class="toggle-wrapper">
+                            <label class="toggle">
+                                <input type="checkbox" id="editNaoOperacional" data-field="nao_operacional">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span id="labelNaoOperacional">Item não é 10190 - Não Operacional = Falso</span>
+                        </div>
+                        <span class="original-value" id="origNaoOperacional"></span>
+                    </div>
+                </div>
+
+                <!-- Alterações pendentes -->
+                <div id="pendentesInfo" style="display: none; margin-top: 1.5rem; background: rgba(234, 179, 8, 0.1); padding: 1rem; border-radius: var(--radius-md); border-left: 4px solid #eab308;">
+                    <h4 style="font-size: 0.875rem; color: #eab308; margin-bottom: 0.5rem;">
+                        <i class="fas fa-exclamation-triangle"></i> Alterações Pendentes
+                    </h4>
+                    <ul id="listaPendentes" style="font-size: 0.875rem; color: var(--text-secondary); margin: 0; padding-left: 1.25rem;"></ul>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="fecharModal()">
+                <i class="fas fa-times"></i>
+                Cancelar
+            </button>
+            <button class="btn btn-primary" onclick="submeterAlteracoes()" id="btnSubmeter">
+                <i class="fas fa-paper-plane"></i>
+                Submeter para Aprovação
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Reprovação -->
+<div class="modal-overlay" id="modalReprovacao">
+    <div class="modal" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-times-circle"></i> Reprovar Alteração</h2>
+            <button class="modal-close" onclick="fecharModalReprovacao()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Motivo da Reprovação *</label>
+                <textarea id="motivoReprovacao" rows="4" placeholder="Informe o motivo da reprovação..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="fecharModalReprovacao()">
+                Cancelar
+            </button>
+            <button class="btn btn-danger" onclick="confirmarReprovacao()">
+                <i class="fas fa-times"></i>
+                Confirmar Reprovação
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ============================================================================
+// VARIÁVEIS GLOBAIS
+// ============================================================================
+const API_BASE = '{{ url_for("modules_grid.index") }}';
+let paginacaoAtualDados = { page: 1, per_page: 50, total: 0 };
+let paginacaoAtualLogs = { page: 1, per_page: 50, total: 0 };
+let registroAtual = null;
+let idsParaReprovar = [];
+
+// ============================================================================
+// INICIALIZAÇÃO
+// ============================================================================
+document.addEventListener('DOMContentLoaded', function() {
+    carregarEstatisticas();
+    carregarDados();
+    carregarPendentes();
+});
+
+// ============================================================================
+// TABS
+// ============================================================================
+function switchTab(tab) {
+    // Remove active de todas as tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+
+    // Ativa a tab selecionada
+    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+    document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add('active');
+
+    // Carrega dados se necessário
+    if (tab === 'pendentes') {
+        carregarPendentes();
+    } else if (tab === 'logs') {
+        carregarLogs();
+    }
+}
+
+// ============================================================================
+// ESTATÍSTICAS
+// ============================================================================
+async function carregarEstatisticas() {
+    try {
+        const response = await fetch(`${API_BASE}api/estatisticas`);
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById('statTotalAjustes').textContent = data.estatisticas.total_ajustes;
+            document.getElementById('statPendentes').textContent = data.estatisticas.pendentes;
+            document.getElementById('statAprovadosHoje').textContent = data.estatisticas.aprovados_hoje;
+            document.getElementById('statReprovadosMes').textContent = data.estatisticas.reprovados_mes;
+            document.getElementById('badgePendentes').textContent = data.estatisticas.pendentes;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar estatísticas:', error);
+    }
+}
+
+// ============================================================================
+// DADOS DA VIEW
+// ============================================================================
+async function carregarDados(page = 1) {
+    const tbody = document.getElementById('tbodyDados');
+    tbody.innerHTML = '<tr><td colspan="15" class="loading-container"><div class="spinner"></div>Carregando dados...</td></tr>';
+
+    try {
+        const params = new URLSearchParams({
+            page: page,
+            per_page: paginacaoAtualDados.per_page
+        });
+
+        // Filtros
+        const origem = document.getElementById('filterOrigem').value;
+        const conta = document.getElementById('filterConta').value;
+        const mes = document.getElementById('filterMes').value;
+        const dataInicio = document.getElementById('filterDataInicio').value;
+        const dataFim = document.getElementById('filterDataFim').value;
+        const apenasAjustados = document.getElementById('filterApenasAjustados').checked;
+        const naoOperacional = document.getElementById('filterNaoOperacional').checked;
+
+        if (origem) params.append('origem', origem);
+        if (conta) params.append('conta', conta);
+        if (mes) params.append('mes', mes);
+        if (dataInicio) params.append('data_inicio', dataInicio);
+        if (dataFim) params.append('data_fim', dataFim);
+        if (apenasAjustados) params.append('apenas_ajustados', 'true');
+        if (naoOperacional) params.append('apenas_nao_operacional', 'true');
+
+        const response = await fetch(`${API_BASE}api/dados?${params}`);
+        const data = await response.json();
+
+        if (data.success) {
+            paginacaoAtualDados = data.pagination;
+            renderizarTabelaDados(data.data);
+            renderizarPaginacao('paginationDados', data.pagination, carregarDados);
+        } else {
+            tbody.innerHTML = `<tr><td colspan="15" class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Erro: ${data.error}</p></td></tr>`;
+        }
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="15" class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Erro ao carregar dados: ${error.message}</p></td></tr>`;
+    }
+}
+
+function renderizarTabelaDados(dados) {
+    const tbody = document.getElementById('tbodyDados');
+
+    if (!dados || dados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="15" class="empty-state"><i class="fas fa-database"></i><p>Nenhum registro encontrado</p></td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = dados.map(row => {
+        const chave = `${row.origem}|${row.Data}|${row.Numero}|${row.Conta}|${row.Item || ''}`;
+        const classes = [];
+        if (row.tem_ajuste) classes.push('has-adjustment');
+        if (row.NaoOperacional) classes.push('nao-operacional');
+
+        return `
+            <tr class="${classes.join(' ')}">
+                <td class="actions">
+                    <button class="btn btn-sm btn-icon btn-secondary" onclick="abrirEdicao('${encodeURIComponent(chave)}')" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
+                <td>${row.origem || ''}</td>
+                <td>${formatarData(row.Data)}</td>
+                <td>${row.Conta || ''}</td>
+                <td>${truncar(row['Título Conta'], 30)}</td>
+                <td>${row.Numero || ''}</td>
+                <td>${truncar(row.Descricao, 30)}</td>
+                <td>${row.Filial || ''}</td>
+                <td>${row['Centro de Custo'] || ''}</td>
+                <td>${row.Item || ''}</td>
+                <td class="number">${formatarNumero(row.Debito)}</td>
+                <td class="number">${formatarNumero(row.Credito)}</td>
+                <td class="number">${formatarNumero(row.Saldo)}</td>
+                <td>${row.NaoOperacional ? '<i class="fas fa-check text-warning"></i>' : ''}</td>
+                <td>${row.tem_ajuste ? '<span class="badge-status ajustado"><i class="fas fa-edit"></i> Ajustado</span>' : ''}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function limparFiltros() {
+    document.getElementById('filterOrigem').value = '';
+    document.getElementById('filterConta').value = '';
+    document.getElementById('filterMes').value = '';
+    document.getElementById('filterDataInicio').value = '';
+    document.getElementById('filterDataFim').value = '';
+    document.getElementById('filterApenasAjustados').checked = false;
+    document.getElementById('filterNaoOperacional').checked = false;
+    carregarDados();
+}
+
+// ============================================================================
+// PENDENTES
+// ============================================================================
+async function carregarPendentes() {
+    const tbody = document.getElementById('tbodyPendentes');
+
+    try {
+        const response = await fetch(`${API_BASE}api/pendentes`);
+        const data = await response.json();
+
+        if (data.success) {
+            renderizarTabelaPendentes(data.data);
+            document.getElementById('badgePendentes').textContent = data.pagination.total;
+        }
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="11" class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Erro: ${error.message}</p></td></tr>`;
+    }
+}
+
+function renderizarTabelaPendentes(dados) {
+    const tbody = document.getElementById('tbodyPendentes');
+
+    if (!dados || dados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="empty-state"><i class="fas fa-check-circle"></i><p>Nenhuma alteração pendente</p></td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = dados.map(row => `
+        <tr>
+            <td><input type="checkbox" class="pendente-check" value="${row.id}" onchange="atualizarBotoesSelecionados()"></td>
+            <td>${row.id}</td>
+            <td>${row.origem}</td>
+            <td>${formatarData(row.data_registro)}</td>
+            <td>${row.conta}</td>
+            <td><code>${row.campo}</code></td>
+            <td>${truncar(row.valor_anterior, 20)}</td>
+            <td>${truncar(row.valor_novo, 20)}</td>
+            <td>${row.usuario}</td>
+            <td>${formatarDataHora(row.data_alteracao)}</td>
+            <td class="actions">
+                <button class="btn btn-sm btn-icon btn-success" onclick="aprovarUnico(${row.id})" title="Aprovar">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="btn btn-sm btn-icon btn-danger" onclick="abrirReprovacao([${row.id}])" title="Reprovar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAllPendentes');
+    document.querySelectorAll('.pendente-check').forEach(cb => cb.checked = selectAll.checked);
+    atualizarBotoesSelecionados();
+}
+
+function atualizarBotoesSelecionados() {
+    const selecionados = document.querySelectorAll('.pendente-check:checked').length;
+    document.getElementById('btnAprovarSelecionados').disabled = selecionados === 0;
+    document.getElementById('btnReprovarSelecionados').disabled = selecionados === 0;
+}
+
+function obterIdsSelecionados() {
+    return Array.from(document.querySelectorAll('.pendente-check:checked')).map(cb => parseInt(cb.value));
+}
+
+async function aprovarUnico(id) {
+    if (!confirm('Confirma a aprovação desta alteração?')) return;
+
+    try {
+        const response = await fetch(`${API_BASE}api/aprovar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: [id] })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.msg);
+            carregarPendentes();
+            carregarEstatisticas();
+            carregarDados();
+        } else {
+            alert('Erro: ' + data.error);
+        }
+    } catch (error) {
+        alert('Erro ao aprovar: ' + error.message);
+    }
+}
+
+async function aprovarSelecionados() {
+    const ids = obterIdsSelecionados();
+    if (ids.length === 0) return;
+
+    if (!confirm(`Confirma a aprovação de ${ids.length} alteração(ões)?`)) return;
+
+    try {
+        const response = await fetch(`${API_BASE}api/aprovar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: ids })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.msg);
+            carregarPendentes();
+            carregarEstatisticas();
+            carregarDados();
+        } else {
+            alert('Erro: ' + data.error);
+        }
+    } catch (error) {
+        alert('Erro ao aprovar: ' + error.message);
+    }
+}
+
+function abrirReprovacao(ids) {
+    idsParaReprovar = ids;
+    document.getElementById('motivoReprovacao').value = '';
+    document.getElementById('modalReprovacao').classList.add('active');
+}
+
+function fecharModalReprovacao() {
+    document.getElementById('modalReprovacao').classList.remove('active');
+    idsParaReprovar = [];
+}
+
+async function confirmarReprovacao() {
+    const motivo = document.getElementById('motivoReprovacao').value.trim();
+
+    if (!motivo) {
+        alert('Informe o motivo da reprovação');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}api/reprovar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: idsParaReprovar, motivo: motivo })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.msg);
+            fecharModalReprovacao();
+            carregarPendentes();
+            carregarEstatisticas();
+        } else {
+            alert('Erro: ' + data.error);
+        }
+    } catch (error) {
+        alert('Erro ao reprovar: ' + error.message);
+    }
+}
+
+function reprovarSelecionados() {
+    const ids = obterIdsSelecionados();
+    if (ids.length === 0) return;
+    abrirReprovacao(ids);
+}
+
+// ============================================================================
+// LOGS
+// ============================================================================
+async function carregarLogs(page = 1) {
+    const tbody = document.getElementById('tbodyLogs');
+    tbody.innerHTML = '<tr><td colspan="11" class="loading-container"><div class="spinner"></div>Carregando histórico...</td></tr>';
+
+    try {
+        const params = new URLSearchParams({
+            page: page,
+            per_page: paginacaoAtualLogs.per_page
+        });
+
+        const status = document.getElementById('filterLogStatus').value;
+        const usuario = document.getElementById('filterLogUsuario').value;
+        const conta = document.getElementById('filterLogConta').value;
+
+        if (status) params.append('status', status);
+        if (usuario) params.append('usuario', usuario);
+        if (conta) params.append('conta', conta);
+
+        const response = await fetch(`${API_BASE}api/logs?${params}`);
+        const data = await response.json();
+
+        if (data.success) {
+            paginacaoAtualLogs = data.pagination;
+            renderizarTabelaLogs(data.data);
+            renderizarPaginacao('paginationLogs', data.pagination, carregarLogs);
+        }
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="11" class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Erro: ${error.message}</p></td></tr>`;
+    }
+}
+
+function renderizarTabelaLogs(dados) {
+    const tbody = document.getElementById('tbodyLogs');
+
+    if (!dados || dados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="empty-state"><i class="fas fa-history"></i><p>Nenhum registro no histórico</p></td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = dados.map(row => `
+        <tr>
+            <td>${row.id}</td>
+            <td>${row.origem}</td>
+            <td>${row.conta}</td>
+            <td><code>${row.campo}</code></td>
+            <td>${truncar(row.valor_anterior, 15)}</td>
+            <td>${truncar(row.valor_novo, 15)}</td>
+            <td>${row.usuario_alteracao}</td>
+            <td>${formatarDataHora(row.data_alteracao)}</td>
+            <td><span class="badge-status ${row.status.toLowerCase()}">${row.status}</span></td>
+            <td>${row.usuario_aprovacao || '-'}</td>
+            <td>${row.data_aprovacao ? formatarDataHora(row.data_aprovacao) : '-'}</td>
+        </tr>
+    `).join('');
+}
+
+// ============================================================================
+// MODAL DE EDIÇÃO
+// ============================================================================
+async function abrirEdicao(chaveEncoded) {
+    const chave = decodeURIComponent(chaveEncoded);
+    document.getElementById('modalEdicao').classList.add('active');
+    document.getElementById('modalLoading').style.display = 'flex';
+    document.getElementById('formEdicao').style.display = 'none';
+
+    try {
+        const response = await fetch(`${API_BASE}api/registro/${encodeURIComponent(chave)}`);
+        const data = await response.json();
+
+        if (data.success) {
+            registroAtual = data;
+            preencherFormulario(data);
+            document.getElementById('modalLoading').style.display = 'none';
+            document.getElementById('formEdicao').style.display = 'block';
+        } else {
+            alert('Erro: ' + data.error);
+            fecharModal();
+        }
+    } catch (error) {
+        alert('Erro ao carregar registro: ' + error.message);
+        fecharModal();
+    }
+}
+
+function preencherFormulario(data) {
+    const reg = data.registro_original;
+    const ajuste = data.ajuste;
+
+    // Campos de identificação
+    document.getElementById('editOrigem').value = reg.origem || '';
+    document.getElementById('editNumero').value = reg.Numero || '';
+    document.getElementById('editData').value = formatarData(reg.Data);
+    document.getElementById('editConta').value = reg.Conta || '';
+
+    // Campos editáveis
+    const campos = [
+        { id: 'editTituloConta', origId: 'origTituloConta', campo: 'Título Conta', ajuste: ajuste?.titulo_conta },
+        { id: 'editItem', origId: 'origItem', campo: 'Item', ajuste: ajuste?.item },
+        { id: 'editDescricao', origId: 'origDescricao', campo: 'Descricao', ajuste: ajuste?.descricao },
+        { id: 'editContraPartida', origId: 'origContraPartida', campo: 'Contra Partida - Credito', ajuste: ajuste?.contra_partida },
+        { id: 'editFilial', origId: 'origFilial', campo: 'Filial', ajuste: ajuste?.filial },
+        { id: 'editCentroCusto', origId: 'origCentroCusto', campo: 'Centro de Custo', ajuste: ajuste?.centro_custo },
+        { id: 'editCodClValor', origId: 'origCodClValor', campo: 'Cod Cl. Valor', ajuste: ajuste?.cod_cl_valor },
+        { id: 'editDebito', origId: 'origDebito', campo: 'Debito', ajuste: ajuste?.debito },
+        { id: 'editCredito', origId: 'origCredito', campo: 'Credito', ajuste: ajuste?.credito },
+        { id: 'editSaldo', origId: 'origSaldo', campo: 'Saldo', ajuste: ajuste?.saldo },
+    ];
+
+    campos.forEach(c => {
+        const valorOriginal = reg[c.campo];
+        const valorAjuste = c.ajuste;
+        const input = document.getElementById(c.id);
+        const orig = document.getElementById(c.origId);
+
+        input.value = valorAjuste !== null && valorAjuste !== undefined ? valorAjuste : (valorOriginal || '');
+        orig.textContent = `Original: ${valorOriginal || '(vazio)'}`;
+
+        if (valorAjuste !== null && valorAjuste !== undefined) {
+            orig.innerHTML = `Original: ${valorOriginal || '(vazio)'} <span class="changed-indicator">(ajustado)</span>`;
+        }
+    });
+
+    // NaoOperacional
+    const naoOpCheckbox = document.getElementById('editNaoOperacional');
+    const naoOpLabel = document.getElementById('labelNaoOperacional');
+    const origNaoOp = document.getElementById('origNaoOperacional');
+
+    const naoOpAtual = ajuste ? ajuste.nao_operacional : data.nao_operacional_padrao;
+    naoOpCheckbox.checked = naoOpAtual;
+
+    if (data.nao_operacional_padrao) {
+        naoOpLabel.textContent = 'Item = 10190 - Não Operacional = Verdadeiro (padrão)';
+    } else {
+        naoOpLabel.textContent = 'Item não é 10190 - Não Operacional = Falso (padrão)';
+    }
+
+    if (ajuste?.nao_operacional_manual) {
+        origNaoOp.innerHTML = `Padrão: ${data.nao_operacional_padrao} <span class="changed-indicator">(ajustado manualmente)</span>`;
+    } else {
+        origNaoOp.textContent = `Padrão: ${data.nao_operacional_padrao}`;
+    }
+
+    // Alterações pendentes
+    const pendentesInfo = document.getElementById('pendentesInfo');
+    const listaPendentes = document.getElementById('listaPendentes');
+
+    if (data.logs_pendentes && data.logs_pendentes.length > 0) {
+        pendentesInfo.style.display = 'block';
+        listaPendentes.innerHTML = data.logs_pendentes.map(log =>
+            `<li><strong>${log.campo}</strong>: "${log.valor_anterior}" → "${log.valor_novo}" (por ${log.usuario})</li>`
+        ).join('');
+    } else {
+        pendentesInfo.style.display = 'none';
+    }
+}
+
+function fecharModal() {
+    document.getElementById('modalEdicao').classList.remove('active');
+    registroAtual = null;
+}
+
+async function submeterAlteracoes() {
+    if (!registroAtual) return;
+
+    const reg = registroAtual.registro_original;
+    const alteracoes = {};
+
+    // Verifica cada campo
+    const campos = [
+        { id: 'editTituloConta', campo: 'titulo_conta', original: 'Título Conta' },
+        { id: 'editItem', campo: 'item', original: 'Item' },
+        { id: 'editDescricao', campo: 'descricao', original: 'Descricao' },
+        { id: 'editContraPartida', campo: 'contra_partida', original: 'Contra Partida - Credito' },
+        { id: 'editFilial', campo: 'filial', original: 'Filial' },
+        { id: 'editCentroCusto', campo: 'centro_custo', original: 'Centro de Custo' },
+        { id: 'editCodClValor', campo: 'cod_cl_valor', original: 'Cod Cl. Valor' },
+        { id: 'editDebito', campo: 'debito', original: 'Debito' },
+        { id: 'editCredito', campo: 'credito', original: 'Credito' },
+        { id: 'editSaldo', campo: 'saldo', original: 'Saldo' },
+    ];
+
+    campos.forEach(c => {
+        const input = document.getElementById(c.id);
+        const valorNovo = input.value;
+        const valorOriginal = reg[c.original];
+
+        // Só inclui se mudou
+        if (valorNovo !== (valorOriginal || '').toString()) {
+            alteracoes[c.campo] = {
+                valor_anterior: valorOriginal,
+                valor_novo: valorNovo || null
+            };
+        }
+    });
+
+    // NaoOperacional
+    const naoOpCheckbox = document.getElementById('editNaoOperacional');
+    if (naoOpCheckbox.checked !== registroAtual.nao_operacional_padrao) {
+        alteracoes['nao_operacional'] = {
+            valor_anterior: registroAtual.nao_operacional_padrao,
+            valor_novo: naoOpCheckbox.checked
+        };
+    }
+
+    if (Object.keys(alteracoes).length === 0) {
+        alert('Nenhuma alteração detectada');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}api/alterar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                origem: reg.origem,
+                data: reg.Data,
+                numero: reg.Numero,
+                conta: reg.Conta,
+                item: reg.Item,
+                alteracoes: alteracoes
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.msg);
+            fecharModal();
+            carregarDados();
+            carregarPendentes();
+            carregarEstatisticas();
+        } else {
+            alert('Erro: ' + data.error);
+        }
+    } catch (error) {
+        alert('Erro ao submeter: ' + error.message);
+    }
+}
+
+// ============================================================================
+// UTILITÁRIOS
+// ============================================================================
+function formatarData(dataStr) {
+    if (!dataStr) return '';
+    const data = new Date(dataStr);
+    return data.toLocaleDateString('pt-BR');
+}
+
+function formatarDataHora(dataStr) {
+    if (!dataStr) return '';
+    const data = new Date(dataStr);
+    return data.toLocaleString('pt-BR');
+}
+
+function formatarNumero(valor) {
+    if (valor === null || valor === undefined) return '';
+    return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor);
+}
+
+function truncar(texto, max) {
+    if (!texto) return '';
+    return texto.length > max ? texto.substring(0, max) + '...' : texto;
+}
+
+function renderizarPaginacao(containerId, pagination, callback) {
+    const container = document.getElementById(containerId);
+    const { page, pages, total } = pagination;
+
+    if (pages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+
+    // Botão anterior
+    html += `<button class="pagination-btn" ${page <= 1 ? 'disabled' : ''} onclick="${callback.name}(${page - 1})"><i class="fas fa-chevron-left"></i></button>`;
+
+    // Páginas
+    const maxVisible = 5;
+    let start = Math.max(1, page - Math.floor(maxVisible / 2));
+    let end = Math.min(pages, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+        start = Math.max(1, end - maxVisible + 1);
+    }
+
+    if (start > 1) {
+        html += `<button class="pagination-btn" onclick="${callback.name}(1)">1</button>`;
+        if (start > 2) html += `<span class="pagination-info">...</span>`;
+    }
+
+    for (let i = start; i <= end; i++) {
+        html += `<button class="pagination-btn ${i === page ? 'active' : ''}" onclick="${callback.name}(${i})">${i}</button>`;
+    }
+
+    if (end < pages) {
+        if (end < pages - 1) html += `<span class="pagination-info">...</span>`;
+        html += `<button class="pagination-btn" onclick="${callback.name}(${pages})">${pages}</button>`;
+    }
+
+    // Botão próximo
+    html += `<button class="pagination-btn" ${page >= pages ? 'disabled' : ''} onclick="${callback.name}(${page + 1})"><i class="fas fa-chevron-right"></i></button>`;
+
+    // Info
+    html += `<span class="pagination-info">${total} registros</span>`;
+
+    container.innerHTML = html;
+}
+
+function exportarDados() {
+    alert('Função de exportação em desenvolvimento');
+}
+</script>
+{% endblock %}
