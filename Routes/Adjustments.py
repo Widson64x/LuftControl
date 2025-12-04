@@ -103,7 +103,7 @@ def index():
 def get_dados():
     session_db = get_session()
     try:
-        q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 5000')
+        q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 100000')
         res_view = session_db.execute(q_view)
         rows_view = [dict(row._mapping) for row in res_view]
 
