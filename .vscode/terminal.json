@@ -1,8 +1,0 @@
-{
-  "version": "0.1",
-  "terminals": [
-    { "name": "MAIN", "profile": "MAIN" },
-    { "name": "GITHUB", "profile": "GITHUB" },
-    { "name": "TESTS", "profile": "TESTS" }
-  ]
-}
