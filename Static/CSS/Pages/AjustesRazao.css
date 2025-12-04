@@ -347,6 +347,58 @@
     opacity: 1;
 }
 
+/* --- TABELA DE HISTÓRICO --- */
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.history-table th {
+    background-color: var(--bg-secondary, #f4f4f4);
+    color: var(--text-primary, #333);
+    font-weight: 600;
+    padding: 12px 15px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 2px solid var(--border-primary, #ddd);
+    text-align: left;
+}
+
+.history-table td {
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-primary, #eee);
+    color: var(--text-primary, #444);
+    vertical-align: middle;
+}
+
+.history-table tr:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+
+/* Badges e Cores */
+.val-old { 
+    color: var(--ar-danger, #ef4444); 
+    text-decoration: line-through; 
+    font-size: 0.85em; 
+    display: block;
+}
+.val-new { 
+    color: var(--ar-success, #10b981); 
+    font-weight: 600; 
+}
+
+/* Botão de Histórico na Grid */
+.btn-hist {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.btn-hist:hover {
+    transform: scale(1.1);
+    color: var(--primary-color);
+}
+
 .custom-modal {
     background: var(--bg-secondary);
     width: 100%;

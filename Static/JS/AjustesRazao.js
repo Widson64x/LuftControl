@@ -1,6 +1,6 @@
 // ============================================================================
 // T-Controllership | MÓDULO DE AJUSTES RAZÃO
-// Versão: 2.0 - Data Fix + Improvements
+// Versão: 2.2 - Correção Modal Histórico (Class Active)
 // ============================================================================
 
 if (typeof window.ajustesSystemInitialized === 'undefined') {
@@ -10,6 +10,7 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
         constructor() {
             this.table = null;
             this.modal = document.getElementById('modalAjuste');
+            this.modalHistorico = document.getElementById('modalHistorico');
             this.init();
         }
 
@@ -19,48 +20,41 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
                 this.loadData();
             });
             
-            // ESC fecha modal
+            // --- EVENTOS GERAIS ---
+            
+            // ESC fecha modais
             document.addEventListener('keydown', (e) => {
-                if (e.key === "Escape") this.closeModal();
+                if (e.key === "Escape") {
+                    this.closeModal();
+                    this.closeHistoryModal();
+                }
             });
             
-            // Click fora do modal fecha
+            // Click fora do modal fecha (Edição)
             document.getElementById('modalAjuste')?.addEventListener('click', (e) => {
                 if (e.target.classList.contains('modal-overlay')) {
                     this.closeModal();
                 }
             });
+
+            // Click fora do modal fecha (Histórico)
+            document.getElementById('modalHistorico')?.addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal-overlay')) {
+                    this.closeHistoryModal();
+                }
+            });
         }
 
         // =====================================================================
-        // UTILIDADE: Formatação de Datas (CORREÇÃO DEFINITIVA)
+        // UTILIDADE: Formatação de Datas
         // =====================================================================
-        
-        /**
-         * Converte qualquer formato de data para DD/MM/YYYY (exibição)
-         * Aceita: ISO strings, Date objects, timestamps, strings formatadas
-         */
         formatDateDisplay(value) {
             if (!value) return '-';
-            
             try {
                 let dateStr = String(value);
-                
-                // Se já está no formato DD/MM/YYYY, retorna
-                if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-                    return dateStr;
-                }
-                
-                // Remove timezone info e horário se existir
-                // Exemplos: "2025-01-02T00:00:00.000Z", "Thu, 02 Jan 2025 00:00:00 GMT"
-                
-                // Tenta extrair YYYY-MM-DD de strings ISO
+                if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
                 const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-                if (isoMatch) {
-                    return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
-                }
-                
-                // Tenta parsear como Date (para formatos como "Thu, 02 Jan 2025 00:00:00 GMT")
+                if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
                 const parsed = new Date(dateStr);
                 if (!isNaN(parsed.getTime())) {
                     const day = String(parsed.getUTCDate()).padStart(2, '0');
@@ -68,35 +62,17 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
                     const year = parsed.getUTCFullYear();
                     return `${day}/${month}/${year}`;
                 }
-                
-                return dateStr; // Fallback: retorna original
-            } catch (e) {
-                console.warn('Erro ao formatar data:', value, e);
-                return String(value);
-            }
+                return dateStr;
+            } catch (e) { return String(value); }
         }
         
-        /**
-         * Converte qualquer formato de data para YYYY-MM-DD (input type="date")
-         */
         formatDateInput(value) {
             if (!value) return '';
-            
             try {
                 let dateStr = String(value);
-                
-                // Se já está no formato YYYY-MM-DD, retorna
-                if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                    return dateStr;
-                }
-                
-                // Extrai YYYY-MM-DD de ISO string
+                if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
                 const isoMatch = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
-                if (isoMatch) {
-                    return isoMatch[1];
-                }
-                
-                // Tenta parsear como Date
+                if (isoMatch) return isoMatch[1];
                 const parsed = new Date(dateStr);
                 if (!isNaN(parsed.getTime())) {
                     const year = parsed.getUTCFullYear();
@@ -104,52 +80,30 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
                     const day = String(parsed.getUTCDate()).padStart(2, '0');
                     return `${year}-${month}-${day}`;
                 }
-                
-                return ''; // Fallback: vazio
-            } catch (e) {
-                console.warn('Erro ao converter data para input:', value, e);
-                return '';
-            }
+                return ''; 
+            } catch (e) { return ''; }
         }
 
         // =====================================================================
         // TABULATOR INIT
         // =====================================================================
-        
         initTable() {
-            if (typeof Tabulator === 'undefined') {
-                console.error('Tabulator não carregado');
-                return;
-            }
-
-            const self = this; // Referência para usar nos formatters
+            if (typeof Tabulator === 'undefined') return;
+            const self = this;
 
             this.table = new Tabulator("#gridAjustes", {
                 layout: "fitData",
                 height: "100%",
-                placeholder: `
-                    <div style="text-align:center; padding:40px; color: var(--ar-text-muted, #6e7681);">
-                        <i class="fas fa-database" style="font-size: 2rem; margin-bottom: 10px; display: block; opacity: 0.5;"></i>
-                        Carregando dados...
-                    </div>
-                `,
+                placeholder: `<div style="text-align:center; padding:40px; color: #6e7681;">Carregando...</div>`,
                 reactiveData: true,
                 index: "Hash_ID",
                 
                 rowFormatter: (row) => {
                     const d = row.getData();
                     const el = row.getElement();
-                    
-                    // Remove classes anteriores
                     el.classList.remove("row-inclusao", "st-pendente", "st-aprovado", "st-reprovado");
-                    
-                    // Aplica classes por tipo/status
-                    if (d.Tipo_Linha === "Inclusao") {
-                        el.classList.add("row-inclusao");
-                    }
-                    if (d.Status_Ajuste) {
-                        el.classList.add("st-" + d.Status_Ajuste.toLowerCase());
-                    }
+                    if (d.Tipo_Linha === "Inclusao") el.classList.add("row-inclusao");
+                    if (d.Status_Ajuste) el.classList.add("st-" + d.Status_Ajuste.toLowerCase());
                 },
 
                 columns: [
@@ -158,7 +112,7 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
                         title: "Ações",
                         field: "actions",
                         frozen: true,
-                        width: 110,
+                        width: 140,
                         hozAlign: "center",
                         headerSort: false,
                         formatter: (cell) => {
@@ -179,11 +133,18 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
                                        title="Reprovar"></i>
                                 `;
                             }
+
+                            if (d.Ajuste_ID) {
+                                html += `
+                                    <i class="fas fa-history action-btn btn-hist" 
+                                       style="color: #666; margin-left: 10px;"
+                                       onclick="ajustesSystem.openHistoryModal('${d.Ajuste_ID}')" 
+                                       title="Ver Histórico"></i>
+                                `;
+                            }
                             return html;
                         }
                     },
-
-                    // Status
                     {
                         title: "Status",
                         field: "Status_Ajuste",
@@ -193,187 +154,42 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
                         formatter: (cell) => {
                             const val = cell.getValue();
                             if (!val) return '<span class="status-badge status-original">Original</span>';
-                            
-                            const classes = {
-                                'Pendente': 'status-pendente',
-                                'Aprovado': 'status-aprovado',
-                                'Reprovado': 'status-reprovado'
-                            };
-                            
-                            const cls = classes[val] || 'status-original';
+                            const cls = `status-${val.toLowerCase()}`;
                             return `<span class="status-badge ${cls}">${val}</span>`;
                         }
                     },
-
-                    // Data (CORRIGIDO)
+                    { title: "Data", field: "Data", width: 110, hozAlign: "center", sorter: "date", sorterParams: { format: "yyyy-MM-dd" }, formatter: (cell) => self.formatDateDisplay(cell.getValue()) },
+                    { title: "Conta", field: "Conta", width: 130, headerFilter: "input" },
+                    { title: "Título Conta", field: "Título Conta", width: 200 },
+                    { title: "Número", field: "Numero", width: 140 },
+                    { title: "Descrição", field: "Descricao", width: 280, headerFilter: "input" },
+                    { title: "Contra Partida", field: "Contra Partida - Credito", width: 140 },
+                    { title: "Filial", field: "Filial", width: 80, hozAlign: "center" },
+                    { title: "C. Custo", field: "Centro de Custo", width: 130 },
+                    { title: "Item", field: "Item", width: 100 },
+                    { title: "Cód. Cl.", field: "Cod Cl. Valor", width: 90 },
                     {
-                        title: "Data",
-                        field: "Data",
-                        width: 110,
-                        hozAlign: "center",
-                        sorter: "date",
-                        sorterParams: { format: "yyyy-MM-dd" },
-                        formatter: (cell) => {
-                            return self.formatDateDisplay(cell.getValue());
-                        }
+                        title: "Débito", field: "Debito", width: 120, hozAlign: "right", formatter: "money", formatterParams: { decimal: ",", thousand: ".", precision: 2 }, bottomCalc: "sum", bottomCalcFormatter: "money", bottomCalcFormatterParams: { decimal: ",", thousand: ".", precision: 2 }
                     },
-
-                    // Conta
                     {
-                        title: "Conta",
-                        field: "Conta",
-                        width: 130,
-                        headerFilter: "input"
+                        title: "Crédito", field: "Credito", width: 120, hozAlign: "right", formatter: "money", formatterParams: { decimal: ",", thousand: ".", precision: 2 }, bottomCalc: "sum", bottomCalcFormatter: "money", bottomCalcFormatterParams: { decimal: ",", thousand: ".", precision: 2 }
                     },
-
-                    // Título Conta
                     {
-                        title: "Título Conta",
-                        field: "Título Conta",
-                        width: 200
-                    },
-
-                    // Número
-                    {
-                        title: "Número",
-                        field: "Numero",
-                        width: 140
-                    },
-
-                    // Descrição
-                    {
-                        title: "Descrição",
-                        field: "Descricao",
-                        width: 280,
-                        headerFilter: "input"
-                    },
-
-                    // Contra Partida
-                    {
-                        title: "Contra Partida",
-                        field: "Contra Partida - Credito",
-                        width: 140
-                    },
-
-                    // Filial
-                    {
-                        title: "Filial",
-                        field: "Filial",
-                        width: 80,
-                        hozAlign: "center"
-                    },
-
-                    // Centro de Custo
-                    {
-                        title: "C. Custo",
-                        field: "Centro de Custo",
-                        width: 130
-                    },
-
-                    // Item
-                    {
-                        title: "Item",
-                        field: "Item",
-                        width: 100
-                    },
-
-                    // Código Classificação
-                    {
-                        title: "Cód. Cl.",
-                        field: "Cod Cl. Valor",
-                        width: 90
-                    },
-
-                    // Débito
-                    {
-                        title: "Débito",
-                        field: "Debito",
-                        width: 120,
-                        hozAlign: "right",
-                        formatter: "money",
-                        formatterParams: {
-                            decimal: ",",
-                            thousand: ".",
-                            symbol: "",
-                            precision: 2
-                        },
-                        bottomCalc: "sum",
-                        bottomCalcFormatter: "money",
-                        bottomCalcFormatterParams: {
-                            decimal: ",",
-                            thousand: ".",
-                            symbol: "",
-                            precision: 2
-                        }
-                    },
-
-                    // Crédito
-                    {
-                        title: "Crédito",
-                        field: "Credito",
-                        width: 120,
-                        hozAlign: "right",
-                        formatter: "money",
-                        formatterParams: {
-                            decimal: ",",
-                            thousand: ".",
-                            symbol: "",
-                            precision: 2
-                        },
-                        bottomCalc: "sum",
-                        bottomCalcFormatter: "money",
-                        bottomCalcFormatterParams: {
-                            decimal: ",",
-                            thousand: ".",
-                            symbol: "",
-                            precision: 2
-                        }
-                    },
-
-                    // Saldo
-                    {
-                        title: "Saldo",
-                        field: "Saldo",
-                        width: 120,
-                        hozAlign: "right",
-                        bottomCalc: "sum",
+                        title: "Saldo", field: "Saldo", width: 120, hozAlign: "right", bottomCalc: "sum",
                         formatter: (cell) => {
                             const val = cell.getValue();
-                            if (val === null || val === undefined) {
-                                return '<span style="color: var(--ar-text-muted, #6e7681);">-</span>';
-                            }
-                            
+                            if (val == null) return '<span style="color: #999;">-</span>';
                             const num = parseFloat(val);
                             const color = num < 0 ? 'var(--ar-danger, #ef4444)' : 'var(--ar-info, #3b82f6)';
-                            const formatted = num.toLocaleString('pt-BR', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                            });
-                            
-                            return `<span style="color: ${color}; font-weight: 600;">${formatted}</span>`;
+                            return `<span style="color: ${color}; font-weight: 600;">${num.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>`;
                         },
                         bottomCalcFormatter: (cell) => {
-                            const val = cell.getValue();
-                            if (!val) return '-';
-                            const num = parseFloat(val);
-                            const color = num < 0 ? 'var(--ar-danger, #ef4444)' : 'var(--ar-info, #3b82f6)';
-                            return `<span style="color: ${color}; font-weight: 700;">${num.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>`;
+                             const val = cell.getValue();
+                             if (!val) return '-';
+                             return `<span style="font-weight: 700;">${parseFloat(val).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>`;
                         }
                     },
-
-                    // Não Operacional
-                    {
-                        title: "Ñ.Op",
-                        field: "NaoOperacional",
-                        width: 70,
-                        hozAlign: "center",
-                        formatter: "tickCross",
-                        formatterParams: {
-                            allowEmpty: true,
-                            tickElement: '<i class="fas fa-check" style="color: var(--ar-warning, #f59e0b);"></i>',
-                            crossElement: ''
-                        }
-                    }
+                    { title: "Ñ.Op", field: "NaoOperacional", width: 70, hozAlign: "center", formatter: "tickCross", formatterParams: { allowEmpty: true, tickElement: '<i class="fas fa-check" style="color: var(--ar-warning, #f59e0b);"></i>', crossElement: '' } }
                 ]
             });
         }
@@ -381,91 +197,50 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
         // =====================================================================
         // DATA LOADING
         // =====================================================================
-        
         async loadData() {
             try {
                 const res = await fetch(API_ROUTES.getDados);
-                
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}`);
-                }
-                
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                
-                // Garante Hash_ID único
-                data.forEach((d, i) => {
-                    if (!d.Hash_ID) {
-                        d.Hash_ID = "TMP_" + i + "_" + Date.now();
-                    }
-                });
-                
+                data.forEach((d, i) => { if (!d.Hash_ID) d.Hash_ID = "TMP_" + i + "_" + Date.now(); });
                 this.table.replaceData(data);
-                
             } catch (e) {
                 console.error('Erro ao carregar dados:', e);
-                this.table.alert("Erro ao carregar dados. Verifique a conexão.", "error");
+                this.table.alert("Erro ao carregar dados.", "error");
             }
         }
 
         // =====================================================================
-        // MODAL HANDLING
+        // MODAL EDICAO / CRIACAO
         // =====================================================================
-        
         showModal(show) {
-            const modal = document.getElementById('modalAjuste');
-            if (!modal) return;
-            
+            if (!this.modal) return;
             if (show) {
-                modal.classList.add('active');
-                document.body.style.overflow = 'hidden'; // Prevent scroll
-                
-                // Focus no primeiro input após animação
-                setTimeout(() => {
-                    const firstInput = modal.querySelector('input:not([type="hidden"]):not([disabled])');
-                    if (firstInput) firstInput.focus();
-                }, 100);
+                this.modal.classList.add('active'); // O segredo está aqui: classe .active
+                document.body.style.overflow = 'hidden';
             } else {
-                modal.classList.remove('active');
+                this.modal.classList.remove('active');
                 document.body.style.overflow = '';
             }
         }
 
-        closeModal() {
-            this.showModal(false);
-        }
-
+        closeModal() { this.showModal(false); }
         resetForm() {
             const form = document.getElementById('formAjuste');
             if (form) form.reset();
-            
             document.getElementById('inpHashId').value = '';
             document.getElementById('inpAjusteId').value = '';
-            document.getElementById('inpTipoOperacao').value = '';
         }
 
-        // =====================================================================
-        // EDIT ROW
-        // =====================================================================
-        
         editRow(hashId) {
             const d = this.table.getData().find(r => r.Hash_ID == hashId);
-            if (!d) {
-                console.warn('Registro não encontrado:', hashId);
-                return;
-            }
-
+            if (!d) return;
             const isNew = d.Tipo_Linha === 'Inclusao';
             document.getElementById('modalTitleText').innerText = isNew ? "Editar Inclusão" : "Editar Original";
-
-            // IDs Ocultos
             document.getElementById('inpHashId').value = d.Hash_ID;
             document.getElementById('inpAjusteId').value = d.Ajuste_ID || '';
             document.getElementById('inpTipoOperacao').value = isNew ? 'INCLUSAO' : 'EDICAO';
-
-            // Data (CORRIGIDO) - Usa função de conversão
             document.getElementById('inpData').value = this.formatDateInput(d.Data);
-
-            // Campos de texto
             document.getElementById('inpOrigem').value = d.origem || 'MANUAL';
             document.getElementById('inpFilial').value = d.Filial || '';
             document.getElementById('inpNumero').value = d.Numero || '';
@@ -476,54 +251,29 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
             document.getElementById('inpCodCl').value = d['Cod Cl. Valor'] || '';
             document.getElementById('inpContraPartida').value = d['Contra Partida - Credito'] || '';
             document.getElementById('inpDescricao').value = d.Descricao || '';
-            
-            // Valores monetários
             document.getElementById('inpDebito').value = d.Debito || '';
             document.getElementById('inpCredito').value = d.Credito || '';
-
-            // Booleans
             document.getElementById('inpNaoOperacional').checked = !!d.NaoOperacional;
             document.getElementById('inpExibirSaldo').checked = d.Exibir_Saldo !== false;
-
             this.showModal(true);
         }
 
-        // =====================================================================
-        // NEW ENTRY
-        // =====================================================================
-        
         openModalInclusao() {
             this.resetForm();
-            
             document.getElementById('modalTitleText').innerText = "Novo Lançamento";
             document.getElementById('inpTipoOperacao').value = 'INCLUSAO';
-            
-            // Data default: hoje (formato YYYY-MM-DD)
             const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            document.getElementById('inpData').value = `${yyyy}-${mm}-${dd}`;
-            
-            // Defaults
+            document.getElementById('inpData').value = today.toISOString().split('T')[0];
             document.getElementById('inpOrigem').value = 'MANUAL';
             document.getElementById('inpExibirSaldo').checked = true;
-            document.getElementById('inpNaoOperacional').checked = false;
-            
             this.showModal(true);
         }
 
-        // =====================================================================
-        // SAVE
-        // =====================================================================
-        
         async save() {
             const btn = document.getElementById('btnSalvar');
             const originalHtml = btn.innerHTML;
-            
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
             btn.disabled = true;
-
             const payload = {
                 Tipo_Operacao: document.getElementById('inpTipoOperacao').value,
                 Hash_ID: document.getElementById('inpHashId').value,
@@ -546,125 +296,122 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
                     Exibir_Saldo: document.getElementById('inpExibirSaldo').checked
                 }
             };
-
             try {
                 const res = await fetch(API_ROUTES.postSalvar, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
                 if (res.ok) {
                     this.closeModal();
                     this.loadData();
-                    this.showToast('Dados salvos com sucesso!', 'success');
+                    this.showToast('Salvo com sucesso!', 'success');
                 } else {
-                    const err = await res.json().catch(() => ({}));
+                    const err = await res.json();
                     throw new Error(err.message || 'Erro ao salvar');
                 }
             } catch (e) {
-                console.error('Erro ao salvar:', e);
-                this.showToast(e.message || 'Erro de conexão', 'error');
+                this.showToast(e.message, 'error');
             } finally {
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }
         }
 
-        // =====================================================================
-        // APPROVE / REJECT
-        // =====================================================================
-        
         async approve(id, action) {
-            if (!id) {
-                console.warn('ID de ajuste não fornecido');
-                return;
-            }
-            
-            const actionText = action === 'Aprovar' ? 'aprovar' : 'reprovar';
-            if (!confirm(`Deseja ${actionText} este ajuste?`)) return;
-
+            if (!confirm(`Deseja ${action} este ajuste?`)) return;
             try {
                 const res = await fetch(API_ROUTES.postAprovar, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ Ajuste_ID: id, Acao: action })
                 });
-
                 if (res.ok) {
                     this.loadData();
-                    this.showToast(`Ajuste ${action === 'Aprovar' ? 'aprovado' : 'reprovado'}!`, 
-                                   action === 'Aprovar' ? 'success' : 'warning');
-                } else {
-                    throw new Error('Falha na operação');
+                    this.showToast(`Ajuste processado!`, 'success');
                 }
-            } catch (e) {
-                console.error('Erro na aprovação:', e);
-                this.showToast('Erro ao processar aprovação', 'error');
-            }
+            } catch (e) { this.showToast('Erro ao processar', 'error'); }
         }
 
         // =====================================================================
-        // TOAST NOTIFICATIONS (bonus)
+        // HISTÓRICO DE AUDITORIA (CORRIGIDO)
         // =====================================================================
-        
+        async openHistoryModal(idAjuste) {
+            if (!this.modalHistorico) return;
+            const tbody = document.getElementById('tbodyHistorico');
+            
+            // CORREÇÃO: Usar classList 'active' ao invés de display
+            this.modalHistorico.classList.add('active'); 
+            
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">Carregando...</td></tr>';
+
+            try {
+                const url = API_ROUTES.getHistoricoTemplate.replace('/0', '/' + idAjuste);
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Erro ao buscar histórico");
+                
+                const logs = await response.json();
+                tbody.innerHTML = '';
+
+                if (logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #777;">Nenhum histórico encontrado.</td></tr>';
+                    return;
+                }
+
+                logs.forEach(log => {
+                    const tr = document.createElement('tr');
+                    let label = log.Tipo;
+                    if(log.Tipo === 'CRIACAO') label = '✨ Criação';
+                    else if(log.Tipo === 'EDICAO') label = '✏️ Edição';
+                    else if(log.Tipo === 'APROVACAO') label = '✅ Aprovação';
+
+                    tr.innerHTML = `
+                        <td>${log.Data}</td>
+                        <td>${log.Usuario || 'Sistema'}</td>
+                        <td><span class="status-badge" style="font-size:0.8em; background:#eee; color:#333;">${label}</span></td>
+                        <td><strong>${log.Campo}</strong></td>
+                        <td><span class="val-old">${log.De}</span></td>
+                        <td><span class="val-new">${log.Para}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">Erro: ${error.message}</td></tr>`;
+            }
+        }
+
+        closeHistoryModal() {
+            if (this.modalHistorico) {
+                this.modalHistorico.classList.remove('active'); // CORREÇÃO
+            }
+        }
+
         showToast(message, type = 'info') {
-            // Remove toast anterior se existir
             const existing = document.querySelector('.ar-toast');
             if (existing) existing.remove();
-            
             const toast = document.createElement('div');
             toast.className = `ar-toast ar-toast-${type}`;
-            toast.innerHTML = `
-                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-                <span>${message}</span>
-            `;
-            
-            // Estilos inline (ou adicione no CSS)
+            toast.innerHTML = `<i class="fas fa-info-circle"></i> <span>${message}</span>`;
             Object.assign(toast.style, {
-                position: 'fixed',
-                bottom: '24px',
-                right: '24px',
-                padding: '14px 20px',
-                borderRadius: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '14px',
-                fontWeight: '500',
-                zIndex: '999999',
-                animation: 'toastSlide 0.3s ease-out',
-                background: type === 'success' ? 'var(--ar-success, #10b981)' : 
-                           type === 'error' ? 'var(--ar-danger, #ef4444)' : 
-                           'var(--ar-info, #3b82f6)',
-                color: 'white',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                position: 'fixed', bottom: '24px', right: '24px', padding: '14px 20px', borderRadius: '10px',
+                display: 'flex', gap: '10px', zIndex: '999999', background: '#333', color: 'white',
+                animation: 'toastSlide 0.3s ease-out'
             });
+            if(type==='success') toast.style.background = '#10b981';
+            if(type==='error') toast.style.background = '#ef4444';
             
             document.body.appendChild(toast);
-            
-            // Remove após 3s
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateX(100%)';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            setTimeout(() => toast.remove(), 3000);
         }
     }
 
-    // Instância global
     window.ajustesSystem = new AjustesSystem();
     
-    // Animação do toast (adiciona ao head)
-    if (!document.getElementById('ar-toast-styles')) {
+    // CSS dinâmico para animações se necessário
+    if (!document.getElementById('ar-styles-dyn')) {
         const style = document.createElement('style');
-        style.id = 'ar-toast-styles';
-        style.textContent = `
-            @keyframes toastSlide {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
+        style.id = 'ar-styles-dyn';
+        style.textContent = `@keyframes toastSlide { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`;
         document.head.appendChild(style);
     }
 }
