@@ -46,20 +46,8 @@
             <i class="fas fa-cubes"></i> Abrir Análise Gerencial
         </button>
     </div>
-    <!--
-    <div class="relatorio-card" style="border-color: rgba(255,255,255,0.1);">
-        <div class="relatorio-icon">🛠️</div>
-        <h3>Configuração de DRE</h3>
-        <p>Gestão da estrutura hierárquica, vínculos de contas e parametrização.</p>
-        <div class="mb-3">
-            <span class="status-badge status-development">Admin</span>
-        </div>
-        <button class="btn-primary-custom" onclick="window.location.href='{{ url_for('DreConfig.ViewConfiguracao') }}'">
-            <i class="fas fa-sitemap"></i> Configurar
-        </button>
-    </div>
 </div>
--->
+
 <div id="modalRelatorio" class="modal-overlay">
     <div class="modal-container" style="max-width: 98vw; height: 92vh; display: flex; flex-direction: column;">
         <div class="modal-header">
@@ -87,8 +75,9 @@
     const API_ROUTES = {
         // --- RELATÓRIOS: LEITURA DE DADOS ---
         getRazaoData:           "{{ url_for('Reports.RelatorioRazaoDados') }}",
+        getRazaoResumo:         "{{ url_for('Reports.RelatorioRazaoResumo') }}", // Nova Rota
         getRentabilidadeData:   "{{ url_for('Reports.RelatorioRentabilidade') }}",
-        getRentabilidadeDataCC :   "{{ url_for('Reports.RelatorioRentabilidadePorCC') }}",
+        getRentabilidadeDataCC: "{{ url_for('Reports.RelatorioRentabilidadePorCC') }}",
         
         // --- CONFIGURAÇÃO: NÓS CALCULADOS ---
         getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}"
