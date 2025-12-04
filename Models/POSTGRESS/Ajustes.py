@@ -18,15 +18,18 @@ class AjustesRazao(Base):
     # Dados Espelho
     Origem = Column(String(50))
     Conta = Column(String(50))
-    Titulo_Conta = Column(String(255))      # <---
-    Data = Column(Date)
+    Titulo_Conta = Column(String(255))
+    
+    # ALTERADO DE Date PARA DateTime
+    Data = Column(DateTime)
+    
     Numero = Column(String(50))
     Descricao = Column(Text)
-    Contra_Partida = Column(String(255))    # <---
+    Contra_Partida = Column(String(255))
     Filial = Column(String(10))
     Centro_Custo = Column(String(50))
     Item = Column(String(50))
-    Cod_Cl_Valor = Column(String(50))       # <---
+    Cod_Cl_Valor = Column(String(50))
     
     # Valores
     Debito = Column(Float, default=0.0)
@@ -34,7 +37,7 @@ class AjustesRazao(Base):
     
     # Regras
     Is_Nao_Operacional = Column(Boolean, default=False)
-    Exibir_Saldo = Column(Boolean, default=True) # <---
+    Exibir_Saldo = Column(Boolean, default=True)
     
     # Auditoria
     Criado_Por = Column(String(100))
