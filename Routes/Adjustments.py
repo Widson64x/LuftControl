@@ -57,7 +57,7 @@ def registrar_log_alteracoes(session_db, ajuste_antigo, dados_novos, usuario, id
         'Numero': 'Numero', 'Descricao': 'Descricao', 'Contra_Partida': 'Contra_Partida',
         'Filial': 'Filial', 'Centro de Custo': 'Centro_Custo', 'Item': 'Item',
         'Cod_Cl_Valor': 'Cod_Cl_Valor', 'Debito': 'Debito', 'Credito': 'Credito',
-        'NaoOperacional': 'Is_Nao_Operacional', 'Exibir_Saldo': 'Exibir_Saldo', 'Data': 'Data'
+        'NaoOperacional': 'Is_Nao_Operacional', 'Exibir_Saldo': 'Exibir_Saldo', 'Data': 'Data', 'Invalido': 'Invalido'
     }
     
     logs = []
@@ -80,7 +80,7 @@ def registrar_log_alteracoes(session_db, ajuste_antigo, dados_novos, usuario, id
                 val_antigo, val_novo = str(f_antigo), str(f_novo)
             except: pass
             
-        if model_attr in ['Is_Nao_Operacional', 'Exibir_Saldo']:
+        if model_attr in ['Is_Nao_Operacional', 'Exibir_Saldo', 'Invalido']:
             val_antigo = 'Sim' if parse_bool(valor_antigo_raw) else 'Não'
             val_novo = 'Sim' if parse_bool(valor_novo_raw) else 'Não'
 
@@ -103,11 +103,87 @@ def index():
 def get_dados():
     session_db = get_session()
     try:
+        # 1. Carrega dados da View
         q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 100000')
         res_view = session_db.execute(q_view)
         rows_view = [dict(row._mapping) for row in res_view]
 
+        # 2. Carrega Ajustes Existentes
         ajustes = session_db.query(AjustesRazao).all()
+        
+        # Mapa de verificação rápida (Hash -> Ajuste)
+        mapa_existentes = {aj.Hash_Linha_Original: aj for aj in ajustes}
+        
+        # ==============================================================================
+        # REGRA DE NEGÓCIO AUTOMÁTICA: ITEM 10190 -> JÁ SOBE APROVADO
+        # ==============================================================================
+        novos_ajustes_auto = []
+        
+        for row in rows_view:
+            # Verifica se é o item da regra
+            if str(row.get('Item')).strip() == '10190':
+                h = gerar_hash(row)
+                
+                # Se NÃO existe ajuste para esta linha, cria agora
+                if h not in mapa_existentes:
+                    now = datetime.datetime.now()
+                    
+                    novo_ajuste = AjustesRazao(
+                        Hash_Linha_Original=h,
+                        Tipo_Operacao='EDICAO',
+                        
+                        # --- MUDANÇA AQUI: JÁ NASCE APROVADO ---
+                        Status='Aprovado', 
+                        
+                        # Copia dados originais da linha
+                        Origem=row.get('origem'),
+                        Conta=row.get('Conta'),
+                        Titulo_Conta=row.get('Título Conta'),
+                        Data=row.get('Data'),
+                        Numero=row.get('Numero'),
+                        Descricao=row.get('Descricao'),
+                        Contra_Partida=row.get('Contra Partida - Credito'),
+                        Filial=str(row.get('Filial')) if row.get('Filial') else None,
+                        Centro_Custo=str(row.get('Centro de Custo')) if row.get('Centro de Custo') else None,
+                        Item=str(row.get('Item')),
+                        Cod_Cl_Valor=str(row.get('Cod Cl. Valor')) if row.get('Cod Cl. Valor') else None,
+                        
+                        # Valores
+                        Debito=float(row.get('Debito') or 0),
+                        Credito=float(row.get('Credito') or 0),
+                        
+                        # APLICA A REGRA DE NEGÓCIO
+                        Is_Nao_Operacional=True, 
+                        Exibir_Saldo=True,
+                        Invalido=False,
+                        
+                        # Auditoria de Criação
+                        Criado_Por='Sistema (Auto 10190)',
+                        Data_Criacao=now,
+                        
+                        # Auditoria de Aprovação (Já preenche pois nasce aprovado)
+                        Aprovado_Por='Sistema (Auto 10190)',
+                        Data_Aprovacao=now
+                    )
+                    novos_ajustes_auto.append(novo_ajuste)
+                    # Adiciona ao mapa temporário para evitar duplicidade no loop
+                    mapa_existentes[h] = novo_ajuste
+
+        # Se houve criações automáticas, salva no banco agora
+        if novos_ajustes_auto:
+            try:
+                session_db.bulk_save_objects(novos_ajustes_auto)
+                session_db.commit()
+                # Recarrega a lista de ajustes para garantir IDs atualizados
+                ajustes = session_db.query(AjustesRazao).all()
+            except Exception as e:
+                print(f"Erro ao aplicar regra automática 10190: {e}")
+                session_db.rollback()
+
+        # ==============================================================================
+        # PREPARA RETORNO PARA O FRONT
+        # ==============================================================================
+
         mapa_edicao = {aj.Hash_Linha_Original: aj for aj in ajustes if aj.Tipo_Operacao == 'EDICAO'}
         inclusoes = [aj for aj in ajustes if aj.Tipo_Operacao == 'INCLUSAO']
 
@@ -126,7 +202,7 @@ def get_dados():
                     'Centro de Custo': ajuste.Centro_Custo, 'Item': ajuste.Item,
                     'Cod Cl. Valor': ajuste.Cod_Cl_Valor, 'Debito': ajuste.Debito,
                     'Credito': ajuste.Credito, 'NaoOperacional': ajuste.Is_Nao_Operacional,
-                    'Exibir_Saldo': ajuste.Exibir_Saldo, 'Status_Ajuste': ajuste.Status,
+                    'Exibir_Saldo': ajuste.Exibir_Saldo, 'Invalido': ajuste.Invalido, 'Status_Ajuste': ajuste.Status,
                     'Ajuste_ID': ajuste.Id, 'Criado_Por': ajuste.Criado_Por 
                 })
                 if is_inclusao:
@@ -141,20 +217,26 @@ def get_dados():
             return row
 
         for row in rows_view:
-            h = gerar_hash(row) # Usa a nova função robusta
+            h = gerar_hash(row)
             ajuste = mapa_edicao.get(h)
             linha = montar_linha(row, ajuste)
             linha['Hash_ID'] = h
             linha['Tipo_Linha'] = 'Original'
+            
+            # Fallback visual apenas se não tiver ajuste (agora raro, pois criamos acima)
             if not ajuste: 
                 linha['Status_Ajuste'] = 'Original'
-                linha['NaoOperacional'] = str(row.get('Item')) == '10190'
+
             dados_finais.append(linha)
 
         for inc in inclusoes:
             dados_finais.append(montar_linha({}, inc, is_inclusao=True))
 
         return jsonify(dados_finais)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
     finally:
         session_db.close()
 
@@ -205,6 +287,8 @@ def salvar():
         ajuste.Debito = float(d.get('Debito') or 0)
         ajuste.Credito = float(d.get('Credito') or 0)
         
+        ajuste.Invalido = parse_bool(d.get('Invalido'))
+        
         ajuste.Is_Nao_Operacional = parse_bool(d.get('NaoOperacional'))
         ajuste.Exibir_Saldo = parse_bool(d.get('Exibir_Saldo'))
         
@@ -247,6 +331,54 @@ def aprovar():
     finally:
         session_db.close()
 
+@ajustes_bp.route('/api/ajustes-razao/status-invalido', methods=['POST'])
+def alterar_status_invalido():
+    session_db = get_session()
+    try:
+        dt = request.json
+        id_ajuste = dt.get('Ajuste_ID')
+        acao = dt.get('Acao') # Espera 'INVALIDAR' ou 'RESTAURAR'
+        
+        ajuste = session_db.query(AjustesRazao).get(id_ajuste)
+        user = current_user.nome if current_user.is_authenticated else 'System'
+        
+        if not ajuste:
+            return jsonify({'error': 'Ajuste não encontrado'}), 404
+
+        # Define se é True (Inválido) ou False (Válido/Restaurado)
+        novo_estado_invalido = (acao == 'INVALIDAR')
+        
+        # Log de Auditoria
+        log = AjustesLog(
+            Id_Ajuste=ajuste.Id,
+            Campo_Alterado='Invalido',
+            Valor_Antigo=str(ajuste.Invalido),
+            Valor_Novo=str(novo_estado_invalido),
+            Usuario_Acao=user,
+            Data_Acao=datetime.datetime.now(),
+            Tipo_Acao='INVALIDACAO' if novo_estado_invalido else 'RESTAURACAO'
+        )
+        session_db.add(log)
+
+        # Atualiza o registro
+        ajuste.Invalido = novo_estado_invalido
+        
+        # Atualiza o Status visual para refletir a realidade
+        if novo_estado_invalido:
+            ajuste.Status = 'Invalido'
+        else:
+            # Se restaurar, volta para Pendente para ser reavaliado
+            ajuste.Status = 'Pendente'
+
+        session_db.commit()
+        return jsonify({'msg': 'Status atualizado com sucesso'})
+        
+    except Exception as e:
+        session_db.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session_db.close()
+        
 @ajustes_bp.route('/api/ajustes-razao/historico/<int:id_ajuste>', methods=['GET'])
 def get_historico(id_ajuste):
     session_db = get_session()

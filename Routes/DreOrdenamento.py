@@ -44,14 +44,7 @@ def getSession():
 def inicializarOrdenamento():
     """
     Inicializa a tabela de ordenamento com base na estrutura existente.
-    Deve ser executado UMA VEZ ou quando quiser resetar a ordem.
-    
-    Gera ordens automáticas baseadas em:
-    - Tipos CC: Ordem alfabética
-    - Virtuais: Ordem pelo campo 'Ordem' existente
-    - CCs: Ordem por código
-    - Subgrupos: Ordem por ID
-    - Contas: Ordem por número da conta
+    Inclui agora Subgrupos Globais (Raiz).
     """
     session = getSession()
     try:
@@ -64,128 +57,10 @@ def inicializarOrdenamento():
         registros_criados = 0
         
         # ========================================
-        # NÍVEL 0: TIPOS DE CC E NÓS VIRTUAIS
-        # ========================================
-        
-        # 1. Busca tipos únicos de CC
-        sql_tipos = text("""
-            SELECT DISTINCT "Tipo" 
-            FROM "Dre_Schema"."Classificacao_Centro_Custo"
-            WHERE "Tipo" IS NOT NULL
-            ORDER BY "Tipo"
-        """)
-        tipos = session.execute(sql_tipos).fetchall()
-        
-        # Nós virtuais primeiro (se tiverem ordem menor)
-        virtuais = session.query(DreNoVirtual).order_by(DreNoVirtual.Ordem).all()
-        
-        # Combina virtuais e tipos em ordem
-        ordem_raiz = intervalo
-        
-        # Virtuais com ordem < 100 vão primeiro
-        for v in virtuais:
-            if v.Ordem and v.Ordem < 100:
-                existe = session.query(DreOrdenamento).filter_by(
-                    tipo_no='virtual',
-                    id_referencia=str(v.Id),
-                    contexto_pai='root'
-                ).first()
-                
-                if not existe:
-                    reg = DreOrdenamento(
-                        tipo_no='virtual',
-                        id_referencia=str(v.Id),
-                        contexto_pai='root',
-                        ordem=ordem_raiz,
-                        nivel_profundidade=0,
-                        caminho_completo=f"root/virt_{v.Id}"
-                    )
-                    session.add(reg)
-                    registros_criados += 1
-                ordem_raiz += intervalo
-        
-        # Tipos de CC
-        for (tipo,) in tipos:
-            existe = session.query(DreOrdenamento).filter_by(
-                tipo_no='tipo_cc',
-                id_referencia=tipo,
-                contexto_pai='root'
-            ).first()
-            
-            if not existe:
-                reg = DreOrdenamento(
-                    tipo_no='tipo_cc',
-                    id_referencia=tipo,
-                    contexto_pai='root',
-                    ordem=ordem_raiz,
-                    nivel_profundidade=0,
-                    caminho_completo=f"root/tipo_{tipo}"
-                )
-                session.add(reg)
-                registros_criados += 1
-            ordem_raiz += intervalo
-        
-        # Virtuais com ordem >= 100 vão depois
-        for v in virtuais:
-            if not v.Ordem or v.Ordem >= 100:
-                existe = session.query(DreOrdenamento).filter_by(
-                    tipo_no='virtual',
-                    id_referencia=str(v.Id),
-                    contexto_pai='root'
-                ).first()
-                
-                if not existe:
-                    reg = DreOrdenamento(
-                        tipo_no='virtual',
-                        id_referencia=str(v.Id),
-                        contexto_pai='root',
-                        ordem=ordem_raiz,
-                        nivel_profundidade=0,
-                        caminho_completo=f"root/virt_{v.Id}"
-                    )
-                    session.add(reg)
-                    registros_criados += 1
-                ordem_raiz += intervalo
-        
-        # ========================================
-        # NÍVEL 1: CENTROS DE CUSTO
-        # ========================================
-        sql_ccs = text("""
-            SELECT "Codigo", "Nome", "Tipo"
-            FROM "Dre_Schema"."Classificacao_Centro_Custo"
-            WHERE "Codigo" IS NOT NULL
-            ORDER BY "Tipo", "Codigo"
-        """)
-        ccs = session.execute(sql_ccs).fetchall()
-        
-        for codigo, nome, tipo in ccs:
-            contexto = f"tipo_{tipo}"
-            
-            existe = session.query(DreOrdenamento).filter_by(
-                tipo_no='cc',
-                id_referencia=str(codigo),
-                contexto_pai=contexto
-            ).first()
-            
-            if not existe:
-                ordem_cc = calcular_proxima_ordem(session, contexto, intervalo)
-                reg = DreOrdenamento(
-                    tipo_no='cc',
-                    id_referencia=str(codigo),
-                    contexto_pai=contexto,
-                    ordem=ordem_cc,
-                    nivel_profundidade=1,
-                    caminho_completo=f"root/tipo_{tipo}/cc_{codigo}"
-                )
-                session.add(reg)
-                registros_criados += 1
-        
-        # ========================================
-        # NÍVEL 2+: SUBGRUPOS (Recursivo)
+        # HELPERS DE RECURSIVIDADE
         # ========================================
         def processarContasSubgrupo(sg_id, contexto, nivel, caminho):
             nonlocal registros_criados
-            
             # Contas normais
             vinculos = session.query(DreContaVinculo).filter_by(
                 Id_Hierarquia=sg_id
@@ -193,20 +68,13 @@ def inicializarOrdenamento():
             
             for v in vinculos:
                 existe = session.query(DreOrdenamento).filter_by(
-                    tipo_no='conta',
-                    id_referencia=v.Conta_Contabil,
-                    contexto_pai=contexto
+                    tipo_no='conta', id_referencia=v.Conta_Contabil, contexto_pai=contexto
                 ).first()
-                
                 if not existe:
                     ordem = calcular_proxima_ordem(session, contexto, intervalo)
                     reg = DreOrdenamento(
-                        tipo_no='conta',
-                        id_referencia=v.Conta_Contabil,
-                        contexto_pai=contexto,
-                        ordem=ordem,
-                        nivel_profundidade=nivel,
-                        caminho_completo=f"{caminho}/conta_{v.Conta_Contabil}"
+                        tipo_no='conta', id_referencia=v.Conta_Contabil, contexto_pai=contexto,
+                        ordem=ordem, nivel_profundidade=nivel, caminho_completo=f"{caminho}/conta_{v.Conta_Contabil}"
                     )
                     session.add(reg)
                     registros_criados += 1
@@ -218,90 +86,160 @@ def inicializarOrdenamento():
             
             for d in detalhes:
                 existe = session.query(DreOrdenamento).filter_by(
-                    tipo_no='conta_detalhe',
-                    id_referencia=str(d.Id),
-                    contexto_pai=contexto
+                    tipo_no='conta_detalhe', id_referencia=str(d.Id), contexto_pai=contexto
                 ).first()
-                
                 if not existe:
                     ordem = calcular_proxima_ordem(session, contexto, intervalo)
                     reg = DreOrdenamento(
-                        tipo_no='conta_detalhe',
-                        id_referencia=str(d.Id),
-                        contexto_pai=contexto,
-                        ordem=ordem,
-                        nivel_profundidade=nivel,
-                        caminho_completo=f"{caminho}/cd_{d.Id}"
+                        tipo_no='conta_detalhe', id_referencia=str(d.Id), contexto_pai=contexto,
+                        ordem=ordem, nivel_profundidade=nivel, caminho_completo=f"{caminho}/cd_{d.Id}"
                     )
                     session.add(reg)
                     registros_criados += 1
 
         def processarSubgrupoIndividual(sg, contexto, nivel, caminho_pai):
             nonlocal registros_criados
-            
             existe = session.query(DreOrdenamento).filter_by(
-                tipo_no='subgrupo',
-                id_referencia=str(sg.Id),
-                contexto_pai=contexto
+                tipo_no='subgrupo', id_referencia=str(sg.Id), contexto_pai=contexto
             ).first()
-            
             novo_caminho = f"{caminho_pai}/sg_{sg.Id}"
             
             if not existe:
                 ordem_sg = calcular_proxima_ordem(session, contexto, intervalo)
                 reg = DreOrdenamento(
-                    tipo_no='subgrupo',
-                    id_referencia=str(sg.Id),
-                    contexto_pai=contexto,
-                    ordem=ordem_sg,
-                    nivel_profundidade=nivel,
-                    caminho_completo=novo_caminho
+                    tipo_no='subgrupo', id_referencia=str(sg.Id), contexto_pai=contexto,
+                    ordem=ordem_sg, nivel_profundidade=nivel, caminho_completo=novo_caminho
                 )
                 session.add(reg)
                 registros_criados += 1
             
-            # Processa filhos recursivamente
             novo_contexto = f"sg_{sg.Id}"
             processarSubgrupos(sg.Id, novo_contexto, nivel + 1, novo_caminho)
-            
-            # Processa contas deste subgrupo
             processarContasSubgrupo(sg.Id, novo_contexto, nivel + 1, novo_caminho)
 
         def processarSubgrupos(pai_id, contexto, nivel, caminho):
             nonlocal registros_criados
-            
             if pai_id is None:
                 # Subgrupos raiz de CC
-                subgrupos = session.query(DreHierarquia).filter(
-                    DreHierarquia.Id_Pai == None,
-                    DreHierarquia.Raiz_Centro_Custo_Codigo != None
+                subgrupos_cc = session.query(DreHierarquia).filter(
+                    DreHierarquia.Id_Pai == None, DreHierarquia.Raiz_Centro_Custo_Codigo != None
                 ).order_by(DreHierarquia.Id).all()
-                
-                for sg in subgrupos:
+                for sg in subgrupos_cc:
                     ctx = f"cc_{sg.Raiz_Centro_Custo_Codigo}"
                     cam = f"root/tipo_{sg.Raiz_Centro_Custo_Tipo}/cc_{sg.Raiz_Centro_Custo_Codigo}"
                     processarSubgrupoIndividual(sg, ctx, 2, cam)
                 
                 # Subgrupos raiz de Virtual
                 subgrupos_virt = session.query(DreHierarquia).filter(
-                    DreHierarquia.Id_Pai == None,
-                    DreHierarquia.Raiz_No_Virtual_Id != None
+                    DreHierarquia.Id_Pai == None, DreHierarquia.Raiz_No_Virtual_Id != None
                 ).order_by(DreHierarquia.Id).all()
-                
                 for sg in subgrupos_virt:
                     ctx = f"virt_{sg.Raiz_No_Virtual_Id}"
                     cam = f"root/virt_{sg.Raiz_No_Virtual_Id}"
                     processarSubgrupoIndividual(sg, ctx, 2, cam)
+
             else:
-                # Subgrupos filhos
                 subgrupos = session.query(DreHierarquia).filter(
                     DreHierarquia.Id_Pai == pai_id
                 ).order_by(DreHierarquia.Id).all()
-                
                 for sg in subgrupos:
                     processarSubgrupoIndividual(sg, contexto, nivel, caminho)
+
+        # ========================================
+        # EXECUÇÃO NÍVEL 0 (RAIZ)
+        # ========================================
         
-        # Executa processamento
+        ordem_raiz = intervalo
+
+        # 1. Nós Virtuais < 100
+        virtuais = session.query(DreNoVirtual).order_by(DreNoVirtual.Ordem).all()
+        for v in virtuais:
+            if v.Ordem and v.Ordem < 100:
+                existe = session.query(DreOrdenamento).filter_by(tipo_no='virtual', id_referencia=str(v.Id), contexto_pai='root').first()
+                if not existe:
+                    reg = DreOrdenamento(
+                        tipo_no='virtual', id_referencia=str(v.Id), contexto_pai='root',
+                        ordem=ordem_raiz, nivel_profundidade=0, caminho_completo=f"root/virt_{v.Id}"
+                    )
+                    session.add(reg)
+                    registros_criados += 1
+                ordem_raiz += intervalo
+        
+        # 2. Subgrupos Globais (Raiz) - NOVO
+        subgrupos_raiz_global = session.query(DreHierarquia).filter(
+            DreHierarquia.Id_Pai == None,
+            DreHierarquia.Raiz_Centro_Custo_Codigo == None,
+            DreHierarquia.Raiz_No_Virtual_Id == None
+        ).order_by(DreHierarquia.Nome).all()
+
+        for sg in subgrupos_raiz_global:
+            existe = session.query(DreOrdenamento).filter_by(
+                tipo_no='subgrupo', id_referencia=str(sg.Id), contexto_pai='root'
+            ).first()
+            if not existe:
+                reg = DreOrdenamento(
+                    tipo_no='subgrupo', id_referencia=str(sg.Id), contexto_pai='root',
+                    ordem=ordem_raiz, nivel_profundidade=0, caminho_completo=f"root/sg_{sg.Id}"
+                )
+                session.add(reg)
+                registros_criados += 1
+            
+            ordem_raiz += intervalo
+            # Processa recursivamente os filhos deste grupo raiz
+            novo_contexto = f"sg_{sg.Id}"
+            novo_caminho = f"root/sg_{sg.Id}"
+            processarSubgrupos(sg.Id, novo_contexto, 1, novo_caminho)
+            processarContasSubgrupo(sg.Id, novo_contexto, 1, novo_caminho)
+
+        # 3. Tipos de CC
+        sql_tipos = text("""
+            SELECT DISTINCT "Tipo" FROM "Dre_Schema"."Classificacao_Centro_Custo"
+            WHERE "Tipo" IS NOT NULL ORDER BY "Tipo"
+        """)
+        tipos = session.execute(sql_tipos).fetchall()
+        for (tipo,) in tipos:
+            existe = session.query(DreOrdenamento).filter_by(tipo_no='tipo_cc', id_referencia=tipo, contexto_pai='root').first()
+            if not existe:
+                reg = DreOrdenamento(
+                    tipo_no='tipo_cc', id_referencia=tipo, contexto_pai='root',
+                    ordem=ordem_raiz, nivel_profundidade=0, caminho_completo=f"root/tipo_{tipo}"
+                )
+                session.add(reg)
+                registros_criados += 1
+            ordem_raiz += intervalo
+
+        # 4. Virtuais Restantes (>= 100)
+        for v in virtuais:
+            if not v.Ordem or v.Ordem >= 100:
+                existe = session.query(DreOrdenamento).filter_by(tipo_no='virtual', id_referencia=str(v.Id), contexto_pai='root').first()
+                if not existe:
+                    reg = DreOrdenamento(
+                        tipo_no='virtual', id_referencia=str(v.Id), contexto_pai='root',
+                        ordem=ordem_raiz, nivel_profundidade=0, caminho_completo=f"root/virt_{v.Id}"
+                    )
+                    session.add(reg)
+                    registros_criados += 1
+                ordem_raiz += intervalo
+        
+        # 5. Centros de Custo (Nível 1)
+        sql_ccs = text("""
+            SELECT "Codigo", "Nome", "Tipo" FROM "Dre_Schema"."Classificacao_Centro_Custo"
+            WHERE "Codigo" IS NOT NULL ORDER BY "Tipo", "Codigo"
+        """)
+        ccs = session.execute(sql_ccs).fetchall()
+        for codigo, nome, tipo in ccs:
+            contexto = f"tipo_{tipo}"
+            existe = session.query(DreOrdenamento).filter_by(tipo_no='cc', id_referencia=str(codigo), contexto_pai=contexto).first()
+            if not existe:
+                ordem_cc = calcular_proxima_ordem(session, contexto, intervalo)
+                reg = DreOrdenamento(
+                    tipo_no='cc', id_referencia=str(codigo), contexto_pai=contexto,
+                    ordem=ordem_cc, nivel_profundidade=1, caminho_completo=f"root/tipo_{tipo}/cc_{codigo}"
+                )
+                session.add(reg)
+                registros_criados += 1
+
+        # 6. Processa Subgrupos de CC e Virtuais (que não são raiz global)
         processarSubgrupos(None, None, 2, '')
         
         session.commit()

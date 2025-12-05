@@ -169,7 +169,7 @@ def ViewConfiguracao():
 def GetDadosArvore():
     """
     Monta a árvore híbrida da DRE.
-    Retorna estrutura completa com Nós Virtuais e Centros de Custo.
+    Retorna estrutura completa com Nós Virtuais, Centros de Custo e agora GRUPOS RAIZ.
     """
     session = get_session()
     try:
@@ -199,7 +199,6 @@ def GetDadosArvore():
 
         # --- HELPERS DE MONTAGEM ---
         def get_contas_normais(sub_id):
-            """Retorna contas normais vinculadas a um subgrupo com NOME."""
             lista = []
             for v in vinculos:
                 if v.Id_Hierarquia == sub_id:
@@ -216,7 +215,6 @@ def GetDadosArvore():
             return lista
 
         def get_contas_detalhe(sub_id):
-            """Retorna contas personalizadas vinculadas a um subgrupo."""
             return [
                 {
                     "id": f"cd_{c.Id}", 
@@ -228,7 +226,6 @@ def GetDadosArvore():
             ]
 
         def get_children_subgrupos(parent_id):
-            """Recursivamente busca subgrupos filhos."""
             children = []
             for sg in subgrupos:
                 if sg.Id_Pai == parent_id:
@@ -245,6 +242,25 @@ def GetDadosArvore():
 
         # --- LISTA FINAL ---
         final_tree = []
+
+        # 0. GRUPOS RAIZ GLOBAL (NOVO)
+        # Filtra subgrupos que não têm Pai, nem CC raiz, nem Virtual raiz
+        grupos_raiz = [sg for sg in subgrupos if sg.Id_Pai is None and sg.Raiz_Centro_Custo_Codigo is None and sg.Raiz_No_Virtual_Id is None]
+        
+        for gr in grupos_raiz:
+            node = {
+                "id": f"sg_{gr.Id}", 
+                "db_id": gr.Id, 
+                "text": gr.Nome, 
+                "type": "subgrupo",
+                "parent": "root", # Marcador visual para o JS
+                "children": (
+                    get_children_subgrupos(gr.Id) + 
+                    get_contas_normais(gr.Id) + 
+                    get_contas_detalhe(gr.Id)
+                )
+            }
+            final_tree.append(node)
 
         # 1. MONTAGEM DA ÁRVORE VIRTUAL
         for v in virtuais:
@@ -572,7 +588,7 @@ def GetOperandosDisponiveis():
 @dre_config_bp.route('/Configuracao/AddSubgrupo', methods=['POST'])
 @login_required
 def AddSubgrupo():
-    """Adiciona subgrupo com trava de duplicidade dentro do mesmo pai."""
+    """Adiciona subgrupo. Suporta: CC, Virtual, Subgrupo Pai e agora ROOT."""
     session = get_session()
     try:
         data = request.json
@@ -585,8 +601,23 @@ def AddSubgrupo():
         novo_sub = DreHierarquia(Nome=nome)
         contexto_pai_ordem = ""
         filtro_duplicidade = {}
+        nivel = 3
 
-        if parent_node_id.startswith("cc_"):
+        # --- LÓGICA PARA GRUPO RAIZ GLOBAL ---
+        if parent_node_id == 'root':
+            novo_sub.Id_Pai = None
+            novo_sub.Raiz_Centro_Custo_Codigo = None
+            novo_sub.Raiz_No_Virtual_Id = None
+            
+            filtro_duplicidade = {
+                "Id_Pai": None,
+                "Raiz_Centro_Custo_Codigo": None,
+                "Raiz_No_Virtual_Id": None
+            }
+            contexto_pai_ordem = "root"
+            nivel = 0 # Nível mais alto, junto com Tipos e Virtuais
+
+        elif parent_node_id.startswith("cc_"):
             codigo_cc_int = int(parent_node_id.replace("cc_", ""))
             
             filtro_duplicidade = {
@@ -600,6 +631,7 @@ def AddSubgrupo():
             novo_sub.Raiz_Centro_Custo_Nome = result_info[1] if result_info else "Indefinido"
             novo_sub.Raiz_Centro_Custo_Codigo = codigo_cc_int
             contexto_pai_ordem = f"cc_{codigo_cc_int}"
+            nivel = 2
 
         elif parent_node_id.startswith("virt_"):
             virt_id = int(parent_node_id.replace("virt_", ""))
@@ -613,6 +645,7 @@ def AddSubgrupo():
             novo_sub.Raiz_No_Virtual_Id = virt_id
             novo_sub.Raiz_No_Virtual_Nome = no_virt.Nome if no_virt else None
             contexto_pai_ordem = f"virt_{virt_id}"
+            nivel = 2
 
         elif parent_node_id.startswith("sg_"):
             parent_id = int(parent_node_id.replace("sg_", ""))
@@ -626,6 +659,7 @@ def AddSubgrupo():
                 novo_sub.Raiz_Centro_Custo_Tipo = pai.Raiz_Centro_Custo_Tipo
                 novo_sub.Raiz_No_Virtual_Id = pai.Raiz_No_Virtual_Id
             contexto_pai_ordem = f"sg_{parent_id}"
+            nivel = 3
 
         # Trava de Duplicidade
         duplicado = session.query(DreHierarquia).filter_by(**filtro_duplicidade).filter(
@@ -640,7 +674,7 @@ def AddSubgrupo():
 
         # Ordenamento
         nova_ordem = calcular_proxima_ordem(session, contexto_pai_ordem)
-        nivel = 2 if "cc_" in parent_node_id or "virt_" in parent_node_id else 3
+        
         reg_ordem = DreOrdenamento(
             tipo_no='subgrupo', 
             id_referencia=str(novo_sub.Id),

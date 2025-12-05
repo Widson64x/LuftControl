@@ -251,41 +251,91 @@ function createNodeHTML(node) {
     const li = document.createElement('li');
     const wrapper = document.createElement('div');
     
+    // Cores Corporativas (Hardcoded para consistência total)
+    const COLOR_DARK   = 'color: var(--icon-structure);'; 
+    const COLOR_GRAY   = 'color: var(--icon-secondary);'; 
+    const COLOR_FOLDER = 'color: var(--icon-folder);'; 
+    const COLOR_LIGHT  = 'color: var(--icon-account);';
+    
     let typeClass = 'node-std';
     let icon = 'fa-circle';
+    let styleIcon = ''; 
     
-    if(node.type === 'root_tipo') { typeClass = 'node-folder'; icon = 'fa-folder'; }
-    else if(node.type === 'root_cc') { typeClass = 'node-cc'; icon = 'fa-building'; }
-    else if(node.type === 'root_virtual') { typeClass = 'node-virtual'; icon = 'fa-cube'; }
-    else if(node.type === 'subgrupo') { typeClass = 'node-sg'; icon = 'fa-folder-open'; }
-    else if(node.type && node.type.includes('conta')) { typeClass = 'node-conta'; icon = 'fa-file-invoice'; }
-    if(node.type === 'conta_detalhe') { typeClass = 'node-conta_detalhe'; icon = 'fa-tag'; }
+    // --- LÓGICA EMPRESARIAL ---
+    
+    if(node.type === 'root_tipo') { 
+        typeClass = 'node-folder'; 
+        icon = 'fa-layer-group'; // Ícone de Camadas/Estrutura
+        styleIcon = COLOR_DARK;
+    }
+    else if(node.type === 'root_cc') { 
+        typeClass = 'node-cc'; 
+        icon = 'fa-building'; 
+        styleIcon = COLOR_GRAY;
+    }
+    else if(node.type === 'root_virtual') { 
+        typeClass = 'node-virtual'; 
+        icon = 'fa-cube'; // Bloco/Componente
+        styleIcon = COLOR_DARK;
+    }
+    else if(node.type === 'subgrupo') { 
+        // Se for Raiz (Global) ou Normal, mantemos o padrão de PASTA para organização limpa
+        // Diferenciamos apenas sutilmente o ícone se for raiz
+        if (!node.parent || node.parent === 'root' || node.id_pai === null) {
+            typeClass = 'node-sg-root'; 
+            icon = 'fa-globe'; // Globo discreto para indicar abrangência global
+            styleIcon = COLOR_GRAY; // Mantém cinza para não chamar atenção demais
+        } else {
+            typeClass = 'node-sg'; 
+            icon = 'fa-folder'; // Pasta padrão
+            styleIcon = COLOR_FOLDER; // Dourado fosco
+        }
+    }
+    else if(node.type && node.type.includes('conta')) { 
+        typeClass = 'node-conta'; 
+        icon = 'fa-file-alt'; 
+        styleIcon = COLOR_LIGHT;
+    }
+    if(node.type === 'conta_detalhe') { 
+        typeClass = 'node-conta_detalhe'; 
+        icon = 'fa-tag'; 
+        styleIcon = COLOR_GRAY;
+    }
 
-    wrapper.className = `node-wrapper ${typeClass}`;
+    // Classes de Wrapper
+    if (typeClass === 'node-sg-root') {
+        wrapper.className = `node-wrapper node-sg ${typeClass}`;
+    } else {
+        wrapper.className = `node-wrapper ${typeClass}`;
+    }
+    
     wrapper.setAttribute('data-id', node.id);
     if (node.ordem) wrapper.setAttribute('data-ordem', node.ordem);
     
     const hasChildren = node.children && node.children.length > 0;
     
-    let dragHandleHtml = ordenamentoAtivo ? '<i class="fas fa-grip-vertical drag-handle"></i>' : '';
+    // Handle do Drag & Drop (Discreto)
+    let dragHandleHtml = ordenamentoAtivo ? '<i class="fas fa-grip-vertical drag-handle" style="color: #dfe6e9;"></i>' : '';
     
+    // Ícone de expandir/recolher (Discreto)
     const toggle = document.createElement('div');
     toggle.className = `toggle-icon ${hasChildren ? '' : 'invisible'}`;
-    toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+    toggle.innerHTML = '<i class="fas fa-caret-right" style="color: #95a5a6;"></i>'; // Caret é mais elegante que Chevron
     
     if(hasChildren) {
         toggle.onclick = (e) => { e.stopPropagation(); toggleNode(li, toggle); };
         wrapper.ondblclick = (e) => { e.stopPropagation(); toggleNode(li, toggle); };
     }
 
+    // Badge de ordem (Minimalista)
     let ordemBadge = (node.ordem && ordenamentoAtivo) 
-        ? `<span class="ordem-badge">#${node.ordem}</span>` 
+        ? `<span class="ordem-badge" style="color: var(--bi-row-root-text);">#${node.ordem}</span>` 
         : '';
 
     const contentHtml = `
         ${dragHandleHtml}
-        <i class="fas ${icon} type-icon"></i>
-        <span class="node-text">${node.text}</span>
+        <i class="fas ${icon} type-icon" style="${styleIcon} margin-right: 8px;"></i>
+        <span class="node-text" style="color: var(--bi-row-root-text) !important; font-weight: 500;">${node.text}</span>
         ${ordemBadge}
     `;
     
@@ -574,8 +624,18 @@ function submitAddVirtual() {
 
 function submitAddSub() { 
     const n = document.getElementById('inputSubName').value; 
+    
     if(!n) return alert('Nome?'); 
-    fetchAPI(getRoute(null, '/Configuracao/AddSubgrupo', 'config'), {nome:n, parent_id:contextNode.id}, 'Grupo criado!');
+    
+    // Se o contextNode for nulo ou indefinido, aborta
+    if (!contextNode || !contextNode.id) return alert('Erro de contexto. Tente novamente.');
+
+    // Chama a API. O Backend agora saberá lidar com parent_id: 'root'
+    fetchAPI(
+        getRoute(null, '/Configuracao/AddSubgrupo', 'config'), 
+        { nome: n, parent_id: contextNode.id }, 
+        'Grupo criado!'
+    );
 }
 
 async function submitLinkConta() {
@@ -828,6 +888,23 @@ function submitMassUnlink() {
 // 8. HELPERS
 // ==========================================================================
 
+function openAddRootGroup() {
+    // Define um contexto "fake" para indicar que estamos na raiz
+    contextNode = { id: 'root', text: 'RAIZ DO RELATÓRIO', type: 'root' };
+    
+    openModal('modalAddSub');
+    
+    // Ajusta visualmente o label da modal
+    const lbl = document.getElementById('lblParentName');
+    if (lbl) {
+        lbl.innerText = contextNode.text;
+        lbl.style.color = '#e74c3c'; // Um destaque visual
+        lbl.style.fontWeight = 'bold';
+    }
+    
+    resetInput('inputSubName');
+}
+
 async function openReplicarModal() {
     openModal('modalReplicar');
     document.getElementById('lblOrigemReplicar').innerText = contextNode.text;
@@ -1005,7 +1082,7 @@ function renderOperandos() {
                     <optgroup label="Nós Calculados (Resultados)">
                         ${nosCalculados.map(n => 
                             `<option value="no_virtual:${n.id}" ${op.tipo === 'no_virtual' && op.id == n.id ? 'selected' : ''}>
-                                📊 ${n.nome}
+                                ${n.nome}
                             </option>`
                         ).join('')}
                     </optgroup>

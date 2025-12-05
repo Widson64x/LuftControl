@@ -78,28 +78,28 @@ def RelatorioRazaoResumo():
 @reports_bp.route('/RelatorioRazao/Rentabilidade', methods=['GET'])
 @login_required
 def RelatorioRentabilidade():
-    """
-    DRE Gerencial Híbrida Refatorada.
-    Usa DreService para processar dados de forma estruturada.
-    """
     session = None
     try:
         session = get_pg_session()
         service = DreService(session)
         
         filtro_origem = request.args.get('origem', 'Consolidado')
+        scale_mode = request.args.get('scale_mode', 'dre') # Padrão é 'dre'
         
-        # 1. Processar Base (Mapas + Dados + Ajustes)
+        # 1. Processar Base
         data = service.processar_relatorio(filtro_origem=filtro_origem, agrupar_por_cc=False)
         
-        # 2. Calcular Fórmulas (Nós Virtuais)
+        # 2. Calcular Fórmulas
         final_data = service.calcular_nos_virtuais(data)
+        
+        # 3. Aplicar Escala DRE (Divisão por 1000) se solicitado
+        if scale_mode == 'dre':
+            final_data = service.aplicar_escala_milhares(final_data)
         
         return jsonify(final_data), 200
 
     except Exception as e:
         current_app.logger.error(f"Erro DreService Rentabilidade: {e}")
-        # Retorna erro detalhado para debug em dev, ou genérico em prod
         abort(500, description=f"Erro interno: {str(e)}")
     finally:
         if session: session.close()
@@ -107,22 +107,23 @@ def RelatorioRentabilidade():
 @reports_bp.route('/RelatorioRazao/RentabilidadePorCC', methods=['GET'])
 @login_required
 def RelatorioRentabilidadePorCC():
-    """
-    DRE Detalhada por CC Refatorada.
-    """
     session = None
     try:
         session = get_pg_session()
         service = DreService(session)
         
         filtro_origem = request.args.get('origem', 'Consolidado')
+        scale_mode = request.args.get('scale_mode', 'dre') # Padrão é 'dre'
         
-        # Basta passar a flag agrupar_por_cc=True
+        # Processa
         data = service.processar_relatorio(filtro_origem=filtro_origem, agrupar_por_cc=True)
         
-        # Nota: Relatórios por CC geralmente não têm fórmulas calculadas (EBITDA, etc) no detalhe,
-        # mas se tiverem, basta chamar service.calcular_nos_virtuais(data) aqui também.
-        # No código original, o endpoint PorCC NÃO chamava o bloco de cálculo Python, apenas retornava SQL.
+        # Se houver fórmulas calculadas no futuro para CC, insira aqui
+        # service.calcular_nos_virtuais(data) 
+        
+        # Aplicar Escala
+        if scale_mode == 'dre':
+            data = service.aplicar_escala_milhares(data)
         
         return jsonify(data), 200
 
