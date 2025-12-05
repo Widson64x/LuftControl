@@ -395,7 +395,7 @@ class DreOrdenamentoManager {
     }
 
     // ========================================
-    // REGRAS DE HIERARQUIA
+    // REGRAS DE HIERARQUIA (CORRIGIDO)
     // ========================================
 
     getNodeType(element) {
@@ -421,7 +421,7 @@ class DreOrdenamentoManager {
             'tipo_cc': ['cc'],
             'virtual': ['subgrupo', 'conta_detalhe'], 
             'cc': ['subgrupo'],
-            'subgrupo': ['subgrupo', 'conta', 'conta_detalhe']
+            'subgrupo': ['subgrupo', 'conta', 'conta_detalhe'] // CORREÇÃO: Permite subgrupo dentro de subgrupo
         };
         const permitidos = regras[tipoContainer] || [];
         return permitidos.includes(tipoItem);
@@ -436,7 +436,8 @@ class DreOrdenamentoManager {
             'tipo_cc': ['root'],
             'virtual': ['root'],
             'cc': ['tipo_cc'],
-            'subgrupo': ['cc', 'virtual', 'subgrupo'],
+            // CORREÇÃO: Adicionado 'root' para permitir subgrupos na raiz
+            'subgrupo': ['cc', 'virtual', 'subgrupo', 'root'],
             'conta': ['subgrupo'],
             'conta_detalhe': ['subgrupo', 'virtual']
         };
