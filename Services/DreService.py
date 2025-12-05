@@ -138,7 +138,7 @@ class DreService:
         return tree_map, definitions
 
     def get_ajustes_map(self):
-        """Busca todos os ajustes aprovados."""
+        """Busca todos os ajustes aprovados ou pendentes (não reprovados)."""
         sql = text("""
             SELECT * FROM "Dre_Schema"."Ajustes_Razao" 
             WHERE "Status" != 'Reprovado'
@@ -168,15 +168,11 @@ class DreService:
         return ordem_map
 
     # =========================================================================
-    # --- MÉTODOS DO RAZÃO (CORRIGIDO: FILTRO DE BUSCA NO UNION) ---
+    # --- MÉTODOS DO RAZÃO ---
     # =========================================================================
 
     def get_razao_dados(self, page=1, per_page=50, search_term='', view_type='original'):
-        """
-        Retorna dados paginados do Razão.
-        Se view_type='adjusted', faz UNION com a tabela de Ajustes (Inclusões) 
-        e aplica patch de edições nos dados originais.
-        """
+        """Retorna dados paginados do Razão."""
         offset = (page - 1) * per_page
         params = {'limit': per_page, 'offset': offset}
         
@@ -192,10 +188,6 @@ class DreService:
             params['termo'] = f"%{search_term}%"
 
         if view_type == 'adjusted':
-            # Prepara filtro para tabela Ajustes_Razao (mapeando nomes de colunas diferentes)
-            # Título Conta -> Titulo_Conta
-            # Nome do CC -> '' (não existe, vira vazio)
-            # origem -> Origem (Case Sensitive fix)
             filter_snippet_ajuste = ""
             if search_term:
                 filter_snippet_ajuste = filter_snippet.replace('"Título Conta"', '"Titulo_Conta"') \
@@ -255,7 +247,6 @@ class DreService:
             """
             
         else:
-            # ORIGINAL (Adicionada coluna 'Item' para consistência)
             sql_query = f"""
                 SELECT 
                     'RAZAO' as source_type,
@@ -303,15 +294,15 @@ class DreService:
                 'credito': float(r.Credito or 0),
                 'saldo': float(r.Saldo or 0),
                 'nome_cc': getattr(r, 'Nome do CC', ''),
-                'is_ajustado': False
+                'is_ajustado': False,
+                'Invalido': False 
             }
 
             if hasattr(r, 'source_type') and r.source_type == 'AJUSTE':
                 row_dict['is_ajustado'] = True
                 row_dict['origem'] = f"{row_dict['origem']} (INC)"
-            
+                
             elif (not hasattr(r, 'source_type') or r.source_type == 'RAZAO') and view_type == 'adjusted':
-                # Agora o 'r' tem a coluna Item, então o hash funciona
                 r_hash = self._gerar_hash_linha(r)
                 if r_hash in ajustes_edicao:
                     adj = ajustes_edicao[r_hash]
@@ -330,6 +321,16 @@ class DreService:
                     
                     row_dict['is_ajustado'] = True
                     row_dict['origem'] = f"{row_dict['origem']} (EDT)"
+                    
+                    if adj.Invalido:
+                        row_dict['Invalido'] = True
+
+            if view_type == 'adjusted' and row_dict.get('is_ajustado'):
+                 for inc in self.get_ajustes_map()[1]: 
+                     if str(inc.Numero) == str(row_dict['numero']) and inc.Conta == row_dict['conta'] and abs(inc.Debito - row_dict['debito']) < 0.01:
+                         if inc.Invalido:
+                             row_dict['Invalido'] = True
+                         break
 
             result_list.append(row_dict)
         
@@ -368,7 +369,9 @@ class DreService:
                     COALESCE(SUM(CASE WHEN "Exibir_Saldo" THEN "Credito" ELSE 0 END), 0),
                     COALESCE(SUM(CASE WHEN "Exibir_Saldo" THEN ("Debito" - "Credito") ELSE 0 END), 0)
                 FROM "Dre_Schema"."Ajustes_Razao"
-                WHERE "Tipo_Operacao" = 'INCLUSAO' AND "Status" != 'Reprovado'
+                WHERE "Tipo_Operacao" = 'INCLUSAO' 
+                  AND "Status" != 'Reprovado'
+                  AND "Invalido" IS NOT TRUE 
             """)
             incl = self.session.execute(sql_incl).fetchone()
             
@@ -403,8 +406,14 @@ class DreService:
 
         def process_row(origem, conta, titulo, data, saldo, cc_original_str, row_hash=None):
             is_nao_operacional = False
+            
+            # --- APLICAÇÃO DE EDIÇÕES ---
             if row_hash and row_hash in ajustes_edicao:
                 adj = ajustes_edicao[row_hash]
+                
+                if adj.Invalido:
+                    return # Ignora inválidos
+                
                 origem = adj.Origem or origem
                 conta = adj.Conta or conta
                 titulo = adj.Titulo_Conta or titulo
@@ -416,6 +425,7 @@ class DreService:
             
             if is_nao_operacional: conta, titulo = '00000000000', 'Não Operacionais'
 
+            # --- BUSCA REGRAS DE CLASSIFICAÇÃO ---
             rules = definitions.get(conta, [])
             match, cc_int = None, None
             try:
@@ -424,6 +434,7 @@ class DreService:
                     if nums: cc_int = int(nums)
             except: pass
 
+            # Prioriza regra específica de CC, senão pega a genérica
             for rule in rules:
                 if rule.CC_Alvo is not None:
                     if cc_int == rule.CC_Alvo: match = rule; break
@@ -432,18 +443,43 @@ class DreService:
             
             if not match: return 
 
+            # --- DEFINIÇÃO DA CHAVE DE AGRUPAMENTO ---
             tipo_cc = match.Tipo_Principal or 'Outros'
             root_virtual_id = match.Raiz_No_Virtual_Id
             caminho = match.full_path or 'Não Classificado'
             ordem = ordem_map.get(f"virtual:{root_virtual_id}", 999) if root_virtual_id else ordem_map.get(f"tipo_cc:{tipo_cc}", 999)
 
-            group_key = (tipo_cc, root_virtual_id, caminho, titulo, conta, match.Raiz_Centro_Custo_Nome) if agrupar_por_cc else (tipo_cc, root_virtual_id, caminho, titulo, conta)
+            # === LÓGICA DE AGRUPAMENTO DE CONTAS PERSONALIZADAS ===
+            # Se a regra tiver um Nome Personalizado, usamos ele como Título e também como "Conta"
+            # para forçar o agrupamento de múltiplas contas reais em uma única linha.
+            
+            conta_para_chave = conta
+            titulo_para_exibicao = titulo
 
+            if match.Nome_Personalizado_Def:
+                titulo_para_exibicao = match.Nome_Personalizado_Def
+                # Usamos o próprio nome como 'conta' na chave para agrupar todas que tenham esse nome
+                conta_para_chave = f"GRP_{match.Nome_Personalizado_Def}"
+
+            if agrupar_por_cc:
+                group_key = (tipo_cc, root_virtual_id, caminho, titulo_para_exibicao, conta_para_chave, match.Raiz_Centro_Custo_Nome)
+            else:
+                group_key = (tipo_cc, root_virtual_id, caminho, titulo_para_exibicao, conta_para_chave)
+
+            # --- AGREGAÇÃO DE VALORES ---
             if group_key not in aggregated_data:
+                # Se for agrupamento personalizado, podemos ocultar o número da conta ou mostrar o nome
+                conta_display = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else conta
+
                 item = {
-                    'origem': origem, 'Conta': conta, 'Titulo_Conta': titulo,
-                    'Tipo_CC': tipo_cc, 'Root_Virtual_Id': root_virtual_id,
-                    'Caminho_Subgrupos': caminho, 'ordem_prioridade': ordem, 'Total_Ano': 0.0
+                    'origem': origem, 
+                    'Conta': conta_display, 
+                    'Titulo_Conta': titulo_para_exibicao,
+                    'Tipo_CC': tipo_cc, 
+                    'Root_Virtual_Id': root_virtual_id,
+                    'Caminho_Subgrupos': caminho, 
+                    'ordem_prioridade': ordem, 
+                    'Total_Ano': 0.0
                 }
                 for m in self.meses[:-1]: item[m] = 0.0
                 if agrupar_por_cc: item['Nome_CC'] = match.Raiz_Centro_Custo_Nome
@@ -457,10 +493,15 @@ class DreService:
                     aggregated_data[group_key]['Total_Ano'] += val_inv
                 except: pass
 
+        # Processa linhas originais
         for row in raw_rows:
             process_row(row.origem, row.Conta, row.__getattr__('Título Conta'), row.Data, row.Saldo, row.__getattr__('Centro de Custo'), self._gerar_hash_linha(row))
 
+        # Processa Inclusões
         for adj in ajustes_inclusao:
+            if adj.Invalido:
+                continue
+
             saldo_adj = (float(adj.Debito or 0) - float(adj.Credito or 0)) if adj.Exibir_Saldo else 0.0
             conta_inc = '00000000000' if adj.Is_Nao_Operacional else adj.Conta
             titulo_inc = 'Não Operacionais' if adj.Is_Nao_Operacional else adj.Titulo_Conta
