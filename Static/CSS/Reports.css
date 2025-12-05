@@ -1,6 +1,6 @@
 /* ==========================================================================
    T-Controllership | Reports.css
-   Motor BI Nativo - Dark/Light Theme Ready
+   Motor BI Nativo - Enterprise Theme Ready
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -479,13 +479,14 @@
 }
 
 /* --------------------------------------------------------------------------
-   7. BI TABLE (Motor Nativo)
+   7. BI TABLE (Motor Nativo - Enterprise)
    -------------------------------------------------------------------------- */
 .table-fixed-container {
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
     overflow: auto;
-    background: var(--bg-primary);
+    background: var(--bi-bg-body); /* Controlado por Variável */
+    border-color: var(--bi-border);
 }
 
 .table-modern {
@@ -495,9 +496,9 @@
     font-size: 0.85rem;
 }
 
-/* Header */
+/* Header com Variáveis de Tema */
 .table-modern thead th {
-    background: var(--bg-secondary);
+    background: var(--bi-bg-header); /* Var */
     color: var(--text-secondary);
     font-size: 0.7rem;
     font-weight: 700;
@@ -505,7 +506,7 @@
     letter-spacing: 0.5px;
     padding: 12px 10px;
     border-bottom: 2px solid var(--primary);
-    border-right: 1px solid var(--border-secondary);
+    border-right: 1px solid var(--bi-border); /* Var */
     position: sticky;
     top: 0;
     z-index: 20;
@@ -519,11 +520,11 @@
 .table-modern th input {
     width: 100%;
     margin-top: 8px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-secondary);
+    background: var(--bi-input-bg); /* Var */
+    border: 1px solid var(--bi-border);
     border-radius: 4px;
     padding: 5px 8px;
-    color: var(--text-primary);
+    color: var(--bi-input-text); /* Var */
     font-family: var(--font-mono);
     font-size: 0.75rem;
     transition: border-color 0.2s ease;
@@ -559,18 +560,23 @@
     pointer-events: none;
 }
 
-/* Cells */
+/* Cells Gerais */
 .table-modern td {
     padding: 8px 12px;
-    border-bottom: 1px solid var(--border-secondary);
+    border-bottom: 1px solid var(--bi-border); /* Var */
     white-space: nowrap;
     color: var(--text-primary);
     transition: background-color 0.1s ease;
 }
 
-/* Row Types */
+/* --- TIPOS DE LINHA (Controlados por Variáveis de Tema) --- */
+
+.thead tr th {
+    background: var(--bi-row-root-bg) !important;
+}
+/* 1. Raiz (Ex: Faturamento Bruto) */
 .bi-row-root {
-    background: linear-gradient(90deg, var(--bg-tertiary), var(--bg-secondary)) !important;
+    background: var(--bi-row-root-bg) !important;
 }
 .bi-row-root td {
     font-weight: 800;
@@ -579,39 +585,56 @@
     font-size: 0.85rem;
     padding-top: 14px;
     padding-bottom: 14px;
-    border-top: 1px solid var(--border-primary);
-    color: var(--primary) !important;
+    border-top: 1px solid var(--bi-border);
+    color: var(--bi-row-root-text) !important;
 }
 .bi-row-root td:first-child {
-    background: linear-gradient(90deg, var(--bg-tertiary), var(--bg-secondary));
+    background: var(--bi-row-root-bg);
 }
 
+/* 2. Grupos (Pastas) */
 .bi-row-group {
-    background: var(--bg-secondary) !important;
+    background: var(--bi-row-group-bg) !important;
 }
 .bi-row-group td {
     font-weight: 600;
     font-size: 0.85rem;
-    color: var(--text-primary);
+    color: var(--bi-row-group-text);
 }
 .bi-row-group td:first-child {
-    background: var(--bg-secondary);
+    background: var(--bi-row-group-bg);
 }
 
+/* 3. Contas (Folhas) */
 .bi-row-account {
-    background: var(--bg-primary) !important;
+    background: var(--bi-row-acct-bg) !important;
 }
 .bi-row-account td {
     font-size: 0.8rem;
-    color: var(--text-secondary);
+    color: var(--bi-row-acct-text);
 }
 .bi-row-account td:first-child {
-    background: var(--bg-primary);
+    background: var(--bi-row-acct-bg);
+}
+
+/* 4. Calculados (EBITDA, Margem) - Enterprise Clean */
+.bi-row-calculated {
+    background: var(--bi-row-calc-bg) !important;
+    border-top: 1px solid var(--bi-border);
+    border-bottom: 1px solid var(--bi-border);
+}
+.bi-row-calculated td {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--bi-row-calc-text) !important;
+}
+.bi-row-calculated td:first-child {
+    background: var(--bi-row-calc-bg);
 }
 
 /* Row Hover */
 .table-modern tr:hover td {
-    background: var(--bg-hover) !important;
+    background: var(--bi-row-hover) !important;
 }
 
 /* Cell Label (Tree Node) */
@@ -638,7 +661,7 @@
     color: var(--primary);
 }
 
-/* Value Colors */
+/* Value Colors (Sempre semânticas) */
 .text-danger { color: var(--danger) !important; }
 .text-success { color: var(--success) !important; }
 .text-muted { color: var(--text-muted) !important; }
@@ -733,7 +756,8 @@
 }
 
 /* --------------------------------------------------------------------------
-   10. LIGHT THEME OVERRIDES
+   10. LIGHT THEME OVERRIDES (Geral)
+   Obs: Tabela BI agora usa variáveis, mas mantemos overrides para elementos de página
    -------------------------------------------------------------------------- */
 [data-theme="light"] .page-header::before {
     background: radial-gradient(ellipse 80% 50% at 20% 40%, rgba(var(--primary-rgb), 0.05) 0%, transparent 50%);
@@ -753,47 +777,6 @@
 
 [data-theme="light"] .modal-container {
     box-shadow: 0 25px 80px -20px rgba(0, 0, 0, 0.25);
-}
-
-/* Light Theme - Table Rows */
-[data-theme="light"] .bi-row-root {
-    background: linear-gradient(90deg, #E2E8F0, #F7FAFC) !important;
-}
-[data-theme="light"] .bi-row-root td {
-    color: var(--primary) !important;
-}
-[data-theme="light"] .bi-row-root td:first-child {
-    background: linear-gradient(90deg, #E2E8F0, #F7FAFC);
-}
-
-[data-theme="light"] .bi-row-group {
-    background: #EDF2F7 !important;
-}
-[data-theme="light"] .bi-row-group td {
-    color: #2D3748;
-}
-[data-theme="light"] .bi-row-group td:first-child {
-    background: #EDF2F7;
-}
-
-[data-theme="light"] .bi-row-account {
-    background: #FFFFFF !important;
-}
-[data-theme="light"] .bi-row-account td {
-    color: #4A5568;
-}
-[data-theme="light"] .bi-row-account td:first-child {
-    background: #FFFFFF;
-}
-
-[data-theme="light"] .table-modern tr:hover td {
-    background: #E2E8F0 !important;
-}
-
-[data-theme="light"] .table-modern th input {
-    background: #FFFFFF;
-    border-color: #CBD5E0;
-    color: #2D3748;
 }
 
 [data-theme="light"] .table-fixed-container::-webkit-scrollbar-track,
@@ -968,7 +951,7 @@
 }
 
 /* ==========================================================================
-   ORIGEM FILTER STYLES - Adicionar ao Reports.css
+   ORIGEM FILTER STYLES
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -1035,11 +1018,11 @@
 }
 
 .origem-toggle-btn[data-origem="FARMA"] i {
-    color: #10B981; /* Verde farmácia */
+    color: #10B981;
 }
 
 .origem-toggle-btn[data-origem="FARMADIST"] i {
-    color: #F59E0B; /* Laranja distribuição */
+    color: #F59E0B;
 }
 
 .origem-toggle-btn.active i {
@@ -1126,7 +1109,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   TEMA CLARO - Overrides
+   TEMA CLARO - Overrides (Elementos Gerais apenas)
    -------------------------------------------------------------------------- */
 [data-theme="light"] .origem-filter-group {
     background: rgba(0, 0, 0, 0.05);
@@ -1161,27 +1144,6 @@
 
 [data-theme="light"] .bi-footer strong {
     color: var(--primary);
-}
-
-/* Linha de Nó Calculado */
-.bi-row-calculated {
-    background: linear-gradient(90deg, 
-        rgba(155, 89, 182, 0.15), 
-        rgba(108, 92, 231, 0.1)) !important;
-    border-top: 2px solid var(--primary);
-    border-bottom: 2px solid var(--primary);
-}
-
-.bi-row-calculated td {
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: var(--primary-light) !important;
-}
-
-.bi-row-calculated td:first-child {
-    background: linear-gradient(90deg, 
-        rgba(155, 89, 182, 0.15), 
-        rgba(108, 92, 231, 0.1));
 }
 
 /* Ícone de fórmula */
