@@ -197,6 +197,8 @@
         getDados:    "{{ url_for('Ajustes.get_dados') }}",
         postSalvar:  "{{ url_for('Ajustes.salvar') }}",
         postAprovar: "{{ url_for('Ajustes.aprovar') }}",
+        // NOVA ROTA AQUI:
+        postStatusInvalido: "{{ url_for('Ajustes.alterar_status_invalido') }}",
         getHistoricoTemplate: "{{ url_for('Ajustes.get_historico', id_ajuste=0) }}"
     };
 </script>
