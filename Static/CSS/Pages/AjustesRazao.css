@@ -873,3 +873,29 @@ input:focus + .slider {
         opacity: 1; 
     }
 }
+
+/* Linha Inválida: Opacidade reduzida e visual discreto */
+.tabulator-row.row-invalida {
+    background-color: #f9fafb !important; /* Cinza bem claro */
+    color: #9ca3af !important; /* Texto cinza */
+    opacity: 0.6; /* Opacidade reduzida conforme solicitado */
+}
+
+/* Garante que o status ainda seja legível */
+.tabulator-row.row-invalida .status-badge {
+    opacity: 0.8;
+    filter: grayscale(100%); /* Tira a cor do badge */
+}
+
+/* Ajuste fino no Menu de Contexto do Tabulator */
+.tabulator-menu-item {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 8px 12px;
+}
+.tabulator-menu-item:hover {
+    background-color: #f3f4f6;
+    color: #1f2937;
+}
+.menu-danger { color: #dc2626; }
+.menu-success { color: #16a34a; }
