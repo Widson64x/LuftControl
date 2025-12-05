@@ -12,26 +12,27 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             
             // Estado do Razão
             this.razaoData = null;
-            this.razaoSummary = null; // Armazena totais globais
+            this.razaoSummary = null; 
             this.razaoPage = 1;
             this.razaoTotalPages = 1;
             this.razaoSearch = '';
             this.razaoSearchTimer = null;
-            this.razaoViewType = 'original'; // 'original' ou 'adjusted'
+            this.razaoViewType = 'original'; 
 
             // Estado do BI (DRE)
             this.biRawData = [];      
             this.biTreeData = [];     
             this.biState = {
-                expanded: new Set(['root']), 
-                hiddenCols: new Set(),       
-                filters: {},                 
-                globalSearch: '',            
-                sort: { col: null, dir: 'asc' }, 
-                columnsOrder: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Total_Ano'],            
-                origemFilter: 'Consolidado',  
-                viewMode: 'TIPO' // 'TIPO' ou 'CC'
-            };
+                    expanded: new Set(['root']), 
+                    hiddenCols: new Set(),       
+                    filters: {},                 
+                    globalSearch: '',            
+                    sort: { col: null, dir: 'asc' }, 
+                    columnsOrder: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Total_Ano'],            
+                    origemFilter: 'Consolidado',  
+                    viewMode: 'TIPO',
+                    scaleMode: 'dre' // PADRÃO: DRE (dividido por 1000)
+                };
             this.biDebounceTimer = null;
             this.biIsLoading = false;        
             this.nosCalculados = [];
@@ -67,7 +68,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 ? `📈 Razão Contábil ${titleSuffix} - Buscando: "${this.razaoSearch}"` 
                 : `📈 Relatório de Razão ${titleSuffix}`;
 
-            // Abre modal apenas se for primeira carga
             if (page === 1 && !document.querySelector('#razaoTableContainer')) {
                 this.modal.open(title);
                 this.modal.showLoading('Carregando lançamentos contábeis...');
@@ -80,7 +80,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 const term = encodeURIComponent(this.razaoSearch);
                 const viewType = this.razaoViewType;
                 
-                // Busca Dados da Tabela + Resumo Global em paralelo
                 const [respData, respSummary] = await Promise.all([
                     APIUtils.get(`${urlData}?page=${page}&search=${term}&view_type=${viewType}`),
                     APIUtils.get(`${urlSummary}?view_type=${viewType}`)
@@ -98,7 +97,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         }
 
         renderRazaoView(metaData, summaryData) {
-            // Cards de Resumo (Dados vindos do Backend agora)
             const summaryHtml = `
                 <div class="summary-grid mb-3">
                     <div class="summary-card">
@@ -125,10 +123,8 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     </div>
                 </div>`;
 
-            // Linhas da Tabela
             const rows = this.razaoData.map(r => {
-                // Se for ajustado, aplica estilo de destaque
-                const styleClass = r.is_ajustado ? 'background-color: #fff8e1;' : '';
+                const styleClass = r.is_ajustado ? 'background-color: rgba(255, 248, 225, 0.1);' : '';
                 const badgeOrigem = r.is_ajustado 
                     ? `<span class="badge badge-warning" title="Lançamento Ajustado"><i class="fas fa-pen"></i> ${r.origem}</span>`
                     : `<span class="badge badge-secondary">${r.origem}</span>`;
@@ -149,7 +145,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 </tr>
             `}).join('');
 
-            // Toolbar com Toggle Switch
             const tableHtml = `
                 <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-tertiary rounded flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-3" style="flex: 1;">
@@ -188,11 +183,9 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
             this.modal.setContent(`<div style="padding: 1.5rem;">${summaryHtml}${tableHtml}</div>`);
             
-            // Reatacha listeners
             const input = document.getElementById('razaoSearchInput');
             if (input) {
                 input.focus();
-                // input.setSelectionRange(input.value.length, input.value.length); // Mantém cursor no final
                 input.addEventListener('input', (e) => {
                     clearTimeout(this.razaoSearchTimer);
                     this.razaoSearchTimer = setTimeout(() => {
@@ -205,7 +198,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
         toggleRazaoView(isChecked) {
             this.razaoViewType = isChecked ? 'adjusted' : 'original';
-            // Recarrega na página 1 ao mudar o modo de visualização
             this.loadRazaoReport(1);
         }
 
@@ -213,22 +205,47 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         // --- MÓDULO 2: RENTABILIDADE (BI) ---
         // ====================================================================
 
+        // --- NOVA FUNÇÃO PARA ALTERNAR O MODO ---
+        toggleScaleMode() {
+            if (this.biIsLoading) return;
+            // Alterna entre 'dre' e 'normal'
+            this.biState.scaleMode = (this.biState.scaleMode === 'dre') ? 'normal' : 'dre';
+            // Recarrega os dados do backend (pois o cálculo é feito lá)
+            this.loadRentabilidadeReport(this.biState.origemFilter);
+        }
+
+        // --- NOVA FUNÇÃO AUXILIAR DE FORMATAÇÃO VISUAL ---
+        formatDREValue(value) {
+            if (value === 0 || value === null) return '-';
+            
+            // Se for negativo, remove o sinal e coloca parênteses
+            const isNegative = value < 0;
+            const absValue = Math.abs(value);
+            
+            // Formata o número (0 casas decimais para DRE geralmente fica mais limpo, 
+            // mas se quiser decimais mude para minimumFractionDigits: 2)
+            const formatted = absValue.toLocaleString('pt-BR', { 
+                minimumFractionDigits: 0, 
+                maximumFractionDigits: 0 
+            });
+
+            return isNegative ? `(${formatted})` : formatted;
+        }
+
+        // --- ATUALIZAÇÃO DO loadRentabilidadeReport PARA ENVIAR O PARÂMETRO ---
         async loadRentabilidadeReport(origem = null) {
             if (!this.modal) this.modal = new ModalSystem('modalRelatorio');
             
             if (origem !== null) this.biState.origemFilter = origem;
-            else { // Reset completo se chamado sem params
-                this.biState.filters = {};
-                this.biState.globalSearch = '';
-                this.biState.viewMode = 'TIPO'; 
-            }
             
+            // Título dinâmico
             const viewTitle = this.biState.viewMode === 'CC' ? 'por Centro de Custo' : 'por Tipo';
-            this.modal.open(`<i class="fas fa-cubes"></i> Análise Gerencial (${viewTitle})`, '');
+            const scaleTitle = this.biState.scaleMode === 'dre' ? '(Em Milhares)' : '(Valor Integral)';
+            
+            this.modal.open(`<i class="fas fa-cubes"></i> Análise Gerencial ${viewTitle} <small class="text-muted">${scaleTitle}</small>`, '');
             this.modal.showLoading('Construindo cubo de dados...');
 
             try {
-                // Roteamento inteligente
                 let urlBase;
                 if (this.biState.viewMode === 'CC') {
                     urlBase = (API_ROUTES?.getRentabilidadeDataCC) || '/Reports/RelatorioRazao/RentabilidadePorCC';
@@ -237,7 +254,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 }
 
                 const origemParam = encodeURIComponent(this.biState.origemFilter);
-                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}`);
+                // ADICIONADO: scale_mode
+                const scaleParam = this.biState.scaleMode; 
+                
+                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}`);
                 
                 if (!rawData || rawData.length === 0) {
                     this.renderBiEmptyState();
@@ -287,8 +307,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     : (API_ROUTES?.getRentabilidadeData || '/Reports/RelatorioRazao/Rentabilidade');
 
                 const origemParam = encodeURIComponent(novaOrigem);
-                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}`);
+                const scaleParam = this.biState.scaleMode;
+
+                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}`);
                 
+                // ... restante da função igual ...
                 if (!rawData || rawData.length === 0) {
                     this.biRawData = [];
                     this.biTreeData = [];
@@ -300,8 +323,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 }
                 this.updateOrigemBadge();
             } catch (error) {
-                console.error(error);
-                if(container) container.innerHTML = `<div class="p-3 text-danger">Erro: ${error.message}</div>`;
+            // ... erro ...
             } finally {
                 this.biIsLoading = false;
             }
@@ -341,13 +363,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.reloadBiDataAsync(novaOrigem);
         }
 
-        // --- CONSTRUÇÃO DA ÁRVORE (CORE) ---
         processBiTree() {
             const root = [];
             const map = {}; 
             const meses = this.biState.columnsOrder;
 
-            // Função helper para criar nós
             const getOrCreateNode = (id, label, type, parentList, defaultOrder = 9999) => {
                 if (!map[id]) {
                     const node = { 
@@ -376,7 +396,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     ? row.ordem_prioridade 
                     : (row.Ordem || row.ordem || (index * 10) + 1000);
 
-                // --- 1. RAIZ: TIPO DE CC (Sempre existe) ---
                 const tipoId = `T_${row.Tipo_CC}`;
                 const tipoNode = getOrCreateNode(tipoId, row.Tipo_CC, 'root', root, ordemVal);
                 if (row.Root_Virtual_Id) tipoNode.virtualId = row.Root_Virtual_Id;
@@ -389,19 +408,14 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 let currentNode = tipoNode;
                 let currentId = tipoId;
 
-                // --- 2. NÍVEL CENTRO DE CUSTO (Apenas se viewMode == 'CC') ---
                 if (this.biState.viewMode === 'CC' && row.Nome_CC) {
-                    // Cria ID seguro para o CC
                     const safeCCName = String(row.Nome_CC).replace(/[^a-zA-Z0-9]/g, '');
                     currentId += `_CC_${safeCCName}`;
-                    
-                    // O nó do CC é criado como filho do Tipo
                     const ccNode = getOrCreateNode(currentId, row.Nome_CC, 'group', currentNode.children);
                     sumValues(ccNode, row);
                     currentNode = ccNode;
                 }
 
-                // --- 3. SUBGRUPOS (Hierarquia Padrão) ---
                 if (row.Caminho_Subgrupos && row.Caminho_Subgrupos !== 'Não Classificado' && row.Caminho_Subgrupos !== 'Direto' && row.Caminho_Subgrupos !== 'Calculado') {
                     const groups = row.Caminho_Subgrupos.split('||');
                     groups.forEach((gName, idx) => {
@@ -413,7 +427,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     });
                 }
 
-                // --- 4. CONTA (Folha) ---
                 const contaId = `C_${row.Conta}_${currentId}`; 
                 const contaNode = {
                     id: contaId,
@@ -438,6 +451,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const btnIcon = isCC ? 'fa-building' : 'fa-sitemap';
             const btnText = isCC ? 'Visão: Centro de Custo' : 'Visão: Tipo';
 
+            // Lógica do botão de Escala
+            const isDreMode = this.biState.scaleMode === 'dre';
+            const btnScaleClass = isDreMode ? 'btn-info' : 'btn-secondary';
+            const btnScaleIcon = isDreMode ? 'fa-divide' : 'fa-dollar-sign';
+            const btnScaleText = isDreMode ? 'Escala: Milhares (DRE)' : 'Escala: Reais';
+
             const toolbar = `
                 <div class="bi-toolbar d-flex justify-content-between align-items-center p-3 border-bottom border-primary bg-tertiary">
                     <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -447,12 +466,16 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                             <i class="fas ${btnIcon}"></i> ${btnText}
                         </button>
 
+                        <button class="btn btn-sm ${btnScaleClass}" onclick="relatorioSystem.toggleScaleMode()" title="Alternar Escala de Valores">
+                            <i class="fas ${btnScaleIcon}"></i> ${btnScaleText}
+                        </button>
+
                         <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
                         <div class="input-group input-group-sm" style="width: 200px;">
                             <i class="input-group-icon fas fa-search"></i>
                             <input type="text" id="biGlobalSearch" class="form-control" 
-                                   placeholder="Filtrar estrutura..." value="${this.biState.globalSearch}"
-                                   oninput="relatorioSystem.handleBiGlobalSearch(this.value)">
+                                placeholder="Filtrar estrutura..." value="${this.biState.globalSearch}"
+                                oninput="relatorioSystem.handleBiGlobalSearch(this.value)">
                         </div>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
@@ -463,11 +486,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         <button class="btn btn-sm btn-success" onclick="relatorioSystem.exportBiToCsv()"><i class="fas fa-file-csv"></i> Exportar</button>
                     </div>
                 </div>`;
-
+            
+            // ... restante da função renderBiInterface mantém igual ...
             const gridContainer = `<div id="biGridContainer" class="table-fixed-container" style="flex: 1; overflow: auto; background: var(--bg-secondary);"></div>`;
             const footer = `
                 <div class="bi-footer p-2 bg-tertiary border-top border-primary d-flex justify-content-between align-items-center">
-                    <span class="text-secondary text-xs">Fonte: <strong>${this.biState.origemFilter}</strong> | Modo: <strong>${this.biState.viewMode}</strong></span>
+                    <span class="text-secondary text-xs">Fonte: <strong>${this.biState.origemFilter}</strong> | Modo: <strong>${this.biState.viewMode}</strong> | Escala: <strong>${this.biState.scaleMode.toUpperCase()}</strong></span>
                     <span class="text-muted text-xs">Atualizado: ${new Date().toLocaleTimeString('pt-BR')}</span>
                 </div>`;
 
@@ -480,21 +504,19 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             if (!container) return;
 
             const cols = this.biState.columnsOrder.filter(c => !this.biState.hiddenCols.has(c));
-            const rootHeaderName = this.biState.viewMode === 'CC' ? 'Tipo / Centro de Custo / Estrutura' : 'Tipo / Estrutura DRE';
+            const rootHeaderName = this.biState.viewMode === 'CC' ? 'Estrutura / Centro de Custo' : 'Estrutura DRE';
 
+            // --- HEADER DA TABELA (SEM ESTILOS INLINE DE COR) ---
             let headerHtml = `
                 <thead style="position: sticky; top: 0; z-index: 20;">
                     <tr>
-                        <th style="min-width: 350px; left: 0; position: sticky; z-index: 30;" class="bg-tertiary border-end border-secondary">
+                        <th style="min-width: 350px; left: 0; position: sticky; z-index: 30;">
                             ${rootHeaderName}
                         </th>
                         ${cols.map(c => `
-                            <th class="text-end bg-tertiary border-end border-secondary" style="min-width: 110px;">
+                            <th class="text-end" style="min-width: 110px;">
                                 <div class="d-flex flex-column">
-                                    <span class="mb-1 cursor-pointer" onclick="relatorioSystem.sortBiBy('${c}')">${c} <i class="fas fa-sort text-muted text-xs"></i></span>
-                                    <input type="text" class="form-control form-control-sm p-1 text-end text-xs bg-dark border-secondary" 
-                                           placeholder="Filtro..." value="${this.biState.filters[c] || ''}"
-                                           oninput="relatorioSystem.handleBiColFilter('${c}', this.value)">
+                                    <span class="mb-1 cursor-pointer text-xs font-bold" onclick="relatorioSystem.sortBiBy('${c}')">${c}</span>
                                 </div>
                             </th>
                         `).join('')}
@@ -503,39 +525,96 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
             let bodyRows = '';
             
+            // --- VARIÁVEIS DE COR PARA ÍCONES (VEM DO CSS THEMES) ---
+            const COLOR_DARK   = 'color: var(--icon-structure);'; 
+            const COLOR_GRAY   = 'color: var(--icon-secondary);'; 
+            const COLOR_FOLDER = 'color: var(--icon-folder);'; 
+            const COLOR_LIGHT  = 'color: var(--icon-account);';
+
             const renderNode = (node, level) => {
                 if (!node.isVisible) return;
                 const padding = level * 20 + 10;
                 const isGroup = node.children && node.children.length > 0;
                 const isExpanded = this.biState.expanded.has(node.id);
                 
-                let icon = '';
-                if (isGroup) {
-                    icon = `<i class="fas fa-chevron-${isExpanded ? 'down' : 'right'} me-2 toggle-icon" onclick="event.stopPropagation(); relatorioSystem.toggleNode('${node.id}')"></i>`;
-                } else {
-                    icon = (node.type === 'calculated') 
-                        ? `<i class="fas fa-calculator me-2 text-info" style="margin-left: 4px; cursor: help;" title="${node.formulaDescricao || ''}"></i>`
-                        : `<i class="far fa-file-alt me-2 opacity-50" style="margin-left: 4px;"></i>`;
+                let iconClass = '';
+                let iconStyle = '';
+
+                if (node.type === 'calculated') {
+                    iconClass = 'fa-calculator';
+                    iconStyle = COLOR_DARK;
+                } 
+                else if (node.type === 'root') {
+                    if (node.virtualId) {
+                        iconClass = 'fa-cube';
+                        iconStyle = COLOR_DARK;
+                    } else {
+                        iconClass = 'fa-layer-group';
+                        iconStyle = COLOR_DARK;
+                        
+                        // Refinamento: Globo para Grupo Raiz (ordem baixa)
+                        if (node.ordem < 1000 && !node.virtualId) {
+                            iconClass = 'fa-globe';
+                            iconStyle = COLOR_GRAY;
+                        }
+                    }
+                }
+                else if (node.type === 'group') {
+                    iconClass = 'fa-folder';
+                    iconStyle = COLOR_FOLDER;
+                }
+                else if (node.type === 'account') {
+                    iconClass = 'fa-file-alt';
+                    iconStyle = COLOR_LIGHT;
                 }
 
-                let rowClass = 'bi-row-account';
-                if (node.type === 'root') rowClass = 'bi-row-root'; 
-                else if (node.type === 'group') rowClass = 'bi-row-group'; 
-                else if (node.type === 'calculated') rowClass = 'bi-row-calculated';
+                let iconHtml = '';
+                if (isGroup) {
+                    // Seta discreta
+                    iconHtml = `<i class="fas fa-caret-${isExpanded ? 'down' : 'right'} me-2 toggle-icon" onclick="event.stopPropagation(); relatorioSystem.toggleNode('${node.id}')" style="width:10px; cursor: pointer; color: var(--text-tertiary);"></i>`;
+                    iconHtml += `<i class="fas ${iconClass} me-2" style="${iconStyle}"></i>`;
+                } else {
+                    iconHtml = `<i class="fas ${iconClass} me-2" style="margin-left: 18px; ${iconStyle}"></i>`;
+                }
+
+                // Estilos de Fonte (Classes CSS, sem cor inline)
+                let labelStyle = ''; 
+                // As cores do texto são definidas no CSS pelas classes bi-row-*
 
                 const customStyle = node.estiloCss ? `style="${node.estiloCss}"` : '';
+                
                 const cellsHtml = cols.map(c => {
                     const val = node.values[c];
-                    let colorClass = val < 0 ? 'text-danger fw-bold' : (val > 0 ? 'text-success fw-bold' : 'text-muted');
-                    let displayVal = val !== 0 ? FormatUtils.formatNumber(val) : '-';
+                    
+                    // Cores de valor (Bootstrap Standard)
+                    let colorClass = '';
+                    if (val < 0) colorClass = 'text-danger'; 
+                    else if (val === 0) colorClass = 'text-muted';
+                    
+                    let displayVal = '-';
+                    
+                    if (val !== 0) {
+                        if (this.biState.scaleMode === 'dre') {
+                            // MODO DRE: Usa a formatação com parênteses
+                            displayVal = this.formatDREValue(val);
+                        } else {
+                            // MODO NORMAL: Usa formatação padrão numérica
+                            displayVal = FormatUtils.formatNumber(val);
+                        }
+                    }
+                    
                     if (node.tipoExibicao === 'percentual' && val !== 0) displayVal = val.toFixed(2) + '%';
-                    return `<td class="text-end font-mono ${colorClass}">${displayVal}</td>`;
+                    
+                    const weight = (node.type === 'root' || node.type === 'calculated') ? 'font-weight: 600;' : '';
+                    
+                    return `<td class="text-end font-mono ${colorClass}" style="${weight}">${displayVal}</td>`;
                 }).join('');
 
-                bodyRows += `<tr class="${rowClass}" ${customStyle}>
+                // GERAÇÃO DA LINHA (SEM STYLE BACKGROUND COLOR FIXO)
+                bodyRows += `<tr class="bi-row-${node.type}" ${customStyle}>
                         <td style="padding-left: ${padding}px;">
-                            <div class="d-flex align-items-center cell-label">
-                                ${icon}<span class="text-truncate" title="${node.formulaDescricao || ''}">${node.label}</span>
+                            <div class="d-flex align-items-center cell-label" style="${labelStyle}">
+                                ${iconHtml}<span class="text-truncate" title="${node.formulaDescricao || ''}">${node.label}</span>
                             </div>
                         </td>${cellsHtml}</tr>`;
 
@@ -613,7 +692,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         }
         async loadNosCalculados() { try { const r = await APIUtils.get((API_ROUTES?.getNosCalculados) || '/Configuracao/GetNosCalculados'); this.nosCalculados = r || []; return this.nosCalculados; } catch { return []; } }
         
-        // --- CÁLCULO DE NÓS (Mantido igual) ---
         calcularValorNo(formula, mes, valoresAgregados) {
             if (!formula || !formula.operandos) return 0;
             const valores = formula.operandos.map(op => valoresAgregados[`${op.tipo}_${op.id}`]?.[mes] || 0);
@@ -639,7 +717,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         valores[mes] = this.calcularValorNo(noCalc.formula, mes, valoresAgregados);
                     });
 
-                    // Correção Cascata
                     const chaveMemoria = `no_virtual_${noCalc.id}`;
                     if (!valoresAgregados[chaveMemoria]) valoresAgregados[chaveMemoria] = {};
                     meses.forEach(mes => valoresAgregados[chaveMemoria][mes] = valores[mes]);
@@ -659,7 +736,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     
                     const nodeCalc = {
                         id: `calc_${noCalc.id}`,
-                        label: `📊 ${noCalc.nome}`, 
+                        label: `${noCalc.nome}`, 
                         rawLabel: noCalc.nome,     
                         type: 'calculated',
                         children: [],
