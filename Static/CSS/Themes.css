@@ -156,6 +156,35 @@
     --opacity-80: 0.8;
     --opacity-90: 0.9;
     --opacity-100: 1;
+
+    /* Ícones: Alto contraste, sóbrios */
+    --icon-structure: #F8FAFC;  /* Branco Gelo (Destaque sobre fundo escuro) */
+    --icon-secondary: #94A3B8;  /* Slate 400 (Cinza médio para elementos secundários) */
+    --icon-folder:    #D4AF37;  /* Metallic Gold (Dourado Metálico Fosco - Profissional) */
+    --icon-account:   #64748B;  /* Slate 500 (Cinza escuro discreto) */
+
+    /* Tabela BI: Tons de Chumbo (Slate) para reduzir cansaço visual */
+    --bi-bg-header:     #1E293B; /* Slate 800 */
+    --bi-bg-body:       #0F172A; /* Slate 900 (Fundo base) */
+    --bi-border:        #334155; /* Slate 700 (Bordas sutis) */
+    
+    /* Linhas da Tabela (Dark) */
+    --bi-row-root-bg:   linear-gradient(90deg, #1E293B, #0F172A); /* Gradiente sutil chumbo */
+    --bi-row-root-text: #F1F5F9; /* Texto quase branco */
+    
+    --bi-row-group-bg:  #1E293B; /* Fundo levemente mais claro que o body */
+    --bi-row-group-text:#E2E8F0;
+    
+    --bi-row-acct-bg:   transparent;
+    --bi-row-acct-text: #94A3B8; /* Texto cinza para leitura confortável */
+    
+    /* Destaques (Sem cores neon) */
+    --bi-row-calc-bg:   rgba(148, 163, 184, 0.1); /* Apenas um brilho cinza, sem roxo */
+    --bi-row-calc-text: #FFFFFF;
+    --bi-row-hover:     rgba(255, 255, 255, 0.05); /* Hover sutil */
+    
+    --bi-input-bg:      #0F172A;
+    --bi-input-text:    #CBD5E1;
 }
 
 /* ========== TEMA CLARO (OPCIONAL) ========== vairai */
@@ -176,6 +205,35 @@
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+
+    /* Ícones: Cores originais sóbrias */
+    --icon-structure: #2C3E50;  /* Slate Dark */
+    --icon-secondary: #7F8C8D;  /* Gray */
+    --icon-folder:    #C0A16B;  /* Muted Gold */
+    --icon-account:   #BDC3C7;  /* Silver */
+
+    /* Tabela BI */
+    --bi-bg-header:     #F8F9FA; /* Cinza muito claro */
+    --bi-bg-body:       #FFFFFF;
+    --bi-border:        #DEE2E6;
+    
+    /* Linhas da Tabela (Light) */
+    --bi-row-root-bg:   linear-gradient(90deg, #E9ECEF, #F8F9FA);
+    --bi-row-root-text: #2C3E50;
+    
+    --bi-row-group-bg:  #F8F9FA;
+    --bi-row-group-text:#34495E;
+    
+    --bi-row-acct-bg:   #FFFFFF;
+    --bi-row-acct-text: #7F8C8D;
+    
+    /* Destaques */
+    --bi-row-calc-bg:   rgba(0, 0, 0, 0.03); /* Cinza muito sutil */
+    --bi-row-calc-text: #2C3E50;
+    --bi-row-hover:     #F1F3F5;
+    
+    --bi-input-bg:      #FFFFFF;
+    --bi-input-text:    #495057;
 }
 
 /* ========== CLASSES UTILITÁRIAS DE CORES ========== */
