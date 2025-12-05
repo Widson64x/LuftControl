@@ -39,6 +39,8 @@ class AjustesRazao(Base):
     Is_Nao_Operacional = Column(Boolean, default=False)
     Exibir_Saldo = Column(Boolean, default=True)
     
+    # Determina se o lançamento é válido ou inválido
+    Invalido = Column(Boolean, default=False)
     # Auditoria
     Criado_Por = Column(String(100))
     Data_Criacao = Column(DateTime, default=datetime.datetime.now)
