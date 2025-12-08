@@ -387,17 +387,48 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
         // =====================================================================
         async loadData() {
             try {
+                // PASSO 1: Definir qual mês/ano será processado pela regra
+                // Se você tiver inputs de filtro na tela, pegue o valor deles aqui via document.getElementById...
+                // Vou deixar fixo como exemplo ou pegando data atual, mas ajuste conforme sua necessidade:
+                const dataRef = new Date(); 
+                const anoParaProcessar = 2025; // Ex: document.getElementById('filtroAno').value
+                const mesParaProcessar = 1;    // Ex: document.getElementById('filtroMes').value
+
+                // PASSO 2: Rodar a automação de Intergrupo (POST)
+                // O 'await' aqui é crucial: ele trava a execução até o Python terminar de criar as linhas.
+                const resIntergrupo = await fetch(API_ROUTES.getIntergrupos, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        ano: parseInt(anoParaProcessar), 
+                        mes: parseInt(mesParaProcessar) 
+                    })
+                });
+
+                // Opcional: Verificar se deu erro na regra de negócio antes de prosseguir
+                if (!resIntergrupo.ok) {
+                    console.warn("Aviso: O processamento de intergrupo retornou erro ou já estava processado.");
+                }
+
+                // PASSO 3: Carregar os dados da tabela (Fluxo normal)
+                // Agora o banco já tem as linhas 'B' e os estornos criados
                 const res = await fetch(API_ROUTES.getDados);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
                 const data = await res.json();
-                data.forEach((d, i) => { if (!d.Hash_ID) d.Hash_ID = "TMP_" + i + "_" + Date.now(); });
+
+                // Tratamento de IDs para o Tabulator (conforme seu código original)
+                data.forEach((d, i) => { 
+                    if (!d.Hash_ID) d.Hash_ID = "TMP_" + i + "_" + Date.now(); 
+                });
+
                 this.table.replaceData(data);
+
             } catch (e) {
                 console.error('Erro ao carregar dados:', e);
-                this.table.alert("Erro ao carregar dados.", "error");
+                this.table.alert("Erro ao processar e carregar dados.", "error");
             }
         }
-
         showModal(show) {
             if (!this.modal) return;
             if (show) {
