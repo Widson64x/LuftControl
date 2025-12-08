@@ -497,8 +497,8 @@
 }
 
 /* Header com Variáveis de Tema */
-.table-modern thead th {
-    background: var(--bi-bg-header); /* Var */
+.table-modern thead {
+    background: var(--bi-bg-header) !important;
     color: var(--text-secondary);
     font-size: 0.7rem;
     font-weight: 700;
@@ -509,9 +509,30 @@
     border-right: 1px solid var(--bi-border); /* Var */
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: 60 !important;
     white-space: nowrap;
 }
+
+.table-modern thead th {
+    background: var(--bi-bg-header) !important;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 10px;
+    border-bottom: 2px solid var(--primary);
+    border-right: 1px solid var(--bi-border); /* Var */
+    position: sticky;
+    top: 0;
+    z-index: 60 !important;
+    white-space: nowrap;
+}
+
+.table-modern thead th:first-child {
+    z-index: 50 !important;
+}
+
 .table-modern thead th:last-child {
     border-right: none;
 }
@@ -540,13 +561,15 @@
 /* Sticky First Column */
 .table-modern th:first-child,
 .table-modern td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 15;
-    border-right: 2px solid var(--primary);
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 30 !important; /* Força um índice alto */
+    box-shadow: 4px 0 8px rgba(0,0,0,0.05); /* Sombra suave para separar visualmente */
+    clip-path: inset(0 -15px 0 0); /* Evita glitch de sombra */
 }
+
 .table-modern th:first-child {
-    z-index: 25;
+    z-index: 40 !important; 
     min-width: 350px;
 }
 .table-modern td:first-child::after {
@@ -588,8 +611,8 @@
     border-top: 1px solid var(--bi-border);
     color: var(--bi-row-root-text) !important;
 }
-.bi-row-root td:first-child {
-    background: var(--bi-row-root-bg);
+.bi-row-root td:first-child { 
+    background-color: var(--bi-row-root-bg) !important; 
 }
 
 /* 2. Grupos (Pastas) */
@@ -601,8 +624,8 @@
     font-size: 0.85rem;
     color: var(--bi-row-group-text);
 }
-.bi-row-group td:first-child {
-    background: var(--bi-row-group-bg);
+.bi-row-group td:first-child { 
+    background-color: var(--bi-row-group-bg) !important; 
 }
 
 /* 3. Contas (Folhas) */
@@ -613,8 +636,8 @@
     font-size: 0.8rem;
     color: var(--bi-row-acct-text);
 }
-.bi-row-account td:first-child {
-    background: var(--bi-row-acct-bg);
+.bi-row-account td:first-child { 
+    background-color: var(--bi-row-acct-bg) !important; 
 }
 
 /* 4. Calculados (EBITDA, Margem) - Enterprise Clean */
@@ -628,8 +651,14 @@
     font-size: 0.9rem;
     color: var(--bi-row-calc-text) !important;
 }
-.bi-row-calculated td:first-child {
-    background: var(--bi-row-calc-bg);
+.bi-row-calculated td:first-child { 
+    background-color: var(--bi-row-calc-bg) !important;
+    /* Adicional: Se a cor for muito clara, reforçamos para garantir opacidade */
+    opacity: 1 !important; 
+}
+
+.table-modern tr:hover td:first-child {
+    background-color: var(--bi-row-hover) !important;
 }
 
 /* Row Hover */
@@ -1159,3 +1188,82 @@
 .formula-indicator i {
     color: var(--warning);
 }
+
+/* ==========================================================================
+   NOVOS ESTILOS: BUSCA E COLUNAS
+   ========================================================================== */
+
+/* --- Destaques da Busca (Ctrl+F Style) --- */
+.search-match {
+    background-color: rgba(255, 235, 59, 0.15) !important; /* Amarelo suave */
+    transition: background-color 0.3s ease;
+}
+
+.search-match td {
+    color: var(--text-primary) !important; 
+    font-weight: 600;
+}
+
+.search-current-match {
+    background-color: rgba(255, 152, 0, 0.3) !important; /* Laranja destaque */
+    box-shadow: inset 3px 0 0 var(--warning);
+}
+
+/* --- Gerenciador de Colunas Moderno --- */
+.column-manager-container {
+    padding: 1rem;
+}
+
+.column-manager-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.column-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.8rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.column-option {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.column-option:hover {
+    border-color: var(--primary);
+    background: var(--bg-hover);
+}
+
+.column-option.selected {
+    background: rgba(var(--primary-rgb), 0.1);
+    border-color: var(--primary);
+    color: var(--primary-light);
+    font-weight: 500;
+}
+
+.column-checkbox {
+    margin-right: 10px;
+    accent-color: var(--primary);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* Scrollbar fina para o grid */
+.column-grid::-webkit-scrollbar { width: 6px; }
+.column-grid::-webkit-scrollbar-thumb { background: var(--border-secondary); border-radius: 4px; }
