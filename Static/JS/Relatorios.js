@@ -26,7 +26,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     expanded: new Set(['root']), 
                     hiddenCols: new Set(),       
                     filters: {},                 
-                    globalSearch: '',            
+                    globalSearch: '',
+                    // NOVOS ESTADOS PARA A BUSCA
+                    searchMatches: [],      // Array com IDs dos nós encontrados
+                    searchCurrentIndex: -1, // Índice atual da navegação            
                     sort: { col: null, dir: 'asc' }, 
                     columnsOrder: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Total_Ano'],            
                     origemFilter: 'Consolidado',  
@@ -247,7 +250,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const viewTitle = this.biState.viewMode === 'CC' ? 'por Centro de Custo' : 'por Tipo';
             const scaleTitle = this.biState.scaleMode === 'dre' ? '(Em Milhares)' : '(Valor Integral)';
             
-            this.modal.open(`<i class="fas fa-cubes"></i> Análise Gerencial ${viewTitle} <small class="text-muted">${scaleTitle}</small>`, '');
+            this.modal.open(`<i class="fas fa-cubes"></i> Análise Gerencial ${viewTitle} <small class="modal-title">${scaleTitle}</small>`, '');
             this.modal.showLoading('Construindo cubo de dados...');
 
             try {
@@ -479,8 +482,9 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         <div class="input-group input-group-sm" style="width: 200px;">
                             <i class="input-group-icon fas fa-search"></i>
                             <input type="text" id="biGlobalSearch" class="form-control" 
-                                placeholder="Filtrar estrutura..." value="${this.biState.globalSearch}"
-                                oninput="relatorioSystem.handleBiGlobalSearch(this.value)">
+                                placeholder="Buscar e navegar (Enter)..." value="${this.biState.globalSearch}"
+                                oninput="relatorioSystem.handleBiGlobalSearch(this.value)"
+                                onkeydown="if(event.key === 'Enter') { event.preventDefault(); relatorioSystem.navigateSearchNext(); }">
                         </div>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
@@ -614,8 +618,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     return `<td class="text-end font-mono ${colorClass}" style="${weight}">${displayVal}</td>`;
                 }).join('');
 
+                const isMatch = this.biState.searchMatches.includes(node.id);
+                const searchClass = isMatch ? 'search-match' : '';
+
                 // GERAÇÃO DA LINHA (SEM STYLE BACKGROUND COLOR FIXO)
-                bodyRows += `<tr class="bi-row-${node.type}" ${customStyle}>
+                bodyRows += `<tr id="row_${node.id}" class="bi-row-${node.type} ${searchClass}" ${customStyle}>
                         <td style="padding-left: ${padding}px;">
                             <div class="d-flex align-items-center cell-label" style="${labelStyle}">
                                 ${iconHtml}<span class="text-truncate" title="${node.formulaDescricao || ''}">${node.label}</span>
@@ -631,13 +638,16 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
         // --- MÉTODOS AUXILIARES ---
         applyBiFilters() {
-            const globalTerm = this.biState.globalSearch.toLowerCase();
             const colFilters = this.biState.filters;
             const hasColFilters = Object.keys(colFilters).length > 0;
 
             const checkVisibility = (node) => {
-                let matchesGlobal = !globalTerm || node.label.toLowerCase().includes(globalTerm);
+                // A Busca Global NÃO afeta visibilidade (matchesGlobal é sempre true para renderizar)
+                // Apenas expandimos os nós na função performSearchTraversal
+                
                 let matchesCols = true;
+                
+                // Filtros de Coluna (numéricos/valores) continuam escondendo linhas
                 if (hasColFilters) {
                     for (const [col, filterVal] of Object.entries(colFilters)) {
                         if (!filterVal) continue;
@@ -650,28 +660,217 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         if (!pass) { matchesCols = false; break; }
                     }
                 }
+
                 let hasVisibleChildren = false;
                 if (node.children) node.children.forEach(child => { if (checkVisibility(child)) hasVisibleChildren = true; });
-                const isVisible = (matchesGlobal && matchesCols) || hasVisibleChildren;
+                
+                // Visível se passar nos filtros de coluna OU tiver filhos visíveis
+                const isVisible = matchesCols || hasVisibleChildren;
                 node.isVisible = isVisible;
-                if (isVisible && (globalTerm || hasColFilters)) this.biState.expanded.add(node.id); 
+                
+                // Se filtro de coluna estiver ativo e passar, expande para mostrar
+                if (isVisible && hasColFilters) this.biState.expanded.add(node.id); 
+                
                 return isVisible;
             };
             this.biTreeData.forEach(node => checkVisibility(node));
         }
+        handleBiGlobalSearch(val) { 
+            this.biState.globalSearch = val; 
+            
+            // Se limpar, reseta tudo
+            if (!val) {
+                this.biState.searchMatches = [];
+                this.biState.searchCurrentIndex = -1;
+                this.renderBiTable(); // Renderiza limpo
+                return;
+            }
 
-        handleBiGlobalSearch(val) { this.biState.globalSearch = val; this.debounceRender(); }
+            clearTimeout(this.biDebounceTimer); 
+            this.biDebounceTimer = setTimeout(() => { 
+                this.performSearchTraversal(); 
+            }, 400); 
+        }
+
+        performSearchTraversal() {
+            const term = this.biState.globalSearch.toLowerCase();
+            this.biState.searchMatches = []; // Reseta matches
+            this.biState.searchCurrentIndex = -1;
+
+            if (!term) return;
+
+            // Função recursiva para encontrar matches e expandir pais
+            const findAndExpand = (nodes, parentIds = []) => {
+                nodes.forEach(node => {
+                    const match = node.label.toLowerCase().includes(term);
+                    
+                    if (match) {
+                        // Adiciona aos encontrados
+                        this.biState.searchMatches.push(node.id);
+                        // Expande todos os pais deste nó para garantir que ele esteja visível
+                        parentIds.forEach(pid => this.biState.expanded.add(pid));
+                    }
+
+                    if (node.children && node.children.length > 0) {
+                        findAndExpand(node.children, [...parentIds, node.id]);
+                    }
+                });
+            };
+
+            findAndExpand(this.biTreeData);
+
+            // Se encontrou algo, prepara para ir ao primeiro
+            if (this.biState.searchMatches.length > 0) {
+                this.renderBiTable(); // Re-renderiza para aplicar classes e abrir pastas
+                
+                // Pequeno delay para garantir que o DOM existe antes de focar
+                setTimeout(() => this.navigateSearchNext(), 100);
+            } else {
+                this.renderBiTable(); // Re-renderiza mesmo sem matches para limpar destaques anteriores
+            }
+        }
+
+        navigateSearchNext() {
+            if (this.biState.searchMatches.length === 0) return;
+
+            // Incrementa índice (loop circular)
+            this.biState.searchCurrentIndex++;
+            if (this.biState.searchCurrentIndex >= this.biState.searchMatches.length) {
+                this.biState.searchCurrentIndex = 0;
+            }
+
+            const nodeId = this.biState.searchMatches[this.biState.searchCurrentIndex];
+            this.scrollToNode(nodeId);
+            this.updateSearchHighlights();
+        }
+
+        scrollToNode(nodeId) {
+            const row = document.getElementById(`row_${nodeId}`);
+            if (row) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        updateSearchHighlights() {
+            // Remove destaque de foco anterior
+            document.querySelectorAll('.search-current-match').forEach(el => el.classList.remove('search-current-match'));
+            
+            const currentId = this.biState.searchMatches[this.biState.searchCurrentIndex];
+            const row = document.getElementById(`row_${currentId}`);
+            if (row) {
+                row.classList.add('search-current-match');
+            }
+        }
+
         handleBiColFilter(col, val) { if (!val) delete this.biState.filters[col]; else this.biState.filters[col] = val; this.debounceRender(); }
         debounceRender() { clearTimeout(this.biDebounceTimer); this.biDebounceTimer = setTimeout(() => { this.applyBiFilters(); this.renderBiTable(); }, 400); }
         toggleNode(id) { if (this.biState.expanded.has(id)) this.biState.expanded.delete(id); else this.biState.expanded.add(id); this.renderBiTable(); }
         toggleAllNodes(expand) { const recurse = (nodes) => { nodes.forEach(n => { if (expand) this.biState.expanded.add(n.id); else this.biState.expanded.delete(n.id); if (n.children) recurse(n.children); }); }; recurse(this.biTreeData); this.renderBiTable(); }
-        openColumnManager() { 
+        openColumnManager() {
             const allCols = this.biState.columnsOrder;
-            const checksHtml = allCols.map(c => `<div class="col-6 mb-2"><label class="d-flex align-items-center cursor-pointer"><input type="checkbox" ${!this.biState.hiddenCols.has(c) ? 'checked' : ''} onchange="relatorioSystem.toggleBiColumn('${c}')"><span class="ms-2 text-white">${c}</span></label></div>`).join('');
-            const modalHtml = `<div class="p-3"><h5>Gerenciar Colunas Visíveis</h5><div class="row mt-3">${checksHtml}</div><div class="mt-3 text-end"><button class="btn btn-sm btn-primary" onclick="this.closest('.modal-backdrop').remove(); relatorioSystem.renderBiTable()">Aplicar</button></div></div>`;
-            const colModal = document.createElement('div'); colModal.className = 'modal-backdrop active'; colModal.innerHTML = `<div class="modal-window modal-sm"><div class="modal-body">${modalHtml}</div></div>`;
-            colModal.onclick = (e) => { if(e.target === colModal) colModal.remove(); }; document.body.appendChild(colModal);
+            
+            // Verifica se todos estão visíveis para marcar o "Selecionar Todos"
+            const allVisible = allCols.every(c => !this.biState.hiddenCols.has(c));
+
+            const modalHtml = `
+                <div class="column-manager-container">
+                    <div class="column-manager-header">
+                        <h5 class="m-0"><i class="fas fa-columns text-primary"></i> Gerenciar Colunas</h5>
+                        <button class="btn btn-sm btn-outline" onclick="relatorioSystem.toggleAllColumns(this)">
+                            <i class="fas ${allVisible ? 'fa-check-square' : 'fa-square'}"></i> ${allVisible ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                        </button>
+                    </div>
+                    
+                    <div class="column-grid">
+                        ${allCols.map(c => {
+                            const isVisible = !this.biState.hiddenCols.has(c);
+                            return `
+                            <label class="column-option ${isVisible ? 'selected' : ''}">
+                                <input type="checkbox" class="column-checkbox" 
+                                    value="${c}" 
+                                    ${isVisible ? 'checked' : ''} 
+                                    onchange="relatorioSystem.handleColumnToggle(this, '${c}')">
+                                <span>${c}</span>
+                            </label>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <div class="mt-4 text-end border-top border-primary pt-3">
+                        <button class="btn btn-primary-custom" style="width: auto; padding: 8px 24px;" 
+                                onclick="document.querySelector('.modal-backdrop').remove(); relatorioSystem.renderBiTable()">
+                            <i class="fas fa-check"></i> Aplicar Alterações
+                        </button>
+                    </div>
+                </div>`;
+
+            // Cria o Modal Backdrop (mesma lógica anterior, mas com estilo melhor)
+            const colModal = document.createElement('div'); 
+            colModal.className = 'modal-backdrop active'; 
+            colModal.innerHTML = `<div class="modal-window" style="max-width: 600px;">${modalHtml}</div>`;
+            
+            colModal.onclick = (e) => { 
+                if(e.target === colModal) {
+                    colModal.remove(); 
+                    this.renderBiTable(); // Aplica ao fechar clicando fora também
+                }
+            }; 
+            document.body.appendChild(colModal);
         }
+
+        // Manipulador individual de checkbox (para atualizar estilo visual instantaneamente)
+        handleColumnToggle(checkbox, col) {
+            if (checkbox.checked) {
+                this.biState.hiddenCols.delete(col);
+                checkbox.closest('.column-option').classList.add('selected');
+            } else {
+                this.biState.hiddenCols.add(col);
+                checkbox.closest('.column-option').classList.remove('selected');
+            }
+            // Atualiza botão "Selecionar Todos" dinamicamente
+            this.updateSelectAllBtnState();
+        }
+
+        // Lógica "Selecionar Todos / Desmarcar Todos"
+        toggleAllColumns(btn) {
+            const allCols = this.biState.columnsOrder;
+            const checkboxes = document.querySelectorAll('.column-grid input[type="checkbox"]');
+            
+            // Se o botão tem ícone de check, vamos desmarcar tudo. Se não, marcar tudo.
+            const isCurrentlyAllChecked = btn.querySelector('i').classList.contains('fa-check-square');
+            const newState = !isCurrentlyAllChecked;
+
+            checkboxes.forEach(chk => {
+                chk.checked = newState;
+                const col = chk.value;
+                const parent = chk.closest('.column-option');
+                
+                if (newState) {
+                    this.biState.hiddenCols.delete(col);
+                    parent.classList.add('selected');
+                } else {
+                    this.biState.hiddenCols.add(col);
+                    parent.classList.remove('selected');
+                }
+            });
+
+            this.updateSelectAllBtnState();
+        }
+
+        updateSelectAllBtnState() {
+            const btn = document.querySelector('.column-manager-header button');
+            if(!btn) return;
+            
+            const allCols = this.biState.columnsOrder;
+            const allVisible = allCols.every(c => !this.biState.hiddenCols.has(c));
+            
+            if(allVisible) {
+                btn.innerHTML = '<i class="fas fa-check-square"></i> Desmarcar Todos';
+            } else {
+                btn.innerHTML = '<i class="fas fa-square"></i> Selecionar Todos';
+            }
+        }
+
         toggleBiColumn(col) { if (this.biState.hiddenCols.has(col)) this.biState.hiddenCols.delete(col); else this.biState.hiddenCols.add(col); }
         sortBiBy(col) { 
             if (this.biState.sort.col === col) this.biState.sort.dir = this.biState.sort.dir === 'asc' ? 'desc' : 'asc';
