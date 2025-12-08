@@ -59,3 +59,25 @@ class AjustesLog(Base):
     Usuario_Acao = Column(String)
     Data_Acao = Column(DateTime, default=datetime.datetime.now)
     Tipo_Acao = Column(String)
+    
+# Adicione isso ao final do arquivo Ajustes.py
+class AjustesIntergrupoLog(Base):
+    __table_args__ = {"schema": "Dre_Schema"}
+    __tablename__ = 'Ajustes_Intergrupo_Log'
+
+    Id = Column(Integer, primary_key=True)
+    Data_Processamento = Column(DateTime, default=datetime.datetime.now)
+    
+    Ano = Column(Integer)
+    Mes = Column(Integer)
+    Conta_Origem = Column(String(50))
+    Origem_ERP = Column(String(50))
+    
+    Valor_Encontrado_ERP = Column(Float)
+    Tipo_Fluxo = Column(String(20))
+    
+    Id_Ajuste_Origem = Column(Integer)
+    Id_Ajuste_Destino = Column(Integer)
+    
+    Acao_Realizada = Column(String(50))
+    Hash_Gerado = Column(String(100))
