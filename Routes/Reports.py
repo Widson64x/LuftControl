@@ -4,11 +4,14 @@ Rotas para Relatórios de Rentabilidade e Razão Contábil
 VERSÃO CORRIGIDA - Consulta SQL dinâmica para evitar problemas de mapeamento ORM
 """
 
-from flask import Blueprint, jsonify, request, current_app, abort, render_template
+from flask import Blueprint, jsonify, request, current_app, abort, render_template, send_file
 from flask_login import login_required 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func, or_, String, text
-import json
+import io
+import pandas as pd
+import xlsxwriter
+from datetime import datetime
 
 
 from Db.Connections import get_postgres_engine
@@ -130,5 +133,58 @@ def RelatorioRentabilidadePorCC():
     except Exception as e:
         current_app.logger.error(f"Erro DreService RentabilidadeCC: {e}")
         abort(500, description=f"Erro interno: {str(e)}")
+    finally:
+        if session: session.close()
+    
+@reports_bp.route('/RelatorioRazao/DownloadFull', methods=['GET'])
+@login_required
+def download_razao_full():
+    session = None
+    try:
+        # 1. Recupera filtros do Frontend
+        view_type = request.args.get('view_type', 'original') # 'original' ou 'adjusted'
+        search_term = request.args.get('search', '').strip()
+        
+        session = get_pg_session()
+        service = DreService(session)
+        
+        # 2. Busca os dados brutos (Método que criaremos abaixo)
+        data_rows = service.export_razao_full(search_term, view_type)
+        
+        if not data_rows:
+            return jsonify({'message': 'Sem dados para exportar'}), 404
+
+        # 3. Gera o DataFrame com as colunas na ordem correta
+        df = pd.DataFrame(data_rows)
+        
+        # Formata datas para o Excel não se perder
+        if 'Data' in df.columns:
+            df['Data'] = pd.to_datetime(df['Data']).dt.strftime('%d/%m/%Y')
+
+        # 4. Cria o arquivo em memória
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Razão Full')
+            
+            # Ajuste de largura das colunas (Opcional)
+            worksheet = writer.sheets['Razão Full']
+            for idx, col in enumerate(df.columns):
+                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.set_column(idx, idx, min(max_len, 60))
+
+        output.seek(0)
+        
+        filename = f"Razao_Full_{view_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Erro Download: {e}")
+        return jsonify({'error': str(e)}), 500
     finally:
         if session: session.close()
