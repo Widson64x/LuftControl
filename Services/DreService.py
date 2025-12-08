@@ -528,3 +528,90 @@ class DreService:
         sql = text("SELECT COUNT(*), SUM(\"Debito\"), SUM(\"Credito\"), SUM(\"Saldo\") FROM \"Dre_Schema\".\"Razao_Dados_Consolidado\"")
         base = self.session.execute(sql).fetchone()
         return {'total_registros': base[0] or 0, 'total_debito': float(base[1] or 0), 'total_credito': float(base[2] or 0), 'saldo_total': float(base[3] or 0)}
+
+    def export_razao_full(self, search_term='', view_type='original'):
+        """Busca TUDO para Excel, aplicando ajustes se view_type == 'adjusted'."""
+        
+        # Filtros de busca (mesma lógica da tela)
+        filter_snippet = ""
+        params = {}
+        if search_term:
+            filter_snippet = """
+                AND (
+                    "Conta"::TEXT ILIKE :termo OR "Título Conta" ILIKE :termo
+                    OR "Descricao" ILIKE :termo OR "Numero"::TEXT ILIKE :termo
+                    OR "origem" ILIKE :termo
+                )
+            """
+            params['termo'] = f"%{search_term}%"
+
+        # SQL COM TODAS AS COLUNAS SOLICITADAS
+        sql = text(f"""
+            SELECT 
+                "origem", "Conta", "Título Conta", "Data", "Numero", 
+                "Descricao", "Contra Partida - Credito" as "Contra Partida", 
+                "Filial", "Centro de Custo", "Item", "Cod Cl. Valor", 
+                "Debito", "Credito", "Saldo"
+            FROM "Dre_Schema"."Razao_Dados_Consolidado"
+            WHERE 1=1 {filter_snippet}
+            ORDER BY "Data", "Conta"
+        """)
+        
+        rows = self.session.execute(sql, params).fetchall()
+        
+        # Se for só original, retorna rápido convertendo para dict
+        if view_type != 'adjusted':
+            return [dict(row._mapping) for row in rows]
+
+        # --- LÓGICA DE AJUSTES (Se botão estiver ativo) ---
+        ajustes_edicao, ajustes_inclusao = self.get_ajustes_map()
+        final_data = []
+
+        # 1. Processa Linhas Originais (Substituindo se necessário)
+        for r in rows:
+            row_dict = dict(r._mapping) # Converte RowProxy para Dict
+            
+            # Gera hash para verificar se existe ajuste
+            r_hash = self._gerar_hash_linha(r)
+            
+            if r_hash in ajustes_edicao:
+                adj = ajustes_edicao[r_hash]
+                if not adj.Invalido:
+                    # Sobrescreve dados visuais
+                    row_dict['origem'] += " (AJUSTE)"
+                    if adj.Conta: row_dict['Conta'] = adj.Conta
+                    if adj.Titulo_Conta: row_dict['Título Conta'] = adj.Titulo_Conta
+                    if adj.Descricao: row_dict['Descricao'] = adj.Descricao
+                    
+                    # Recalcula valores
+                    d = float(adj.Debito or 0)
+                    c = float(adj.Credito or 0)
+                    row_dict['Debito'] = d
+                    row_dict['Credito'] = c
+                    row_dict['Saldo'] = d - c
+            
+            final_data.append(row_dict)
+
+        # 2. Adiciona Inclusões Manuais (Novas linhas)
+        for adj in ajustes_inclusao:
+            if not adj.Invalido:
+                d = float(adj.Debito or 0)
+                c = float(adj.Credito or 0)
+                final_data.append({
+                    'origem': f"{adj.Origem} (NOVO)",
+                    'Conta': adj.Conta,
+                    'Título Conta': adj.Titulo_Conta,
+                    'Data': adj.Data,
+                    'Numero': adj.Numero,
+                    'Descricao': adj.Descricao,
+                    'Contra Partida': '',
+                    'Filial': adj.Filial,
+                    'Centro de Custo': adj.Centro_Custo,
+                    'Item': adj.Item,
+                    'Cod Cl. Valor': '', # Geralmente vazio em inclusão manual
+                    'Debito': d,
+                    'Credito': c,
+                    'Saldo': d - c
+                })
+        
+        return final_data

@@ -165,6 +165,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     </div>
 
                     <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-success" onclick="relatorioSystem.downloadRazaoFull()" title="Baixar Relatório Completo em Excel">
+                            <i id="iconDownload" class="fas fa-file-excel"></i> Exportar Full
+                        </button>
+                        
+                        <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
                         <small class="text-secondary me-2">Pag ${this.razaoPage}/${this.razaoTotalPages}</small>
                         <div class="btn-group">
                             <button class="btn btn-sm btn-secondary" onclick="relatorioSystem.loadRazaoReport(${this.razaoPage - 1})" ${this.razaoPage <= 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
@@ -483,11 +488,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         <button class="btn btn-sm btn-outline" onclick="relatorioSystem.toggleAllNodes(false)" title="Recolher Tudo"><i class="fas fa-compress-arrows-alt"></i></button>
                         <button class="btn btn-sm btn-outline" onclick="relatorioSystem.openColumnManager()" title="Colunas"><i class="fas fa-columns"></i></button>
                         <div class="separator-vertical mx-1" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
-                        <button class="btn btn-sm btn-success" onclick="relatorioSystem.exportBiToCsv()"><i class="fas fa-file-csv"></i> Exportar</button>
+                        <!-- <button class="btn btn-sm btn-success" onclick="relatorioSystem.exportBiToCsv()"><i class="fas fa-file-csv"></i> Exportar</button>  DESATIVANDO BOTÃO DE EXPORTAR --!> 
                     </div>
                 </div>`;
             
-            // ... restante da função renderBiInterface mantém igual ...
             const gridContainer = `<div id="biGridContainer" class="table-fixed-container" style="flex: 1; overflow: auto; background: var(--bg-secondary);"></div>`;
             const footer = `
                 <div class="bi-footer p-2 bg-tertiary border-top border-primary d-flex justify-content-between align-items-center">
@@ -786,6 +790,36 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             });
             return agregados;
         }
+
+        downloadRazaoFull() {
+            // 1. Pega o estado atual da busca e do botão de ajustes
+            const searchTerm = encodeURIComponent(this.razaoSearch || '');
+            const viewType = this.razaoViewType; // Já alterna entre 'original' e 'adjusted' pelo switch
+            
+            // 2. Pega a rota segura do HTML
+            const baseUrl = API_ROUTES.getRazaoDownload;
+
+            if (!baseUrl) {
+                alert("Erro de configuração: Rota de download não encontrada.");
+                return;
+            }
+
+            // 3. Monta URL final
+            const finalUrl = `${baseUrl}?search=${searchTerm}&view_type=${viewType}`;
+
+            // 4. Feedback visual no botão (opcional)
+            const btnIcon = document.getElementById('iconDownload');
+            if(btnIcon) btnIcon.className = "fas fa-spinner fa-spin";
+
+            // 5. Inicia Download
+            window.location.href = finalUrl;
+
+            // Remove spinner após 3s
+            setTimeout(() => {
+                if(btnIcon) btnIcon.className = "fas fa-file-excel";
+            }, 3000);
+        }
+
     }
 
     window.relatorioSystem = new RelatorioSystem();
