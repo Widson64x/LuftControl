@@ -80,7 +80,11 @@
         getRentabilidadeDataCC: "{{ url_for('Reports.RelatorioRentabilidadePorCC') }}",
         
         // --- CONFIGURAÇÃO: NÓS CALCULADOS ---
-        getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}"
+        getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}",
+ 
+        // --- DOWNLOADS (NOVA ROTA) ---
+        getRazaoDownload:       "{{ url_for('Reports.download_razao_full') }}"        
+
     };
 </script>
 <script src="{{ url_for('static', filename='JS/Relatorios.js') }}"></script>
