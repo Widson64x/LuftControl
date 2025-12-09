@@ -1,44 +1,17 @@
 /* ==========================================================================
    T-Controllership | Reports.css
-   Motor BI Nativo - Enterprise Theme Ready
+   Estilos Globais (Menu, Modal, Layout) baseados em Themes.css
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
    1. ANIMAÇÕES
    -------------------------------------------------------------------------- */
-@keyframes fadeInScale {
-    from { opacity: 0; transform: scale(0.95) translateY(10px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-@keyframes slideInUp {
-    from { opacity: 0; transform: translateY(40px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes borderFlow {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-}
-
-@keyframes floatAnimation {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
-
-@keyframes cardEntrance {
-    from { opacity: 0; transform: perspective(1000px) rotateX(10deg) translateY(30px); }
-    to { opacity: 1; transform: perspective(1000px) rotateX(0) translateY(0); }
-}
-
-@keyframes spinner {
-    to { transform: rotate(360deg); }
-}
-
-@keyframes dotPulse {
-    0%, 80%, 100% { transform: scale(0); opacity: 0; }
-    40% { transform: scale(1); opacity: 1; }
-}
+@keyframes fadeInScale { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes slideInUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes borderFlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes floatAnimation { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes spinner { to { transform: rotate(360deg); } }
+@keyframes dotPulse { 0%, 80%, 100% { transform: scale(0); opacity: 0; } 40% { transform: scale(1); opacity: 1; } }
 
 /* --------------------------------------------------------------------------
    2. PAGE HEADER (HERO)
@@ -55,29 +28,19 @@
 }
 
 .page-header::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse 80% 50% at 20% 40%, rgba(var(--primary-rgb), 0.08) 0%, transparent 50%);
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse 80% 50% at 20% 40%, rgba(var(--primary-rgb), var(--opacity-10)) 0%, transparent 50%);
     pointer-events: none;
 }
 
 .page-header::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 3px;
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
     background: linear-gradient(90deg, transparent, var(--primary), var(--accent), var(--primary), transparent);
     background-size: 200% 100%;
     animation: borderFlow 4s ease infinite;
 }
 
-.header-decoration {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(60px);
-    opacity: 0.3;
-    pointer-events: none;
-}
+.header-decoration { position: absolute; border-radius: 50%; filter: blur(60px); opacity: var(--opacity-30); pointer-events: none; }
 .decoration-1 { width: 200px; height: 200px; background: var(--primary); top: -100px; right: -50px; animation: floatAnimation 6s infinite; }
 .decoration-2 { width: 150px; height: 150px; background: var(--accent); bottom: -80px; left: 10%; animation: floatAnimation 8s infinite 1s; }
 
@@ -86,23 +49,18 @@
     font-weight: var(--font-weight-bold);
     color: var(--text-primary);
     margin: 0 0 var(--spacing-md) 0;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-lg);
+    display: flex; align-items: center; gap: var(--spacing-lg);
     position: relative;
 }
 
 .page-title i {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 56px;
-    height: 56px;
+    display: flex; align-items: center; justify-content: center;
+    width: 56px; height: 56px;
     background: var(--gradient-primary);
     border-radius: var(--radius-lg);
-    color: white;
-    font-size: 1.5rem;
-    box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.3);
+    color: var(--text-primary); /* White generally */
+    font-size: var(--font-2xl);
+    box-shadow: var(--shadow-glow-sm);
 }
 
 .page-subtitle {
@@ -112,7 +70,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   3. GRID DE RELATÓRIOS (CARDS)
+   3. MENU DE CARDS
    -------------------------------------------------------------------------- */
 .relatorios-grid {
     display: grid;
@@ -127,36 +85,29 @@
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-xl);
     padding: var(--spacing-2xl);
-    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal), border-color var(--transition-normal);
     overflow: hidden;
-    animation: cardEntrance 0.5s ease-out both;
+    animation: fadeInScale 0.5s ease-out both;
 }
-.relatorio-card:nth-child(1) { animation-delay: 0.1s; }
-.relatorio-card:nth-child(2) { animation-delay: 0.2s; }
-.relatorio-card:nth-child(3) { animation-delay: 0.3s; }
 
 .relatorio-card:hover {
     transform: translateY(-8px);
-    border-color: rgba(var(--primary-rgb), 0.4);
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3), 0 0 60px -20px rgba(var(--primary-rgb), 0.2);
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-xl);
 }
 
 .relatorio-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 72px;
-    height: 72px;
-    font-size: 2rem;
+    display: flex; align-items: center; justify-content: center;
+    width: 72px; height: 72px;
+    font-size: var(--font-3xl);
     margin-bottom: var(--spacing-xl);
-    background: rgba(var(--primary-rgb), 0.1);
+    background: rgba(var(--primary-rgb), var(--opacity-10));
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(var(--primary-rgb), 0.2);
-    transition: transform 0.3s ease;
+    border: 1px solid rgba(var(--primary-rgb), var(--opacity-20));
+    transition: transform var(--transition-normal);
 }
-.relatorio-card:hover .relatorio-icon {
-    transform: scale(1.1) rotate(-5deg);
-}
+
+.relatorio-card:hover .relatorio-icon { transform: scale(1.1) rotate(-5deg); }
 
 .relatorio-card h3 {
     font-size: var(--font-xl);
@@ -168,81 +119,61 @@
 .relatorio-card p {
     color: var(--text-secondary);
     font-size: var(--font-sm);
-    line-height: 1.6;
+    line-height: var(--line-height-relaxed);
     margin-bottom: var(--spacing-lg);
     min-height: 60px;
 }
 
-/* Status Badges */
+/* Badges e Botões */
 .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+    display: inline-flex; align-items: center; gap: 6px;
     padding: 6px 14px;
     border-radius: var(--radius-full);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     text-transform: uppercase;
     letter-spacing: 0.8px;
 }
-.status-badge::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    animation: dotPulse 2s infinite;
-}
+
+.status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; animation: dotPulse 2s infinite; }
 
 .status-active {
-    background: rgba(16, 185, 129, 0.15);
+    background: rgba(16, 185, 129, var(--opacity-20)); /* Success opacity */
     color: var(--success);
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    border: 1px solid rgba(16, 185, 129, var(--opacity-30));
 }
 .status-active::before { background: var(--success); box-shadow: 0 0 8px var(--success); }
 
-.status-development {
-    background: rgba(245, 158, 11, 0.15);
-    color: var(--warning);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-}
-.status-development::before { background: var(--warning); }
-
-/* Buttons */
 .btn-primary-custom {
     background: var(--gradient-primary);
-    color: white;
+    color: var(--text-primary);
     border: none;
     border-radius: var(--radius-md);
     padding: 14px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     cursor: pointer;
     width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex; justify-content: center; align-items: center; gap: 10px;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
+
 .btn-primary-custom:hover {
     transform: translateY(-3px);
-    box-shadow: 0 10px 30px -10px rgba(var(--primary-rgb), 0.5);
+    box-shadow: var(--shadow-glow);
 }
 
 /* --------------------------------------------------------------------------
-   4. MODAL
+   4. MODAL GERAL
    -------------------------------------------------------------------------- */
 .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.8);
+    display: none; position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.8); /* Hardcoded opacity for backdrop is standard, or use --bg-primary + opacity */
     backdrop-filter: blur(8px);
     z-index: var(--z-modal-backdrop);
 }
+
 .modal-overlay.active {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     padding: 20px;
     animation: fadeInScale 0.3s ease-out;
 }
@@ -254,1016 +185,63 @@
     width: 95vw;
     max-width: var(--max-width-7xl);
     max-height: 95vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 25px 80px -20px rgba(0, 0, 0, 0.6);
+    display: flex; flex-direction: column;
+    box-shadow: var(--shadow-2xl);
     animation: slideInUp 0.4s ease-out;
     overflow: hidden;
+    z-index: var(--z-modal);
 }
 
 .modal-header {
-    background: var(--primary);
+    background: var(--primary); /* Fallback */
+    background: var(--gradient-primary);
     border-bottom: 1px solid var(--border-primary);
     color: var(--text-primary);
     padding: 1.25rem 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: relative;
-    flex-shrink: 0;
-}
-
-.modal-header::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary));
-    background-size: 200%;
-    animation: borderFlow 4s infinite;
+    display: flex; justify-content: space-between; align-items: center;
+    position: relative; flex-shrink: 0;
 }
 
 .modal-title {
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: white;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.modal-title i {
-    color: white;
+    font-size: var(--font-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    display: flex; gap: 10px; align-items: center;
 }
 
 .modal-close {
-    width: 36px;
-    height: 36px;
+    width: 36px; height: 36px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-primary);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     color: var(--text-secondary);
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
+    display: flex; align-items: center; justify-content: center;
+    transition: all var(--transition-fast);
 }
+
 .modal-close:hover {
     background: var(--danger);
     border-color: var(--danger);
-    color: white;
+    color: var(--text-primary);
     transform: rotate(90deg);
 }
 
-.modal-body {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
+.modal-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-primary); }
 
 /* Loading */
 .loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    min-height: 300px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; min-height: 300px;
     background: var(--bg-primary);
 }
 
 .loading-spinner {
-    width: 50px;
-    height: 50px;
+    width: 50px; height: 50px;
     border: 3px solid var(--border-primary);
     border-top-color: var(--primary);
     border-radius: 50%;
     animation: spinner 0.8s linear infinite;
 }
 
-.loading-text {
-    margin-top: 16px;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-/* --------------------------------------------------------------------------
-   5. RAZÃO - SUMMARY CARDS & CONTROLS
-   -------------------------------------------------------------------------- */
-.summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
-}
-
-.summary-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    padding: 1.25rem;
-    position: relative;
-    overflow: hidden;
-    transition: border-color 0.2s ease;
-}
-.summary-card:hover {
-    border-color: rgba(var(--primary-rgb), 0.4);
-}
-.summary-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 2px;
-    background: var(--gradient-primary);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.3s ease;
-}
-.summary-card:hover::before {
-    transform: scaleX(1);
-}
-
-.summary-label {
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-}
-
-.summary-value {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-/* Form Controls */
-.input-group {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.input-group-icon {
-    position: absolute;
-    left: 1rem;
-    color: var(--text-tertiary);
-    pointer-events: none;
-    z-index: 1;
-}
-
-.form-control {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-primary);
-    border-radius: 8px;
-    padding: 0.65rem 1rem 0.65rem 2.5rem;
-    color: var(--text-primary);
-    width: 100%;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.form-control:focus {
-    border-color: var(--primary);
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
-}
-.form-control::placeholder {
-    color: var(--text-muted);
-}
-
-/* --------------------------------------------------------------------------
-   6. BI TOOLBAR
-   -------------------------------------------------------------------------- */
-.bi-toolbar {
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-primary);
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    flex-shrink: 0;
-}
-
-.bi-toolbar .btn {
-    font-size: 0.8rem;
-    padding: 8px 14px;
-    border-radius: 6px;
-    border: 1px solid var(--border-primary);
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s ease;
-}
-.bi-toolbar .btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-    border-color: var(--border-hover);
-}
-
-.bi-toolbar .btn-success {
-    background: rgba(16, 185, 129, 0.1);
-    border-color: rgba(16, 185, 129, 0.3);
-    color: var(--success);
-}
-.bi-toolbar .btn-success:hover {
-    background: rgba(16, 185, 129, 0.2);
-}
-
-.separator-vertical {
-    width: 1px;
-    height: 20px;
-    background: var(--border-primary);
-}
-
-/* --------------------------------------------------------------------------
-   7. BI TABLE (Motor Nativo - Enterprise)
-   -------------------------------------------------------------------------- */
-.table-fixed-container {
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    overflow: auto;
-    background: var(--bi-bg-body); /* Controlado por Variável */
-    border-color: var(--bi-border);
-}
-
-.table-modern {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: 0.85rem;
-}
-
-/* Header com Variáveis de Tema */
-.table-modern thead {
-    background: var(--bi-bg-header) !important;
-    color: var(--text-secondary);
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 12px 10px;
-    border-bottom: 2px solid var(--primary);
-    border-right: 1px solid var(--bi-border); /* Var */
-    position: sticky;
-    top: 0;
-    z-index: 60 !important;
-    white-space: nowrap;
-}
-
-.table-modern thead th {
-    background: var(--bi-bg-header) !important;
-    color: var(--text-secondary);
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 12px 10px;
-    border-bottom: 2px solid var(--primary);
-    border-right: 1px solid var(--bi-border); /* Var */
-    position: sticky;
-    top: 0;
-    z-index: 60 !important;
-    white-space: nowrap;
-}
-
-.table-modern thead th:first-child {
-    z-index: 50 !important;
-}
-
-.table-modern thead th:last-child {
-    border-right: none;
-}
-
-/* Header Filter Inputs */
-.table-modern th input {
-    width: 100%;
-    margin-top: 8px;
-    background: var(--bi-input-bg); /* Var */
-    border: 1px solid var(--bi-border);
-    border-radius: 4px;
-    padding: 5px 8px;
-    color: var(--bi-input-text); /* Var */
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    transition: border-color 0.2s ease;
-}
-.table-modern th input:focus {
-    border-color: var(--primary);
-    outline: none;
-}
-.table-modern th input::placeholder {
-    color: var(--text-muted);
-}
-
-/* Sticky First Column */
-.table-modern th:first-child,
-.table-modern td:first-child {
-    position: sticky !important;
-    left: 0 !important;
-    z-index: 30 !important; /* Força um índice alto */
-    box-shadow: 4px 0 8px rgba(0,0,0,0.05); /* Sombra suave para separar visualmente */
-    clip-path: inset(0 -15px 0 0); /* Evita glitch de sombra */
-}
-
-.table-modern th:first-child {
-    z-index: 40 !important; 
-    min-width: 350px;
-}
-.table-modern td:first-child::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: -4px;
-    bottom: 0;
-    width: 4px;
-    background: linear-gradient(to right, rgba(0, 0, 0, 0.15), transparent);
-    pointer-events: none;
-}
-
-/* Cells Gerais */
-.table-modern td {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--bi-border); /* Var */
-    white-space: nowrap;
-    color: var(--text-primary);
-    transition: background-color 0.1s ease;
-}
-
-/* --- TIPOS DE LINHA (Controlados por Variáveis de Tema) --- */
-
-.thead tr th {
-    background: var(--bi-row-root-bg) !important;
-}
-/* 1. Raiz (Ex: Faturamento Bruto) */
-.bi-row-root {
-    background: var(--bi-row-root-bg) !important;
-}
-.bi-row-root td {
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-size: 0.85rem;
-    padding-top: 14px;
-    padding-bottom: 14px;
-    border-top: 1px solid var(--bi-border);
-    color: var(--bi-row-root-text) !important;
-}
-.bi-row-root td:first-child { 
-    background-color: var(--bi-row-root-bg) !important; 
-}
-
-/* 2. Grupos (Pastas) */
-.bi-row-group {
-    background: var(--bi-row-group-bg) !important;
-}
-.bi-row-group td {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: var(--bi-row-group-text);
-}
-.bi-row-group td:first-child { 
-    background-color: var(--bi-row-group-bg) !important; 
-}
-
-/* 3. Contas (Folhas) */
-.bi-row-account {
-    background: var(--bi-row-acct-bg) !important;
-}
-.bi-row-account td {
-    font-size: 0.8rem;
-    color: var(--bi-row-acct-text);
-}
-.bi-row-account td:first-child { 
-    background-color: var(--bi-row-acct-bg) !important; 
-}
-
-/* 4. Calculados (EBITDA, Margem) - Enterprise Clean */
-.bi-row-calculated {
-    background: var(--bi-row-calc-bg) !important;
-    border-top: 1px solid var(--bi-border);
-    border-bottom: 1px solid var(--bi-border);
-}
-.bi-row-calculated td {
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: var(--bi-row-calc-text) !important;
-}
-.bi-row-calculated td:first-child { 
-    background-color: var(--bi-row-calc-bg) !important;
-    /* Adicional: Se a cor for muito clara, reforçamos para garantir opacidade */
-    opacity: 1 !important; 
-}
-
-.table-modern tr:hover td:first-child {
-    background-color: var(--bi-row-hover) !important;
-}
-
-/* Row Hover */
-.table-modern tr:hover td {
-    background: var(--bi-row-hover) !important;
-}
-
-/* Cell Label (Tree Node) */
-.cell-label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* Toggle Icon */
-.toggle-icon {
-    width: 20px;
-    height: 20px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-.toggle-icon:hover {
-    background: rgba(var(--primary-rgb), 0.2);
-    color: var(--primary);
-}
-
-/* Value Colors (Sempre semânticas) */
-.text-danger { color: var(--danger) !important; }
-.text-success { color: var(--success) !important; }
-.text-muted { color: var(--text-muted) !important; }
-.font-mono { font-family: var(--font-mono); }
-.font-bold { font-weight: 700; }
-
-/* --------------------------------------------------------------------------
-   8. SCROLLBARS
-   -------------------------------------------------------------------------- */
-.table-fixed-container::-webkit-scrollbar,
-.modal-body::-webkit-scrollbar,
-#biGridContainer::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.table-fixed-container::-webkit-scrollbar-track,
-.modal-body::-webkit-scrollbar-track,
-#biGridContainer::-webkit-scrollbar-track {
-    background: var(--bg-tertiary);
-    border-radius: 4px;
-}
-
-.table-fixed-container::-webkit-scrollbar-thumb,
-.modal-body::-webkit-scrollbar-thumb,
-#biGridContainer::-webkit-scrollbar-thumb {
-    background: var(--bg-hover);
-    border-radius: 4px;
-    border: 1px solid var(--bg-tertiary);
-}
-
-.table-fixed-container::-webkit-scrollbar-thumb:hover,
-.modal-body::-webkit-scrollbar-thumb:hover,
-#biGridContainer::-webkit-scrollbar-thumb:hover {
-    background: var(--primary);
-}
-
-/* --------------------------------------------------------------------------
-   9. COLUMN MANAGER MODAL (Popup Secundário)
-   -------------------------------------------------------------------------- */
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 600;
-    animation: fadeInScale 0.2s ease-out;
-}
-
-.modal-window {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-    max-width: 400px;
-    width: 90%;
-}
-.modal-window.modal-sm {
-    max-width: 350px;
-}
-
-.modal-window h5 {
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-primary);
-}
-
-.modal-window label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 6px 8px;
-    border-radius: 4px;
-    transition: background 0.15s ease;
-}
-.modal-window label:hover {
-    background: var(--bg-hover);
-}
-
-.modal-window input[type="checkbox"] {
-    accent-color: var(--primary);
-    width: 16px;
-    height: 16px;
-}
-
-/* --------------------------------------------------------------------------
-   10. LIGHT THEME OVERRIDES (Geral)
-   Obs: Tabela BI agora usa variáveis, mas mantemos overrides para elementos de página
-   -------------------------------------------------------------------------- */
-[data-theme="light"] .page-header::before {
-    background: radial-gradient(ellipse 80% 50% at 20% 40%, rgba(var(--primary-rgb), 0.05) 0%, transparent 50%);
-}
-
-[data-theme="light"] .header-decoration {
-    opacity: 0.15;
-}
-
-[data-theme="light"] .relatorio-card:hover {
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.15), 0 0 60px -20px rgba(var(--primary-rgb), 0.1);
-}
-
-[data-theme="light"] .modal-overlay {
-    background: rgba(0, 0, 0, 0.5);
-}
-
-[data-theme="light"] .modal-container {
-    box-shadow: 0 25px 80px -20px rgba(0, 0, 0, 0.25);
-}
-
-[data-theme="light"] .table-fixed-container::-webkit-scrollbar-track,
-[data-theme="light"] .modal-body::-webkit-scrollbar-track,
-[data-theme="light"] #biGridContainer::-webkit-scrollbar-track {
-    background: #EDF2F7;
-}
-
-[data-theme="light"] .table-fixed-container::-webkit-scrollbar-thumb,
-[data-theme="light"] .modal-body::-webkit-scrollbar-thumb,
-[data-theme="light"] #biGridContainer::-webkit-scrollbar-thumb {
-    background: #CBD5E0;
-}
-
-[data-theme="light"] .modal-backdrop {
-    background: rgba(0, 0, 0, 0.3);
-}
-
-/* --------------------------------------------------------------------------
-   11. RESPONSIVIDADE
-   -------------------------------------------------------------------------- */
-@media (max-width: 1200px) {
-    .bi-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .bi-toolbar > div {
-        width: 100%;
-        justify-content: space-between;
-    }
-    
-    .bi-toolbar .input-group {
-        max-width: none !important;
-        flex: 1;
-    }
-}
-
-@media (max-width: 768px) {
-    .page-header {
-        padding: var(--spacing-xl);
-    }
-    
-    .page-title {
-        font-size: var(--font-xl);
-        gap: var(--spacing-md);
-    }
-    
-    .page-title i {
-        width: 44px;
-        height: 44px;
-        font-size: 1.2rem;
-    }
-    
-    .page-subtitle {
-        padding-left: calc(44px + var(--spacing-md));
-        font-size: var(--font-base);
-    }
-    
-    .relatorios-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .summary-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .table-modern th:first-child {
-        min-width: 250px;
-    }
-}
-
-/* --------------------------------------------------------------------------
-   12. UTILITIES
-   -------------------------------------------------------------------------- */
-.bg-tertiary { background-color: var(--bg-tertiary); }
-.border-primary { border-color: var(--border-primary); }
-.border-secondary { border-color: var(--border-secondary); }
-.text-xs { font-size: 0.75rem; }
-.text-end { text-align: right; }
-.text-center { text-align: center; }
-.text-white { color: var(--text-primary); }
-.text-secondary { color: var(--text-secondary); }
-.rounded { border-radius: var(--radius-md); }
-.p-2 { padding: 0.5rem; }
-.p-3 { padding: 1rem; }
-.p-4 { padding: 1.5rem; }
-.mb-2 { margin-bottom: 0.5rem; }
-.mb-3 { margin-bottom: 1rem; }
-.me-2 { margin-right: 0.5rem; }
-.ms-2 { margin-left: 0.5rem; }
-.mt-3 { margin-top: 1rem; }
-.gap-2 { gap: 0.5rem; }
-.d-flex { display: flex; }
-.flex-column { flex-direction: column; }
-.align-items-center { align-items: center; }
-.justify-content-between { justify-content: space-between; }
-.cursor-pointer { cursor: pointer; }
-.border-bottom { border-bottom: 1px solid var(--border-primary); }
-.border-top { border-top: 1px solid var(--border-primary); }
-.border-end { border-right: 1px solid var(--border-primary); }
-.w-100 { width: 100%; }
-.row { display: flex; flex-wrap: wrap; margin: -0.5rem; }
-.col-6 { flex: 0 0 50%; padding: 0.5rem; }
-.btn-group { display: inline-flex; }
-.btn-group > .btn:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
-.btn-group > .btn:not(:first-child) { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; }
-
-.btn-sm {
-    padding: 6px 12px;
-    font-size: 0.8rem;
-}
-
-.btn-secondary {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-primary);
-    color: var(--text-secondary);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-.btn-secondary:hover:not(:disabled) {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-}
-.btn-secondary:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.btn-outline {
-    background: transparent;
-    border: 1px solid var(--border-primary);
-    color: var(--text-secondary);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-.btn-outline:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-    border-color: var(--border-hover);
-}
-
-.badge {
-    display: inline-flex;
-    padding: 4px 10px;
-    border-radius: var(--radius-full);
-    font-size: 0.7rem;
-    font-weight: 600;
-}
-.badge-secondary {
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-secondary);
-}
-
-.alert {
-    padding: 1rem 1.5rem;
-    border-radius: var(--radius-md);
-    border: 1px solid;
-}
-.alert-warning {
-    background: rgba(245, 158, 11, 0.1);
-    border-color: rgba(245, 158, 11, 0.3);
-    color: var(--warning);
-}
-
-/* Table Hover State */
-.table-hover tr {
-    transition: background-color 0.1s ease;
-}
-
-/* ==========================================================================
-   ORIGEM FILTER STYLES
-   ========================================================================== */
-
-/* --------------------------------------------------------------------------
-   FILTRO DE ORIGEM - Toggle Button Group
-   -------------------------------------------------------------------------- */
-.origem-filter-group {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 6px 12px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-primary);
-}
-
-.origem-toggle-group {
-    display: inline-flex;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    border: 1px solid var(--border-primary);
-}
-
-.origem-toggle-btn {
-    background: var(--bg-tertiary);
-    border: none;
-    border-right: 1px solid var(--border-secondary);
-    color: var(--text-secondary);
-    padding: 6px 14px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-}
-
-.origem-toggle-btn:last-child {
-    border-right: none;
-}
-
-.origem-toggle-btn:hover:not(.active) {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-}
-
-.origem-toggle-btn.active {
-    background: var(--gradient-primary);
-    color: white;
-    font-weight: 600;
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
-}
-
-.origem-toggle-btn.active i {
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
-
-/* Ícones específicos por origem */
-.origem-toggle-btn[data-origem="Consolidado"] i {
-    color: var(--primary-light);
-}
-
-.origem-toggle-btn[data-origem="FARMA"] i {
-    color: #10B981;
-}
-
-.origem-toggle-btn[data-origem="FARMADIST"] i {
-    color: #F59E0B;
-}
-
-.origem-toggle-btn.active i {
-    color: white !important;
-}
-
-/* Badge de contagem */
-#biOrigemBadge {
-    background: rgba(var(--primary-rgb), 0.2);
-    color: var(--primary-light);
-    border: 1px solid rgba(var(--primary-rgb), 0.3);
-    font-weight: 600;
-    transition: all 0.3s ease;
-}
-
-/* Loading state para o badge */
-#biOrigemBadge.loading {
-    background: rgba(245, 158, 11, 0.2);
-    color: var(--warning);
-    border-color: rgba(245, 158, 11, 0.3);
-}
-
-/* --------------------------------------------------------------------------
-   BI FOOTER - Info bar
-   -------------------------------------------------------------------------- */
-.bi-footer {
-    background: linear-gradient(90deg, var(--bg-tertiary), var(--bg-secondary));
-}
-
-.bi-footer strong {
-    color: var(--primary-light);
-}
-
-/* --------------------------------------------------------------------------
-   LOADING CONTAINER dentro do grid
-   -------------------------------------------------------------------------- */
-#biGridContainer .loading-container {
-    background: var(--bg-secondary);
-    min-height: 300px;
-}
-
-/* --------------------------------------------------------------------------
-   RESPONSIVIDADE
-   -------------------------------------------------------------------------- */
-@media (max-width: 992px) {
-    .origem-filter-group {
-        width: 100%;
-        margin-bottom: 8px;
-    }
-    
-    .origem-toggle-group {
-        width: 100%;
-    }
-    
-    .origem-toggle-btn {
-        flex: 1;
-        justify-content: center;
-        padding: 8px 10px;
-    }
-    
-    .bi-toolbar {
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .bi-toolbar > div {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
-@media (max-width: 576px) {
-    .origem-toggle-btn span {
-        display: none;
-    }
-    
-    .origem-toggle-btn {
-        padding: 8px 16px;
-    }
-    
-    .origem-toggle-btn i {
-        font-size: 1rem;
-    }
-}
-
-/* --------------------------------------------------------------------------
-   TEMA CLARO - Overrides (Elementos Gerais apenas)
-   -------------------------------------------------------------------------- */
-[data-theme="light"] .origem-filter-group {
-    background: rgba(0, 0, 0, 0.05);
-    border-color: rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="light"] .origem-toggle-btn {
-    background: #FFFFFF;
-    color: #4A5568;
-    border-color: rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="light"] .origem-toggle-btn:hover:not(.active) {
-    background: #F7FAFC;
-    color: #2D3748;
-}
-
-[data-theme="light"] .origem-toggle-btn.active {
-    background: var(--gradient-primary);
-    color: white;
-}
-
-[data-theme="light"] #biOrigemBadge {
-    background: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary);
-    border-color: rgba(var(--primary-rgb), 0.2);
-}
-
-[data-theme="light"] .bi-footer {
-    background: linear-gradient(90deg, #EDF2F7, #F7FAFC);
-}
-
-[data-theme="light"] .bi-footer strong {
-    color: var(--primary);
-}
-
-/* Ícone de fórmula */
-.formula-indicator {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-    margin-left: 8px;
-}
-
-.formula-indicator i {
-    color: var(--warning);
-}
-
-/* ==========================================================================
-   NOVOS ESTILOS: BUSCA E COLUNAS
-   ========================================================================== */
-
-/* --- Destaques da Busca (Ctrl+F Style) --- */
-.search-match {
-    background-color: rgba(255, 235, 59, 0.15) !important; /* Amarelo suave */
-    transition: background-color 0.3s ease;
-}
-
-.search-match td {
-    color: var(--text-primary) !important; 
-    font-weight: 600;
-}
-
-.search-current-match {
-    background-color: rgba(255, 152, 0, 0.3) !important; /* Laranja destaque */
-    box-shadow: inset 3px 0 0 var(--warning);
-}
-
-/* --- Gerenciador de Colunas Moderno --- */
-.column-manager-container {
-    padding: 1rem;
-}
-
-.column-manager-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border-primary);
-}
-
-.column-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.8rem;
-    max-height: 300px;
-    overflow-y: auto;
-    padding-right: 5px;
-}
-
-.column-option {
-    display: flex;
-    align-items: center;
-    padding: 8px 12px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-primary);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    user-select: none;
-}
-
-.column-option:hover {
-    border-color: var(--primary);
-    background: var(--bg-hover);
-}
-
-.column-option.selected {
-    background: rgba(var(--primary-rgb), 0.1);
-    border-color: var(--primary);
-    color: var(--primary-light);
-    font-weight: 500;
-}
-
-.column-checkbox {
-    margin-right: 10px;
-    accent-color: var(--primary);
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-}
-
-/* Scrollbar fina para o grid */
-.column-grid::-webkit-scrollbar { width: 6px; }
-.column-grid::-webkit-scrollbar-thumb { background: var(--border-secondary); border-radius: 4px; }
+.loading-text { margin-top: var(--spacing-md); color: var(--text-secondary); font-weight: var(--font-weight-medium); }
