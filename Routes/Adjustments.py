@@ -131,13 +131,13 @@ def gerar_ajuste_intergrupo():
         config_contas = {
             '60301020290': {
                 'destino': '60301020290B',
-                'descricao': 'ajuste intergrupo ( fretes Aéreo)',
+                'descricao': 'ajuste intergrupo ( fretes Dist.)',
                 'titulo_origem': 'FRETE DISTRIBUIÇÃO',
                 'titulo_destino': 'FRETE DISTRIBUIÇÃO'
             },
             '60301020288': {
                 'destino': '60301020288C',
-                'descricao': 'ajuste intergrupo ( fretes Dist.)',
+                'descricao': 'ajuste intergrupo ( fretes Aéreo)',
                 'titulo_origem': 'FRETES AEREO',
                 'titulo_destino': 'FRETES AEREO'
             },
@@ -308,7 +308,7 @@ def gerar_ajuste_intergrupo():
                                 Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
                                 Status='Aprovado', Invalido=False,
                                 Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', Data_Aprovacao=datetime.datetime.now(),
-                                Is_Nao_Operacional=True, Exibir_Saldo=True
+                                Is_Nao_Operacional=False, Exibir_Saldo=True
                             )
                             l2 = AjustesRazao(
                                 Conta=conta_destino, Titulo_Conta=titulo_destino,
@@ -319,7 +319,7 @@ def gerar_ajuste_intergrupo():
                                 Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
                                 Status='Aprovado', Invalido=False,
                                 Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', Data_Aprovacao=datetime.datetime.now(),
-                                Is_Nao_Operacional=True, Exibir_Saldo=True
+                                Is_Nao_Operacional=False, Exibir_Saldo=True
                             )
                             session_db.add(l1)
                             session_db.add(l2)
@@ -393,7 +393,7 @@ def gerar_ajuste_intergrupo():
                                 Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
                                 Status='Aprovado', Invalido=False,
                                 Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', Data_Aprovacao=datetime.datetime.now(),
-                                Is_Nao_Operacional=True, Exibir_Saldo=True
+                                Is_Nao_Operacional=False, Exibir_Saldo=True
                             )
                             l4 = AjustesRazao(
                                 Conta=conta_destino, Titulo_Conta=titulo_destino,
@@ -404,7 +404,7 @@ def gerar_ajuste_intergrupo():
                                 Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
                                 Status='Aprovado', Invalido=False,
                                 Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', Data_Aprovacao=datetime.datetime.now(),
-                                Is_Nao_Operacional=True, Exibir_Saldo=True
+                                Is_Nao_Operacional=False, Exibir_Saldo=True
                             )
                             session_db.add(l3)
                             session_db.add(l4)
@@ -434,15 +434,15 @@ def gerar_ajuste_intergrupo():
 def get_dados():
     session_db = get_session()
     try:
-        # 1. Carrega dados da View
+        # 1. Carrega dados da View (Razão Original)
         q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 100000')
         res_view = session_db.execute(q_view)
         rows_view = [dict(row._mapping) for row in res_view]
 
-        # 2. Carrega Ajustes Existentes
+        # 2. Carrega TODOS os Ajustes Existentes no Banco
         ajustes = session_db.query(AjustesRazao).all()
         
-        # Mapa de verificação rápida (Hash -> Ajuste)
+        # Mapa para verificação rápida (Hash -> Ajuste)
         mapa_existentes = {aj.Hash_Linha_Original: aj for aj in ajustes}
         
         # ==============================================================================
@@ -451,7 +451,6 @@ def get_dados():
         novos_ajustes_auto = []
         
         for row in rows_view:
-            # Verifica se é o item da regra
             if str(row.get('Item')).strip() == '10190':
                 h = gerar_hash(row)
                 
@@ -461,12 +460,10 @@ def get_dados():
                     
                     novo_ajuste = AjustesRazao(
                         Hash_Linha_Original=h,
-                        Tipo_Operacao='NO-OPER_AUTO',
+                        Tipo_Operacao='NO-OPER_AUTO', # Tipo que edita a linha original
+                        Status='Aprovado',
                         
-                        # --- MUDANÇA AQUI: JÁ NASCE APROVADO ---
-                        Status='Aprovado', 
-                        
-                        # Copia dados originais da linha
+                        # Copia dados originais
                         Origem=row.get('origem'),
                         Conta=row.get('Conta'),
                         Titulo_Conta=row.get('Título Conta'),
@@ -479,67 +476,94 @@ def get_dados():
                         Item=str(row.get('Item')),
                         Cod_Cl_Valor=str(row.get('Cod Cl. Valor')) if row.get('Cod Cl. Valor') else None,
                         
-                        # Valores
                         Debito=float(row.get('Debito') or 0),
                         Credito=float(row.get('Credito') or 0),
                         
-                        # APLICA A REGRA DE NEGÓCIO
                         Is_Nao_Operacional=True, 
                         Exibir_Saldo=True,
                         Invalido=False,
-                        
-                        # Auditoria de Criação
                         Criado_Por='SISTEMA_AUTO',
                         Data_Criacao=now,
-                        
-                        # Auditoria de Aprovação (Já preenche pois nasce aprovado)
                         Aprovado_Por='Sistema (Auto 10190)',
                         Data_Aprovacao=now
                     )
                     novos_ajustes_auto.append(novo_ajuste)
-                    # Adiciona ao mapa temporário para evitar duplicidade no loop
-                    mapa_existentes[h] = novo_ajuste
+                    mapa_existentes[h] = novo_ajuste # Atualiza mapa local para evitar dupes
 
-        # Se houve criações automáticas, salva no banco agora
+        # Persiste os automáticos novos (10190)
         if novos_ajustes_auto:
             try:
                 session_db.bulk_save_objects(novos_ajustes_auto)
                 session_db.commit()
-                # Recarrega a lista de ajustes para garantir IDs atualizados
+                # Recarrega ajustes para garantir integridade e IDs
                 ajustes = session_db.query(AjustesRazao).all()
             except Exception as e:
                 print(f"Erro ao aplicar regra automática 10190: {e}")
                 session_db.rollback()
 
         # ==============================================================================
-        # PREPARA RETORNO PARA O FRONT
+        # SEGREGAÇÃO DOS TIPOS (AQUI ESTAVA O ERRO)
         # ==============================================================================
+        
+        mapa_edicao = {}
+        lista_adicionais = []
 
-        mapa_edicao = {aj.Hash_Linha_Original: aj for aj in ajustes if aj.Tipo_Operacao == 'EDICAO'}
-        inclusoes = [aj for aj in ajustes if aj.Tipo_Operacao == 'INCLUSAO']
+        for aj in ajustes:
+            # GRUPO 1: MERGE (Substituem linhas da View)
+            # Inclui: Edição Manual e a Regra Automática de Não Operacional (pois ela baseia-se numa linha existente)
+            if aj.Tipo_Operacao in ['EDICAO', 'NO-OPER_AUTO']:
+                if aj.Hash_Linha_Original:
+                    mapa_edicao[aj.Hash_Linha_Original] = aj
+            
+            # GRUPO 2: APPEND (São linhas novas puras)
+            # Inclui: Inclusão Manual e Intergrupo Automático
+            elif aj.Tipo_Operacao in ['INCLUSAO', 'INTERGRUPO_AUTO']:
+                lista_adicionais.append(aj)
+
+        # ==============================================================================
+        # CONSTRUÇÃO DO JSON FINAL
+        # ==============================================================================
 
         dados_finais = []
 
         def montar_linha(base, ajuste=None, is_inclusao=False):
+            """Helper para padronizar o dicionário de saída"""
             row = base.copy()
             row['Exibir_Saldo'] = True 
             
             if ajuste:
+                # Se for INTERGRUPO ou INCLUSAO, 'origem' vem do ajuste
+                # Se for EDICAO, sobrescreve a origem original
                 row.update({
-                    'origem': ajuste.Origem, 'Conta': ajuste.Conta, 'Título Conta': ajuste.Titulo_Conta,
+                    'origem': ajuste.Origem, 
+                    'Conta': ajuste.Conta, 
+                    'Título Conta': ajuste.Titulo_Conta,
                     'Data': ajuste.Data.strftime('%Y-%m-%d') if ajuste.Data else None,
-                    'Numero': ajuste.Numero, 'Descricao': ajuste.Descricao,
-                    'Contra Partida - Credito': ajuste.Contra_Partida, 'Filial': ajuste.Filial,
-                    'Centro de Custo': ajuste.Centro_Custo, 'Item': ajuste.Item,
-                    'Cod Cl. Valor': ajuste.Cod_Cl_Valor, 'Debito': ajuste.Debito,
-                    'Credito': ajuste.Credito, 'NaoOperacional': ajuste.Is_Nao_Operacional,
-                    'Exibir_Saldo': ajuste.Exibir_Saldo, 'Invalido': ajuste.Invalido, 'Status_Ajuste': ajuste.Status,
-                    'Ajuste_ID': ajuste.Id, 'Criado_Por': ajuste.Criado_Por 
+                    'Numero': ajuste.Numero, 
+                    'Descricao': ajuste.Descricao,
+                    'Contra Partida - Credito': ajuste.Contra_Partida, 
+                    'Filial': ajuste.Filial,
+                    'Centro de Custo': ajuste.Centro_Custo, 
+                    'Item': ajuste.Item,
+                    'Cod Cl. Valor': ajuste.Cod_Cl_Valor, 
+                    'Debito': ajuste.Debito,
+                    'Credito': ajuste.Credito, 
+                    'NaoOperacional': ajuste.Is_Nao_Operacional,
+                    'Exibir_Saldo': ajuste.Exibir_Saldo, 
+                    'Invalido': ajuste.Invalido, 
+                    'Status_Ajuste': ajuste.Status,
+                    'Ajuste_ID': ajuste.Id, 
+                    'Criado_Por': ajuste.Criado_Por 
                 })
+                
+                # Tag visual para o Frontend saber a origem do dado
                 if is_inclusao:
-                    row['Hash_ID'] = f"NEW_{ajuste.Id}"
-                    row['Tipo_Linha'] = 'Inclusao'
-            
+                    # Se for Intergrupo, podemos dar uma dica visual no Hash ou Tipo
+                    prefixo = "AUTO_" if ajuste.Tipo_Operacao == 'INTERGRUPO_AUTO' else "NEW_"
+                    row['Hash_ID'] = f"{prefixo}{ajuste.Id}"
+                    row['Tipo_Linha'] = 'Inclusao' # CSS pinta de verde/azul
+                
+            # Calculo de Saldo
             if row.get('Exibir_Saldo'):
                 row['Saldo'] = (float(row.get('Debito') or 0) - float(row.get('Credito') or 0))
             else:
@@ -547,30 +571,35 @@ def get_dados():
 
             return row
 
+        # 1. Processa linhas da View (com ou sem Edição/10190)
         for row in rows_view:
             h = gerar_hash(row)
             ajuste = mapa_edicao.get(h)
-            linha = montar_linha(row, ajuste)
+            
+            linha = montar_linha(row, ajuste, is_inclusao=False)
             linha['Hash_ID'] = h
             linha['Tipo_Linha'] = 'Original'
             
-            # Fallback visual apenas se não tiver ajuste (agora raro, pois criamos acima)
             if not ajuste: 
                 linha['Status_Ajuste'] = 'Original'
 
             dados_finais.append(linha)
 
-        for inc in inclusoes:
-            dados_finais.append(montar_linha({}, inc, is_inclusao=True))
+        # 2. Processa linhas Adicionais (Inclusão Manual + Intergrupo)
+        for adic in lista_adicionais:
+            # Passamos um dict vazio como base, pois a linha inteira vem do ajuste
+            linha_nova = montar_linha({}, adic, is_inclusao=True)
+            dados_finais.append(linha_nova)
 
         return jsonify(dados_finais)
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
     finally:
         session_db.close()
-
+        
 @ajustes_bp.route('/api/ajustes-razao/salvar', methods=['POST'])
 def salvar():
     session_db = get_session()

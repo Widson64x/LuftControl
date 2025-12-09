@@ -3,8 +3,15 @@
 {% block title %}Relatórios - T-Controllership{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports.css') }}">
     <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports.css') }}">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports/Report_AnaliseGerencial.css') }}">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports/Report_RelatorioRazao.css') }}">
+
+
 {% endblock %}
 
 {% block content %}
@@ -40,7 +47,7 @@
         <h3>Análise Gerencial</h3>
         <p>Visão hierárquica dinâmica (DRE). Filtros tipo Excel, ordenação por arraste e drill-down.</p>
         <div class="mb-3">
-            <span class="status-badge status-active" style="background: rgba(108, 92, 231, 0.2); border-color: var(--primary);">Novo Motor</span>
+            <span class="status-badge status-active" style="background: rgba(var(--primary-rgb), 0.1); border-color: var(--primary);">Novo Motor</span>
         </div>
         <button class="btn-primary-custom" onclick="relatorioSystem.loadRentabilidadeReport()">
             <i class="fas fa-cubes"></i> Abrir Análise Gerencial
@@ -71,20 +78,13 @@
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
 <script type="text/javascript" src="https://oss.sheetjs.com/sheetjs/xlsx.full.min.js"></script>
 <script>
-    // Configuração de Rotas Dinâmicas (Jinja2 + Flask)
     const API_ROUTES = {
-        // --- RELATÓRIOS: LEITURA DE DADOS ---
         getRazaoData:           "{{ url_for('Reports.RelatorioRazaoDados') }}",
-        getRazaoResumo:         "{{ url_for('Reports.RelatorioRazaoResumo') }}", // Nova Rota
+        getRazaoResumo:         "{{ url_for('Reports.RelatorioRazaoResumo') }}",
         getRentabilidadeData:   "{{ url_for('Reports.RelatorioRentabilidade') }}",
         getRentabilidadeDataCC: "{{ url_for('Reports.RelatorioRentabilidadePorCC') }}",
-        
-        // --- CONFIGURAÇÃO: NÓS CALCULADOS ---
         getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}",
- 
-        // --- DOWNLOADS (NOVA ROTA) ---
         getRazaoDownload:       "{{ url_for('Reports.download_razao_full') }}"        
-
     };
 </script>
 <script src="{{ url_for('static', filename='JS/Relatorios.js') }}"></script>
