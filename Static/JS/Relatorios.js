@@ -99,101 +99,73 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
         }
 
+        // --- CORREÇÃO: ADICIONADA A FUNÇÃO QUE FALTAVA ---
+        toggleRazaoView(isChecked) {
+            // Atualiza o estado
+            this.razaoViewType = isChecked ? 'adjusted' : 'original';
+            // Recarrega o relatório na página 1
+            this.loadRazaoReport(1);
+        }
+
         renderRazaoView(metaData, summaryData) {
+            // 1. Resumo HTML (Cards superiores)
             const summaryHtml = `
                 <div class="summary-grid mb-3">
                     <div class="summary-card">
                         <div class="summary-label">Total Registros</div>
                         <div class="summary-value">${FormatUtils.formatNumber(summaryData.total_registros)}</div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-label">Total Débito</div>
-                        <div class="summary-value text-danger font-bold">
-                            ${FormatUtils.formatCurrency(summaryData.total_debito)}
-                        </div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-label">Total Crédito</div>
-                        <div class="summary-value text-success font-bold">
-                            ${FormatUtils.formatCurrency(summaryData.total_credito)}
-                        </div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-label">Saldo Total</div>
-                        <div class="summary-value ${summaryData.saldo_total >= 0 ? 'text-success' : 'text-danger'} font-bold">
-                            ${FormatUtils.formatCurrency(summaryData.saldo_total)}
-                        </div>
-                    </div>
                 </div>`;
 
-            const rows = this.razaoData.map(r => {
-                const styleClass = r.is_ajustado ? 'background-color: rgba(255, 248, 225, 0.1);' : '';
-                const badgeOrigem = r.is_ajustado 
-                    ? `<span class="badge badge-warning" title="Lançamento Ajustado"><i class="fas fa-pen"></i> ${r.origem}</span>`
-                    : `<span class="badge badge-secondary">${r.origem}</span>`;
-
-                return `
-                <tr style="${styleClass}">
-                    <td class="font-mono text-xs">${r.conta}</td>
-                    <td>${r.titulo_conta || '-'}</td>
-                    <td>${FormatUtils.formatDate(r.data)}</td>
-                    <td>${r.numero || ''}</td>
-                    <td><small class="text-secondary">${r.descricao || ''}</small></td>
-                    <td class="text-end text-danger">${FormatUtils.formatNumber(r.debito)}</td>
-                    <td class="text-end text-success">${FormatUtils.formatNumber(r.credito)}</td>
-                    <td class="text-end font-bold ${r.saldo >= 0 ? 'text-success' : 'text-danger'}">
-                        ${FormatUtils.formatNumber(r.saldo)}
-                    </td>
-                    <td>${badgeOrigem}</td>
-                </tr>
-            `}).join('');
-
-            const tableHtml = `
-                <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-tertiary rounded flex-wrap gap-2">
+            // 2. Barra de Controle
+            const controlsHtml = `
+                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-tertiary rounded flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-3" style="flex: 1;">
-                        <div class="input-group" style="max-width: 350px;">
+                        <div class="input-group" style="max-width: 300px;">
                             <i class="input-group-icon fas fa-search"></i>
                             <input type="text" id="razaoSearchInput" class="form-control" 
-                                   placeholder="Filtrar por conta, histórico..." value="${this.razaoSearch}">
+                                placeholder="Busca Global (Server-side)..." value="${this.razaoSearch}">
                         </div>
                         
                         <div class="form-check form-switch d-flex align-items-center gap-2 m-0 cursor-pointer">
                             <input class="form-check-input cursor-pointer" type="checkbox" role="switch" id="chkViewTypeRazao" 
-                                   ${this.razaoViewType === 'adjusted' ? 'checked' : ''}
-                                   onchange="relatorioSystem.toggleRazaoView(this.checked)">
+                                ${this.razaoViewType === 'adjusted' ? 'checked' : ''}
+                                onchange="relatorioSystem.toggleRazaoView(this.checked)">
                             <label class="form-check-label text-white cursor-pointer select-none" for="chkViewTypeRazao">
-                                Visualizar Ajustes
+                                Modo Ajustado (Inclusões/Edições)
                             </label>
                         </div>
                     </div>
 
                     <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-sm btn-success" onclick="relatorioSystem.downloadRazaoFull()" title="Baixar Relatório Completo em Excel">
-                            <i id="iconDownload" class="fas fa-file-excel"></i> Exportar Full
+                        <button class="btn btn-sm btn-success" onclick="relatorioSystem.downloadRazaoFull()" title="Excel">
+                            <i class="fas fa-file-excel"></i> Exportar
                         </button>
-                        
-                        <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
-                        <small class="text-secondary me-2">Pag ${this.razaoPage}/${this.razaoTotalPages}</small>
+                        <div class="separator-vertical mx-2"></div>
+                        <small class="text-secondary me-2">Página ${this.razaoPage} de ${this.razaoTotalPages}</small>
                         <div class="btn-group">
                             <button class="btn btn-sm btn-secondary" onclick="relatorioSystem.loadRazaoReport(${this.razaoPage - 1})" ${this.razaoPage <= 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
                             <button class="btn btn-sm btn-secondary" onclick="relatorioSystem.loadRazaoReport(${this.razaoPage + 1})" ${this.razaoPage >= this.razaoTotalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
                         </div>
                     </div>
                 </div>
-                <div id="razaoTableContainer" class="table-fixed-container" style="height: 55vh;">
-                    <table class="table-modern table-hover">
-                        <thead style="position: sticky; top: 0; z-index: 10;">
-                            <tr><th>Conta</th><th>Título</th><th>Data</th><th>Doc</th><th>Histórico</th><th class="text-end">Débito</th><th class="text-end">Crédito</th><th class="text-end">Saldo</th><th>Origem</th></tr>
-                        </thead>
-                        <tbody>${rows || '<tr><td colspan="9" class="text-center p-4">Vazio.</td></tr>'}</tbody>
-                    </table>
-                </div>`;
+                
+                <div id="razaoTabulator" style="height: 60vh; width: 100%; border-radius: 8px; overflow: hidden;"></div>
+                <div class="text-end mt-1"><small class="text-muted text-xs">* Filtros nas colunas aplicam-se à página atual.</small></div>
+            `;
 
-            this.modal.setContent(`<div style="padding: 1.5rem;">${summaryHtml}${tableHtml}</div>`);
-            
+            // 3. Renderiza o Layout Básico
+            this.modal.setContent(`<div style="padding: 1.5rem; height: 100%; display: flex; flex-direction: column;">${summaryHtml}${controlsHtml}</div>`);
+
+            // 4. Configuração do Evento de Busca Global
             const input = document.getElementById('razaoSearchInput');
             if (input) {
                 input.focus();
+                // Coloca o cursor no final do texto
+                const val = input.value;
+                input.value = '';
+                input.value = val;
+                
                 input.addEventListener('input', (e) => {
                     clearTimeout(this.razaoSearchTimer);
                     this.razaoSearchTimer = setTimeout(() => {
@@ -202,51 +174,93 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     }, 600);
                 });
             }
+
+            // 5. Inicialização do Tabulator
+            this.initTabulator();
         }
 
-        toggleRazaoView(isChecked) {
-            this.razaoViewType = isChecked ? 'adjusted' : 'original';
-            this.loadRazaoReport(1);
+        initTabulator() {
+            // Definição de Formatadores
+            const moneyFormatter = (cell) => {
+                const val = cell.getValue();
+                const color = val < 0 ? "text-danger" : (val > 0 ? "text-success" : "text-muted");
+                return `<span class="${color}">${FormatUtils.formatCurrency(val)}</span>`;
+            };
+
+            const origemFormatter = (cell) => {
+                const val = cell.getValue();
+                const row = cell.getRow().getData();
+                if (row.is_ajustado) {
+                    // Verifica se é Inclusão ou Edição para dar dica visual
+                    const isNew = val.includes('(NOVO)');
+                    const icon = isNew ? 'fa-plus' : 'fa-pen';
+                    const colorClass = isNew ? 'badge-success' : 'badge-warning';
+                    return `<span class="badge ${colorClass} text-xs"><i class="fas ${icon}"></i> ${val}</span>`;
+                }
+                return `<span class="badge badge-secondary text-xs">${val}</span>`;
+            };
+
+            // Instancia Tabulator
+            this.table = new Tabulator("#razaoTabulator", {
+                data: this.razaoData,
+                layout: "fitColumns",
+                height: "100%",
+                placeholder: "Sem dados para exibir",
+                movableColumns: true,
+                columns: [
+                    {title:"Origem", field:"origem", width: 140, formatter: origemFormatter, headerFilter:"input"},
+                    {title:"Conta", field:"conta", width: 130, headerFilter:"input"},
+                    {title:"Título", field:"titulo_conta", minWidth: 200, headerFilter:"input"},
+                    {title:"Data", field:"data", width: 110, headerFilter:"input", formatter: (cell) => FormatUtils.formatDate(cell.getValue())},
+                    {title:"Doc", field:"numero", width: 100, headerFilter:"input"},
+                    {title:"Histórico", field:"descricao", minWidth: 250, headerFilter:"input"},
+                    
+                    // Colunas Novas
+                    {title:"CC", field:"centro_custo", width: 100, headerFilter:"input"},
+                    {title:"Filial", field:"filial", width: 80, headerFilter:"input"},
+                    {title:"Item", field:"item", width: 80, headerFilter:"input"},
+
+                    // Valores
+                    {title:"Débito", field:"debito", width: 120, hozAlign:"right", formatter: moneyFormatter, bottomCalc:"sum", bottomCalcFormatter: moneyFormatter},
+                    {title:"Crédito", field:"credito", width: 120, hozAlign:"right", formatter: moneyFormatter, bottomCalc:"sum", bottomCalcFormatter: moneyFormatter},
+                    {title:"Saldo", field:"saldo", width: 120, hozAlign:"right", formatter: moneyFormatter, bottomCalc:"sum", bottomCalcFormatter: moneyFormatter},
+                ],
+                rowFormatter: function(row){
+                    const data = row.getData();
+                    if(data.is_ajustado){
+                        const origem = data.origem || "";
+                        if (origem.includes("(NOVO)")) {
+                             row.getElement().style.backgroundColor = "rgba(40, 167, 69, 0.1)"; // Verde suave para novos
+                        } else {
+                             row.getElement().style.backgroundColor = "rgba(255, 193, 7, 0.1)"; // Amarelo suave para edições
+                        }
+                    }
+                },
+            });
         }
 
         // ====================================================================
         // --- MÓDULO 2: RENTABILIDADE (BI) ---
         // ====================================================================
 
-        // --- NOVA FUNÇÃO PARA ALTERNAR O MODO ---
         toggleScaleMode() {
             if (this.biIsLoading) return;
-            // Alterna entre 'dre' e 'normal'
             this.biState.scaleMode = (this.biState.scaleMode === 'dre') ? 'normal' : 'dre';
-            // Recarrega os dados do backend (pois o cálculo é feito lá)
             this.loadRentabilidadeReport(this.biState.origemFilter);
         }
 
-        // --- NOVA FUNÇÃO AUXILIAR DE FORMATAÇÃO VISUAL ---
         formatDREValue(value) {
             if (value === 0 || value === null) return '-';
-            
-            // Se for negativo, remove o sinal e coloca parênteses
             const isNegative = value < 0;
             const absValue = Math.abs(value);
-            
-            // Formata o número (0 casas decimais para DRE geralmente fica mais limpo, 
-            // mas se quiser decimais mude para minimumFractionDigits: 2)
-            const formatted = absValue.toLocaleString('pt-BR', { 
-                minimumFractionDigits: 0, 
-                maximumFractionDigits: 0 
-            });
-
+            const formatted = absValue.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
             return isNegative ? `(${formatted})` : formatted;
         }
 
-        // --- ATUALIZAÇÃO DO loadRentabilidadeReport PARA ENVIAR O PARÂMETRO ---
         async loadRentabilidadeReport(origem = null) {
             if (!this.modal) this.modal = new ModalSystem('modalRelatorio');
-            
             if (origem !== null) this.biState.origemFilter = origem;
             
-            // Título dinâmico
             const viewTitle = this.biState.viewMode === 'CC' ? 'por Centro de Custo' : 'por Tipo';
             const scaleTitle = this.biState.scaleMode === 'dre' ? '(Em Milhares)' : '(Valor Integral)';
             
@@ -262,7 +276,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 }
 
                 const origemParam = encodeURIComponent(this.biState.origemFilter);
-                // ADICIONADO: scale_mode
                 const scaleParam = this.biState.scaleMode; 
                 
                 const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}`);
@@ -319,7 +332,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
                 const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}`);
                 
-                // ... restante da função igual ...
                 if (!rawData || rawData.length === 0) {
                     this.biRawData = [];
                     this.biTreeData = [];
@@ -331,7 +343,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 }
                 this.updateOrigemBadge();
             } catch (error) {
-            // ... erro ...
+                console.error(error);
             } finally {
                 this.biIsLoading = false;
             }
@@ -459,7 +471,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const btnIcon = isCC ? 'fa-building' : 'fa-sitemap';
             const btnText = isCC ? 'Visão: Centro de Custo' : 'Visão: Tipo';
 
-            // Lógica do botão de Escala
             const isDreMode = this.biState.scaleMode === 'dre';
             const btnScaleClass = isDreMode ? 'btn-info' : 'btn-secondary';
             const btnScaleIcon = isDreMode ? 'fa-divide' : 'fa-dollar-sign';
@@ -492,7 +503,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         <button class="btn btn-sm btn-outline" onclick="relatorioSystem.toggleAllNodes(false)" title="Recolher Tudo"><i class="fas fa-compress-arrows-alt"></i></button>
                         <button class="btn btn-sm btn-outline" onclick="relatorioSystem.openColumnManager()" title="Colunas"><i class="fas fa-columns"></i></button>
                         <div class="separator-vertical mx-1" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
-                        <!-- <button class="btn btn-sm btn-success" onclick="relatorioSystem.exportBiToCsv()"><i class="fas fa-file-csv"></i> Exportar</button>  DESATIVANDO BOTÃO DE EXPORTAR --!> 
                     </div>
                 </div>`;
             
@@ -514,7 +524,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const cols = this.biState.columnsOrder.filter(c => !this.biState.hiddenCols.has(c));
             const rootHeaderName = this.biState.viewMode === 'CC' ? 'Estrutura / Centro de Custo' : 'Estrutura DRE';
 
-            // --- HEADER DA TABELA (SEM ESTILOS INLINE DE COR) ---
             let headerHtml = `
                 <thead style="position: sticky; top: 0; z-index: 20;">
                     <tr>
@@ -533,7 +542,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
             let bodyRows = '';
             
-            // --- VARIÁVEIS DE COR PARA ÍCONES (VEM DO CSS THEMES) ---
             const COLOR_DARK   = 'color: var(--icon-structure);'; 
             const COLOR_GRAY   = 'color: var(--icon-secondary);'; 
             const COLOR_FOLDER = 'color: var(--icon-folder);'; 
@@ -559,8 +567,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     } else {
                         iconClass = 'fa-layer-group';
                         iconStyle = COLOR_DARK;
-                        
-                        // Refinamento: Globo para Grupo Raiz (ordem baixa)
                         if (node.ordem < 1000 && !node.virtualId) {
                             iconClass = 'fa-globe';
                             iconStyle = COLOR_GRAY;
@@ -578,50 +584,35 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
                 let iconHtml = '';
                 if (isGroup) {
-                    // Seta discreta
                     iconHtml = `<i class="fas fa-caret-${isExpanded ? 'down' : 'right'} me-2 toggle-icon" onclick="event.stopPropagation(); relatorioSystem.toggleNode('${node.id}')" style="width:10px; cursor: pointer; color: var(--text-tertiary);"></i>`;
                     iconHtml += `<i class="fas ${iconClass} me-2" style="${iconStyle}"></i>`;
                 } else {
                     iconHtml = `<i class="fas ${iconClass} me-2" style="margin-left: 18px; ${iconStyle}"></i>`;
                 }
 
-                // Estilos de Fonte (Classes CSS, sem cor inline)
                 let labelStyle = ''; 
-                // As cores do texto são definidas no CSS pelas classes bi-row-*
-
                 const customStyle = node.estiloCss ? `style="${node.estiloCss}"` : '';
                 
                 const cellsHtml = cols.map(c => {
                     const val = node.values[c];
-                    
-                    // Cores de valor (Bootstrap Standard)
                     let colorClass = '';
                     if (val < 0) colorClass = 'text-danger'; 
                     else if (val === 0) colorClass = 'text-muted';
                     
                     let displayVal = '-';
-                    
                     if (val !== 0) {
-                        if (this.biState.scaleMode === 'dre') {
-                            // MODO DRE: Usa a formatação com parênteses
-                            displayVal = this.formatDREValue(val);
-                        } else {
-                            // MODO NORMAL: Usa formatação padrão numérica
-                            displayVal = FormatUtils.formatNumber(val);
-                        }
+                        if (this.biState.scaleMode === 'dre') displayVal = this.formatDREValue(val);
+                        else displayVal = FormatUtils.formatNumber(val);
                     }
-                    
                     if (node.tipoExibicao === 'percentual' && val !== 0) displayVal = val.toFixed(2) + '%';
                     
                     const weight = (node.type === 'root' || node.type === 'calculated') ? 'font-weight: 600;' : '';
-                    
                     return `<td class="text-end font-mono ${colorClass}" style="${weight}">${displayVal}</td>`;
                 }).join('');
 
                 const isMatch = this.biState.searchMatches.includes(node.id);
                 const searchClass = isMatch ? 'search-match' : '';
 
-                // GERAÇÃO DA LINHA (SEM STYLE BACKGROUND COLOR FIXO)
                 bodyRows += `<tr id="row_${node.id}" class="bi-row-${node.type} ${searchClass}" ${customStyle}>
                         <td style="padding-left: ${padding}px;">
                             <div class="d-flex align-items-center cell-label" style="${labelStyle}">
@@ -642,12 +633,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const hasColFilters = Object.keys(colFilters).length > 0;
 
             const checkVisibility = (node) => {
-                // A Busca Global NÃO afeta visibilidade (matchesGlobal é sempre true para renderizar)
-                // Apenas expandimos os nós na função performSearchTraversal
-                
                 let matchesCols = true;
-                
-                // Filtros de Coluna (numéricos/valores) continuam escondendo linhas
                 if (hasColFilters) {
                     for (const [col, filterVal] of Object.entries(colFilters)) {
                         if (!filterVal) continue;
@@ -660,85 +646,59 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         if (!pass) { matchesCols = false; break; }
                     }
                 }
-
                 let hasVisibleChildren = false;
                 if (node.children) node.children.forEach(child => { if (checkVisibility(child)) hasVisibleChildren = true; });
                 
-                // Visível se passar nos filtros de coluna OU tiver filhos visíveis
                 const isVisible = matchesCols || hasVisibleChildren;
                 node.isVisible = isVisible;
-                
-                // Se filtro de coluna estiver ativo e passar, expande para mostrar
                 if (isVisible && hasColFilters) this.biState.expanded.add(node.id); 
-                
                 return isVisible;
             };
             this.biTreeData.forEach(node => checkVisibility(node));
         }
         handleBiGlobalSearch(val) { 
             this.biState.globalSearch = val; 
-            
-            // Se limpar, reseta tudo
             if (!val) {
                 this.biState.searchMatches = [];
                 this.biState.searchCurrentIndex = -1;
-                this.renderBiTable(); // Renderiza limpo
+                this.renderBiTable();
                 return;
             }
-
             clearTimeout(this.biDebounceTimer); 
-            this.biDebounceTimer = setTimeout(() => { 
-                this.performSearchTraversal(); 
-            }, 400); 
+            this.biDebounceTimer = setTimeout(() => { this.performSearchTraversal(); }, 400); 
         }
 
         performSearchTraversal() {
             const term = this.biState.globalSearch.toLowerCase();
-            this.biState.searchMatches = []; // Reseta matches
+            this.biState.searchMatches = [];
             this.biState.searchCurrentIndex = -1;
-
             if (!term) return;
 
-            // Função recursiva para encontrar matches e expandir pais
             const findAndExpand = (nodes, parentIds = []) => {
                 nodes.forEach(node => {
                     const match = node.label.toLowerCase().includes(term);
-                    
                     if (match) {
-                        // Adiciona aos encontrados
                         this.biState.searchMatches.push(node.id);
-                        // Expande todos os pais deste nó para garantir que ele esteja visível
                         parentIds.forEach(pid => this.biState.expanded.add(pid));
                     }
-
-                    if (node.children && node.children.length > 0) {
-                        findAndExpand(node.children, [...parentIds, node.id]);
-                    }
+                    if (node.children && node.children.length > 0) findAndExpand(node.children, [...parentIds, node.id]);
                 });
             };
-
             findAndExpand(this.biTreeData);
-
-            // Se encontrou algo, prepara para ir ao primeiro
             if (this.biState.searchMatches.length > 0) {
-                this.renderBiTable(); // Re-renderiza para aplicar classes e abrir pastas
-                
-                // Pequeno delay para garantir que o DOM existe antes de focar
+                this.renderBiTable();
                 setTimeout(() => this.navigateSearchNext(), 100);
             } else {
-                this.renderBiTable(); // Re-renderiza mesmo sem matches para limpar destaques anteriores
+                this.renderBiTable();
             }
         }
 
         navigateSearchNext() {
             if (this.biState.searchMatches.length === 0) return;
-
-            // Incrementa índice (loop circular)
             this.biState.searchCurrentIndex++;
             if (this.biState.searchCurrentIndex >= this.biState.searchMatches.length) {
                 this.biState.searchCurrentIndex = 0;
             }
-
             const nodeId = this.biState.searchMatches[this.biState.searchCurrentIndex];
             this.scrollToNode(nodeId);
             this.updateSearchHighlights();
@@ -746,20 +706,14 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
         scrollToNode(nodeId) {
             const row = document.getElementById(`row_${nodeId}`);
-            if (row) {
-                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+            if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         updateSearchHighlights() {
-            // Remove destaque de foco anterior
             document.querySelectorAll('.search-current-match').forEach(el => el.classList.remove('search-current-match'));
-            
             const currentId = this.biState.searchMatches[this.biState.searchCurrentIndex];
             const row = document.getElementById(`row_${currentId}`);
-            if (row) {
-                row.classList.add('search-current-match');
-            }
+            if (row) row.classList.add('search-current-match');
         }
 
         handleBiColFilter(col, val) { if (!val) delete this.biState.filters[col]; else this.biState.filters[col] = val; this.debounceRender(); }
@@ -768,10 +722,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         toggleAllNodes(expand) { const recurse = (nodes) => { nodes.forEach(n => { if (expand) this.biState.expanded.add(n.id); else this.biState.expanded.delete(n.id); if (n.children) recurse(n.children); }); }; recurse(this.biTreeData); this.renderBiTable(); }
         openColumnManager() {
             const allCols = this.biState.columnsOrder;
-            
-            // Verifica se todos estão visíveis para marcar o "Selecionar Todos"
             const allVisible = allCols.every(c => !this.biState.hiddenCols.has(c));
-
             const modalHtml = `
                 <div class="column-manager-container">
                     <div class="column-manager-header">
@@ -780,95 +731,56 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                             <i class="fas ${allVisible ? 'fa-check-square' : 'fa-square'}"></i> ${allVisible ? 'Desmarcar Todos' : 'Selecionar Todos'}
                         </button>
                     </div>
-                    
                     <div class="column-grid">
                         ${allCols.map(c => {
                             const isVisible = !this.biState.hiddenCols.has(c);
                             return `
                             <label class="column-option ${isVisible ? 'selected' : ''}">
-                                <input type="checkbox" class="column-checkbox" 
-                                    value="${c}" 
-                                    ${isVisible ? 'checked' : ''} 
-                                    onchange="relatorioSystem.handleColumnToggle(this, '${c}')">
+                                <input type="checkbox" class="column-checkbox" value="${c}" ${isVisible ? 'checked' : ''} onchange="relatorioSystem.handleColumnToggle(this, '${c}')">
                                 <span>${c}</span>
-                            </label>
-                            `;
+                            </label>`;
                         }).join('')}
                     </div>
-
                     <div class="mt-4 text-end border-top border-primary pt-3">
-                        <button class="btn btn-primary-custom" style="width: auto; padding: 8px 24px;" 
-                                onclick="document.querySelector('.modal-backdrop').remove(); relatorioSystem.renderBiTable()">
+                        <button class="btn btn-primary-custom" style="width: auto; padding: 8px 24px;" onclick="document.querySelector('.modal-backdrop').remove(); relatorioSystem.renderBiTable()">
                             <i class="fas fa-check"></i> Aplicar Alterações
                         </button>
                     </div>
                 </div>`;
-
-            // Cria o Modal Backdrop (mesma lógica anterior, mas com estilo melhor)
             const colModal = document.createElement('div'); 
             colModal.className = 'modal-backdrop active'; 
             colModal.innerHTML = `<div class="modal-window" style="max-width: 600px;">${modalHtml}</div>`;
-            
-            colModal.onclick = (e) => { 
-                if(e.target === colModal) {
-                    colModal.remove(); 
-                    this.renderBiTable(); // Aplica ao fechar clicando fora também
-                }
-            }; 
+            colModal.onclick = (e) => { if(e.target === colModal) { colModal.remove(); this.renderBiTable(); } }; 
             document.body.appendChild(colModal);
         }
 
-        // Manipulador individual de checkbox (para atualizar estilo visual instantaneamente)
         handleColumnToggle(checkbox, col) {
-            if (checkbox.checked) {
-                this.biState.hiddenCols.delete(col);
-                checkbox.closest('.column-option').classList.add('selected');
-            } else {
-                this.biState.hiddenCols.add(col);
-                checkbox.closest('.column-option').classList.remove('selected');
-            }
-            // Atualiza botão "Selecionar Todos" dinamicamente
+            if (checkbox.checked) { this.biState.hiddenCols.delete(col); checkbox.closest('.column-option').classList.add('selected'); }
+            else { this.biState.hiddenCols.add(col); checkbox.closest('.column-option').classList.remove('selected'); }
             this.updateSelectAllBtnState();
         }
 
-        // Lógica "Selecionar Todos / Desmarcar Todos"
         toggleAllColumns(btn) {
-            const allCols = this.biState.columnsOrder;
             const checkboxes = document.querySelectorAll('.column-grid input[type="checkbox"]');
-            
-            // Se o botão tem ícone de check, vamos desmarcar tudo. Se não, marcar tudo.
             const isCurrentlyAllChecked = btn.querySelector('i').classList.contains('fa-check-square');
             const newState = !isCurrentlyAllChecked;
-
             checkboxes.forEach(chk => {
                 chk.checked = newState;
                 const col = chk.value;
                 const parent = chk.closest('.column-option');
-                
-                if (newState) {
-                    this.biState.hiddenCols.delete(col);
-                    parent.classList.add('selected');
-                } else {
-                    this.biState.hiddenCols.add(col);
-                    parent.classList.remove('selected');
-                }
+                if (newState) { this.biState.hiddenCols.delete(col); parent.classList.add('selected'); } 
+                else { this.biState.hiddenCols.add(col); parent.classList.remove('selected'); }
             });
-
             this.updateSelectAllBtnState();
         }
 
         updateSelectAllBtnState() {
             const btn = document.querySelector('.column-manager-header button');
             if(!btn) return;
-            
             const allCols = this.biState.columnsOrder;
             const allVisible = allCols.every(c => !this.biState.hiddenCols.has(c));
-            
-            if(allVisible) {
-                btn.innerHTML = '<i class="fas fa-check-square"></i> Desmarcar Todos';
-            } else {
-                btn.innerHTML = '<i class="fas fa-square"></i> Selecionar Todos';
-            }
+            if(allVisible) btn.innerHTML = '<i class="fas fa-check-square"></i> Desmarcar Todos';
+            else btn.innerHTML = '<i class="fas fa-square"></i> Selecionar Todos';
         }
 
         toggleBiColumn(col) { if (this.biState.hiddenCols.has(col)) this.biState.hiddenCols.delete(col); else this.biState.hiddenCols.add(col); }
@@ -919,7 +831,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     meses.forEach(mes => {
                         valores[mes] = this.calcularValorNo(noCalc.formula, mes, valoresAgregados);
                     });
-
                     const chaveMemoria = `no_virtual_${noCalc.id}`;
                     if (!valoresAgregados[chaveMemoria]) valoresAgregados[chaveMemoria] = {};
                     meses.forEach(mes => valoresAgregados[chaveMemoria][mes] = valores[mes]);
@@ -991,34 +902,16 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         }
 
         downloadRazaoFull() {
-            // 1. Pega o estado atual da busca e do botão de ajustes
             const searchTerm = encodeURIComponent(this.razaoSearch || '');
-            const viewType = this.razaoViewType; // Já alterna entre 'original' e 'adjusted' pelo switch
-            
-            // 2. Pega a rota segura do HTML
+            const viewType = this.razaoViewType; 
             const baseUrl = API_ROUTES.getRazaoDownload;
-
-            if (!baseUrl) {
-                alert("Erro de configuração: Rota de download não encontrada.");
-                return;
-            }
-
-            // 3. Monta URL final
+            if (!baseUrl) { alert("Erro de configuração: Rota de download não encontrada."); return; }
             const finalUrl = `${baseUrl}?search=${searchTerm}&view_type=${viewType}`;
-
-            // 4. Feedback visual no botão (opcional)
             const btnIcon = document.getElementById('iconDownload');
             if(btnIcon) btnIcon.className = "fas fa-spinner fa-spin";
-
-            // 5. Inicia Download
             window.location.href = finalUrl;
-
-            // Remove spinner após 3s
-            setTimeout(() => {
-                if(btnIcon) btnIcon.className = "fas fa-file-excel";
-            }, 3000);
+            setTimeout(() => { if(btnIcon) btnIcon.className = "fas fa-file-excel"; }, 3000);
         }
-
     }
 
     window.relatorioSystem = new RelatorioSystem();
