@@ -6,7 +6,7 @@ Gerencia posições e movimentações de elementos na árvore.
 
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
-from sqlalchemy import text, func
+from sqlalchemy import text, func, bindparam # <--- CORREÇÃO: Adicionado bindparam
 from sqlalchemy.orm import sessionmaker
 from Db.Connections import get_postgres_engine
 
@@ -265,11 +265,6 @@ def inicializarOrdenamento():
 def getOrdem():
     """
     Retorna a ordem de um elemento específico.
-    
-    Body:
-        tipo_no: str
-        id_referencia: str
-        contexto_pai: str (opcional, default='root')
     """
     session = getSession()
     try:
@@ -304,9 +299,6 @@ def getOrdem():
 def getFilhosOrdenados():
     """
     Retorna todos os filhos de um contexto, ordenados.
-    
-    Body:
-        contexto_pai: str (ex: 'root', 'tipo_Adm', 'cc_25110501', 'sg_15')
     """
     session = getSession()
     try:
@@ -342,15 +334,6 @@ def getFilhosOrdenados():
 def moverNo():
     """
     Move um nó para nova posição.
-    
-    Body:
-        tipo_no: str
-        id_referencia: str
-        contexto_origem: str
-        contexto_destino: str
-        nova_ordem: int (posição desejada)
-        posicao_relativa: str (opcional: 'antes', 'depois', 'dentro')
-        id_referencia_relativo: str (opcional: ID do elemento de referência)
     """
     session = getSession()
     try:
@@ -397,10 +380,6 @@ def moverNo():
 def reordenarLote():
     """
     Reordena múltiplos elementos de uma vez (após drag-and-drop).
-    
-    Body:
-        contexto_pai: str
-        nova_ordem: list[{tipo_no, id_referencia, ordem}]
     """
     session = getSession()
     try:
@@ -442,10 +421,6 @@ def reordenarLote():
 def normalizarContexto():
     """
     Normaliza a ordem de um contexto (10, 20, 30, ...).
-    Útil após muitas movimentações.
-    
-    Body:
-        contexto_pai: str
     """
     session = getSession()
     try:
@@ -473,7 +448,7 @@ def normalizarContexto():
 def getArvoreOrdenada():
     """
     Retorna a árvore completa ORDENADA.
-    Substitui a rota GetDadosArvore original quando ordenamento está ativo.
+    CORREÇÃO: Incluído campo 'is_calculado' nos nós virtuais para habilitar o menu de edição.
     """
     session = getSession()
     try:
@@ -481,7 +456,6 @@ def getArvoreOrdenada():
         tem_ordem = session.query(DreOrdenamento).first()
         
         if not tem_ordem:
-            # Fallback: Retorna erro pedindo inicialização
             return jsonify({
                 "error": "Ordenamento não inicializado",
                 "msg": "Execute POST /Ordenamento/Inicializar primeiro"
@@ -534,11 +508,13 @@ def getArvoreOrdenada():
                     virt_id = int(_clean_id(reg.id_referencia))
                 except Exception:
                     return None
+                
                 virt = session.query(DreNoVirtual).get(virt_id)
                 if virt:
                     node["id"] = f"virt_{virt.Id}"
                     node["text"] = virt.Nome
                     node["type"] = "root_virtual"
+                    node["is_calculado"] = virt.Is_Calculado # <--- CORREÇÃO AQUI
                     node["children"] = montarFilhos(f"virt_{virt.Id}")
                 else:
                     return None
@@ -619,19 +595,12 @@ def getArvoreOrdenada():
     finally:
         session.close()
 
-
 @dre_ordem_bp.route('/Ordenamento/SincronizarNovo', methods=['POST'])
 @login_required
 def sincronizarNovoElemento():
     """
     Adiciona um novo elemento ao ordenamento.
     Chamado automaticamente ao criar subgrupos/vincular contas.
-    
-    Body:
-        tipo_no: str
-        id_referencia: str
-        contexto_pai: str
-        posicao: str (opcional: 'inicio', 'fim', ou número)
     """
     session = getSession()
     try:
@@ -709,12 +678,6 @@ def sincronizarNovoElemento():
 def removerDoOrdenamento():
     """
     Remove um elemento do ordenamento.
-    Chamado automaticamente ao deletar subgrupos/desvincular contas.
-    
-    Body:
-        tipo_no: str
-        id_referencia: str
-        contexto_pai: str (opcional - se não informado, remove de todos)
     """
     session = getSession()
     try:
@@ -742,5 +705,91 @@ def removerDoOrdenamento():
     except Exception as e:
         session.rollback()
         return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+@dre_ordem_bp.route('/Ordenamento/ReordenarEmMassa', methods=['POST'])
+@login_required
+def reordenarEmMassa():
+    """
+    Aplica a ordem visual para TODOS os subgrupos com o mesmo nome.
+    CORREÇÃO: Remove JOIN e usa filtro direto que comprovadamente funciona.
+    """
+    session = getSession()
+    try:
+        data = request.json
+        tipo_cc = data.get('tipo_cc') 
+        ordem_nomes = data.get('ordem_nomes')
+        
+        if not tipo_cc or not ordem_nomes:
+            return jsonify({'error': 'Dados incompletos'}), 400
+
+        # 1. Busca IDs filtrando DIRETO na tabela (sem join com pai)
+        # Isso garante que encontramos os registros que possuem esse Tipo marcado
+        sql_busca_ids = text("""
+            SELECT "Id", "Nome", "Id_Pai"
+            FROM "Dre_Schema"."DRE_Estrutura_Hierarquia"
+            WHERE "Raiz_Centro_Custo_Tipo" = :tipo
+              AND "Nome" IN :nomes
+        """)
+        
+        # Expansão da lista para o IN (...)
+        sql_busca_ids = sql_busca_ids.bindparams(bindparam('nomes', expanding=True))
+        
+        rows = session.execute(sql_busca_ids, {
+            'tipo': tipo_cc, 
+            'nomes': list(ordem_nomes)
+        }).fetchall()
+        
+        # Mapa: Nome -> Lista de Dicionários {id, pai}
+        mapa_ids = {} 
+        for r in rows:
+            if r.Nome not in mapa_ids: mapa_ids[r.Nome] = []
+            mapa_ids[r.Nome].append({'id': str(r.Id), 'pai_id': str(r.Id_Pai)})
+
+        # 2. Atualiza a tabela de ordenamento
+        updates_feitos = 0
+        
+        for index, nome_grupo in enumerate(ordem_nomes):
+            nova_ordem = (index + 1) * 10
+            lista_ocorrencias = mapa_ids.get(nome_grupo, [])
+            
+            for item in lista_ocorrencias:
+                id_subgrupo = item['id']
+                
+                # Procura registro de ordem existente
+                existe = session.query(DreOrdenamento).filter_by(
+                    tipo_no='subgrupo', 
+                    id_referencia=id_subgrupo
+                ).first()
+                
+                if existe:
+                    existe.ordem = nova_ordem
+                else:
+                    # Se não existe, cria um novo
+                    # Usa o Id_Pai encontrado na query para definir o contexto
+                    ctx_pai = f"cc_{item['pai_id']}" if item['pai_id'] and item['pai_id'] != 'None' else 'root'
+                    
+                    novo_reg = DreOrdenamento(
+                        tipo_no='subgrupo',
+                        id_referencia=id_subgrupo,
+                        contexto_pai=ctx_pai,
+                        ordem=nova_ordem
+                    )
+                    session.add(novo_reg)
+                
+                updates_feitos += 1
+
+        session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'msg': f'Ordem sincronizada para {updates_feitos} pastas.'
+        }), 200
+
+    except Exception as e:
+        session.rollback()
+        print(f"Erro Reordenar: {e}")
+        return jsonify({'error': str(e)}), 500
     finally:
         session.close()
