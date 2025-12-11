@@ -31,11 +31,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     searchCurrentIndex: -1,             
                     sort: { col: null, dir: 'asc' }, 
                     columnsOrder: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Total_Ano'],            
-                    origemFilter: 'Consolidado',  
-                    viewMode: 'TIPO', // Fixo em TIPO agora visualmente
-                    scaleMode: 'dre',
                     
-                    // --- NOVOS ESTADOS PARA O FILTRO DE CC ---
+                    // --- ALTERADO: SUPORTE A MULTI-SELEÇÃO INTEC/FARMA/DIST ---
+                    selectedOrigins: ['FARMA', 'FARMADIST', 'INTEC'], // Padrão: Tudo selecionado
+                    
+                    viewMode: 'TIPO',
+                    scaleMode: 'dre',
                     ccFilter: 'Todos',
                     listaCCs: [] 
                 };
@@ -316,36 +317,61 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.modal.setContent(`<div style="display: flex; flex-direction: column; height: 100%;">${emptyHtml}</div>`);
         }
 
-        async reloadBiDataAsync(novaOrigem) {
+        async reloadBiDataAsync() {
             if (this.biIsLoading) return;
             this.biIsLoading = true;
-            this.biState.origemFilter = novaOrigem;
+            
+            // Monta string separada por vírgula para enviar ao backend
+            const origemParam = encodeURIComponent(this.biState.selectedOrigins.join(','));
             
             const container = document.getElementById('biGridContainer');
             if (container) container.innerHTML = `<div class="loading-container" style="height: 100%;"><div class="loading-spinner"></div></div>`;
 
+            // Renderiza a toolbar novamente para refletir os botões ativos/inativos
+            // (Isso é opcional se quiser atualizar só as classes, mas renderizar tudo garante consistência)
+            const toolbarDiv = document.querySelector('.bi-toolbar');
+            if (toolbarDiv) {
+                // Atualiza apenas a parte dos botões se possível, ou redesenha toolbar na próxima etapa
+                // Para simplificar, vamos deixar o renderBiInterface atualizar tudo no final ou manipular classes aqui:
+                document.querySelectorAll('.origem-toggle-group button').forEach(btn => {
+                    const txt = btn.textContent.trim();
+                    // Lógica simples de atualização visual
+                });
+            }
+
             try {
                 let urlBase = (this.biState.viewMode === 'CC') 
-                    ? (API_ROUTES?.getRentabilidadeDataCC || '/Reports/RelatorioRazao/RentabilidadePorCC')
-                    : (API_ROUTES?.getRentabilidadeData || '/Reports/RelatorioRazao/Rentabilidade');
+                    ? (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeDataCC ? API_ROUTES.getRentabilidadeDataCC : '/Reports/RelatorioRazao/RentabilidadePorCC')
+                    : (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData ? API_ROUTES.getRentabilidadeData : '/Reports/RelatorioRazao/Rentabilidade');
+                
+                // Usa a rota única se o backend suportar o parametro viewMode na mesma rota, mas mantendo a lógica original:
+                // O código original usava rotas diferentes ou lógica interna.
+                // Vamos focar na chamada principal:
+                
+                urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData) 
+                        ? API_ROUTES.getRentabilidadeData 
+                        : '/Reports/RelatorioRazao/Rentabilidade';
 
-                const origemParam = encodeURIComponent(novaOrigem);
                 const scaleParam = this.biState.scaleMode;
+                const ccParam = encodeURIComponent(this.biState.ccFilter);
 
-                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}`);
+                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}&centro_custo=${ccParam}`);
                 
                 if (!rawData || rawData.length === 0) {
                     this.biRawData = [];
                     this.biTreeData = [];
-                    if (container) container.innerHTML = '<div class="p-4 text-center text-muted">Vazio</div>';
+                    if (container) container.innerHTML = '<div class="p-4 text-center text-muted">Vazio (Nenhuma empresa selecionada ou sem dados)</div>';
                 } else {
                     this.biRawData = rawData;
                     await this.processBiTreeWithCalculated();
                     this.renderBiTable();
                 }
-                this.updateOrigemBadge();
+                // Re-renderiza a interface completa para atualizar os botões corretamente
+                this.renderBiInterface();
+                
             } catch (error) {
                 console.error(error);
+                if (container) container.innerHTML = `<div class="p-4 text-center text-danger">Erro: ${error.message}</div>`;
             } finally {
                 this.biIsLoading = false;
             }
@@ -357,32 +383,60 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         }
 
         renderOrigemFilter() {
-            const opcoes = ['Consolidado', 'FARMA', 'FARMADIST'];
+            // Opções disponíveis
+            const opcoes = ['FARMA', 'FARMADIST', 'INTEC'];
+            
             return `
                 <div class="origem-filter-group d-flex align-items-center gap-2">
-                    <div class="btn-group origem-toggle-group" role="group">
-                        ${opcoes.map(op => `
-                            <button type="button" class="btn btn-sm origem-toggle-btn ${this.biState.origemFilter === op ? 'active' : ''}" 
-                                    data-origem="${op}" onclick="relatorioSystem.handleOrigemChange('${op}')">
+                    <div class="btn-group origem-toggle-group" role="group" aria-label="Filtro de Empresas">
+                        ${opcoes.map(op => {
+                            const isActive = this.biState.selectedOrigins.includes(op);
+                            const btnClass = isActive ? 'btn-primary active' : 'btn-outline-secondary';
+                            const style = isActive ? 'background-color: var(--primary); color: white;' : 'background-color: var(--bg-secondary); color: var(--text-secondary);';
+                            
+                            return `
+                            <button type="button" class="btn btn-sm ${isActive ? 'active' : ''}" 
+                                    style="${style} border: 1px solid var(--border-primary);"
+                                    onclick="relatorioSystem.handleOrigemChange('${op}')">
                                 ${this.getOrigemIcon(op)} ${op}
                             </button>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
-                    <span id="biOrigemBadge" class="badge badge-secondary ms-2">${this.biRawData.length}</span>
+                    <span id="biOrigemBadge" class="badge badge-secondary ms-2" title="Registros carregados">
+                        ${this.biRawData.length}
+                    </span>
                 </div>`;
         }
 
         getOrigemIcon(origem) {
-            const icons = {'Consolidado': '<i class="fas fa-layer-group"></i>', 'FARMA': '<i class="fas fa-pills"></i>', 'FARMADIST': '<i class="fas fa-truck"></i>'};
-            return icons[origem] || '';
+            const icons = {
+                'FARMA': '<i class="fas fa-pills"></i>', 
+                'FARMADIST': '<i class="fas fa-truck"></i>',
+                'INTEC': '<i class="fas fa-network-wired"></i>' // Ícone para INTEC
+            };
+            return icons[origem] || '<i class="fas fa-building"></i>';
         }
 
-        handleOrigemChange(novaOrigem) {
-            if (novaOrigem === this.biState.origemFilter || this.biIsLoading) return;
-            document.querySelectorAll('.origem-toggle-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.origem === novaOrigem);
-            });
-            this.reloadBiDataAsync(novaOrigem);
+        handleOrigemChange(empresaClicada) {
+            if (this.biIsLoading) return;
+
+            const currentSelection = this.biState.selectedOrigins;
+            let newSelection = [];
+
+            if (currentSelection.includes(empresaClicada)) {
+                // Se já tem, remove (mas impede de ficar vazio, se desejar. Aqui permitimos vazio = 0 dados)
+                newSelection = currentSelection.filter(e => e !== empresaClicada);
+            } else {
+                // Se não tem, adiciona
+                newSelection = [...currentSelection, empresaClicada];
+            }
+
+            // Atualiza estado visual imediatamente
+            this.biState.selectedOrigins = newSelection;
+            
+            // Recarrega dados
+            this.reloadBiDataAsync();
         }
 
         processBiTree() {
@@ -506,48 +560,43 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.loadRentabilidadeReport(this.biState.origemFilter);
         }
 
-        // --- SUBSTITUIR COMPLETO: loadRentabilidadeReport ---
-        async loadRentabilidadeReport(origem = null) {
+        async loadRentabilidadeReport(origemIgnorada = null) {
             if (!this.modal) this.modal = new ModalSystem('modalRelatorio');
-            if (origem !== null) this.biState.origemFilter = origem;
             
-            // Carrega a lista de opções antes de abrir se necessário
+            // Carrega lista de CCs
             await this.loadCCList();
 
             const scaleTitle = this.biState.scaleMode === 'dre' ? '(Em Milhares)' : '(Valor Integral)';
-            // Título dinâmico
             const ccTitle = this.biState.ccFilter === 'Todos' ? 'Todos os Centros' : `Filtro: ${this.biState.ccFilter}`;
             
             this.modal.open(`<i class="fas fa-cubes"></i> Análise Gerencial <small class="modal-title">${scaleTitle} | ${ccTitle}</small>`, '');
             this.modal.showLoading('Calculando DRE...');
 
             try {
-                // URL sempre aponta para a rota padrão de Rentabilidade
                 const urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData) 
                     ? API_ROUTES.getRentabilidadeData 
                     : '/Reports/RelatorioRazao/Rentabilidade';
 
-                const origemParam = encodeURIComponent(this.biState.origemFilter);
+                // ENVIA O ARRAY JOINADO
+                const origemParam = encodeURIComponent(this.biState.selectedOrigins.join(','));
+                
                 const scaleParam = this.biState.scaleMode; 
-                const ccParam = encodeURIComponent(this.biState.ccFilter); // Envia o CC selecionado
+                const ccParam = encodeURIComponent(this.biState.ccFilter);
 
                 const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}&centro_custo=${ccParam}`);
                 
                 if (!rawData || rawData.length === 0) {
-                    // Se vazio, limpa dados mas renderiza interface (para mostrar o select e permitir mudar filtro)
                     this.biRawData = [];
                     this.biTreeData = [];
-                    this.renderBiInterface(); // Renderiza toolbar
-                    
-                    // Injeta mensagem de vazio no container
+                    this.renderBiInterface();
                     setTimeout(() => {
                         const container = document.getElementById('biGridContainer');
                         if(container) {
                             container.innerHTML = `
                                 <div class="p-5 text-center">
                                     <i class="fas fa-filter fa-3x text-muted mb-3"></i>
-                                    <h4 class="text-secondary">Sem dados para este filtro</h4>
-                                    <p class="text-muted">Não há registros para a origem "<strong>${this.biState.origemFilter}</strong>" no Centro de Custo "<strong>${this.biState.ccFilter}</strong>".</p>
+                                    <h4 class="text-secondary">Sem dados</h4>
+                                    <p class="text-muted">Verifique a seleção de empresas e centros de custo.</p>
                                 </div>`;
                         }
                     }, 100);
@@ -563,7 +612,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 this.modal.showError(`Erro no BI: ${error.message}`);
             }
         }
-
+        
         renderBiInterface() {
             const isDreMode = this.biState.scaleMode === 'dre';
             const btnScaleClass = isDreMode ? 'btn-info' : 'btn-secondary';
