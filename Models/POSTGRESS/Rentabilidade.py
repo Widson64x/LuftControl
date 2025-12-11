@@ -205,3 +205,33 @@ class RazaoOrigemFARMADIST(Base):
 
     def __repr__(self):
         return f"<RazaoOrigemFARMADIST(Conta='{self.Conta}', Data='{self.Data}')>"
+    
+class RazaoOrigemINTEC(Base):
+    """
+    Lançamentos contábeis da origem INTEC.
+    Adicionado ID para permitir lançamentos múltiplos com mesmo Numero/Conta.
+    """
+    __tablename__ = 'Razao_Dados_Origem_INTEC'
+    __table_args__ = {'schema': 'Dre_Schema'}
+
+    # ✅ CORREÇÃO: Adicionamos um ID autoincrementável como chave primária
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Removemos primary_key=True destes campos para permitir repetição
+    Conta = Column('Conta', Text)
+    Data = Column('Data', DateTime)
+    Numero = Column('Numero', Text)
+    Filial = Column('Filial', BigInteger)
+    
+    # Restante das colunas continua igual
+    Titulo_Conta = Column('Título Conta', Text)
+    Descricao = Column('Descricao', Text)
+    Contra_Partida_Credito = Column('Contra Partida - Credito', Text)
+    Centro_Custo = Column('Centro de Custo', BigInteger)
+    Item = Column('Item', String(50))
+    Cod_Cl_Valor = Column('Cod Cl. Valor', Text)
+    Debito = Column('Debito', Float)
+    Credito = Column('Credito', Float)
+
+    def __repr__(self):
+        return f"<RazaoOrigemINTEC(Id={self.Id}, Conta='{self.Conta}')>"
