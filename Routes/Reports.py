@@ -2,6 +2,7 @@
 from flask import Blueprint, jsonify, request, current_app, abort, render_template, send_file
 from flask_login import login_required 
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 import io
 import pandas as pd
 import xlsxwriter
@@ -60,52 +61,69 @@ def RelatorioRazaoResumo():
     finally:
         if session: session.close()
 
+@reports_bp.route('/RelatorioRazao/ListaCentrosCusto', methods=['GET'])
+@login_required
+def ListaCentrosCusto():
+    """
+    Rota para popular o dropdown de Centros de Custo.
+    Retorna objeto {codigo, nome} para o frontend.
+    """
+    session = None
+    try:
+        session = get_pg_session()
+        
+        # Selecionamos o CODIGO (para o value) e o NOME (para o display)
+        sql = text("""
+            SELECT DISTINCT ccc."Codigo", ccc."Nome" 
+            FROM "Dre_Schema"."Razao_Dados_Consolidado" rdc 
+            JOIN "Dre_Schema"."Classificacao_Centro_Custo" ccc ON rdc."Centro de Custo" = ccc."Codigo" 
+            WHERE ccc."Nome" IS NOT NULL 
+            ORDER BY ccc."Nome"
+        """)
+        
+        rows = session.execute(sql).fetchall()
+        
+        # Monta uma lista de dicionários/objetos
+        lista_ccs = [{'codigo': row.Codigo, 'nome': row.Nome} for row in rows]
+        
+        return jsonify(lista_ccs), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao listar Centros de Custo: {e}")
+        return jsonify([]), 200 
+    finally:
+        if session: session.close()
+        
 @reports_bp.route('/RelatorioRazao/Rentabilidade', methods=['GET'])
 @login_required
 def RelatorioRentabilidade():
     session = None
     try:
         session = get_pg_session()
-        # INSTANCIA O REPORT DE DRE
         report = AnaliseDREReport(session)
         
+        # Parâmetros da URL
         filtro_origem = request.args.get('origem', 'Consolidado')
         scale_mode = request.args.get('scale_mode', 'dre') 
+        filtro_cc = request.args.get('centro_custo', 'Todos') # <--- NOVO PARÂMETRO
         
-        data = report.processar_relatorio(filtro_origem=filtro_origem, agrupar_por_cc=False)
+        # Processamento com o novo filtro
+        data = report.processar_relatorio(
+            filtro_origem=filtro_origem, 
+            agrupar_por_cc=False, 
+            filtro_cc=filtro_cc
+        )
+        
+        # Cálculos de nós virtuais (fórmulas)
         final_data = report.calcular_nos_virtuais(data)
         
+        # Aplicação da escala (Milhares ou Integral)
         if scale_mode == 'dre':
             final_data = report.aplicar_milhares(final_data)
         
         return jsonify(final_data), 200
     except Exception as e:
         current_app.logger.error(f"Erro AnaliseDREReport: {e}")
-        abort(500, description=f"Erro interno: {str(e)}")
-    finally:
-        if session: session.close()
-
-@reports_bp.route('/RelatorioRazao/RentabilidadePorCC', methods=['GET'])
-@login_required
-def RelatorioRentabilidadePorCC():
-    session = None
-    try:
-        session = get_pg_session()
-        report = AnaliseDREReport(session)
-        
-        filtro_origem = request.args.get('origem', 'Consolidado')
-        scale_mode = request.args.get('scale_mode', 'dre') 
-        
-        data = report.processar_relatorio(filtro_origem=filtro_origem, agrupar_por_cc=True)
-        # Se quiser aplicar fórmulas aqui no futuro:
-        # data = report.calcular_nos_virtuais(data) 
-        
-        if scale_mode == 'dre':
-            data = report.aplicar_milhares(data)
-        
-        return jsonify(data), 200
-    except Exception as e:
-        current_app.logger.error(f"Erro AnaliseDREReport CC: {e}")
         abort(500, description=f"Erro interno: {str(e)}")
     finally:
         if session: session.close()
