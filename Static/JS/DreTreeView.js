@@ -11,9 +11,19 @@ let currentSelectedGroup = null;
 let ordenamentoAtivo = false;
 
 // DEFINIÇÃO DE PREFIXOS (Baseado nos seus logs)
-// Se API_ROUTES falhar, usaremos estes caminhos como fallback
 const PREFIX_ORDEM = '/T-controllership/DreOrdenamento';
 const PREFIX_CONFIG = '/T-controllership/DreConfig';
+
+// MAPA VISUAL (Somente Visualização)
+const MAPA_TIPOS_CC = {
+    'Oper': 'CUSTOS',
+    'Adm': 'ADMINISTRATIVO',
+    'Coml': 'COMERCIAL'
+};
+
+function getLabelTipoCC(tipo) {
+    return MAPA_TIPOS_CC[tipo] || tipo;
+}
 
 // --- INICIALIZAÇÃO ---
 document.addEventListener('DOMContentLoaded', async () => {
@@ -53,31 +63,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==========================================================================
-// 1. FUNÇÕES CENTRAIS DE API E SINCRONIZAÇÃO (CORRIGIDO)
+// 1. FUNÇÕES CENTRAIS DE API E SINCRONIZAÇÃO
 // ==========================================================================
 
-/**
- * Helper para resolver rotas.
- * Tenta usar API_ROUTES (injetado pelo HTML), senão usa o fallback com prefixo.
- */
 function getRoute(key, fallbackPath, type='config') {
     if (typeof API_ROUTES !== 'undefined' && API_ROUTES[key]) {
         return API_ROUTES[key];
     }
-    // Determina o prefixo baseado no tipo de rota
     const prefix = type === 'ordem' ? PREFIX_ORDEM : PREFIX_CONFIG;
-    // Garante que não duplique barras
     const cleanPath = fallbackPath.startsWith('/') ? fallbackPath : '/' + fallbackPath;
     return `${prefix}${cleanPath}`;
 }
 
-/**
- * Função central para chamadas de API que alteram a estrutura.
- */
 async function fetchAPI(url, body, successMsg='Sucesso!') {
-    // Se a URL não começar com /, provavelmente é uma rota relativa que precisa de prefixo
     if (!url.startsWith('/')) {
-        // Assume config por padrão se passar caminho curto
         url = getRoute(null, url, 'config'); 
     }
 
@@ -88,18 +87,16 @@ async function fetchAPI(url, body, successMsg='Sucesso!') {
             body: JSON.stringify(body) 
         });
         
-        // CORREÇÃO: Verifica se é OK antes de tentar ler JSON
         if (!r.ok) {
             throw new Error(`Erro ${r.status}: ${r.statusText}`);
         }
 
         const data = await r.json();
 
-        if(data.success || r.ok) { // Aceita tanto flag success quanto status 200
+        if(data.success || r.ok) { 
             if(successMsg) showToast(data.msg || successMsg); 
             closeModals(); 
             
-            // Força sincronização e reload
             await autoSync(); 
             await loadTree(); 
         } else { 
@@ -113,9 +110,6 @@ async function fetchAPI(url, body, successMsg='Sucesso!') {
     if(menu) menu.style.display = 'none';
 }
 
-/**
- * Sincroniza a tabela de ordenamento silenciosamente.
- */
 async function autoSync() {
     if(!ordenamentoAtivo) return;
     
@@ -157,7 +151,7 @@ function openModal(id) {
     if(menu) menu.style.display = 'none';
     
     m.style.display = 'flex';
-    m.offsetHeight; // Force reflow
+    m.offsetHeight; 
     m.classList.add('active');
 
     if(id === 'modalAddSub') { 
@@ -201,7 +195,6 @@ async function loadTree() {
     
     try {
         let url;
-        
         if (ordenamentoAtivo) {
             url = getRoute('getArvoreOrdenada', '/Ordenamento/GetArvoreOrdenada', 'ordem');
         } else {
@@ -213,7 +206,6 @@ async function loadTree() {
         const response = await fetch(url);
         
         if (!response.ok) {
-            // Tenta ler o erro JSON se possível, senão lança status
             try {
                 const errData = await response.json();
                 throw new Error(errData.msg || errData.error || response.statusText);
@@ -251,7 +243,6 @@ function createNodeHTML(node) {
     const li = document.createElement('li');
     const wrapper = document.createElement('div');
     
-    // Cores Corporativas (Hardcoded para consistência total)
     const COLOR_DARK   = 'color: var(--icon-structure);'; 
     const COLOR_GRAY   = 'color: var(--icon-secondary);'; 
     const COLOR_FOLDER = 'color: var(--icon-folder);'; 
@@ -261,12 +252,16 @@ function createNodeHTML(node) {
     let icon = 'fa-circle';
     let styleIcon = ''; 
     
-    // --- LÓGICA EMPRESARIAL ---
+    // --- LÓGICA VISUAL EMPRESARIAL ---
     
     if(node.type === 'root_tipo') { 
         typeClass = 'node-folder'; 
-        icon = 'fa-layer-group'; // Ícone de Camadas/Estrutura
+        icon = 'fa-layer-group'; 
         styleIcon = COLOR_DARK;
+        
+        // CORREÇÃO VISUAL: Aplica o nome amigável (CUSTOS, etc)
+        const rawType = node.id.replace('tipo_', '');
+        node.text = getLabelTipoCC(rawType);
     }
     else if(node.type === 'root_cc') { 
         typeClass = 'node-cc'; 
@@ -275,20 +270,18 @@ function createNodeHTML(node) {
     }
     else if(node.type === 'root_virtual') { 
         typeClass = 'node-virtual'; 
-        icon = 'fa-cube'; // Bloco/Componente
+        icon = 'fa-cube'; 
         styleIcon = COLOR_DARK;
     }
     else if(node.type === 'subgrupo') { 
-        // Se for Raiz (Global) ou Normal, mantemos o padrão de PASTA para organização limpa
-        // Diferenciamos apenas sutilmente o ícone se for raiz
         if (!node.parent || node.parent === 'root' || node.id_pai === null) {
             typeClass = 'node-sg-root'; 
-            icon = 'fa-globe'; // Globo discreto para indicar abrangência global
-            styleIcon = COLOR_GRAY; // Mantém cinza para não chamar atenção demais
+            icon = 'fa-globe'; 
+            styleIcon = COLOR_GRAY; 
         } else {
             typeClass = 'node-sg'; 
-            icon = 'fa-folder'; // Pasta padrão
-            styleIcon = COLOR_FOLDER; // Dourado fosco
+            icon = 'fa-folder'; 
+            styleIcon = COLOR_FOLDER; 
         }
     }
     else if(node.type && node.type.includes('conta')) { 
@@ -302,7 +295,6 @@ function createNodeHTML(node) {
         styleIcon = COLOR_GRAY;
     }
 
-    // Classes de Wrapper
     if (typeClass === 'node-sg-root') {
         wrapper.className = `node-wrapper node-sg ${typeClass}`;
     } else {
@@ -314,20 +306,17 @@ function createNodeHTML(node) {
     
     const hasChildren = node.children && node.children.length > 0;
     
-    // Handle do Drag & Drop (Discreto)
     let dragHandleHtml = ordenamentoAtivo ? '<i class="fas fa-grip-vertical drag-handle" style="color: #dfe6e9;"></i>' : '';
     
-    // Ícone de expandir/recolher (Discreto)
     const toggle = document.createElement('div');
     toggle.className = `toggle-icon ${hasChildren ? '' : 'invisible'}`;
-    toggle.innerHTML = '<i class="fas fa-caret-right" style="color: #95a5a6;"></i>'; // Caret é mais elegante que Chevron
+    toggle.innerHTML = '<i class="fas fa-caret-right" style="color: #95a5a6;"></i>'; 
     
     if(hasChildren) {
         toggle.onclick = (e) => { e.stopPropagation(); toggleNode(li, toggle); };
         wrapper.ondblclick = (e) => { e.stopPropagation(); toggleNode(li, toggle); };
     }
 
-    // Badge de ordem (Minimalista)
     let ordemBadge = (node.ordem && ordenamentoAtivo) 
         ? `<span class="ordem-badge" style="color: var(--bi-row-root-text);">#${node.ordem}</span>` 
         : '';
@@ -390,6 +379,7 @@ function selectNodeUI(element) {
 // ==========================================================================
 // 4. MENU DE CONTEXTO & AÇÕES
 // ==========================================================================
+let currentEditingNodeId = null; // Controla se estamos editando ou criando
 
 function handleRightClick(e, node, element) {
     e.preventDefault();
@@ -409,17 +399,21 @@ function handleRightClick(e, node, element) {
     const isGroup = node.type === 'subgrupo' || node.type === 'root_cc';
     const isItem = node.type && node.type.includes('conta');
 
+    // 1. Opções de Ordenamento
     if (ordenamentoAtivo) {
         show('ctxMoveUp'); show('ctxMoveDown'); showDiv('divOrdem');
     }
 
+    // 2. Opção Renomear (Comum a vários tipos)
     if (node.type === 'root_virtual' || node.type === 'subgrupo' || node.type === 'conta_detalhe') {
         show('ctxRename');
     }
 
+    // 3. Menus Específicos por Tipo
     if (isRoot) {
         show('ctxMassManager'); 
-    } else if (isGroup) {
+    } 
+    else if (isGroup) {
         show('ctxAddSub'); showDiv('divCopy');
         show('ctxReplicar');
         if(node.type === 'subgrupo') {
@@ -430,14 +424,26 @@ function handleRightClick(e, node, element) {
         } else {
             if(clipboard) show('ctxPaste');
         }
-    } else if (isVirtual) {
-        show('ctxAddSub'); show('ctxLinkDetalhe');
-        show('ctxReplicar'); if(clipboard) show('ctxPaste');
-        showDiv('ctxDivider'); show('ctxDelete');
-    } else if (isItem) {
+    } 
+    else if (isVirtual) {
+        // --- NOVA LÓGICA: Se for calculado, permite editar ---
+        if (node.is_calculado) {
+            show('ctxEditCalc');
+        }
+
+        show('ctxAddSub'); 
+        show('ctxLinkDetalhe');
+        show('ctxReplicar'); 
+        if(clipboard) show('ctxPaste');
+        
+        showDiv('ctxDivider'); 
+        show('ctxDelete');
+    } 
+    else if (isItem) {
         show('ctxDelete');
     }
 
+    // 4. Posicionamento do Menu
     const menuWidth = 220;
     const menuHeight = 300;
     let x = e.clientX;
@@ -451,12 +457,69 @@ function handleRightClick(e, node, element) {
     menu.style.display = 'block';
 }
 
-// Ações do Menu
+async function editCalculado() {
+    if (!contextNode.id.startsWith('virt_')) return;
+    
+    const dbId = contextNode.id.replace('virt_', '');
+    currentEditingNodeId = dbId; // Marca que estamos editando
+
+    // Carrega operandos se necessário
+    if (!operandosDisponiveis) {
+        try {
+            const url = getRoute('GetOperandosDisponiveis', '/Configuracao/GetOperandosDisponiveis', 'config');
+            const r = await fetch(url);
+            operandosDisponiveis = await r.json();
+        } catch(e) { return alert("Erro ao carregar dependências"); }
+    }
+
+    // Busca os dados completos deste nó (Fórmula, estilo, etc)
+    try {
+        const url = getRoute('GetNosCalculados', '/Configuracao/GetNosCalculados', 'config');
+        const r = await fetch(url);
+        const lista = await r.json();
+        const dadosNo = lista.find(n => n.id == dbId);
+
+        if (!dadosNo) return alert("Dados do nó não encontrados.");
+
+        // Preenche o Modal
+        document.getElementById('inputCalcNome').value = dadosNo.nome;
+        document.getElementById('inputCalcOrdem').value = dadosNo.ordem || 50;
+        document.getElementById('selectCalcTipoExibicao').value = dadosNo.tipo_exibicao || 'valor';
+        
+        // Reconstrói a fórmula
+        if (dadosNo.formula) {
+            document.getElementById('selectCalcOperacao').value = dadosNo.formula.operacao || 'soma';
+            
+            // Mapeia os operandos salvos de volta para o formato de edição
+            operandosSelecionados = (dadosNo.formula.operandos || []).map(op => ({
+                tipo: op.tipo,
+                id: op.id,
+                label: op.label || op.id // Fallback se label não vier
+            }));
+        } else {
+            operandosSelecionados = [];
+        }
+
+        renderOperandos();
+        atualizarPreviewFormula();
+        
+        // Ajusta título do modal (Visual)
+        const modalTitle = document.querySelector('#modalAddCalculado .modal-header h3');
+        if(modalTitle) modalTitle.innerText = "Editar Nó Calculado";
+
+        openModal('modalAddCalculado');
+
+    } catch (e) {
+        console.error(e);
+        alert("Erro ao carregar detalhes do cálculo.");
+    }
+}
+
+
 async function renameNode() {
     const novoNome = prompt("Novo nome:", contextNode.text);
     if (!novoNome || novoNome === contextNode.text) return;
 
-    // Constrói URL correta usando o prefixo CONFIG
     let endpoint = '';
     if (contextNode.type === 'root_virtual') endpoint = '/Configuracao/RenameNoVirtual';
     else if (contextNode.type === 'subgrupo') endpoint = '/Configuracao/RenameSubgrupo';
@@ -502,7 +565,6 @@ async function verificarOrdenamento() {
     const statusText = document.getElementById('ordenamentoStatusText');
     const toolbar = document.getElementById('ordenamentoToolbar');
     
-    // Botões
     const btnInit = document.getElementById('btnInicializarOrdem');
     const btnReset = document.getElementById('btnResetarOrdem');
     const btnNorm = document.getElementById('btnNormalizarOrdem');
@@ -605,7 +667,6 @@ async function moverElemento(direcao) {
         if (direcao < 0) ul.insertBefore(li, items[newIndex]);
         else ul.insertBefore(li, items[newIndex].nextSibling);
         
-        // Salva ordem via DragManager (reutiliza lógica)
         if (window.dreOrdenamento) {
             await window.dreOrdenamento.salvarNovaPosicao(ul);
         }
@@ -624,13 +685,9 @@ function submitAddVirtual() {
 
 function submitAddSub() { 
     const n = document.getElementById('inputSubName').value; 
-    
     if(!n) return alert('Nome?'); 
-    
-    // Se o contextNode for nulo ou indefinido, aborta
     if (!contextNode || !contextNode.id) return alert('Erro de contexto. Tente novamente.');
 
-    // Chama a API. O Backend agora saberá lidar com parent_id: 'root'
     fetchAPI(
         getRoute(null, '/Configuracao/AddSubgrupo', 'config'), 
         { nome: n, parent_id: contextNode.id }, 
@@ -652,7 +709,7 @@ async function submitLinkConta() {
         if(r.ok) {
             showToast('Vinculado!');
             document.getElementById('inputContaSearch').value = '';
-            loadStdGroupAccounts(contextNode.id); // Atualiza modal
+            loadStdGroupAccounts(contextNode.id); 
             await autoSync(); 
             loadTree(); 
         } else {
@@ -677,11 +734,23 @@ function submitLinkDetalhe() {
 // ==========================================================================
 
 function openMassManager() {
+    if (!contextNode.id.startsWith('tipo_')) {
+        return;
+    }
+    
     const tipoCC = contextNode.id.replace('tipo_', '');
-    document.getElementById('lblMassType').innerText = tipoCC;
-    loadMassGroupsList(tipoCC);
+    const lbl = document.getElementById('lblMassType');
+    
+    // CORREÇÃO CRÍTICA: 
+    // - data-code armazena o valor real ('Oper') para as APIs
+    // - innerText exibe o valor amigável ('CUSTOS') para o usuário
+    lbl.dataset.code = tipoCC;
+    lbl.innerText = getLabelTipoCC(tipoCC);
+    
     openModal('modalMassManager');
-    switchMassTab('tabCreateGroup', document.querySelector('.nav-btn.active'));
+    
+    const defaultBtn = document.querySelector('.nav-btn'); 
+    switchMassTab('tabGroupManager', defaultBtn);
 }
 
 function switchMassTab(tabId, btn) {
@@ -689,18 +758,86 @@ function switchMassTab(tabId, btn) {
         p.style.display = 'none';
         p.classList.remove('active');
     });
-    document.getElementById(tabId).style.display = 'flex';
-    setTimeout(() => document.getElementById(tabId).classList.add('active'), 10);
+    
+    const target = document.getElementById(tabId);
+    if(target) {
+        target.style.display = 'flex'; 
+        setTimeout(() => target.classList.add('active'), 10);
+    }
 
     if(btn) {
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
     }
+
+    // CORREÇÃO: Lê do dataset.code (valor real 'Oper') em vez do texto visível
+    const tipoCC = document.getElementById('lblMassType').dataset.code;
+    
+    if (tabId === 'tabGroupManager') {
+        loadGroupManagerList(tipoCC);
+    } else if (tabId === 'tabLinkAccount') {
+        loadMassGroupsList(tipoCC);
+    }
+}
+
+async function loadGroupManagerList(tipoCC) {
+    const list = document.getElementById('listGroupManager');
+    list.innerHTML = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+
+    const url = getRoute(null, '/Configuracao/GetSubgruposPorTipo', 'config');
+
+    try {
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ tipo_cc: tipoCC })
+        });
+        
+        const grupos = await r.json();
+        list.innerHTML = '';
+
+        if (grupos.length === 0) {
+            list.innerHTML = '<div class="p-3 text-center text-muted">Nenhum grupo encontrado. Crie um acima.</div>';
+            return;
+        }
+
+        grupos.forEach((nome) => {
+            list.appendChild(createGroupManagerItem(nome));
+        });
+
+        initMassDragContainer(list);
+
+    } catch(e) {
+        console.error(e);
+        list.innerHTML = '<div class="text-danger p-3">Erro ao carregar lista.</div>';
+    }
+}
+
+function createGroupManagerItem(nome) {
+    const li = document.createElement('li');
+    li.className = 'reorder-item';
+    li.setAttribute('draggable', 'true');
+    li.setAttribute('data-name', nome);
+    
+    li.innerHTML = `
+        <div class="drag-col"><i class="fas fa-grip-lines reorder-handle"></i></div>
+        <div class="name-col"><span class="font-weight-500">${nome}</span></div>
+        <div class="action-col text-end">
+            <button class="delete-btn" title="Excluir Grupo e Conteúdo" onclick="submitMassDeleteFromList(this, '${nome}')">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+    `;
+
+    li.addEventListener('dragstart', () => li.classList.add('dragging'));
+    li.addEventListener('dragend', () => li.classList.remove('dragging'));
+    
+    return li;
 }
 
 async function loadMassGroupsList(tipoCC) {
     const list = document.getElementById('listMassGroups');
-    const select = document.getElementById('selectMassDeleteGroup');
+    const select = document.getElementById('selectMassDeleteGroup'); // Se existir em legado
     list.innerHTML = '<div class="text-center p-3 text-secondary"><i class="fas fa-spinner fa-spin"></i></div>';
     
     const url = getRoute(null, '/Configuracao/GetSubgruposPorTipo', 'config');
@@ -714,8 +851,6 @@ async function loadMassGroupsList(tipoCC) {
         const grupos = await r.json();
         
         let htmlList = '';
-        let htmlSelect = '<option value="" disabled selected>Selecione...</option>';
-        
         if (grupos.length > 0) {
             grupos.forEach(g => {
                 htmlList += `
@@ -723,14 +858,17 @@ async function loadMassGroupsList(tipoCC) {
                         <span><i class="fas fa-folder text-warning me-2"></i> ${g}</span>
                         <i class="fas fa-chevron-right"></i>
                     </div>`;
-                htmlSelect += `<option value="${g}">${g}</option>`;
             });
         } else {
             htmlList = '<div class="p-3 text-center text-muted">Vazio</div>';
         }
-        
         list.innerHTML = htmlList;
-        select.innerHTML = htmlSelect;
+        
+        if(select) {
+            let htmlSelect = '<option value="" disabled selected>Selecione...</option>';
+            grupos.forEach(g => htmlSelect += `<option value="${g}">${g}</option>`);
+            select.innerHTML = htmlSelect;
+        }
     } catch(e) { console.error(e); }
 }
 
@@ -746,7 +884,8 @@ async function selectMassGroup(groupName, el) {
     const container = document.getElementById('listLinkedAccounts');
     container.innerHTML = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin"></i></div>';
     
-    const tipoCC = document.getElementById('lblMassType').innerText;
+    // CORREÇÃO: Lê do dataset.code
+    const tipoCC = document.getElementById('lblMassType').dataset.code;
     const url = getRoute(null, '/Configuracao/GetContasDoGrupoMassa', 'config');
     
     try {
@@ -802,7 +941,8 @@ function toggleMassCustomInput() {
 async function addAccountToGroup() {
     if(!currentSelectedGroup) return;
     const conta = document.getElementById('inputMassLinkConta').value;
-    const tipoCC = document.getElementById('lblMassType').innerText;
+    // CORREÇÃO: Lê do dataset.code
+    const tipoCC = document.getElementById('lblMassType').dataset.code;
     const isPers = document.getElementById('chkMassPersonalizada').checked;
     const nomePers = document.getElementById('inputMassCustomName').value;
     
@@ -838,7 +978,8 @@ async function addAccountToGroup() {
 }
 
 async function removeAccountFromGroup(conta, isPers) {
-    const tipoCC = document.getElementById('lblMassType').innerText;
+    // CORREÇÃO: Lê do dataset.code
+    const tipoCC = document.getElementById('lblMassType').dataset.code;
     if(!confirm('Remover vínculo?')) return;
     
     const url = getRoute(null, '/Configuracao/DesvincularContaEmMassa', 'config');
@@ -859,17 +1000,150 @@ async function removeAccountFromGroup(conta, isPers) {
     } catch(e) { alert('Erro'); }
 }
 
-function submitMassCreate() {
-    const nome = document.getElementById('inputMassCreateName').value;
-    const tipoCC = document.getElementById('lblMassType').innerText;
-    if(!nome) return;
+async function submitMassCreate() {
+    const input = document.getElementById('inputMassCreateName');
+    const nome = input.value.trim();
+    // CORREÇÃO: Lê do dataset.code
+    const tipoCC = document.getElementById('lblMassType').dataset.code;
+    
+    if(!nome) return showToast('Digite um nome para o grupo.');
+    
     const url = getRoute(null, '/Configuracao/AddSubgrupoSistematico', 'config');
-    fetchAPI(url, {nome:nome, tipo_cc:tipoCC}, 'Grupo Criado!');
+    
+    try {
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({nome: nome, tipo_cc: tipoCC})
+        });
+        
+        if (r.ok) {
+            showToast('Grupo Criado!');
+            input.value = ''; 
+            await loadGroupManagerList(tipoCC);
+            loadTree(); 
+        } else {
+            const d = await r.json();
+            alert(d.error || 'Erro ao criar');
+        }
+    } catch(e) { alert('Erro de conexão'); }
+}
+
+async function submitMassDeleteFromList(btn, nome) {
+    if(!confirm(`⚠️ ATENÇÃO: Isso excluirá o grupo "${nome}" de TODOS os Centros de Custo deste tipo, incluindo todas as contas vinculadas a ele.\n\nTem certeza absoluta?`)) return;
+
+    // CORREÇÃO: Lê do dataset.code
+    const tipoCC = document.getElementById('lblMassType').dataset.code;
+    const url = getRoute(null, '/Configuracao/DeleteSubgrupoEmMassa', 'config');
+    
+    const originalIcon = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({nome_grupo: nome, tipo_cc: tipoCC})
+        });
+
+        if (r.ok) {
+            showToast('Grupo Excluído com sucesso.');
+            const li = btn.closest('li');
+            li.remove();
+            loadTree();
+        } else {
+            const d = await r.json();
+            alert(d.error || 'Erro ao excluir');
+            btn.innerHTML = originalIcon;
+            btn.disabled = false;
+        }
+    } catch(e) { 
+        alert('Erro de conexão'); 
+        btn.innerHTML = originalIcon;
+        btn.disabled = false;
+    }
+}
+
+function initMassDragContainer(container) {
+    container.addEventListener('dragover', e => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(container, e.clientY);
+        const draggable = document.querySelector('.reorder-list .dragging'); 
+        if (!draggable) return;
+        
+        if (afterElement == null) {
+            container.appendChild(draggable);
+        } else {
+            container.insertBefore(draggable, afterElement);
+        }
+    });
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.reorder-item:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+async function submitMassReorder() {
+    const list = document.getElementById('listGroupManager');
+    const items = list.querySelectorAll('.reorder-item');
+    // CORREÇÃO: Lê do dataset.code
+    const tipoCC = document.getElementById('lblMassType').dataset.code;
+    
+    const novaOrdemNomes = Array.from(items).map(li => li.getAttribute('data-name'));
+    
+    if(novaOrdemNomes.length === 0) return;
+
+    const btn = document.querySelector('#tabGroupManager .modal-footer-embedded button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+    btn.disabled = true;
+
+    const url = getRoute('reordenarEmMassa', '/Ordenamento/ReordenarEmMassa', 'ordem');
+
+    try {
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                tipo_cc: tipoCC,
+                ordem_nomes: novaOrdemNomes
+            })
+        });
+
+        if(r.ok) {
+            const data = await r.json();
+            showToast(data.msg || 'Ordem aplicada com sucesso!');
+            await loadGroupManagerList(tipoCC); 
+            await autoSync(); 
+            await loadTree();
+        } else {
+            const err = await r.json();
+            alert('Erro: ' + (err.error || 'Falha desconhecida'));
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Erro de conexão ao salvar ordem.');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
 function submitMassDelete() {
+    // CORREÇÃO: Lê do dataset.code
     const nome = document.getElementById('selectMassDeleteGroup').value;
-    const tipoCC = document.getElementById('lblMassType').innerText;
+    const tipoCC = document.getElementById('lblMassType').dataset.code;
     if(!nome) return;
     if(!confirm('Isso apagará o grupo e contas de TODOS os CCs. Continuar?')) return;
     const url = getRoute(null, '/Configuracao/DeleteSubgrupoEmMassa', 'config');
@@ -877,8 +1151,9 @@ function submitMassDelete() {
 }
 
 function submitMassUnlink() {
+    // CORREÇÃO: Lê do dataset.code
     const c = document.getElementById('inputMassUnlinkConta').value;
-    const tipoCC = document.getElementById('lblMassType').innerText;
+    const tipoCC = document.getElementById('lblMassType').dataset.code;
     if(!c) return;
     const url = getRoute(null, '/Configuracao/DesvincularContaEmMassa', 'config');
     fetchAPI(url, {conta:c, tipo_cc:tipoCC}, 'Vínculo removido!');
@@ -889,19 +1164,14 @@ function submitMassUnlink() {
 // ==========================================================================
 
 function openAddRootGroup() {
-    // Define um contexto "fake" para indicar que estamos na raiz
     contextNode = { id: 'root', text: 'RAIZ DO RELATÓRIO', type: 'root' };
-    
     openModal('modalAddSub');
-    
-    // Ajusta visualmente o label da modal
     const lbl = document.getElementById('lblParentName');
     if (lbl) {
         lbl.innerText = contextNode.text;
-        lbl.style.color = '#e74c3c'; // Um destaque visual
+        lbl.style.color = '#e74c3c'; 
         lbl.style.fontWeight = 'bold';
     }
-    
     resetInput('inputSubName');
 }
 
@@ -1019,7 +1289,15 @@ let operandosDisponiveis = null;
 let operandosSelecionados = [];
 
 async function openModalCalculado() {
-    // Carrega operandos disponíveis se ainda não existirem
+
+    // Reset de estado
+    currentEditingNodeId = null;
+    document.getElementById('inputCalcNome').value = '';
+    document.getElementById('inputCalcOrdem').value = '50';
+    document.getElementById('selectCalcOperacao').value = 'soma';
+    const modalTitle = document.querySelector('#modalAddCalculado .modal-header h3');
+    if(modalTitle) modalTitle.innerText = "Novo Nó Calculado";
+
     if (!operandosDisponiveis) {
         try {
             const url = getRoute('GetOperandosDisponiveis', '/Configuracao/GetOperandosDisponiveis', 'config');
@@ -1053,9 +1331,9 @@ function renderOperandos() {
 
     container.innerHTML = '';
     
-    // Separa os nós virtuais em Manuais (Inputs) e Calculados (Fórmulas)
     const nosManuais = operandosDisponiveis.nos_virtuais.filter(n => !n.is_calculado);
     const nosCalculados = operandosDisponiveis.nos_virtuais.filter(n => n.is_calculado);
+    const subgrupos = operandosDisponiveis.subgrupos_raiz || [];
 
     operandosSelecionados.forEach((op, idx) => {
         container.innerHTML += `
@@ -1066,7 +1344,14 @@ function renderOperandos() {
                     <optgroup label="Tipos de Centro de Custo">
                         ${operandosDisponiveis.tipos_cc.map(t => 
                             `<option value="tipo_cc:${t.id}" ${op.tipo === 'tipo_cc' && op.id === t.id ? 'selected' : ''}>
-                                📂 ${t.nome}
+                                📂 ${getLabelTipoCC(t.nome)} </option>`
+                        ).join('')}
+                    </optgroup>
+
+                    <optgroup label="Grupos Operacionais (Subgrupos)">
+                        ${subgrupos.map(sg => 
+                            `<option value="subgrupo:${sg.nome}" ${op.tipo === 'subgrupo' && op.id === sg.nome ? 'selected' : ''}>
+                                📁 ${sg.nome}
                             </option>`
                         ).join('')}
                     </optgroup>
@@ -1082,7 +1367,7 @@ function renderOperandos() {
                     <optgroup label="Nós Calculados (Resultados)">
                         ${nosCalculados.map(n => 
                             `<option value="no_virtual:${n.id}" ${op.tipo === 'no_virtual' && op.id == n.id ? 'selected' : ''}>
-                                ${n.nome}
+                                📊 ${n.nome}
                             </option>`
                         ).join('')}
                     </optgroup>
@@ -1097,7 +1382,7 @@ function renderOperandos() {
 }
 
 function addOperando() {
-    operandosSelecionados.push({ tipo: 'tipo_cc', id: 'Oper', label: 'Operacional' });
+    operandosSelecionados.push({ tipo: 'tipo_cc', id: 'Oper', label: 'CUSTOS' }); // Default visual
     renderOperandos();
     atualizarPreviewFormula();
 }
@@ -1143,13 +1428,27 @@ async function submitNoCalculado() {
         }))
     };
     
-    const url = getRoute(null, '/Configuracao/AddNoCalculado', 'config');
-    fetchAPI(url, {
-        nome: nome,
-        formula: formula,
-        ordem: ordem,
-        tipo_exibicao: tipoExibicao
-    }, 'Nó calculado criado!');
+    // DECISÃO: UPDATE ou CREATE
+    if (currentEditingNodeId) {
+        // Modo Edição
+        const url = getRoute(null, '/Configuracao/UpdateNoCalculado', 'config');
+        fetchAPI(url, {
+            id: currentEditingNodeId,
+            nome: nome,
+            formula: formula,
+            ordem: ordem,
+            tipo_exibicao: tipoExibicao
+        }, 'Cálculo atualizado com sucesso!');
+    } else {
+        // Modo Criação
+        const url = getRoute(null, '/Configuracao/AddNoCalculado', 'config');
+        fetchAPI(url, {
+            nome: nome,
+            formula: formula,
+            ordem: ordem,
+            tipo_exibicao: tipoExibicao
+        }, 'Nó calculado criado!');
+    }
 }
 
 document.getElementById('selectCalcOperacao')?.addEventListener('change', atualizarPreviewFormula);
