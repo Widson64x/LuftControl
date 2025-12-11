@@ -58,7 +58,7 @@
     width: 56px; height: 56px;
     background: var(--gradient-primary);
     border-radius: var(--radius-lg);
-    color: var(--text-primary); /* White generally */
+    color: white; /* White generally */
     font-size: var(--font-2xl);
     box-shadow: var(--shadow-glow-sm);
 }
@@ -146,7 +146,7 @@
 
 .btn-primary-custom {
     background: var(--gradient-primary);
-    color: var(--text-primary);
+    color: white;
     border: none;
     border-radius: var(--radius-md);
     padding: 14px;

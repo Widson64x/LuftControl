@@ -74,7 +74,7 @@
 
 .origem-toggle-btn.active {
     background: var(--gradient-primary);
-    color: var(--text-primary);
+    color: white;
     font-weight: var(--font-weight-semibold);
     box-shadow: inset 0 0 10px rgba(0, 0, 0, var(--opacity-20));
 }
@@ -83,11 +83,11 @@
 .origem-toggle-btn[data-origem="Consolidado"] i { color: var(--primary-light); }
 .origem-toggle-btn[data-origem="FARMA"] i { color: var(--success); }
 .origem-toggle-btn[data-origem="FARMADIST"] i { color: var(--warning); }
-.origem-toggle-btn.active i { color: var(--text-primary) !important; }
+.origem-toggle-btn.active i { color: white !important; }
 
 #biOrigemBadge {
     background: rgba(var(--primary-rgb), var(--opacity-20));
-    color: var(--primary-light);
+    color: rgb(0, 0, 0);
     border: 1px solid rgba(var(--primary-rgb), var(--opacity-30));
     font-weight: var(--font-weight-semibold);
 }
@@ -199,3 +199,133 @@
     color: var(--text-muted);
 }
 .bi-footer strong { color: var(--primary-light); }
+
+/* ==========================================================================
+   4. Modal do Gerenciador de Colunas (Ad-hoc)
+   Necessário pois o Relatorios.js cria elementos .modal-backdrop manualmente
+   ========================================================================== */
+
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 9999; /* Precisa ser maior que o header sticky da tabela */
+    display: none;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.modal-backdrop.active {
+    display: flex;
+    opacity: 1;
+}
+
+.modal-window {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    width: 90%;
+    max-width: 600px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideInDown 0.2s ease-out;
+}
+
+
+
+@keyframes slideInDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Estilos Internos do Gerenciador de Colunas */
+.column-manager-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-body);
+}
+
+.column-manager-header {
+    padding: 16px 20px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.column-manager-header h5 {
+    font-size: var(--font-md);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.column-grid {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    overflow-y: auto;
+    max-height: 60vh;
+}
+
+.column-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    user-select: none;
+}
+
+.column-option:hover {
+    border-color: var(--primary);
+    background: var(--bg-hover);
+}
+
+.column-option.selected {
+    background: rgba(var(--primary-rgb), 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: var(--font-weight-medium);
+}
+
+.column-checkbox {
+    accent-color: var(--primary);
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+}
+
+/* Botão de Fechar/Aplicar no rodapé do modal */
+.column-manager-container .btn-primary-custom {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: var(--font-weight-semibold);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-fast);
+}
+
+.column-manager-container .btn-primary-custom:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}

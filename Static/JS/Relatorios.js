@@ -388,6 +388,13 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const map = {}; 
             const meses = this.biState.columnsOrder;
 
+            // Mapa de tradução visual
+            const labelMap = {
+                'Oper': 'CUSTOS',
+                'Adm':  'ADMINISTRATIVO',
+                'Coml': 'COMERCIAL'
+            };
+
             const getOrCreateNode = (id, label, type, parentList, defaultOrder = 9999) => {
                 if (!map[id]) {
                     const node = { 
@@ -417,7 +424,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     : (row.Ordem || row.ordem || (index * 10) + 1000);
 
                 const tipoId = `T_${row.Tipo_CC}`;
-                const tipoNode = getOrCreateNode(tipoId, row.Tipo_CC, 'root', root, ordemVal);
+                const labelExibicao = labelMap[row.Tipo_CC] || row.Tipo_CC;
+
+                const tipoNode = getOrCreateNode(tipoId, labelExibicao, 'root', root, ordemVal);
+                
                 if (row.Root_Virtual_Id) tipoNode.virtualId = row.Root_Virtual_Id;
                 
                 if ((row.ordem_prioridade !== null || row.Ordem) && tipoNode.ordem >= 1000) {
@@ -441,6 +451,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     groups.forEach((gName, idx) => {
                         const safeGName = gName.replace(/[^a-zA-Z0-9]/g, '');
                         currentId += `_G${idx}_${safeGName}`; 
+                        // O label aqui é o gName, que é usado na chave 'subgrupo:NOME'
                         const groupNode = getOrCreateNode(currentId, gName, 'group', currentNode.children);
                         sumValues(groupNode, row);
                         currentNode = groupNode;
@@ -451,6 +462,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 const contaNode = {
                     id: contaId,
                     label: `📄 ${row.Conta} - ${row.Titulo_Conta}`,
+                    rawTitle: row.Titulo_Conta, // <--- NOVO: Guarda o nome limpo para agregação
                     type: 'account',
                     children: [],
                     values: {},
@@ -884,20 +896,56 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         agregarValoresPorTipo() {
             const agregados = {};
             const meses = this.biState.columnsOrder;
-            this.biTreeData.forEach(rootNode => {
-                const rawId = rootNode.id.replace('T_', '').replace('CC_', '');
-                const chave = `tipo_cc_${rawId}`;
-                if (!agregados[chave]) agregados[chave] = {};
-                if (rootNode.virtualId) {
-                    const chaveVirt = `no_virtual_${rootNode.virtualId}`;
-                    if (!agregados[chaveVirt]) agregados[chaveVirt] = {};
+
+            // Helper para inicializar o objeto se não existir
+            const initKey = (key) => {
+                if (!agregados[key]) {
+                    agregados[key] = {};
+                    meses.forEach(m => agregados[key][m] = 0);
                 }
-                meses.forEach(m => {
-                    const val = rootNode.values[m] || 0;
-                    if(agregados[chave]) agregados[chave][m] = (agregados[chave][m]||0) + val;
-                    if (rootNode.virtualId) agregados[`no_virtual_${rootNode.virtualId}`][m] = (agregados[`no_virtual_${rootNode.virtualId}`][m]||0) + val;
-                });
-            });
+            };
+
+            // Função recursiva para varrer toda a árvore
+            const traverse = (node) => {
+                // 1. Agregação por TIPO (Raiz)
+                if (node.type === 'root') {
+                    const rawId = node.id.replace('T_', '').replace('CC_', '');
+                    const keyTipo = `tipo_cc_${rawId}`;
+                    initKey(keyTipo);
+                    meses.forEach(m => agregados[keyTipo][m] += (node.values[m] || 0));
+                }
+
+                // 2. Agregação por NÓ VIRTUAL
+                if (node.virtualId) {
+                    const keyVirt = `no_virtual_${node.virtualId}`;
+                    initKey(keyVirt);
+                    meses.forEach(m => agregados[keyVirt][m] += (node.values[m] || 0));
+                }
+
+                // 3. Agregação por SUBGRUPO (Aqui está a correção para DESCONTOS)
+                if (node.type === 'group') {
+                    // node.label contém o nome do grupo (ex: "DESCONTOS")
+                    const keySub = `subgrupo_${node.label}`;
+                    initKey(keySub);
+                    meses.forEach(m => agregados[keySub][m] += (node.values[m] || 0));
+                }
+
+                // 4. Agregação por TÍTULO DE CONTA (Fallback)
+                if (node.type === 'account' && node.rawTitle) {
+                    const keyConta = `subgrupo_${node.rawTitle}`;
+                    initKey(keyConta);
+                    meses.forEach(m => agregados[keyConta][m] += (node.values[m] || 0));
+                }
+
+                // Continua descendo na árvore
+                if (node.children && node.children.length > 0) {
+                    node.children.forEach(child => traverse(child));
+                }
+            };
+
+            // Inicia a varredura a partir da raiz
+            this.biTreeData.forEach(rootNode => traverse(rootNode));
+            
             return agregados;
         }
 

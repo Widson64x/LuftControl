@@ -296,6 +296,7 @@ def GetDadosArvore():
                 "id": f"virt_{v.Id}",
                 "text": v.Nome,
                 "type": "root_virtual",
+                "is_calculado": v.Is_Calculado,
                 "children": children_virtual
             }
             final_tree.append(node_virtual)
@@ -410,24 +411,38 @@ def GetContasDoSubgrupo():
 @dre_config_bp.route('/Configuracao/GetSubgruposPorTipo', methods=['POST'])
 @login_required
 def GetSubgruposPorTipo():
-    """Retorna lista distinta de nomes de subgrupos de um TIPO de CC."""
+    """
+    Retorna lista de nomes ordenada pela posição média no banco.
+    """
     session = get_session()
     try:
         data = request.json
-        tipo_cc = data.get('tipo_cc')
+        tipo_cc = data.get('tipo_cc') 
         
-        subgrupos = session.query(DreHierarquia.Nome).filter(
-            DreHierarquia.Raiz_Centro_Custo_Tipo == tipo_cc,
-            DreHierarquia.Id_Pai == None 
-        ).distinct().order_by(DreHierarquia.Nome).all()
+        # Query Corrigida:
+        # 1. Filtra subgrupos pelo Tipo diretamente (garantia de encontrar).
+        # 2. Faz Left Join com Ordenamento para pegar a ordem atual.
+        # 3. Ordena pelo MIN(ordem) para refletir a posição salva.
+        sql = text("""
+            SELECT h."Nome", MIN(ord.ordem) as min_ordem
+            FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" h
+            LEFT JOIN "Dre_Schema"."DRE_Ordenamento" ord 
+                ON CAST(h."Id" AS TEXT) = ord.id_referencia 
+                AND ord.tipo_no = 'subgrupo'
+            WHERE h."Raiz_Centro_Custo_Tipo" = :tipo
+            GROUP BY h."Nome"
+            ORDER BY min_ordem ASC NULLS LAST, h."Nome" ASC
+        """)
         
-        lista_nomes = [row.Nome for row in subgrupos]
+        rows = session.execute(sql, {'tipo': tipo_cc}).fetchall()
         
-        return jsonify(lista_nomes), 200
+        # Retorna lista de nomes
+        grupos = [r[0] for r in rows]
+        
+        return jsonify(grupos), 200
 
     except Exception as e:
-        print(f"Erro no GetSubgruposPorTipo: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
     finally:
         session.close()
 
@@ -533,10 +548,10 @@ def GetOperandosDisponiveis():
         resultado = {
             "nos_virtuais": [],
             "tipos_cc": [],
-            "subgrupos_raiz": []
+            "subgrupos_raiz": [] # Novo campo
         }
         
-        # Nós Virtuais
+        # 1. Nós Virtuais
         nos = session.query(DreNoVirtual).order_by(DreNoVirtual.Ordem).all()
         for n in nos:
             resultado["nos_virtuais"].append({
@@ -545,7 +560,7 @@ def GetOperandosDisponiveis():
                 "is_calculado": n.Is_Calculado
             })
         
-        # Tipos de Centro de Custo
+        # 2. Tipos de Centro de Custo
         sql_tipos = text("""
             SELECT DISTINCT "Tipo" 
             FROM "Dre_Schema"."Classificacao_Centro_Custo"
@@ -560,17 +575,23 @@ def GetOperandosDisponiveis():
                 "nome": tipo_valor
             })
         
-        # Subgrupos de primeiro nível
-        subgrupos = session.query(DreHierarquia).filter(
-            DreHierarquia.Id_Pai == None
-        ).order_by(DreHierarquia.Nome).limit(100).all()
+        # 3. Subgrupos de primeiro nível (Globais ou Raiz de Tipo)
+        # Filtra grupos que não são filhos de outros grupos
+        # E agrupa por nome para evitar duplicatas visuais (ex: 'Pessoal' aparece em vários CCs)
+        sql_subgrupos = text("""
+            SELECT DISTINCT "Nome"
+            FROM "Dre_Schema"."DRE_Estrutura_Hierarquia"
+            WHERE "Id_Pai" IS NULL
+            ORDER BY "Nome"
+        """)
+        subgrupos = session.execute(sql_subgrupos).fetchall()
         
-        for sg in subgrupos:
+        for row in subgrupos:
+            nome_grupo = row[0]
+            # Usamos o Nome como ID lógico, pois o cálculo agregará todos os grupos com esse nome
             resultado["subgrupos_raiz"].append({
-                "id": sg.Id,
-                "nome": sg.Nome,
-                "tipo_cc": sg.Raiz_Centro_Custo_Tipo,
-                "cc_codigo": sg.Raiz_Centro_Custo_Codigo
+                "id": nome_grupo,
+                "nome": nome_grupo
             })
         
         return jsonify(resultado), 200

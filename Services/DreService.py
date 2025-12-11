@@ -422,7 +422,7 @@ class DreService:
                 for mes in self.meses:
                     vals = []
                     for op in operandos:
-                        chave = f"{op['tipo']}:{str(op['id']).strip()}"
+                        chave = f"{op['tipo']}:{str(op['id']).strip()}" # Ex: tipo_cc:Oper ou no_virtual:5 = 'EBITDA' 
                         val = memoria.get(chave, {}).get(mes, 0.0)
                         # Fallback por nome se ID não achou (ex: LEGADO)
                         if val == 0.0:
