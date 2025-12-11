@@ -27,14 +27,17 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     hiddenCols: new Set(),       
                     filters: {},                 
                     globalSearch: '',
-                    // NOVOS ESTADOS PARA A BUSCA
-                    searchMatches: [],      // Array com IDs dos nós encontrados
-                    searchCurrentIndex: -1, // Índice atual da navegação            
+                    searchMatches: [],      
+                    searchCurrentIndex: -1,             
                     sort: { col: null, dir: 'asc' }, 
                     columnsOrder: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Total_Ano'],            
                     origemFilter: 'Consolidado',  
-                    viewMode: 'TIPO',
-                    scaleMode: 'dre' // PADRÃO: DRE (dividido por 1000)
+                    viewMode: 'TIPO', // Fixo em TIPO agora visualmente
+                    scaleMode: 'dre',
+                    
+                    // --- NOVOS ESTADOS PARA O FILTRO DE CC ---
+                    ccFilter: 'Todos',
+                    listaCCs: [] 
                 };
             this.biDebounceTimer = null;
             this.biIsLoading = false;        
@@ -42,7 +45,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
             this.init();
         }
-
         init() {
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', () => this.setupSystem());
@@ -477,35 +479,143 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.applyBiFilters();
         }
 
-        renderBiInterface() {
-            const isCC = this.biState.viewMode === 'CC';
-            const btnClass = isCC ? 'btn-warning' : 'btn-primary';
-            const btnIcon = isCC ? 'fa-building' : 'fa-sitemap';
-            const btnText = isCC ? 'Visão: Centro de Custo' : 'Visão: Tipo';
+    // --- NOVO MÉTODO: Carrega a lista de CCs para o Select ---
+        async loadCCList() {
+            if (this.biState.listaCCs.length > 0) return; // Cache simples
+            
+            try {
+                // Tenta pegar a rota do objeto global ou usa string fixa como fallback
+                const url = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getListaCCs) 
+                    ? API_ROUTES.getListaCCs 
+                    : '/Reports/RelatorioRazao/ListaCentrosCusto'; // Fallback se não definido no HTML
+                
+                const lista = await APIUtils.get(url);
+                if(lista && Array.isArray(lista)) {
+                    this.biState.listaCCs = lista;
+                }
+            } catch (e) {
+                console.error("Erro ao carregar lista de CCs:", e);
+            }
+        }
 
+        // --- NOVO MÉTODO: Handler para mudança no Dropdown ---
+        handleCCChange(newCC) {
+            if (this.biIsLoading) return;
+            this.biState.ccFilter = newCC;
+            // Recarrega o relatório aplicando o novo filtro
+            this.loadRentabilidadeReport(this.biState.origemFilter);
+        }
+
+        // --- SUBSTITUIR COMPLETO: loadRentabilidadeReport ---
+        async loadRentabilidadeReport(origem = null) {
+            if (!this.modal) this.modal = new ModalSystem('modalRelatorio');
+            if (origem !== null) this.biState.origemFilter = origem;
+            
+            // Carrega a lista de opções antes de abrir se necessário
+            await this.loadCCList();
+
+            const scaleTitle = this.biState.scaleMode === 'dre' ? '(Em Milhares)' : '(Valor Integral)';
+            // Título dinâmico
+            const ccTitle = this.biState.ccFilter === 'Todos' ? 'Todos os Centros' : `Filtro: ${this.biState.ccFilter}`;
+            
+            this.modal.open(`<i class="fas fa-cubes"></i> Análise Gerencial <small class="modal-title">${scaleTitle} | ${ccTitle}</small>`, '');
+            this.modal.showLoading('Calculando DRE...');
+
+            try {
+                // URL sempre aponta para a rota padrão de Rentabilidade
+                const urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData) 
+                    ? API_ROUTES.getRentabilidadeData 
+                    : '/Reports/RelatorioRazao/Rentabilidade';
+
+                const origemParam = encodeURIComponent(this.biState.origemFilter);
+                const scaleParam = this.biState.scaleMode; 
+                const ccParam = encodeURIComponent(this.biState.ccFilter); // Envia o CC selecionado
+
+                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}&centro_custo=${ccParam}`);
+                
+                if (!rawData || rawData.length === 0) {
+                    // Se vazio, limpa dados mas renderiza interface (para mostrar o select e permitir mudar filtro)
+                    this.biRawData = [];
+                    this.biTreeData = [];
+                    this.renderBiInterface(); // Renderiza toolbar
+                    
+                    // Injeta mensagem de vazio no container
+                    setTimeout(() => {
+                        const container = document.getElementById('biGridContainer');
+                        if(container) {
+                            container.innerHTML = `
+                                <div class="p-5 text-center">
+                                    <i class="fas fa-filter fa-3x text-muted mb-3"></i>
+                                    <h4 class="text-secondary">Sem dados para este filtro</h4>
+                                    <p class="text-muted">Não há registros para a origem "<strong>${this.biState.origemFilter}</strong>" no Centro de Custo "<strong>${this.biState.ccFilter}</strong>".</p>
+                                </div>`;
+                        }
+                    }, 100);
+                    return;
+                }
+
+                this.biRawData = rawData;
+                await this.processBiTreeWithCalculated();
+                this.renderBiInterface();
+
+            } catch (error) {
+                console.error(error);
+                this.modal.showError(`Erro no BI: ${error.message}`);
+            }
+        }
+
+        renderBiInterface() {
             const isDreMode = this.biState.scaleMode === 'dre';
             const btnScaleClass = isDreMode ? 'btn-info' : 'btn-secondary';
             const btnScaleIcon = isDreMode ? 'fa-divide' : 'fa-dollar-sign';
             const btnScaleText = isDreMode ? 'Escala: Milhares (DRE)' : 'Escala: Reais';
+
+            // GERAÇÃO DAS OPÇÕES DO SELECT (CORRIGIDO)
+            // Agora 'cc' é um objeto {codigo, nome}.
+            // O value será o código (para o backend) e o texto será o nome (para o usuário).
+            const optionsCC = [
+                `<option value="Todos" ${this.biState.ccFilter === 'Todos' ? 'selected' : ''}>Todos os Centros de Custo</option>`,
+                ...this.biState.listaCCs.map(cc => 
+                    // Verifica se o valor atual bate com o código do item
+                    `<option value="${cc.codigo}" ${String(this.biState.ccFilter) === String(cc.codigo) ? 'selected' : ''}>
+                        ${cc.nome}
+                    </option>`
+                )
+            ].join('');
+
+            // Tenta achar o nome do CC selecionado para exibir no rodapé (cosmético)
+            let nomeCCSelecionado = this.biState.ccFilter;
+            if (this.biState.ccFilter !== 'Todos' && this.biState.listaCCs.length > 0) {
+                const found = this.biState.listaCCs.find(c => String(c.codigo) === String(this.biState.ccFilter));
+                if (found) nomeCCSelecionado = found.nome;
+            }
 
             const toolbar = `
                 <div class="bi-toolbar d-flex justify-content-between align-items-center p-3 border-bottom border-primary bg-tertiary">
                     <div class="d-flex gap-2 align-items-center flex-wrap">
                         ${this.renderOrigemFilter()}
                         
-                        <button class="btn btn-sm ${btnClass}" onclick="relatorioSystem.toggleViewMode()" title="Alternar Agrupamento">
-                            <i class="fas ${btnIcon}"></i> ${btnText}
-                        </button>
+                        <div class="input-group input-group-sm" style="width: 300px;">
+                            <span class="input-group-text bg-dark border-secondary text-secondary" title="Filtrar por Centro de Custo">
+                                <i class="fas fa-building"></i>
+                            </span>
+                            <select class="form-select form-select-sm bg-dark text-light border-secondary" 
+                                    style="max-width: 260px;"
+                                    onchange="relatorioSystem.handleCCChange(this.value)">
+                                ${optionsCC}
+                            </select>
+                        </div>
 
                         <button class="btn btn-sm ${btnScaleClass}" onclick="relatorioSystem.toggleScaleMode()" title="Alternar Escala de Valores">
                             <i class="fas ${btnScaleIcon}"></i> ${btnScaleText}
                         </button>
 
                         <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
+                        
                         <div class="input-group input-group-sm" style="width: 200px;">
                             <i class="input-group-icon fas fa-search"></i>
                             <input type="text" id="biGlobalSearch" class="form-control" 
-                                placeholder="Buscar e navegar (Enter)..." value="${this.biState.globalSearch}"
+                                placeholder="Buscar na árvore..." value="${this.biState.globalSearch}"
                                 oninput="relatorioSystem.handleBiGlobalSearch(this.value)"
                                 onkeydown="if(event.key === 'Enter') { event.preventDefault(); relatorioSystem.navigateSearchNext(); }">
                         </div>
@@ -514,22 +624,25 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         <button class="btn btn-sm btn-outline" onclick="relatorioSystem.toggleAllNodes(true)" title="Expandir Tudo"><i class="fas fa-expand-arrows-alt"></i></button>
                         <button class="btn btn-sm btn-outline" onclick="relatorioSystem.toggleAllNodes(false)" title="Recolher Tudo"><i class="fas fa-compress-arrows-alt"></i></button>
                         <button class="btn btn-sm btn-outline" onclick="relatorioSystem.openColumnManager()" title="Colunas"><i class="fas fa-columns"></i></button>
-                        <div class="separator-vertical mx-1" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
                     </div>
                 </div>`;
             
             const gridContainer = `<div id="biGridContainer" class="table-fixed-container" style="flex: 1; overflow: auto; background: var(--bg-secondary);"></div>`;
+            
             const footer = `
                 <div class="bi-footer p-2 bg-tertiary border-top border-primary d-flex justify-content-between align-items-center">
-                    <span class="text-secondary text-xs">Fonte: <strong>${this.biState.origemFilter}</strong> | Modo: <strong>${this.biState.viewMode}</strong> | Escala: <strong>${this.biState.scaleMode.toUpperCase()}</strong></span>
+                    <span class="text-secondary text-xs">
+                        Fonte: <strong>${this.biState.origemFilter}</strong> | 
+                        Filtro CC: <strong class="text-info">${nomeCCSelecionado}</strong> | 
+                        Escala: <strong>${this.biState.scaleMode.toUpperCase()}</strong>
+                    </span>
                     <span class="text-muted text-xs">Atualizado: ${new Date().toLocaleTimeString('pt-BR')}</span>
                 </div>`;
 
             this.modal.setContent(`<div style="display: flex; flex-direction: column; height: 100%;">${toolbar}${gridContainer}${footer}</div>`);
             this.renderBiTable();
         }
-
-        renderBiTable() {
+            renderBiTable() {
             const container = document.getElementById('biGridContainer');
             if (!container) return;
 
