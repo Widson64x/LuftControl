@@ -108,7 +108,11 @@ class AnaliseDREReport:
         rows = self.session.execute(sql).fetchall()
         return {f"{r.tipo_no}:{r.id_referencia}": r.ordem for r in rows}
 
-    def processar_relatorio(self, filtro_origem='Consolidado', agrupar_por_cc=False):
+    def processar_relatorio(self, filtro_origem='Consolidado', agrupar_por_cc=False, filtro_cc=None):
+        """
+        Gera os dados base do relatório.
+        Agora suporta filtragem por Centro de Custo Específico.
+        """
         tree_map, definitions = self._get_estrutura_hierarquia()
         ajustes_edicao, ajustes_inclusao = self._get_ajustes_map()
         ordem_map = self._get_ordenamento()
@@ -120,12 +124,12 @@ class AnaliseDREReport:
         aggregated_data = {} 
 
         def process_row(origem, conta, titulo, data, saldo, cc_original_str, row_hash=None, is_skeleton=False, forced_match=None):
-            # A. EDIÇÕES
+            # A. EDIÇÕES (Prioridade sobre dados originais)
             if not is_skeleton and row_hash and row_hash in ajustes_edicao:
                 adj = ajustes_edicao[row_hash]
                 if adj.Invalido: return 
                 
-                # Override
+                # Override com valores do ajuste
                 origem = adj.Origem or origem
                 conta = adj.Conta or conta
                 titulo = adj.Titulo_Conta or titulo
@@ -141,12 +145,13 @@ class AnaliseDREReport:
                 else:
                     saldo = 0.0
 
-            # B. MATCH
+            # B. MATCH (Encontrar regra de hierarquia)
             match = forced_match
             if not match:
                 rules = definitions.get(conta, [])
                 if not rules: return
                 
+                # Tenta match específico por CC alvo na regra
                 if cc_original_str:
                     cc_int = None
                     try: cc_int = int(''.join(filter(str.isdigit, str(cc_original_str))))
@@ -155,16 +160,18 @@ class AnaliseDREReport:
                         for rule in rules:
                             if rule.CC_Alvo is not None and cc_int == rule.CC_Alvo:
                                 match = rule; break
+                # Se não achou específico, pega o genérico (CC_Alvo null)
                 if not match: 
                     match = rules[0]
             
             if not match: return
 
-            # C. AGRUPAMENTO
+            # C. AGRUPAMENTO E SOMA
             tipo_cc = match.Tipo_Principal or 'Outros'
             root_virtual_id = match.Raiz_No_Virtual_Id
             caminho = match.full_path or 'Não Classificado'
             
+            # Definição de Ordem
             ordem = 999
             if root_virtual_id:
                 ordem = ordem_map.get(f"virtual:{root_virtual_id}", 999)
@@ -194,40 +201,59 @@ class AnaliseDREReport:
             if not is_skeleton and data:
                 try:
                     mes_nome = self.meses[data.month - 1]
-                    val_inv = saldo * -1 
+                    val_inv = saldo * -1 # Inverte sinal (Crédito é receita positiva no DRE)
                     aggregated_data[group_key][mes_nome] += val_inv
                     aggregated_data[group_key]['Total_Ano'] += val_inv
                 except: pass
 
-        # 1. Esqueleto
+        # 1. Esqueleto (Garante que a estrutura apareça vazia se necessário)
         for conta_def, lista_regras in definitions.items():
             titulo_conta = mapa_titulos.get(conta_def, "Conta Configurada")
             for regra in lista_regras:
                 process_row("Config", conta_def, titulo_conta, None, 0.0, None, None, is_skeleton=True, forced_match=regra)
 
-        # 2. Dados Banco
-        where_origem = ""
-        if filtro_origem == 'FARMA': where_origem = "WHERE \"origem\" = 'FARMA'"
-        elif filtro_origem == 'FARMADIST': where_origem = "WHERE \"origem\" = 'FARMADIST'"
-        else: where_origem = "WHERE \"origem\" IN ('FARMA', 'FARMADIST')"
+        # 2. Construção da Query SQL Dinâmica
+        where_clauses = []
+        params = {}
+        
+        # Filtro Origem
+        if filtro_origem == 'FARMA':
+            where_clauses.append("\"origem\" = 'FARMA'")
+        elif filtro_origem == 'FARMADIST':
+            where_clauses.append("\"origem\" = 'FARMADIST'")
+        else:
+            where_clauses.append("\"origem\" IN ('FARMA', 'FARMADIST')")
+            
+        # Filtro Centro de Custo (NOVO)
+        if filtro_cc and filtro_cc != 'Todos':
+            where_clauses.append("\"Centro de Custo\" = :cc")
+            params['cc'] = filtro_cc
+
+        where_final = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
         
         sql_raw = text(f"""
             SELECT "origem", "Conta", "Título Conta", "Data", "Numero", "Centro de Custo", "Saldo", "Filial", "Item", "Debito", "Credito"
-            FROM "Dre_Schema"."Razao_Dados_Consolidado" {where_origem}
+            FROM "Dre_Schema"."Razao_Dados_Consolidado" {where_final}
         """)
         
-        raw_rows = self.session.execute(sql_raw).fetchall()
+        raw_rows = self.session.execute(sql_raw, params).fetchall()
         for row in raw_rows:
-            # GERA HASH USANDO UTILITÁRIO GLOBAL
             h = gerar_hash(row)
             process_row(
                 row.origem, row.Conta, getattr(row, 'Título Conta'), row.Data, row.Saldo, 
                 getattr(row, 'Centro de Custo'), h, is_skeleton=False
             )
 
-        # 3. Inclusões
+        # 3. Inclusões Manuais (Aplica filtro de CC nelas também)
         for adj in ajustes_inclusao:
+            # Filtro Origem
             if filtro_origem != 'Consolidado' and adj.Origem != filtro_origem: continue
+            
+            # Filtro CC nas inclusões
+            if filtro_cc and filtro_cc != 'Todos':
+                # Compara convertendo para string para evitar erro de tipo
+                if str(adj.Centro_Custo or '').strip() != str(filtro_cc).strip():
+                    continue
 
             if not adj.Invalido:
                 saldo_adj = (float(adj.Debito or 0) - float(adj.Credito or 0)) if adj.Exibir_Saldo else 0.0
@@ -240,8 +266,10 @@ class AnaliseDREReport:
                 )
 
         final_list = list(aggregated_data.values())
-        if agrupar_por_cc: final_list.sort(key=lambda x: (x['ordem_prioridade'], x['Tipo_CC'], x['Nome_CC'] or ''))
-        else: final_list.sort(key=lambda x: x['ordem_prioridade'])
+        if agrupar_por_cc: 
+            final_list.sort(key=lambda x: (x['ordem_prioridade'], x['Tipo_CC'], x['Nome_CC'] or ''))
+        else: 
+            final_list.sort(key=lambda x: x['ordem_prioridade'])
         
         return final_list
 

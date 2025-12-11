@@ -82,9 +82,9 @@
         getRazaoData:           "{{ url_for('Reports.RelatorioRazaoDados') }}",
         getRazaoResumo:         "{{ url_for('Reports.RelatorioRazaoResumo') }}",
         getRentabilidadeData:   "{{ url_for('Reports.RelatorioRentabilidade') }}",
-        getRentabilidadeDataCC: "{{ url_for('Reports.RelatorioRentabilidadePorCC') }}",
         getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}",
-        getRazaoDownload:       "{{ url_for('Reports.download_razao_full') }}"        
+        getRazaoDownload:       "{{ url_for('Reports.download_razao_full') }}",
+        getListaCCs:            "{{ url_for('Reports.ListaCentrosCusto') }}"      
     };
 </script>
 <script src="{{ url_for('static', filename='JS/Relatorios.js') }}"></script>
