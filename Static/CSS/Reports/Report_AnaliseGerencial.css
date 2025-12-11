@@ -74,7 +74,7 @@
 
 .origem-toggle-btn.active {
     background: var(--gradient-primary);
-    color: var(--text-primary);
+    color: white;
     font-weight: var(--font-weight-semibold);
     box-shadow: inset 0 0 10px rgba(0, 0, 0, var(--opacity-20));
 }
@@ -83,11 +83,11 @@
 .origem-toggle-btn[data-origem="Consolidado"] i { color: var(--primary-light); }
 .origem-toggle-btn[data-origem="FARMA"] i { color: var(--success); }
 .origem-toggle-btn[data-origem="FARMADIST"] i { color: var(--warning); }
-.origem-toggle-btn.active i { color: var(--text-primary) !important; }
+.origem-toggle-btn.active i { color: white !important; }
 
 #biOrigemBadge {
     background: rgba(var(--primary-rgb), var(--opacity-20));
-    color: var(--primary-light);
+    color: rgb(0, 0, 0);
     border: 1px solid rgba(var(--primary-rgb), var(--opacity-30));
     font-weight: var(--font-weight-semibold);
 }
@@ -239,6 +239,8 @@
     overflow: hidden;
     animation: slideInDown 0.2s ease-out;
 }
+
+
 
 @keyframes slideInDown {
     from { transform: translateY(-20px); opacity: 0; }

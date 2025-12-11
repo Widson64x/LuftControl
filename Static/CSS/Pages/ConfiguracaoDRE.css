@@ -748,6 +748,83 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
 }
 .empty-selection i { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
 
+/* Barra de Criação Rápida */
+.mass-create-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-secondary);
+}
+
+.mass-create-bar input {
+    flex: 1;
+}
+
+/* Cabeçalho da Lista */
+.mass-list-header {
+    display: grid;
+    grid-template-columns: 40px 1fr 60px;
+    padding: 10px 15px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+/* Lista Unificada */
+.reorder-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: calc(100vh - 450px);
+    overflow-y: auto;
+    border: 1px solid var(--border-secondary);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+}
+
+.reorder-item {
+    display: grid;
+    grid-template-columns: 40px 1fr 60px;
+    align-items: center;
+    padding: 12px 15px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-secondary);
+    cursor: grab;
+    transition: background 0.2s;
+    user-select: none;
+}
+
+.reorder-item:hover {
+    background: var(--bg-hover);
+}
+
+.reorder-item.dragging {
+    opacity: 0.5;
+    background: var(--highlight);
+    border: 2px dashed var(--primary);
+}
+
+.reorder-handle {
+    color: var(--text-tertiary);
+    cursor: grab;
+}
+
+.delete-btn {
+    color: var(--danger);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.delete-btn:hover {
+    transform: scale(1.1);
+    color: #c0392b;
+}
+
 /* Utils */
 .badge { background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid var(--border-primary); }
 .fade-in { animation: fadeIn 0.5s ease forwards; }
