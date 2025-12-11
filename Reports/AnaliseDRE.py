@@ -104,18 +104,124 @@ class AnaliseDREReport:
         return edicoes, inclusoes
 
     def _get_ordenamento(self):
-        sql = text("SELECT id_referencia, tipo_no, ordem FROM \"Dre_Schema\".\"DRE_Ordenamento\" WHERE contexto_pai = 'root'")
+        """Busca TODO o ordenamento (sem filtro de contexto)."""
+        sql = text("SELECT id_referencia, tipo_no, ordem FROM \"Dre_Schema\".\"DRE_Ordenamento\"")
         rows = self.session.execute(sql).fetchall()
         return {f"{r.tipo_no}:{r.id_referencia}": r.ordem for r in rows}
 
-    def processar_relatorio(self, filtro_origem='Consolidado', agrupar_por_cc=False, filtro_cc=None):
+    def _get_ordem_subgrupos_por_nome(self):
         """
-        Gera os dados base do relatório.
-        Agora suporta filtragem por Centro de Custo Específico.
+        NOVO: Busca a ordem dos subgrupos agrupados por NOME.
+        Como o mesmo subgrupo (ex: 'Pessoal') pode existir em vários CCs,
+        pegamos a MENOR ordem encontrada para usar como referência.
+        
+        Retorna: {nome_subgrupo: menor_ordem_encontrada}
         """
+        sql = text("""
+            SELECT 
+                h."Nome",
+                h."Id",
+                COALESCE(o.ordem, 999) as ordem
+            FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" h
+            LEFT JOIN "Dre_Schema"."DRE_Ordenamento" o 
+                ON CAST(h."Id" AS TEXT) = o.id_referencia 
+                AND o.tipo_no = 'subgrupo'
+            WHERE h."Id_Pai" IS NULL
+            ORDER BY ordem ASC
+        """)
+        rows = self.session.execute(sql).fetchall()
+        
+        # Agrupa por nome, pegando a MENOR ordem (primeira aparição)
+        ordem_por_nome = {}
+        for r in rows:
+            nome = r.Nome
+            if nome not in ordem_por_nome:
+                ordem_por_nome[nome] = r.ordem
+            else:
+                # Mantém a menor ordem
+                ordem_por_nome[nome] = min(ordem_por_nome[nome], r.ordem)
+        
+        return ordem_por_nome
+
+    def debug_structure_and_order(self):
+        """
+        Retorna um JSON detalhado com todas as regras de ordenação configuradas no banco,
+        resolvendo os Nomes dos IDs para facilitar a conferência visual.
+        """
+        # 1. Busca TUDO da tabela de ordenamento
+        sql_raw = text("SELECT * FROM \"Dre_Schema\".\"DRE_Ordenamento\" ORDER BY ordem ASC")
+        rows_ordem = self.session.execute(sql_raw).fetchall()
+
+        # 2. Busca Nomes de Hierarquia (Subgrupos)
+        sql_h = text("SELECT \"Id\", \"Nome\" FROM \"Dre_Schema\".\"DRE_Estrutura_Hierarquia\"")
+        rows_h = self.session.execute(sql_h).fetchall()
+        map_hierarquia = {r.Id: r.Nome for r in rows_h}
+
+        # 3. Busca Nomes de Nós Virtuais
+        sql_v = text("SELECT \"Id\", \"Nome\" FROM \"Dre_Schema\".\"DRE_Estrutura_No_Virtual\"")
+        rows_v = self.session.execute(sql_v).fetchall()
+        map_virtual = {r.Id: r.Nome for r in rows_v}
+
+        debug_list = []
+
+        for row in rows_ordem:
+            nome_resolvido = "---"
+            tipo_desc = row.tipo_no
+            
+            # Tenta resolver o nome baseado no tipo
+            if row.tipo_no == 'subgrupo':
+                try:
+                    h_id = int(row.id_referencia)
+                    nome_resolvido = map_hierarquia.get(h_id, f"ID {h_id} (Não encontrado na Hierarquia)")
+                except:
+                    nome_resolvido = f"Erro ID: {row.id_referencia}"
+            
+            elif row.tipo_no == 'virtual':
+                try:
+                    v_id = int(row.id_referencia)
+                    nome_resolvido = map_virtual.get(v_id, f"ID {v_id} (Não encontrado em Virtual)")
+                except:
+                    nome_resolvido = f"Erro ID: {row.id_referencia}"
+
+            elif row.tipo_no == 'tipo_cc':
+                nome_resolvido = row.id_referencia  # Para tipo_cc, o ID já é o nome (Ex: 'Operacional')
+
+            debug_list.append({
+                'Ordem': row.ordem,
+                'Tipo': tipo_desc,
+                'ID_Ref': row.id_referencia,
+                'Nome_Visual': nome_resolvido,
+                'Contexto_Pai': row.contexto_pai
+            })
+
+        # Ordena puramente pelo número da ordem para você ler de cima para baixo
+        debug_list.sort(key=lambda x: x['Ordem'])
+        
+        return debug_list
+    
+    def processar_relatorio(self, filtro_origem='FARMA,FARMADIST,INTEC', agrupar_por_cc=False, filtro_cc=None):
+        """
+        Gera os dados base do relatório com suporte a múltiplas empresas e ordenação correta de subpastas.
+        Args:
+            filtro_origem (str): String separada por vírgula. Ex: "FARMA,INTEC" ou "INTEC".
+        """
+        # 0. Preparação das Empresas Selecionadas
+        if not filtro_origem:
+            lista_empresas = []
+        else:
+            # Remove espaços e cria lista limpa
+            lista_empresas = [x.strip() for x in filtro_origem.split(',') if x.strip()]
+        
+        # Se lista vazia, retorna vazio imediatamente
+        if not lista_empresas:
+            return []
+
         tree_map, definitions = self._get_estrutura_hierarquia()
         ajustes_edicao, ajustes_inclusao = self._get_ajustes_map()
         ordem_map = self._get_ordenamento()
+        
+        # NOVO: Busca ordem dos subgrupos por NOME (para ordenação secundária)
+        ordem_subgrupos_por_nome = self._get_ordem_subgrupos_por_nome()
         
         sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Razao_Dados_Consolidado"')
         res_nomes = self.session.execute(sql_nomes).fetchall()
@@ -171,15 +277,32 @@ class AnaliseDREReport:
             root_virtual_id = match.Raiz_No_Virtual_Id
             caminho = match.full_path or 'Não Classificado'
             
-            # Definição de Ordem
+            # =============================================================
+            # CORREÇÃO DE ORDEM: Ordem primária + secundária (subgrupos)
+            # =============================================================
             ordem = 999
+            ordem_secundaria = 500  # Valor médio default
+            
+            # 1. Se tem ID de Virtual, busca ordem do virtual
             if root_virtual_id:
                 ordem = ordem_map.get(f"virtual:{root_virtual_id}", 999)
+            
+            # 2. Se é grupo raiz (sem CC nem Virtual), busca ordem do subgrupo
             elif match.Is_Root_Group:
                 if match.Id_Hierarquia:
-                    ordem = ordem_map.get(f"subgrupo:{match.Id_Hierarquia}") or 0
+                    ordem = ordem_map.get(f"subgrupo:{match.Id_Hierarquia}", 0)
+            
+            # 3. Senão, busca ordem do tipo_cc
             else:
                 ordem = ordem_map.get(f"tipo_cc:{tipo_cc}", 999)
+            
+            # 4. NOVO: Ordem secundária baseada no PRIMEIRO subgrupo do caminho
+            # Isso garante que dentro de um tipo, os subgrupos sigam a ordem correta
+            if caminho and caminho not in ['Não Classificado', 'Direto', 'Calculado']:
+                partes = caminho.split('||')
+                if partes:
+                    primeiro_grupo = partes[0].strip()
+                    ordem_secundaria = ordem_subgrupos_por_nome.get(primeiro_grupo, 500)
 
             conta_display = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else conta
             titulo_para_exibicao = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else titulo
@@ -192,7 +315,9 @@ class AnaliseDREReport:
                 item = {
                     'origem': origem, 'Conta': conta_display, 'Titulo_Conta': titulo_para_exibicao,
                     'Tipo_CC': tipo_cc, 'Root_Virtual_Id': root_virtual_id, 'Caminho_Subgrupos': caminho, 
-                    'ordem_prioridade': ordem, 'Total_Ano': 0.0
+                    'ordem_prioridade': ordem, 
+                    'ordem_secundaria': ordem_secundaria,  # NOVO
+                    'Total_Ano': 0.0
                 }
                 for m in self.meses[:-1]: item[m] = 0.0
                 if agrupar_por_cc: item['Nome_CC'] = match.Raiz_Centro_Custo_Nome
@@ -212,19 +337,23 @@ class AnaliseDREReport:
             for regra in lista_regras:
                 process_row("Config", conta_def, titulo_conta, None, 0.0, None, None, is_skeleton=True, forced_match=regra)
 
-        # 2. Construção da Query SQL Dinâmica
+        # 2. Construção da Query SQL Dinâmica (Multi-Origem IN Clause)
         where_clauses = []
         params = {}
         
-        # Filtro Origem
-        if filtro_origem == 'FARMA':
-            where_clauses.append("\"origem\" = 'FARMA'")
-        elif filtro_origem == 'FARMADIST':
-            where_clauses.append("\"origem\" = 'FARMADIST'")
+        # Cria parâmetros dinâmicos: :orig0, :orig1, etc.
+        orig_params_keys = []
+        for i, emp in enumerate(lista_empresas):
+            key = f"orig{i}"
+            params[key] = emp
+            orig_params_keys.append(f":{key}")
+        
+        if orig_params_keys:
+            where_clauses.append(f"\"origem\" IN ({', '.join(orig_params_keys)})")
         else:
-            where_clauses.append("\"origem\" IN ('FARMA', 'FARMADIST')")
-            
-        # Filtro Centro de Custo (NOVO)
+            where_clauses.append("1=0")
+
+        # Filtro Centro de Custo
         if filtro_cc and filtro_cc != 'Todos':
             where_clauses.append("\"Centro de Custo\" = :cc")
             params['cc'] = filtro_cc
@@ -244,14 +373,11 @@ class AnaliseDREReport:
                 getattr(row, 'Centro de Custo'), h, is_skeleton=False
             )
 
-        # 3. Inclusões Manuais (Aplica filtro de CC nelas também)
+        # 3. Inclusões Manuais (Filtra por lista de empresas e CC)
         for adj in ajustes_inclusao:
-            # Filtro Origem
-            if filtro_origem != 'Consolidado' and adj.Origem != filtro_origem: continue
+            if adj.Origem not in lista_empresas: continue
             
-            # Filtro CC nas inclusões
             if filtro_cc and filtro_cc != 'Todos':
-                # Compara convertendo para string para evitar erro de tipo
                 if str(adj.Centro_Custo or '').strip() != str(filtro_cc).strip():
                     continue
 
@@ -266,10 +392,26 @@ class AnaliseDREReport:
                 )
 
         final_list = list(aggregated_data.values())
+        
+        # =============================================================
+        # CORREÇÃO DE ORDENAÇÃO: Usa ordem primária + secundária
+        # =============================================================
         if agrupar_por_cc: 
-            final_list.sort(key=lambda x: (x['ordem_prioridade'], x['Tipo_CC'], x['Nome_CC'] or ''))
+            final_list.sort(key=lambda x: (
+                x.get('ordem_prioridade', 999), 
+                x.get('ordem_secundaria', 500),  # NOVO
+                x.get('Tipo_CC', ''), 
+                x.get('Nome_CC') or '', 
+                x.get('Caminho_Subgrupos') or '', 
+                x.get('Conta', '')
+            ))
         else: 
-            final_list.sort(key=lambda x: x['ordem_prioridade'])
+            final_list.sort(key=lambda x: (
+                x.get('ordem_prioridade', 999), 
+                x.get('ordem_secundaria', 500),  # NOVO
+                x.get('Caminho_Subgrupos') or '', 
+                x.get('Conta', '')
+            ))
         
         return final_list
 
@@ -345,7 +487,9 @@ class AnaliseDREReport:
 
                 nova_linha = {
                     'origem': 'Calculado', 'Conta': f"CALC_{form.Id}", 'Titulo_Conta': form.Nome,
-                    'Tipo_CC': form.Nome, 'Caminho_Subgrupos': 'Calculado', 'ordem_prioridade': form.ordem,
+                    'Tipo_CC': form.Nome, 'Caminho_Subgrupos': 'Calculado', 
+                    'ordem_prioridade': form.ordem,
+                    'ordem_secundaria': 0,  # Calculados sempre no topo da sua ordem
                     'Is_Calculado': True, 'Estilo_CSS': form.Estilo_CSS, 'Tipo_Exibicao': form.Tipo_Exibicao,
                     'Root_Virtual_Id': form.Id 
                 }
@@ -387,7 +531,13 @@ class AnaliseDREReport:
                 print(f"Erro {form.Nome}: {e}")
 
         todos = data_rows + novas_linhas
-        todos.sort(key=lambda x: x.get('ordem_prioridade', 999))
+        
+        # CORREÇÃO: Ordenação final com ambas as ordens
+        todos.sort(key=lambda x: (
+            x.get('ordem_prioridade', 999),
+            x.get('ordem_secundaria', 0)
+        ))
+        
         return todos
 
     def aplicar_milhares(self, data):

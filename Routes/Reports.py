@@ -103,13 +103,21 @@ def RelatorioRentabilidade():
         report = AnaliseDREReport(session)
         
         # Parâmetros da URL
-        filtro_origem = request.args.get('origem', 'Consolidado')
-        scale_mode = request.args.get('scale_mode', 'dre') 
-        filtro_cc = request.args.get('centro_custo', 'Todos') # <--- NOVO PARÂMETRO
+        # Agora 'origem' pode ser "FARMA,INTEC" ou vazio
+        filtro_origem_raw = request.args.get('origem', '')
         
-        # Processamento com o novo filtro
+        # Se vier vazio, definimos um padrão ou enviamos vazio (o processador lidará)
+        if not filtro_origem_raw:
+             # Opcional: Se quiser forçar todas caso nada seja enviado
+             filtro_origem_raw = "FARMA,FARMADIST,INTEC" 
+
+        scale_mode = request.args.get('scale_mode', 'dre') 
+        filtro_cc = request.args.get('centro_custo', 'Todos') 
+        
+        # Processamento
+        # Passamos a string bruta separada por vírgula
         data = report.processar_relatorio(
-            filtro_origem=filtro_origem, 
+            filtro_origem=filtro_origem_raw, 
             agrupar_por_cc=False, 
             filtro_cc=filtro_cc
         )
@@ -117,7 +125,7 @@ def RelatorioRentabilidade():
         # Cálculos de nós virtuais (fórmulas)
         final_data = report.calcular_nos_virtuais(data)
         
-        # Aplicação da escala (Milhares ou Integral)
+        # Aplicação da escala
         if scale_mode == 'dre':
             final_data = report.aplicar_milhares(final_data)
         
@@ -161,6 +169,23 @@ def download_razao_full():
 
     except Exception as e:
         current_app.logger.error(f"Erro Download: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if session: session.close()
+        
+@reports_bp.route('/RelatorioRazao/DebugOrdenamento', methods=['GET'])
+@login_required
+def DebugOrdenamento():
+    session = None
+    try:
+        session = get_pg_session()
+        report = AnaliseDREReport(session)
+        
+        # Chama a função nova de debug
+        dados_debug = report.debug_structure_and_order()
+        
+        return jsonify(dados_debug), 200
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
         if session: session.close()
