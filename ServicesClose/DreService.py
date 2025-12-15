@@ -190,14 +190,14 @@ class DreService:
     # --- MÉTODOS DO RELATÓRIO (DRE / RENTABILIDADE) ---
     # =========================================================================
 
-    def processar_relatorio(self, filtro_origem='Consolidado', agrupar_por_cc=False):
+    def processar_relatorio(self, filtro_origem='Consolidado', agrupar_por_cc=False, filtro_cc='Todos'):
         """
         Processa DRE Gerencial Híbrida (Estrutura + Dados + Ajustes).
-        Lógica: SEMPRE aplica os ajustes (Edições e Inclusões) sobre os dados base.
+        Agora 'filtro_cc' pode ser uma string de códigos separados por vírgula ou 'Todos'.
         """
         # 1. Carrega Estruturas e Ajustes
         tree_map, definitions = self.get_estrutura_hierarquia()
-        ajustes_edicao, ajustes_inclusao = self.get_ajustes_map() # Já traz filtrado por validade/status
+        ajustes_edicao, ajustes_inclusao = self.get_ajustes_map() 
         ordem_map = self.get_ordenamento()
         
         # 2. Mapa de Títulos para o Esqueleto (Configuração)
@@ -211,26 +211,20 @@ class DreService:
         def process_row(origem, conta, titulo, data, saldo, cc_original_str, row_hash=None, is_skeleton=False, forced_match=None):
             
             # A. APLICAÇÃO DE EDIÇÕES (Overrides)
-            # Se a linha tem um hash (vem do banco) e está no mapa de edições:
             if not is_skeleton and row_hash and row_hash in ajustes_edicao:
                 adj = ajustes_edicao[row_hash]
-                
-                # Se o ajuste invalida a linha, paramos aqui (ela não entra na soma)
                 if adj.Invalido: return 
                 
-                # Sobrescreve dados com o que está no ajuste
                 origem = adj.Origem or origem
                 conta = adj.Conta or conta
                 titulo = adj.Titulo_Conta or titulo
                 cc_original_str = str(adj.Centro_Custo) if adj.Centro_Custo else cc_original_str
                 data = adj.Data or data
                 
-                # Regra visual de Não Operacional
                 if adj.Is_Nao_Operacional:
                     conta = '00000000000'
                     titulo = 'Não Operacionais'
                 
-                # Recalcula o saldo baseado no ajuste
                 if adj.Exibir_Saldo:
                     saldo = (float(adj.Debito or 0) - float(adj.Credito or 0))
                 else:
@@ -240,12 +234,13 @@ class DreService:
             match = forced_match
             if not match:
                 rules = definitions.get(conta, [])
-                if not rules: return # Conta sem vínculo na DRE é ignorada
+                if not rules: return 
                 
                 # Tenta match específico por Centro de Custo
                 if cc_original_str:
                     cc_int = None
                     try: 
+                        # Extrai apenas números para comparar com a regra
                         cc_int = int(''.join(filter(str.isdigit, str(cc_original_str))))
                     except: pass
                     
@@ -254,7 +249,6 @@ class DreService:
                             if rule.CC_Alvo is not None and cc_int == rule.CC_Alvo:
                                 match = rule; break
                 
-                # Se não achou regra por CC, usa a regra genérica da conta
                 if not match: 
                     match = rules[0]
             
@@ -265,7 +259,6 @@ class DreService:
             root_virtual_id = match.Raiz_No_Virtual_Id
             caminho = match.full_path or 'Não Classificado'
             
-            # Define Ordem de Exibição
             ordem = 999
             if root_virtual_id:
                 ordem = ordem_map.get(f"virtual:{root_virtual_id}", 999)
@@ -275,35 +268,29 @@ class DreService:
             else:
                 ordem = ordem_map.get(f"tipo_cc:{tipo_cc}", 999)
 
-            # Labels para o Relatório
             conta_display = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else conta
             titulo_para_exibicao = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else titulo
             
-            # Chave única da linha no DRE
             group_key = (tipo_cc, root_virtual_id, caminho, titulo_para_exibicao, conta_display)
             if agrupar_por_cc: 
                 group_key = group_key + (match.Raiz_Centro_Custo_Nome,)
 
-            # D. INICIALIZAÇÃO NO DICIONÁRIO (Se primeira vez)
+            # D. INICIALIZAÇÃO NO DICIONÁRIO
             if group_key not in aggregated_data:
                 item = {
                     'origem': origem, 'Conta': conta_display, 'Titulo_Conta': titulo_para_exibicao,
                     'Tipo_CC': tipo_cc, 'Root_Virtual_Id': root_virtual_id, 'Caminho_Subgrupos': caminho, 
                     'ordem_prioridade': ordem, 'Total_Ano': 0.0
                 }
-                for m in self.meses[:-1]: item[m] = 0.0 # Inicializa Jan a Dez com 0
+                for m in self.meses[:-1]: item[m] = 0.0
                 if agrupar_por_cc: item['Nome_CC'] = match.Raiz_Centro_Custo_Nome
                 aggregated_data[group_key] = item
 
-            # E. ACUMULAÇÃO DE VALORES (Soma)
+            # E. ACUMULAÇÃO DE VALORES
             if not is_skeleton and data:
                 try:
                     mes_nome = self.meses[data.month - 1]
-                    # DRE inverte sinal: No banco, Crédito é positivo (Receita). 
-                    # Se você quer ver Receita positiva na DRE, multiplique por -1 se a lógica contábil for C+ D-.
-                    # Ajuste conforme sua regra de sinal de exibição:
                     val_inv = saldo * -1 
-                    
                     aggregated_data[group_key][mes_nome] += val_inv
                     aggregated_data[group_key]['Total_Ano'] += val_inv
                 except: pass
@@ -312,47 +299,69 @@ class DreService:
         # EXECUÇÃO DO PROCESSAMENTO
         # ---------------------------------------------------------------------
 
-        # 1. Gera Esqueleto (Linhas configuradas que devem aparecer mesmo zeradas)
+        # 1. Gera Esqueleto
         for conta_def, lista_regras in definitions.items():
             titulo_conta = mapa_titulos.get(conta_def, "Conta Configurada")
             for regra in lista_regras:
                 process_row("Config", conta_def, titulo_conta, None, 0.0, None, None, is_skeleton=True, forced_match=regra)
 
         # 2. Busca Dados do Razão (Banco de Dados)
-        where_origem = ""
+        where_origem = "WHERE 1=1"
         params_sql = {}
-        if filtro_origem == 'FARMA': 
-            where_origem = "WHERE \"origem\" = 'FARMA'"
-        elif filtro_origem == 'FARMADIST': 
-            where_origem = "WHERE \"origem\" = 'FARMADIST'"
-        else: 
-            where_origem = "WHERE \"origem\" IN ('FARMA', 'FARMADIST')"
+
+        # 2.1 Filtro de Origem (IN)
+        origens_list = [o.strip() for o in filtro_origem.split(',') if o.strip()]
+        if origens_list:
+            origens_placeholders = ', '.join([f":origem_{i}" for i in range(len(origens_list))])
+            where_origem = f"WHERE \"origem\" IN ({origens_placeholders})"
+            params_sql.update({f"origem_{i}": o for i, o in enumerate(origens_list)})
+             
+        # 2.2 Filtro de Centro de Custo (CORREÇÃO CRÍTICA AQUI)
+        where_cc = ""
+        cc_list = []
         
+        # Verifica se o filtro é diferente de 'Todos' e processa a lista
+        if filtro_cc and filtro_cc.lower() != 'todos':
+            cc_list = [cc.strip() for cc in filtro_cc.split(',') if cc.strip()]
+            
+        if cc_list:
+            # Cria placeholders dinâmicos: :cc_0, :cc_1, etc.
+            cc_placeholders = ', '.join([f":cc_{i}" for i in range(len(cc_list))])
+            
+            # Usa 'AND' pois o WHERE de origem já existe (ou é WHERE 1=1)
+            where_cc = f"AND \"Centro de Custo\" IN ({cc_placeholders})"
+                
+            # Adiciona os valores individuais ao dicionário de parâmetros
+            params_sql.update({f"cc_{i}": cc for i, cc in enumerate(cc_list)})
+            
         sql_raw = text(f"""
             SELECT "origem", "Conta", "Título Conta", "Data", "Numero", "Centro de Custo", "Saldo", "Filial", "Item", "Debito", "Credito"
-            FROM "Dre_Schema"."Razao_Dados_Consolidado" {where_origem}
+            FROM "Dre_Schema"."Razao_Dados_Consolidado" {where_origem} {where_cc}
         """)
         
-        raw_rows = self.session.execute(sql_raw).fetchall()
+        # Executa a query com os parâmetros expandidos
+        raw_rows = self.session.execute(sql_raw, params_sql).fetchall()
 
-        # Processa cada linha do banco (verificando se tem edição)
         for row in raw_rows:
             process_row(
                 row.origem, row.Conta, getattr(row, 'Título Conta'), row.Data, row.Saldo, 
                 getattr(row, 'Centro de Custo'), self._gerar_hash_linha(row), is_skeleton=False
             )
 
-        # 3. Processa INCLUSÕES (Linhas novas criadas via Ajustes ou Intergrupo)
+        # 3. Processa INCLUSÕES
         for adj in ajustes_inclusao:
-            # Filtro de Origem nas Inclusões
-            if filtro_origem != 'Consolidado' and adj.Origem != filtro_origem:
-                continue
+            origem_match = 'Consolidado' in origens_list or (adj.Origem in origens_list)
+            if not origem_match: continue
+            
+            cc_match = filtro_cc.lower() == 'todos'
+            if not cc_match:
+                if str(adj.Centro_Custo) in cc_list:
+                    cc_match = True
+            
+            if not cc_match: continue
 
             if not adj.Invalido:
-                # Calcula saldo do ajuste
                 saldo_adj = (float(adj.Debito or 0) - float(adj.Credito or 0)) if adj.Exibir_Saldo else 0.0
-                
-                # Tratamento Não Operacional
                 c = '00000000000' if adj.Is_Nao_Operacional else adj.Conta
                 t = 'Não Operacionais' if adj.Is_Nao_Operacional else adj.Titulo_Conta
                 
@@ -361,7 +370,7 @@ class DreService:
                     None, is_skeleton=False
                 )
 
-        # 4. Finalização e Ordenação
+        # 4. Finalização
         final_list = list(aggregated_data.values())
         if agrupar_por_cc: 
             final_list.sort(key=lambda x: (x['ordem_prioridade'], x['Tipo_CC'], x['Nome_CC'] or ''))
@@ -369,7 +378,7 @@ class DreService:
             final_list.sort(key=lambda x: x['ordem_prioridade'])
         
         return final_list
-
+    
     def calcular_nos_virtuais(self, data_rows):
         """Calcula fórmulas (EBITDA, Lucro Líquido, etc)."""
         memoria = defaultdict(lambda: {m: 0.0 for m in self.meses})

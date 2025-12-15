@@ -2,6 +2,7 @@ import sys
 import os
 import time
 from sqlalchemy import create_engine, text
+from sqlalchemy.pool import NullPool
 
 # ==========================================
 # SETUP (Settings da Raiz)
@@ -62,7 +63,7 @@ def get_postgres_engine_robust():
 
 def get_sqlserver_engine():
     """Retorna a engine do SQL Server"""
-    return create_engine(SQL_DATABASE_URL, pool_pre_ping=True)
+    return create_engine(SQL_DATABASE_URL, pool_pre_ping=True, poolclass=NullPool)
 
 # ==========================================
 # NOVA FUNÇÃO DE DIAGNÓSTICO (O que você pediu)
