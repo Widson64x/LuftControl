@@ -899,3 +899,218 @@ input:focus + .slider {
 }
 .menu-danger { color: #dc2626; }
 .menu-success { color: #16a34a; }
+
+/* ... [MANTENHA O CONTEÚDO ANTERIOR DO ARQUIVO] ... */
+
+/* === NOVO: PAINEL DE FILTROS AVANÇADOS === */
+.filter-panel-wrapper {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-primary);
+    margin-top: 15px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-in-out, padding 0.4s ease, opacity 0.3s;
+    opacity: 0;
+    box-shadow: var(--shadow-md);
+}
+
+.filter-panel-wrapper.active {
+    max-height: 400px; /* Altura suficiente para os filtros */
+    opacity: 1;
+    border: 1px solid var(--primary); /* Destaque quando ativo */
+}
+
+.filter-panel-content {
+    padding: 20px;
+}
+
+.filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.filter-header h3 {
+    margin: 0;
+    font-size: var(--font-md);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    align-items: end; /* Alinha os inputs na base */
+}
+
+.btn-text {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: var(--font-sm);
+    text-decoration: underline;
+}
+.btn-text:hover { color: var(--danger); }
+
+/* Ajustes nos Inputs do Filtro */
+.filter-group label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    display: block;
+    font-weight: 600;
+}
+
+/* Tabulator Header Filters Modernization */
+.tabulator .tabulator-header-filter input {
+    background: var(--bg-primary) !important;
+    border: 1px solid transparent !important;
+    border-bottom: 1px solid var(--border-secondary) !important;
+    border-radius: 0 !important;
+    font-size: 11px !important;
+    padding: 4px !important;
+    margin-top: 4px;
+}
+.tabulator .tabulator-header-filter input:focus {
+    border-bottom-color: var(--primary) !important;
+    box-shadow: none !important;
+}
+
+/* Responsividade do Painel */
+@media (max-width: 768px) {
+    .filter-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ... [MANTENHA O CSS ANTERIOR] ... */
+
+/* === RODAPÉ DE INFORMAÇÕES === */
+.grid-footer-info {
+    padding: 8px 15px;
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-primary);
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.grid-footer-info b {
+    color: var(--primary);
+}
+
+.grid-footer-info .separator {
+    color: var(--border-primary);
+}
+
+/* === BARRA DE AÇÕES FLUTUANTE (BULK ACTIONS) === */
+.bulk-actions-bar {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(150%); /* Escondido para baixo */
+    background: rgba(30, 41, 59, 0.95); /* Cor escura translúcida */
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-primary);
+    border-radius: 50px;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    z-index: 1000;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    min-width: 400px;
+    justify-content: space-between;
+}
+
+.bulk-actions-bar.active {
+    transform: translateX(-50%) translateY(0); /* Visível */
+}
+
+.bulk-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.bulk-count-badge {
+    background: var(--primary);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-bulk {
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-bulk-approve {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+.btn-bulk-approve:hover { background: #10b981; color: white; }
+
+.btn-bulk-reject {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}
+.btn-bulk-reject:hover { background: #ef4444; color: white; }
+
+.btn-bulk-export {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+.btn-bulk-export:hover { background: white; color: var(--bg-secondary); }
+
+.bulk-separator {
+    width: 1px;
+    height: 20px;
+    background: rgba(255,255,255,0.2);
+    margin: 0 5px;
+}
+
+.btn-bulk-close {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 16px;
+    margin-left: 10px;
+}
+.btn-bulk-close:hover { color: white; }

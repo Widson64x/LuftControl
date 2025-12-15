@@ -93,9 +93,49 @@ class AdjustmentService:
         Retorna dados mesclados da View (ERP) e da Tabela de Ajustes.
         """
         # 1. Carrega dados da View (Razão Original)
-        q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 100000')
+        # ALERTA: O LIMIT 100000 pode estar cortando dados se a base for maior que isso.
+        # Idealmente, remova o LIMIT ou aumente-o drasticamente para teste.
+        q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 10000000') 
         res_view = self.session.execute(q_view)
         rows_view = [dict(row._mapping) for row in res_view]
+
+        # ==============================================================================
+        # [INICIO] BLOCO DE DEBUG (Adicione isto para ver no log do servidor)
+        # ==============================================================================
+        print(f"\n--- DEBUG START: Total Linhas Carregadas: {len(rows_view)} ---")
+        
+        stats = {
+            'FARMA': {'Total': 0, 'Item_10190': 0},
+            'FARMADIST': {'Total': 0, 'Item_10190': 0},
+            'INTEC': {'Total': 0, 'Item_10190': 0},
+            'OUTROS': {'Total': 0, 'Item_10190': 0}
+        }
+
+        for row in rows_view:
+            # Tenta pegar a origem com variações de maiúscula/minúscula para garantir
+            raw_origem = row.get('origem') or row.get('Origem') or 'UNKNOWN'
+            origem_str = str(raw_origem).upper().strip()
+            
+            # Identifica o grupo
+            grupo = 'OUTROS'
+            if 'INTEC' in origem_str: grupo = 'INTEC'
+            elif 'FARMADIST' in origem_str: grupo = 'FARMADIST' # Checar antes de Farma pois contem "Farma"
+            elif 'FARMA' in origem_str: grupo = 'FARMA'
+            
+            stats[grupo]['Total'] += 1
+            
+            # Verifica item 10190
+            item_val = str(row.get('Item')).strip()
+            if item_val == '10190':
+                stats[grupo]['Item_10190'] += 1
+
+        print("ESTATISTICAS ENCONTRADAS NA VIEW:")
+        for grp, data in stats.items():
+            print(f" > {grp}: Total Linhas={data['Total']} | Itens 10190={data['Item_10190']}")
+        print("--- DEBUG END ---\n")
+        # ==============================================================================
+        # [FIM] BLOCO DE DEBUG
+        # ==============================================================================
 
         # 2. Carrega TODOS os Ajustes Existentes
         ajustes = self.session.query(AjustesRazao).all()

@@ -4,9 +4,7 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports.css') }}">
-    
     <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
-    
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/AjustesRazao.css') }}">
 {% endblock %}
 
@@ -20,45 +18,93 @@
             <h1 class="page-title">
                 <i class="fas fa-balance-scale"></i> Ajustes & Espelho Razão
             </h1>
-            <p class="page-subtitle">Gestão completa de lançamentos, inclusões e fluxo de aprovação.</p>
+            <p class="page-subtitle">Gestão completa de lançamentos e fluxo de aprovação.</p>
         </div>
         <div class="header-actions">
+            <button class="btn-secondary-custom" onclick="ajustesSystem.toggleFilterPanel()">
+                <i class="fas fa-filter"></i> Filtros Avançados
+            </button>
             <button class="btn-primary-custom" onclick="ajustesSystem.openModalInclusao()">
                 <i class="fas fa-plus-circle"></i> Novo Lançamento
             </button>
             <button class="btn-secondary-custom" onclick="ajustesSystem.loadData()">
-                <i class="fas fa-sync-alt"></i> Atualizar Dados
+                <i class="fas fa-sync-alt"></i> Atualizar
             </button>
         </div>
     </div>
 </div>
 
-<div class="content-card fade-in" style="margin-top: 20px; height: calc(100vh - 200px);">
+<div id="advancedFilterPanel" class="filter-panel-wrapper">
+    <div class="filter-panel-content">
+        <div class="filter-header">
+            <h3><i class="fas fa-search"></i> Filtragem Avançada</h3>
+            <button class="btn-text" onclick="ajustesSystem.clearFilters()">Limpar Filtros</button>
+        </div>
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label>Período (De - Até)</label>
+                <div class="d-flex gap-2">
+                    <input type="date" id="fDataIni" class="form-control form-control-sm">
+                    <input type="date" id="fDataFim" class="form-control form-control-sm">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>Status</label>
+                <select id="fStatus" class="form-control form-control-sm" multiple style="height: 38px; padding: 2px;">
+                    <option value="Pendente">Pendente</option>
+                    <option value="Aprovado">Aprovado</option>
+                    <option value="Reprovado">Reprovado</option>
+                    <option value="Invalido">Inválido</option>
+                </select>
+                <small style="font-size:10px; opacity:0.7;">Segure Ctrl para múltiplos</small>
+            </div>
+
+            <div class="filter-group">
+                <label>Origem</label>
+                <select id="fOrigem" class="form-control form-control-sm">
+                    <option value="">Todas</option>
+                    <option value="MANUAL">Manual</option>
+                    <option value="FARMA">Farma</option>
+                    <option value="INTEC">Intec</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Valor Mínimo (Saldo)</label>
+                <input type="number" id="fValorMin" class="form-control form-control-sm" placeholder="Ex: 100.00">
+            </div>
+
+            <div class="filter-group span-2">
+                <label>Busca Global (Conta, Descrição, Histórico)</label>
+                <input type="text" id="fBuscaGlobal" class="form-control form-control-sm" placeholder="Digite para buscar...">
+            </div>
+            
+            <div class="filter-group d-flex align-items-end">
+                <button class="btn-primary-custom w-100" onclick="ajustesSystem.applyAdvancedFilters()">
+                    <i class="fas fa-check"></i> Aplicar Filtros
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="content-card fade-in" style="margin-top: 20px; height: calc(100vh - 280px);">
     <div id="gridAjustes" class="tabulator-custom"></div>
 </div>
 
 <div class="modal-overlay" id="modalAjuste">
     <div class="custom-modal">
-        
         <div class="modal-header">
-            <h2>
-                <i class="fas fa-edit"></i> 
-                <span id="modalTitleText">Editar Lançamento</span>
-            </h2>
-            <button class="modal-close" onclick="ajustesSystem.closeModal()">
-                <i class="fas fa-times"></i>
-            </button>
+            <h2><i class="fas fa-edit"></i> <span id="modalTitleText">Editar Lançamento</span></h2>
+            <button class="modal-close" onclick="ajustesSystem.closeModal()"><i class="fas fa-times"></i></button>
         </div>
-        
         <div class="modal-body">
             <form id="formAjuste" onsubmit="event.preventDefault(); ajustesSystem.save();">
-                
                 <input type="hidden" id="inpHashId">
                 <input type="hidden" id="inpAjusteId">
                 <input type="hidden" id="inpTipoOperacao">
-
                 <div class="form-grid-wrapper">
-                    
                     <div class="form-group">
                         <label>Data *</label>
                         <input type="date" id="inpData" class="form-control" required>
@@ -66,121 +112,47 @@
                     <div class="form-group">
                         <label>Origem</label>
                         <select id="inpOrigem" class="form-control">
-                            <option value="FARMA">FARMA</option>
+                            <option value="MANUAL">MANUAL</option> <option value="FARMA">FARMA</option>
                             <option value="FARMADIST">FARMADIST</option>
+                            <option value="INTEC">INTEC</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Filial</label>
-                        <input type="text" id="inpFilial" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label>Número Doc.</label>
-                        <input type="text" id="inpNumero" class="form-control">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Conta Contábil *</label>
-                        <input type="text" id="inpConta" class="form-control" required>
-                    </div>
-                    <div class="form-group span-2">
-                        <label>Título da Conta</label>
-                        <input type="text" id="inpTituloConta" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label>Item (Classif.)</label>
-                        <input type="text" id="inpItem" class="form-control">
-                    </div>
-
-                    <div class="form-group span-2">
-                        <label>Centro de Custo</label>
-                        <input type="text" id="inpCC" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label>Cód. Cl. Valor</label>
-                        <input type="text" id="inpCodCl" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label>Contra Partida</label>
-                        <input type="text" id="inpContraPartida" class="form-control">
-                    </div>
-
-                    <div class="form-group span-4">
-                        <label>Descrição do Lançamento *</label>
-                        <input type="text" id="inpDescricao" class="form-control" required placeholder="Descreva o motivo...">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="lbl-debito">Débito (R$)</label>
-                        <input type="number" step="0.01" id="inpDebito" class="form-control input-money">
-                    </div>
-                    <div class="form-group">
-                        <label class="lbl-credito">Crédito (R$)</label>
-                        <input type="number" step="0.01" id="inpCredito" class="form-control input-money">
-                    </div>
-                    
-                    <div class="form-group flex-center">
-                        <div class="switch-container">
-                            <label class="switch">
-                                <input type="checkbox" id="inpNaoOperacional">
-                                <span class="slider"></span>
-                            </label>
-                            <span class="switch-label">Não Operacional</span>
-                        </div>
-                    </div>
-                    <div class="form-group flex-center">
-                        <div class="switch-container">
-                            <label class="switch">
-                                <input type="checkbox" id="inpExibirSaldo" checked>
-                                <span class="slider blue"></span>
-                            </label>
-                            <span class="switch-label">Calcular Saldo</span>
-                        </div>
-                    </div>
-
-                </div> <div class="modal-footer">
+                    <div class="form-group"><label>Filial</label><input type="text" id="inpFilial" class="form-control"></div>
+                    <div class="form-group"><label>Número Doc.</label><input type="text" id="inpNumero" class="form-control"></div>
+                    <div class="form-group"><label>Conta Contábil *</label><input type="text" id="inpConta" class="form-control" required></div>
+                    <div class="form-group span-2"><label>Título da Conta</label><input type="text" id="inpTituloConta" class="form-control"></div>
+                    <div class="form-group"><label>Item (Classif.)</label><input type="text" id="inpItem" class="form-control"></div>
+                    <div class="form-group span-2"><label>Centro de Custo</label><input type="text" id="inpCC" class="form-control"></div>
+                    <div class="form-group"><label>Cód. Cl. Valor</label><input type="text" id="inpCodCl" class="form-control"></div>
+                    <div class="form-group"><label>Contra Partida</label><input type="text" id="inpContraPartida" class="form-control"></div>
+                    <div class="form-group span-4"><label>Descrição do Lançamento *</label><input type="text" id="inpDescricao" class="form-control" required placeholder="Descreva o motivo..."></div>
+                    <div class="form-group"><label class="lbl-debito">Débito (R$)</label><input type="number" step="0.01" id="inpDebito" class="form-control input-money"></div>
+                    <div class="form-group"><label class="lbl-credito">Crédito (R$)</label><input type="number" step="0.01" id="inpCredito" class="form-control input-money"></div>
+                    <div class="form-group flex-center"><div class="switch-container"><label class="switch"><input type="checkbox" id="inpNaoOperacional"><span class="slider"></span></label><span class="switch-label">Não Operacional</span></div></div>
+                    <div class="form-group flex-center"><div class="switch-container"><label class="switch"><input type="checkbox" id="inpExibirSaldo" checked><span class="slider blue"></span></label><span class="switch-label">Calcular Saldo</span></div></div>
+                </div> 
+                <div class="modal-footer">
                     <button type="button" class="btn-secondary-custom" onclick="ajustesSystem.closeModal()">Cancelar</button>
-                    <button type="submit" class="btn-primary-custom" id="btnSalvar">
-                        <i class="fas fa-save"></i> Salvar Dados
-                    </button>
+                    <button type="submit" class="btn-primary-custom" id="btnSalvar"><i class="fas fa-save"></i> Salvar Dados</button>
                 </div>
-
             </form>
         </div>
     </div>
 </div>
+
 <div class="modal-overlay" id="modalHistorico">
     <div class="custom-modal" style="width: 90%; max-width: 850px; height: 80vh; display: flex; flex-direction: column;">
-        
         <div class="modal-header">
-            <h2>
-                <i class="fas fa-history"></i> Histórico de Alterações
-            </h2>
-            <button class="modal-close" onclick="ajustesSystem.closeHistoryModal()">
-                <i class="fas fa-times"></i>
-            </button>
+            <h2><i class="fas fa-history"></i> Histórico de Alterações</h2>
+            <button class="modal-close" onclick="ajustesSystem.closeHistoryModal()"><i class="fas fa-times"></i></button>
         </div>
-        
         <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 0;">
             <table class="history-table">
-                <thead>
-                    <tr>
-                        <th>Data/Hora</th>
-                        <th>Usuário</th>
-                        <th>Ação</th>
-                        <th>Campo</th>
-                        <th>Valor Antigo</th>
-                        <th>Valor Novo</th>
-                    </tr>
-                </thead>
-                <tbody id="tbodyHistorico">
-                    </tbody>
+                <thead><tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Campo</th><th>Valor Antigo</th><th>Valor Novo</th></tr></thead>
+                <tbody id="tbodyHistorico"></tbody>
             </table>
         </div>
-        
-        <div class="modal-footer">
-            <button class="btn-secondary-custom" onclick="ajustesSystem.closeHistoryModal()">Fechar</button>
-        </div>
+        <div class="modal-footer"><button class="btn-secondary-custom" onclick="ajustesSystem.closeHistoryModal()">Fechar</button></div>
     </div>
 </div>
 {% endblock %}
@@ -188,16 +160,13 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
-
 <script src="{{ url_for('static', filename='JS/AjustesRazao.js') }}"></script>
-
 <script>
     const API_ROUTES = {
         getDados:    "{{ url_for('Ajustes.get_dados') }}",
         getIntergrupos: "{{ url_for('Ajustes.gerar_ajuste_intergrupo') }}",
         postSalvar:  "{{ url_for('Ajustes.salvar') }}",
         postAprovar: "{{ url_for('Ajustes.aprovar') }}",
-        // NOVA ROTA AQUI:
         postStatusInvalido: "{{ url_for('Ajustes.alterar_status_invalido') }}",
         getHistoricoTemplate: "{{ url_for('Ajustes.get_historico', id_ajuste=0) }}"
     };

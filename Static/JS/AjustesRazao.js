@@ -270,7 +270,7 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
         }
 
         // =====================================================================
-        // TABULATOR INIT
+        // TABULATOR INIT & FILTROS
         // =====================================================================
         initTable() {
             if (typeof Tabulator === 'undefined') return;
@@ -283,31 +283,7 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
                 reactiveData: true,
                 index: "Hash_ID",
                 
-                rowFormatter: (row) => {
-                    const d = row.getData();
-                    const el = row.getElement();
-                    
-                    // 1. Limpeza total de classes de estado
-                    el.classList.remove("row-inclusao", "st-pendente", "st-aprovado", "st-reprovado", "row-invalida");
-                    
-                    // 2. Aplica Inclusão
-                    if (d.Tipo_Linha === "Inclusao") el.classList.add("row-inclusao");
-                    
-                    // 3. Cores do Badge (Status Textual)
-                    if (d.Status_Ajuste && d.Status_Ajuste !== 'Invalido') {
-                        el.classList.add("st-" + d.Status_Ajuste.toLowerCase());
-                    }
-
-                    // 4. LÓGICA DE INVALIDADE (Visual da Linha Inteira)
-                    // Verifica se o campo Invalido vindo do banco é VERDADEIRO
-                    // Nota: O backend deve retornar true (bool) ou "true" (string), tratamos ambos.
-                    const isInvalid = (d.Invalido === true || d.Invalido === 'true' || d.Invalido === 't');
-
-                    if (isInvalid) {
-                        el.classList.add('row-invalida'); // Aplica opacidade definida no CSS
-                    }
-                },
-
+                // === ATIVANDO FILTROS NATIVOS EM TODAS AS COLUNAS ===
                 columns: [
                     {
                         title: "Status",
@@ -315,71 +291,167 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
                         frozen: true,
                         width: 120,
                         hozAlign: "center",
+                        headerFilter: "input", // Filtro no cabeçalho
                         formatter: (cell) => {
                             const val = cell.getValue();
                             if (!val) return '<span class="status-badge status-original">Original</span>';
-                            
-                            // Badge visual para Inválido
-                            if (val === 'Invalido') {
-                                return `<span class="status-badge status-reprovado" style="background:#e5e7eb; color:#6b7280; border-color:#d1d5db;">Inválido</span>`;
-                            }
-
+                            if (val === 'Invalido') return `<span class="status-badge status-reprovado" style="background:#e5e7eb; color:#6b7280; border-color:#d1d5db;">Inválido</span>`;
                             const cls = `status-${val.toLowerCase()}`;
                             return `<span class="status-badge ${cls}">${val}</span>`;
                         }
                     },
-                    { title: "Data", field: "Data", width: 110, hozAlign: "center", sorter: "date", sorterParams: { format: "yyyy-MM-dd" }, formatter: (cell) => self.formatDateDisplay(cell.getValue()) },
+                    {
+                        title: "Origem", field: "origem", width: 100, hozAlign: "center", headerFilter: "input",
+                        formatter: (cell) => {
+                            const val = cell.getValue();
+                            return val ? `<strong>${val}</strong>` : '-';
+                        }
+                    },
+                    { title: "Data", field: "Data", width: 110, hozAlign: "center", sorter: "date", headerFilter: "input", formatter: (cell) => self.formatDateDisplay(cell.getValue()) },
                     { title: "Conta", field: "Conta", width: 130, headerFilter: "input" },
-                    { title: "Título Conta", field: "Título Conta", width: 200 },
-                    { title: "Número", field: "Numero", width: 140 },
+                    { title: "Título Conta", field: "Título Conta", width: 200, headerFilter: "input" },
+                    { title: "Número", field: "Numero", width: 140, headerFilter: "input" },
                     { title: "Descrição", field: "Descricao", width: 280, headerFilter: "input" },
-                    { title: "Contra Partida", field: "Contra Partida - Credito", width: 140 },
-                    { title: "Filial", field: "Filial", width: 80, hozAlign: "center" },
-                    { title: "C. Custo", field: "Centro de Custo", width: 130 },
-                    { title: "Item", field: "Item", width: 100 },
-                    { title: "Cód. Cl.", field: "Cod Cl. Valor", width: 90 },
+                    { title: "Contra Partida", field: "Contra Partida - Credito", width: 140, headerFilter: "input" },
+                    { title: "Filial", field: "Filial", width: 80, hozAlign: "center", headerFilter: "input" },
+                    { title: "C. Custo", field: "Centro de Custo", width: 130, headerFilter: "input" },
+                    { title: "Item", field: "Item", width: 100, headerFilter: "input" },
+                    { title: "Cód. Cl.", field: "Cod Cl. Valor", width: 90, headerFilter: "input" },
                     {
-                        title: "Débito", field: "Debito", width: 120, hozAlign: "right", formatter: "money", formatterParams: { decimal: ",", thousand: ".", precision: 2 }, bottomCalc: "sum", bottomCalcFormatter: "money", bottomCalcFormatterParams: { decimal: ",", thousand: ".", precision: 2 }
+                        title: "Débito", field: "Debito", width: 120, hozAlign: "right", formatter: "money", headerFilter: "number", formatterParams: { decimal: ",", thousand: ".", precision: 2 }, bottomCalc: "sum", bottomCalcFormatter: "money", bottomCalcFormatterParams: { decimal: ",", thousand: ".", precision: 2 }
                     },
                     {
-                        title: "Crédito", field: "Credito", width: 120, hozAlign: "right", formatter: "money", formatterParams: { decimal: ",", thousand: ".", precision: 2 }, bottomCalc: "sum", bottomCalcFormatter: "money", bottomCalcFormatterParams: { decimal: ",", thousand: ".", precision: 2 }
+                        title: "Crédito", field: "Credito", width: 120, hozAlign: "right", formatter: "money", headerFilter: "number", formatterParams: { decimal: ",", thousand: ".", precision: 2 }, bottomCalc: "sum", bottomCalcFormatter: "money", bottomCalcFormatterParams: { decimal: ",", thousand: ".", precision: 2 }
                     },
                     {
-                        title: "Saldo", field: "Saldo", width: 120, hozAlign: "right", bottomCalc: "sum",
+                        title: "Saldo", field: "Saldo", width: 120, hozAlign: "right", bottomCalc: "sum", headerFilter: "number",
                         formatter: (cell) => {
                             const val = cell.getValue();
                             if (val == null) return '<span style="color: #999;">-</span>';
                             const num = parseFloat(val);
                             const color = num < 0 ? 'var(--ar-danger, #ef4444)' : 'var(--ar-info, #3b82f6)';
                             return `<span style="color: ${color}; font-weight: 600;">${num.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>`;
-                        },
-                        bottomCalcFormatter: (cell) => {
-                             const val = cell.getValue();
-                             if (!val) return '-';
-                             return `<span style="font-weight: 700;">${parseFloat(val).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>`;
                         }
                     },
-                    { title: "Ñ.Op", field: "NaoOperacional", width: 70, hozAlign: "center", formatter: "tickCross", formatterParams: { allowEmpty: true, tickElement: '<i class="fas fa-check" style="color: var(--ar-warning, #f59e0b);"></i>', crossElement: '' } }
-                ]
+                    { title: "Ñ.Op", field: "NaoOperacional", width: 70, hozAlign: "center", headerFilter: "tickCross", formatter: "tickCross" }
+                ],
+                
+                // Formatação de Linha (Estado)
+                rowFormatter: (row) => {
+                    const d = row.getData();
+                    const el = row.getElement();
+                    el.classList.remove("row-inclusao", "st-pendente", "st-aprovado", "st-reprovado", "row-invalida");
+                    
+                    if (d.Tipo_Linha === "Inclusao") el.classList.add("row-inclusao");
+                    if (d.Status_Ajuste && d.Status_Ajuste !== 'Invalido') el.classList.add("st-" + d.Status_Ajuste.toLowerCase());
+                    
+                    const isInvalid = (d.Invalido === true || d.Invalido === 'true' || d.Invalido === 't');
+                    if (isInvalid) el.classList.add('row-invalida');
+                }
             });
 
-            // --------------------------------------------------------
-            // INTERCEPTAÇÃO "FORÇADA" DO CLIQUE DIREITO
-            // --------------------------------------------------------
+            // Context Menu Handler (Mantido)
             const gridEl = document.getElementById("gridAjustes");
             if(gridEl) {
                 gridEl.addEventListener('contextmenu', (e) => {
                     const rowEl = e.target.closest('.tabulator-row');
                     if (rowEl) {
-                        e.preventDefault(); 
-                        e.stopPropagation();
+                        e.preventDefault(); e.stopPropagation();
                         const row = this.table.getRow(rowEl);
-                        if (row) {
-                            this.handleContextMenu(e, row);
-                        }
+                        if (row) this.handleContextMenu(e, row);
                     }
                 });
             }
+        }
+
+        // =====================================================================
+        // LÓGICA DE FILTROS AVANÇADOS (NOVO)
+        // =====================================================================
+        
+        toggleFilterPanel() {
+            const panel = document.getElementById('advancedFilterPanel');
+            panel.classList.toggle('active');
+        }
+
+        clearFilters() {
+            // Limpa inputs
+            document.getElementById('fDataIni').value = '';
+            document.getElementById('fDataFim').value = '';
+            document.getElementById('fOrigem').value = '';
+            document.getElementById('fValorMin').value = '';
+            document.getElementById('fBuscaGlobal').value = '';
+            
+            // Limpa Select Multiplo
+            const sel = document.getElementById('fStatus');
+            for(let i=0; i<sel.options.length; i++) sel.options[i].selected = false;
+
+            // Limpa filtros da tabela
+            this.table.clearFilter();
+            this.table.clearHeaderFilter(); // Limpa também os filtros dos cabeçalhos
+            
+            this.showToast('Filtros limpos!', 'info');
+        }
+
+        applyAdvancedFilters() {
+            // Coleta Valores
+            const dtIni = document.getElementById('fDataIni').value;
+            const dtFim = document.getElementById('fDataFim').value;
+            const origem = document.getElementById('fOrigem').value;
+            const valMin = parseFloat(document.getElementById('fValorMin').value);
+            const busca = document.getElementById('fBuscaGlobal').value.toLowerCase();
+            
+            // Coleta Status Multiplo
+            const selStatus = document.getElementById('fStatus');
+            const statusList = Array.from(selStatus.selectedOptions).map(o => o.value);
+
+            // Cria função de filtro customizada para o Tabulator
+            const customFilter = (data) => {
+                let match = true;
+
+                // 1. Data Range
+                if (dtIni || dtFim) {
+                    const rowDateStr = this.formatDateInput(data.Data); // Retorna YYYY-MM-DD
+                    if (dtIni && rowDateStr < dtIni) match = false;
+                    if (dtFim && rowDateStr > dtFim) match = false;
+                }
+
+                // 2. Status (Array Check)
+                if (match && statusList.length > 0) {
+                    // Se não tiver status, considera como Original ou vazio
+                    const st = data.Status_Ajuste || 'Original'; 
+                    // Se o status da linha não estiver na lista selecionada
+                    if (!statusList.includes(st)) match = false;
+                }
+
+                // 3. Origem
+                if (match && origem) {
+                    if ((data.origem || '') !== origem) match = false;
+                }
+
+                // 4. Valor Mínimo (Absoluto do Saldo)
+                if (match && !isNaN(valMin)) {
+                    const saldo = Math.abs(parseFloat(data.Saldo || 0));
+                    if (saldo < valMin) match = false;
+                }
+
+                // 5. Busca Global (Texto)
+                if (match && busca) {
+                    const textContent = [
+                        data.Conta, 
+                        data.Descricao, 
+                        data['Título Conta'],
+                        data.Numero
+                    ].join(' ').toLowerCase();
+                    
+                    if (!textContent.includes(busca)) match = false;
+                }
+
+                return match;
+            };
+
+            // Aplica
+            this.table.setFilter(customFilter);
+            this.showToast('Filtros aplicados!', 'success');
         }
 
         // =====================================================================
