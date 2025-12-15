@@ -205,6 +205,9 @@ class AnaliseDREReport:
         Args:
             filtro_origem (str): String separada por vírgula. Ex: "FARMA,INTEC" ou "INTEC".
         """
+        # DEBUG VISUAL PARA CONFIRMAR A ATUALIZAÇÃO
+        print(f"\n[DEBUG] AnaliseDRE.processar_relatorio -> Filtro CC: {filtro_cc}\n")
+
         # 0. Preparação das Empresas Selecionadas
         if not filtro_origem:
             lista_empresas = []
@@ -220,7 +223,7 @@ class AnaliseDREReport:
         ajustes_edicao, ajustes_inclusao = self._get_ajustes_map()
         ordem_map = self._get_ordenamento()
         
-        # NOVO: Busca ordem dos subgrupos por NOME (para ordenação secundária)
+        # Busca ordem dos subgrupos por NOME (para ordenação secundária)
         ordem_subgrupos_por_nome = self._get_ordem_subgrupos_por_nome()
         
         sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Razao_Dados_Consolidado"')
@@ -277,9 +280,7 @@ class AnaliseDREReport:
             root_virtual_id = match.Raiz_No_Virtual_Id
             caminho = match.full_path or 'Não Classificado'
             
-            # =============================================================
             # CORREÇÃO DE ORDEM: Ordem primária + secundária (subgrupos)
-            # =============================================================
             ordem = 999
             ordem_secundaria = 500  # Valor médio default
             
@@ -296,8 +297,7 @@ class AnaliseDREReport:
             else:
                 ordem = ordem_map.get(f"tipo_cc:{tipo_cc}", 999)
             
-            # 4. NOVO: Ordem secundária baseada no PRIMEIRO subgrupo do caminho
-            # Isso garante que dentro de um tipo, os subgrupos sigam a ordem correta
+            # 4. Ordem secundária baseada no PRIMEIRO subgrupo do caminho
             if caminho and caminho not in ['Não Classificado', 'Direto', 'Calculado']:
                 partes = caminho.split('||')
                 if partes:
@@ -316,7 +316,7 @@ class AnaliseDREReport:
                     'origem': origem, 'Conta': conta_display, 'Titulo_Conta': titulo_para_exibicao,
                     'Tipo_CC': tipo_cc, 'Root_Virtual_Id': root_virtual_id, 'Caminho_Subgrupos': caminho, 
                     'ordem_prioridade': ordem, 
-                    'ordem_secundaria': ordem_secundaria,  # NOVO
+                    'ordem_secundaria': ordem_secundaria,
                     'Total_Ano': 0.0
                 }
                 for m in self.meses[:-1]: item[m] = 0.0
@@ -337,11 +337,11 @@ class AnaliseDREReport:
             for regra in lista_regras:
                 process_row("Config", conta_def, titulo_conta, None, 0.0, None, None, is_skeleton=True, forced_match=regra)
 
-        # 2. Construção da Query SQL Dinâmica (Multi-Origem IN Clause)
+        # 2. Construção da Query SQL Dinâmica (Multi-Origem e Multi-CC)
         where_clauses = []
         params = {}
         
-        # Cria parâmetros dinâmicos: :orig0, :orig1, etc.
+        # 2.1 Filtro de Origem (IN)
         orig_params_keys = []
         for i, emp in enumerate(lista_empresas):
             key = f"orig{i}"
@@ -353,10 +353,21 @@ class AnaliseDREReport:
         else:
             where_clauses.append("1=0")
 
-        # Filtro Centro de Custo
-        if filtro_cc and filtro_cc != 'Todos':
-            where_clauses.append("\"Centro de Custo\" = :cc")
-            params['cc'] = filtro_cc
+        # 2.2 Filtro de Centro de Custo (CORRIGIDO PARA IN)
+        cc_list = []
+        if filtro_cc and filtro_cc.lower() != 'todos':
+            cc_list = [cc.strip() for cc in filtro_cc.split(',') if cc.strip()]
+
+        if cc_list:
+            # Cria lista de placeholders :cc_0, :cc_1, etc.
+            cc_params_keys = []
+            for i, cc_val in enumerate(cc_list):
+                key = f"cc_{i}"
+                params[key] = cc_val
+                cc_params_keys.append(f":{key}")
+            
+            # Adiciona a cláusula IN ao WHERE
+            where_clauses.append(f"\"Centro de Custo\" IN ({', '.join(cc_params_keys)})")
 
         where_final = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
         
@@ -365,7 +376,9 @@ class AnaliseDREReport:
             FROM "Dre_Schema"."Razao_Dados_Consolidado" {where_final}
         """)
         
+        # Executa a query com os parâmetros expandidos
         raw_rows = self.session.execute(sql_raw, params).fetchall()
+        
         for row in raw_rows:
             h = gerar_hash(row)
             process_row(
@@ -377,10 +390,12 @@ class AnaliseDREReport:
         for adj in ajustes_inclusao:
             if adj.Origem not in lista_empresas: continue
             
-            if filtro_cc and filtro_cc != 'Todos':
-                if str(adj.Centro_Custo or '').strip() != str(filtro_cc).strip():
+            # Lógica corrigida para CC nas inclusões
+            if cc_list:
+                # Se o ajuste tem CC, verifica se está na lista selecionada
+                if str(adj.Centro_Custo or '').strip() not in cc_list:
                     continue
-
+            
             if not adj.Invalido:
                 saldo_adj = (float(adj.Debito or 0) - float(adj.Credito or 0)) if adj.Exibir_Saldo else 0.0
                 c = '00000000000' if adj.Is_Nao_Operacional else adj.Conta
@@ -393,13 +408,11 @@ class AnaliseDREReport:
 
         final_list = list(aggregated_data.values())
         
-        # =============================================================
-        # CORREÇÃO DE ORDENAÇÃO: Usa ordem primária + secundária
-        # =============================================================
+        # Ordenação final
         if agrupar_por_cc: 
             final_list.sort(key=lambda x: (
                 x.get('ordem_prioridade', 999), 
-                x.get('ordem_secundaria', 500),  # NOVO
+                x.get('ordem_secundaria', 500),
                 x.get('Tipo_CC', ''), 
                 x.get('Nome_CC') or '', 
                 x.get('Caminho_Subgrupos') or '', 
@@ -408,13 +421,13 @@ class AnaliseDREReport:
         else: 
             final_list.sort(key=lambda x: (
                 x.get('ordem_prioridade', 999), 
-                x.get('ordem_secundaria', 500),  # NOVO
+                x.get('ordem_secundaria', 500),
                 x.get('Caminho_Subgrupos') or '', 
                 x.get('Conta', '')
             ))
         
         return final_list
-
+    
     def calcular_nos_virtuais(self, data_rows):
         """Versão com Logs de Debug para Subgrupos"""
         print("\n\n=== INÍCIO DO CÁLCULO DE FÓRMULAS ===")

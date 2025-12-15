@@ -66,7 +66,7 @@ def RelatorioRazaoResumo():
 def ListaCentrosCusto():
     """
     Rota para popular o dropdown de Centros de Custo.
-    Retorna objeto {codigo, nome} para o frontend.
+    Retorna objeto {codigo, nome_exibicao} para o frontend.
     """
     session = None
     try:
@@ -83,8 +83,23 @@ def ListaCentrosCusto():
         
         rows = session.execute(sql).fetchall()
         
-        # Monta uma lista de dicionários/objetos
-        lista_ccs = [{'codigo': row.Codigo, 'nome': row.Nome} for row in rows]
+        # 1. Identificar nomes duplicados
+        nome_counts = {}
+        for row in rows:
+            nome_counts[row.Nome] = nome_counts.get(row.Nome, 0) + 1
+
+        lista_ccs = []
+        for row in rows:
+            nome_base = row.Nome
+            codigo = str(row.Codigo)
+
+            # 2. Desambiguação: Se o nome for duplicado, adiciona o código ao nome
+            nome_exibicao = nome_base
+            if nome_counts[nome_base] > 1:
+                nome_exibicao = f"{nome_base} ({codigo})"
+            
+            # Monta a lista de objetos, incluindo o código limpo para o 'value'
+            lista_ccs.append({'codigo': codigo, 'nome': nome_exibicao})
         
         return jsonify(lista_ccs), 200
         
@@ -111,15 +126,16 @@ def RelatorioRentabilidade():
              # Opcional: Se quiser forçar todas caso nada seja enviado
              filtro_origem_raw = "FARMA,FARMADIST,INTEC" 
 
-        scale_mode = request.args.get('scale_mode', 'dre') 
-        filtro_cc = request.args.get('centro_custo', 'Todos') 
+        scale_mode = request.args.get('scale_mode', 'dre')
+        # AJUSTE: Mudar para receber múltiplos CCs (string separada por vírgula)
+        filtro_cc = request.args.get('centro_custo', 'Todos')
         
         # Processamento
         # Passamos a string bruta separada por vírgula
         data = report.processar_relatorio(
             filtro_origem=filtro_origem_raw, 
             agrupar_por_cc=False, 
-            filtro_cc=filtro_cc
+            filtro_cc=filtro_cc # CC é passado como string "cc1,cc2" ou "Todos"
         )
         
         # Cálculos de nós virtuais (fórmulas)

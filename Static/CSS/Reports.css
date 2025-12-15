@@ -245,3 +245,251 @@
 }
 
 .loading-text { margin-top: var(--spacing-md); color: var(--text-secondary); font-weight: var(--font-weight-medium); }
+
+/* --------------------------------------------------------------------------
+   5. ESTILOS DO MULTI-SELECT DE CENTRO DE CUSTO (BI)
+   -------------------------------------------------------------------------- */
+
+/* Estilo para o Input Group que contém o Select (Ajustes finos de altura) */
+.bi-toolbar .input-group-sm {
+    height: 38px; /* Altura padrão dos elementos de controle */
+}
+
+/* Estilo do Select (Caixa de seleção múltipla) */
+.bi-toolbar select[multiple] {
+    /* Aparência base */
+    background: var(--bg-secondary); /* Usa o fundo do container BI */
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: 0; /* Remove padding padrão do select */
+    
+    /* Configurações de exibição (sempre mostrar a opção selecionada) */
+    display: block; 
+    height: 100% !important; /* Força a altura a preencher o input-group */
+    line-height: 1.5;
+    
+    /* Remove a seta padrão do select */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    
+    /* Configuração para o Menu Dropdown (Quando clicado) */
+    position: relative;
+}
+
+/* Estilo da Option (Os itens individuais da lista) */
+.bi-toolbar select[multiple] option {
+    padding: 8px 12px;
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    transition: background-color var(--transition-fast);
+    cursor: pointer;
+    font-size: var(--font-sm);
+}
+
+/* Estilo da Option ao passar o mouse */
+.bi-toolbar select[multiple] option:hover {
+    background-color: var(--bg-tertiary); /* Fundo mais escuro no hover */
+    color: var(--text-primary);
+}
+
+/* Estilo da Option SELECIONADA (Importante para visualização) */
+.bi-toolbar select[multiple] option:checked {
+    background-color: var(--primary); /* Cor primária para indicar seleção */
+    color: white; /* Texto branco */
+    /* Cria um pequeno marcador visual */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 13.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px 14px;
+}
+
+/* Estilo da primeira opção (Todos) para destacá-la */
+.bi-toolbar select[multiple] option:first-child {
+    font-weight: var(--font-weight-bold);
+    color: var(--primary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+/* --------------------------------------------------------------------------
+   5. ESTILOS DO MULTI-SELECT DE CENTRO DE CUSTO (CUSTOM DROPDOWN)
+   -------------------------------------------------------------------------- */
+
+/* Estilo para o Input Group que contém o Select (Ajustes finos de altura) */
+.bi-toolbar .input-group-sm {
+    height: 38px; /* Altura padrão dos elementos de controle */
+}
+
+/* Estilo do Botão que dispara o Dropdown */
+#ccFilterButton {
+    white-space: nowrap; /* Evita quebra de linha */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Adiciona '...' se o texto for muito longo */
+}
+
+/* Container do Dropdown Customizado (Caixa Pop-up) */
+.custom-dropdown-menu {
+    position: fixed;
+    z-index: 1000; /* Deve estar acima de tudo, mas abaixo do modal-backdrop */
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xl);
+    width: 350px; /* Largura fixa para o menu */
+    max-height: 400px; /* Altura máxima para a lista rolar */
+    display: flex;
+    flex-direction: column;
+    animation: fadeInScale 0.2s ease-out; /* Reutiliza a animação */
+}
+
+/* Barra de Pesquisa dentro do Dropdown */
+.dropdown-search-box {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-secondary);
+    display: flex;
+    align-items: center;
+}
+
+.dropdown-search-box i {
+    color: var(--text-tertiary);
+    margin-right: 8px;
+}
+
+.dropdown-search-box input {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    padding: 4px 0;
+    font-size: var(--font-sm);
+}
+
+.dropdown-search-box input:focus {
+    outline: none;
+}
+
+/* Container de Opções (Lista Rolável) */
+.dropdown-options-container {
+    overflow-y: auto;
+    padding: 0px 0 8px 0; /* Padding inferior para visualização */
+}
+
+/* Estilo do Label que contém o Checkbox e o Texto */
+.dropdown-option-label {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+    transition: background-color var(--transition-fast);
+    line-height: 1.2;
+}
+
+.dropdown-option-label:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.dropdown-option-label input[type="checkbox"] {
+    margin-right: 10px;
+    /* Estilização básica do checkbox, se necessário */
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* Opção "Selecionar Tudo" (Destacada) */
+.dropdown-all-option {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-secondary);
+    margin-bottom: 4px;
+}
+
+.dropdown-select-all {
+    font-weight: var(--font-weight-semibold);
+    color: var(--primary);
+}
+
+/* Estilo para o texto do CC selecionado no Label (Opcional) */
+.dropdown-option-label input[type="checkbox"]:checked + span {
+    color: var(--text-primary);
+    font-weight: var(--font-weight-medium);
+}
+
+/* --------------------------------------------------------------------------
+   SELETOR CLEAN (CENTRO DE CUSTO)
+   -------------------------------------------------------------------------- */
+
+.btn-selector-clean {
+    /* Base */
+    background: rgba(255, 255, 255, 0.03); /* Fundo quase transparente */
+    border: 1px solid var(--border-primary); /* Borda sutil do tema */
+    color: var(--text-primary);
+    border-radius: var(--radius-md); /* Cantos arredondados modernos (6px ou 8px) */
+    
+    /* Layout */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    height: 38px;
+    min-width: 200px; /* Largura mínima para não ficar espremido */
+    max-width: 350px;
+    
+    /* Tipografia */
+    font-size: var(--font-sm);
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-selector-clean:hover {
+    background: rgba(255, 255, 255, 0.08); /* Clareia levemente no hover */
+    border-color: var(--text-secondary); /* Borda fica um pouco mais visível */
+    transform: translateY(-1px); /* Feedback tátil sutil */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-selector-clean:active {
+    transform: translateY(0);
+}
+
+.btn-selector-clean .selector-label {
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: var(--font-weight-medium);
+}
+
+.btn-selector-clean i {
+    transition: color var(--transition-fast);
+}
+
+.btn-selector-clean:hover i {
+    color: var(--text-primary) !important; /* Ícones acendem no hover */
+}
+
+/* Estado Ativo (Quando há filtros selecionados) */
+.btn-selector-clean.active-filter {
+    background: rgba(var(--primary-rgb), 0.15); /* Fundo sutil com a cor primária */
+    border-color: var(--primary);
+    color: var(--primary-light);
+}
+
+.btn-selector-clean.active-filter i {
+    color: var(--primary) !important;
+}
+
+/* Ajuste do Dropdown para combinar com o novo botão */
+.custom-dropdown-menu {
+    margin-top: 8px; /* Pequeno espaçamento do botão */
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5); /* Sombra profunda estilo "elevation" */
+    border-radius: var(--radius-lg);
+}

@@ -37,8 +37,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     
                     viewMode: 'TIPO',
                     scaleMode: 'dre',
-                    ccFilter: 'Todos',
-                    listaCCs: [] 
+                    
+                    // --- ALTERADO: Agora é um array de códigos de CC selecionados ---
+                    selectedCCs: ['Todos'], // Padrão
+                    ccFilter: 'Todos',      // Mantido como fallback, mas usaremos selectedCCs
+                    listaCCs: [], 
+                    showAccounts: true,
                 };
             this.biDebounceTimer = null;
             this.biIsLoading = false;        
@@ -54,6 +58,15 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
         }
 
+        toggleAccountVisibility() {
+            if (this.biIsLoading) return;
+            this.biState.showAccounts = !this.biState.showAccounts;
+            
+            // Re-renderiza a interface (para atualizar o botão) e a tabela
+            this.renderBiInterface();
+            this.renderBiTable();
+        }
+        
         setupSystem() {
             const modalElement = document.getElementById('modalRelatorio');
             if (modalElement) {
@@ -301,7 +314,8 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         toggleViewMode() {
             if (this.biIsLoading) return;
             this.biState.viewMode = (this.biState.viewMode === 'TIPO') ? 'CC' : 'TIPO';
-            this.loadRentabilidadeReport(this.biState.origemFilter);
+            // Usa o primeiro elemento do array como filtro de origem (Embora a origem agora suporte múltiplos)
+            this.loadRentabilidadeReport(this.biState.selectedOrigins.join(',')); 
         }
 
         renderBiEmptyState() {
@@ -430,7 +444,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             } else {
                 // Se não tem, adiciona
                 newSelection = [...currentSelection, empresaClicada];
-            }
+            }renderBiTable
 
             // Atualiza estado visual imediatamente
             this.biState.selectedOrigins = newSelection;
@@ -459,7 +473,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         type: type, 
                         children: [], 
                         values: {},
-                        isVisible: true,
+                        isVisible: true, // Grupos e raízes sempre visíveis (a menos que filtrados)
                         isExpanded: this.biState.expanded.has(id),
                         ordem: defaultOrder 
                     };
@@ -522,7 +536,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     type: 'account',
                     children: [],
                     values: {},
-                    isVisible: true,
+                    isVisible: true, // <-- CONTA: Define a visibilidade inicial como TRUE
                     ordem: 0 
                 };
                 meses.forEach(m => contaNode.values[m] = parseFloat(row[m]) || 0);
@@ -533,7 +547,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.applyBiFilters();
         }
 
-    // --- NOVO MÉTODO: Carrega a lista de CCs para o Select ---
+        // --- NOVO MÉTODO: Carrega a lista de CCs para o Select ---
         async loadCCList() {
             if (this.biState.listaCCs.length > 0) return; // Cache simples
             
@@ -552,12 +566,189 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
         }
 
-        // --- NOVO MÉTODO: Handler para mudança no Dropdown ---
-        handleCCChange(newCC) {
+        // --- NOVO MÉTODO: Handler para mudança no Dropdown Multi-Select ---
+        handleCCChange(selectElement) {
             if (this.biIsLoading) return;
-            this.biState.ccFilter = newCC;
+            
+            const selectedOptions = Array.from(selectElement.selectedOptions).map(option => option.value);
+            
+            let newSelectedCCs = [];
+
+            if (selectedOptions.includes('Todos')) {
+                // Se 'Todos' foi selecionado, ele anula os outros
+                newSelectedCCs = ['Todos'];
+            } else if (selectedOptions.length === 0) {
+                 // Impedir de ficar vazio, se nada for selecionado, volta para "Todos"
+                 newSelectedCCs = ['Todos']; 
+            } else {
+                // Remove 'Todos' se outros foram selecionados
+                newSelectedCCs = selectedOptions.filter(v => v !== 'Todos');
+            }
+
+            // Atualiza o estado
+            this.biState.selectedCCs = newSelectedCCs;
+            this.biState.ccFilter = newSelectedCCs.join(','); // Mantém ccFilter para compatibilidade de visualização
+
             // Recarrega o relatório aplicando o novo filtro
-            this.loadRentabilidadeReport(this.biState.origemFilter);
+            this.loadRentabilidadeReport();
+        }
+
+        // --- NOVO MÉTODO: Abre o Dropdown customizado de CC ---
+        openCCFilterDropdown(buttonElement) {
+            if (this.biIsLoading) return;
+
+            const dropdownId = 'cc-filter-dropdown';
+            let dropdown = document.getElementById(dropdownId);
+            
+            // Se já estiver aberto, fecha
+            if (dropdown) {
+                dropdown.remove();
+                return;
+            }
+
+            // Cria o elemento dropdown container
+            dropdown = document.createElement('div');
+            dropdown.id = dropdownId;
+            dropdown.className = 'custom-dropdown-menu';
+            
+            // 1. Barra de Pesquisa (Opcional, mas útil para filtros grandes)
+            // Não vamos implementar a lógica de filtro real agora, apenas o campo.
+            const searchHtml = `
+                <div class="dropdown-search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Pesquisar Centro..." id="ccSearchInput" oninput="relatorioSystem.filterCCList(this.value)">
+                </div>`;
+            
+            // 2. Opções de Checkbox
+            const optionsHtml = this.biState.listaCCs.map(cc => {
+                const isSelected = this.biState.selectedCCs.includes(String(cc.codigo));
+                const uniqueId = `cc_chk_${cc.codigo}`;
+                
+                return `
+                    <label class="dropdown-option-label" data-name="${cc.nome.toLowerCase()}" data-code="${cc.codigo}">
+                        <input type="checkbox" value="${cc.codigo}" 
+                            ${isSelected ? 'checked' : ''} 
+                            onchange="relatorioSystem.handleCCCheckboxChange(this)">
+                        <span>${cc.nome}</span>
+                    </label>`;
+            }).join('');
+            
+            // Opção "Todos" separada
+            const isAllSelected = this.biState.selectedCCs.includes('Todos') || this.biState.selectedCCs.length === 0;
+            const allOptionHtml = `
+                <div class="dropdown-all-option">
+                    <label class="dropdown-option-label dropdown-select-all">
+                        <input type="checkbox" value="Todos" id="chkSelectAllCC" 
+                            ${isAllSelected ? 'checked' : ''} 
+                            onchange="relatorioSystem.handleSelectAllCC(this.checked)">
+                        <span>[ Selecionar Tudo ]</span>
+                    </label>
+                </div>`;
+
+
+            dropdown.innerHTML = searchHtml + `<div class="dropdown-options-container">${allOptionHtml}${optionsHtml}</div>`;
+            
+            // Posicionamento do dropdown
+            const rect = buttonElement.getBoundingClientRect();
+            dropdown.style.top = `${rect.bottom + 5}px`;
+            // Alinha o lado direito do dropdown com o lado direito do botão
+            dropdown.style.right = `${window.innerWidth - rect.right}px`; 
+
+            document.body.appendChild(dropdown);
+
+            // Adiciona listener para fechar ao clicar fora
+            const closeOnOutsideClick = (event) => {
+                if (dropdown && !dropdown.contains(event.target) && !buttonElement.contains(event.target)) {
+                    dropdown.remove();
+                    document.removeEventListener('click', closeOnOutsideClick);
+                }
+            };
+            setTimeout(() => { // Timeout para evitar o fechamento imediato
+                document.addEventListener('click', closeOnOutsideClick);
+            }, 100);
+        }
+
+        // --- NOVO MÉTODO: Lógica de Checagem Individual ---
+        handleCCCheckboxChange(checkbox) {
+            const code = checkbox.value;
+            let currentCCs = this.biState.selectedCCs.filter(v => v !== 'Todos');
+
+            if (checkbox.checked) {
+                // Adiciona e remove 'Todos' se for o caso
+                if (!currentCCs.includes(code)) currentCCs.push(code);
+            } else {
+                // Remove
+                currentCCs = currentCCs.filter(v => v !== code);
+            }
+
+            // Se nada for selecionado, volta para 'Todos'
+            if (currentCCs.length === 0) {
+                 this.biState.selectedCCs = ['Todos'];
+                 document.getElementById('chkSelectAllCC').checked = true;
+            } else {
+                 this.biState.selectedCCs = currentCCs;
+                 document.getElementById('chkSelectAllCC').checked = false;
+            }
+            
+            this.updateCCButtonDisplay();
+            
+            // Recarrega o relatório com um debounce para evitar chamadas excessivas
+            clearTimeout(this.biDebounceTimer); 
+            this.biDebounceTimer = setTimeout(() => { this.loadRentabilidadeReport(); }, 800);
+        }
+        
+        // --- NOVO MÉTODO: Lógica de Selecionar Tudo ---
+        handleSelectAllCC(isChecked) {
+             const checkboxes = document.querySelectorAll('.dropdown-options-container input[type="checkbox"]');
+             
+             if (isChecked) {
+                // Seleciona tudo e atualiza o estado
+                checkboxes.forEach(chk => chk.checked = true);
+                this.biState.selectedCCs = ['Todos'];
+             } else {
+                // Desmarca todos e o estado voltará a ser ['Todos'] ou o primeiro item marcado
+                checkboxes.forEach(chk => chk.checked = false);
+                this.biState.selectedCCs = []; // Deixa vazio, o handleCCCheckboxChange vai forçar para ['Todos']
+             }
+             
+             // Atualiza o display do botão imediatamente
+             this.updateCCButtonDisplay();
+
+             // Recarrega o relatório
+             clearTimeout(this.biDebounceTimer); 
+             this.biDebounceTimer = setTimeout(() => { this.loadRentabilidadeReport(); }, 800);
+        }
+
+        // --- NOVO MÉTODO: Filtragem visual (apenas no dropdown) ---
+        filterCCList(searchTerm) {
+            const term = searchTerm.toLowerCase();
+            const labels = document.querySelectorAll('.dropdown-options-container .dropdown-option-label');
+            
+            labels.forEach(label => {
+                const name = label.getAttribute('data-name');
+                const code = label.getAttribute('data-code');
+                const match = name.includes(term) || code.includes(term);
+                label.style.display = match ? 'flex' : 'none';
+            });
+        }
+        
+        // --- NOVO MÉTODO: Atualiza o texto do botão de filtro CC ---
+        updateCCButtonDisplay() {
+            const displaySpan = document.getElementById('ccFilterDisplay');
+            if (!displaySpan) return;
+            
+            let text;
+            const button = document.getElementById('ccFilterButton');
+            
+            if (this.biState.selectedCCs.includes('Todos')) {
+                text = 'Todos os Centros';
+                if(button) button.classList.remove('active-filter');
+            } else {
+                const count = this.biState.selectedCCs.length;
+                text = `${count} Centro(s) Selecionado(s)`;
+                if(button) button.classList.add('active-filter'); // Vamos usar isso no CSS para destacar
+            }
+            displaySpan.textContent = text;
         }
 
         async loadRentabilidadeReport(origemIgnorada = null) {
@@ -567,7 +758,15 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             await this.loadCCList();
 
             const scaleTitle = this.biState.scaleMode === 'dre' ? '(Em Milhares)' : '(Valor Integral)';
-            const ccTitle = this.biState.ccFilter === 'Todos' ? 'Todos os Centros' : `Filtro: ${this.biState.ccFilter}`;
+            
+            // NOVO: Exibe quantos CCs estão selecionados
+            const totalSelecionados = this.biState.selectedCCs.length;
+            let ccTitle;
+            if (this.biState.selectedCCs.includes('Todos')) {
+                ccTitle = 'Todos os Centros';
+            } else {
+                ccTitle = `Filtro: ${totalSelecionados} CC(s) selecionados`;
+            }
             
             this.modal.open(`<i class="fas fa-cubes"></i> Análise Gerencial <small class="modal-title">${scaleTitle} | ${ccTitle}</small>`, '');
             this.modal.showLoading('Calculando DRE...');
@@ -577,11 +776,13 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     ? API_ROUTES.getRentabilidadeData 
                     : '/Reports/RelatorioRazao/Rentabilidade';
 
-                // ENVIA O ARRAY JOINADO
+                // ENVIA O ARRAY JOINADO de origens (empresas)
                 const origemParam = encodeURIComponent(this.biState.selectedOrigins.join(','));
                 
+                // ENVIA O ARRAY JOINADO de centros de custo (múltiplos filtros)
+                const ccParam = encodeURIComponent(this.biState.selectedCCs.join(','));
+
                 const scaleParam = this.biState.scaleMode; 
-                const ccParam = encodeURIComponent(this.biState.ccFilter);
 
                 const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}&centro_custo=${ccParam}`);
                 
@@ -618,25 +819,18 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const btnScaleClass = isDreMode ? 'btn-info' : 'btn-secondary';
             const btnScaleIcon = isDreMode ? 'fa-divide' : 'fa-dollar-sign';
             const btnScaleText = isDreMode ? 'Escala: Milhares (DRE)' : 'Escala: Reais';
+            
+            const showAccounts = this.biState.showAccounts;
+            const btnAccountClass = showAccounts ? 'btn-success' : 'btn-outline-secondary';
+            const btnAccountIcon = showAccounts ? 'fa-eye' : 'fa-eye-slash';
+            const btnAccountText = showAccounts ? 'Contas: Visíveis' : 'Contas: Ocultas';
 
-            // GERAÇÃO DAS OPÇÕES DO SELECT (CORRIGIDO)
-            // Agora 'cc' é um objeto {codigo, nome}.
-            // O value será o código (para o backend) e o texto será o nome (para o usuário).
-            const optionsCC = [
-                `<option value="Todos" ${this.biState.ccFilter === 'Todos' ? 'selected' : ''}>Todos os Centros de Custo</option>`,
-                ...this.biState.listaCCs.map(cc => 
-                    // Verifica se o valor atual bate com o código do item
-                    `<option value="${cc.codigo}" ${String(this.biState.ccFilter) === String(cc.codigo) ? 'selected' : ''}>
-                        ${cc.nome}
-                    </option>`
-                )
-            ].join('');
-
-            // Tenta achar o nome do CC selecionado para exibir no rodapé (cosmético)
-            let nomeCCSelecionado = this.biState.ccFilter;
-            if (this.biState.ccFilter !== 'Todos' && this.biState.listaCCs.length > 0) {
-                const found = this.biState.listaCCs.find(c => String(c.codigo) === String(this.biState.ccFilter));
-                if (found) nomeCCSelecionado = found.nome;
+            // Tenta criar o nome do filtro para exibir no rodapé
+            let nomeCCSelecionado;
+            if (this.biState.selectedCCs.includes('Todos')) {
+                nomeCCSelecionado = 'Todos';
+            } else {
+                 nomeCCSelecionado = `${this.biState.selectedCCs.length} selecionados`;
             }
 
             const toolbar = `
@@ -644,19 +838,21 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     <div class="d-flex gap-2 align-items-center flex-wrap">
                         ${this.renderOrigemFilter()}
                         
-                        <div class="input-group input-group-sm" style="width: 300px;">
-                            <span class="input-group-text bg-dark border-secondary text-secondary" title="Filtrar por Centro de Custo">
-                                <i class="fas fa-building"></i>
-                            </span>
-                            <select class="form-select form-select-sm bg-dark text-light border-secondary" 
-                                    style="max-width: 260px;"
-                                    onchange="relatorioSystem.handleCCChange(this.value)">
-                                ${optionsCC}
-                            </select>
-                        </div>
+                        <button id="ccFilterButton" class="btn-selector-clean" 
+                                onclick="relatorioSystem.openCCFilterDropdown(this)"
+                                title="Filtrar por Centro de Custo">
+                            <i class="fas fa-building text-muted me-2"></i>
+                            <span id="ccFilterDisplay" class="selector-label">Todos os Centros</span>
+                            <i class="fas fa-chevron-down ms-3 text-xs text-muted"></i>
+                        </button>
+                        <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
 
                         <button class="btn btn-sm ${btnScaleClass}" onclick="relatorioSystem.toggleScaleMode()" title="Alternar Escala de Valores">
                             <i class="fas ${btnScaleIcon}"></i> ${btnScaleText}
+                        </button>
+                        
+                        <button class="btn btn-sm ${btnAccountClass}" onclick="relatorioSystem.toggleAccountVisibility()" title="Alternar Visibilidade das Contas">
+                            <i class="fas ${btnAccountIcon}"></i> ${btnAccountText}
                         </button>
 
                         <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
@@ -681,7 +877,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const footer = `
                 <div class="bi-footer p-2 bg-tertiary border-top border-primary d-flex justify-content-between align-items-center">
                     <span class="text-secondary text-xs">
-                        Fonte: <strong>${this.biState.origemFilter}</strong> | 
+                        Empresas: <strong>${this.biState.selectedOrigins.join(', ')}</strong> | 
                         Filtro CC: <strong class="text-info">${nomeCCSelecionado}</strong> | 
                         Escala: <strong>${this.biState.scaleMode.toUpperCase()}</strong>
                     </span>
@@ -689,9 +885,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 </div>`;
 
             this.modal.setContent(`<div style="display: flex; flex-direction: column; height: 100%;">${toolbar}${gridContainer}${footer}</div>`);
+            
+            this.updateCCButtonDisplay();
             this.renderBiTable();
         }
-            renderBiTable() {
+
+        renderBiTable() {
             const container = document.getElementById('biGridContainer');
             if (!container) return;
 
@@ -720,8 +919,14 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             const COLOR_GRAY   = 'color: var(--icon-secondary);'; 
             const COLOR_FOLDER = 'color: var(--icon-folder);'; 
             const COLOR_LIGHT  = 'color: var(--icon-account);';
+            
+            const showAccounts = this.biState.showAccounts; // <-- NOVO: Captura o estado
 
             const renderNode = (node, level) => {
+                
+                // NOVO: Verifica se a linha é uma conta e se deve ser oculta
+                if (node.type === 'account' && !showAccounts) return;
+                
                 if (!node.isVisible) return;
                 const padding = level * 20 + 10;
                 const isGroup = node.children && node.children.length > 0;
