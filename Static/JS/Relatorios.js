@@ -444,7 +444,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             } else {
                 // Se não tem, adiciona
                 newSelection = [...currentSelection, empresaClicada];
-            }renderBiTable
+            }
 
             // Atualiza estado visual imediatamente
             this.biState.selectedOrigins = newSelection;
@@ -465,7 +465,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 'Coml': 'COMERCIAL'
             };
 
-            const getOrCreateNode = (id, label, type, parentList, defaultOrder = 9999) => {
+            const getOrCreateNode = (id, label, type, parentList) => {
                 if (!map[id]) {
                     const node = { 
                         id: id, 
@@ -473,9 +473,9 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         type: type, 
                         children: [], 
                         values: {},
-                        isVisible: true, // Grupos e raízes sempre visíveis (a menos que filtrados)
+                        isVisible: true,
                         isExpanded: this.biState.expanded.has(id),
-                        ordem: defaultOrder 
+                        ordem: 999999 
                     };
                     meses.forEach(m => node.values[m] = 0);
                     map[id] = node;
@@ -488,26 +488,63 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 meses.forEach(m => node.values[m] += (parseFloat(row[m]) || 0));
             };
 
-            this.biRawData.forEach((row, index) => {
-                const ordemVal = (row.ordem_prioridade !== null && row.ordem_prioridade !== undefined) 
-                    ? row.ordem_prioridade 
-                    : (row.Ordem || row.ordem || (index * 10) + 1000);
+            // === CONTADOR DE DEBUG ===
+            let debugCounter = 0; 
+            const contaAlvoDebug = '60301020102'; // ID da conta "HORAS EXTRAS" do seu print
+            // =========================
 
+            this.biRawData.forEach((row, index) => {
+                
+                // ==========================================================================================
+                // [DEBUGGER] - INSERIDO PARA RASTREAR O VALOR -33MM
+                // ==========================================================================================
+                // Verifica se é a conta problemática (ou similar)
+                if ((String(row.Conta) === contaAlvoDebug) && debugCounter < 5) {
+                    console.group(`%c[DEBUG ERRO -33MM] Exemplo ${debugCounter + 1}`, 'color: yellow; background: #333; padding: 4px;');
+                    console.log(`📂 Conta:`, row.Conta, row.Titulo_Conta);
+                    console.log(`🏷️ Tipo_CC (Vindo do Backend):`, `%c"${row.Tipo_CC}"`, 'color: cyan; font-weight: bold;');
+                    console.log(`💰 Valor Jan:`, row.Jan);
+                    console.log(`🏭 Centro de Custo Original:`, row.Nome_CC || row['Centro de Custo']); 
+                    
+                    // AQUI ESTÁ O PULO DO GATO:
+                    // Se o Tipo_CC for 'Oper' (ou vazio que vira Oper), o JS vai somar no Custo Operacional.
+                    // Se o Backend mandou 'Adm', ele deveria ir para Administrativo.
+                    console.log(`👉 Para onde o JS vai mandar:`, labelMap[row.Tipo_CC] || row.Tipo_CC);
+                    
+                    console.log(`📄 Linha completa:`, row);
+                    console.groupEnd();
+                    debugCounter++;
+                }
+                // ==========================================================================================
+
+                let rawOrdem = null;
+                if (row.ordem_prioridade !== null && row.ordem_prioridade !== undefined) {
+                    rawOrdem = parseInt(row.ordem_prioridade);
+                } else if (row.Ordem !== null && row.Ordem !== undefined) {
+                    rawOrdem = parseInt(row.Ordem);
+                } else if (row.ordem !== null && row.ordem !== undefined) {
+                    rawOrdem = parseInt(row.ordem); 
+                }
+
+                // --- 1. NÓ RAIZ (Tipo) ---
                 const tipoId = `T_${row.Tipo_CC}`;
                 const labelExibicao = labelMap[row.Tipo_CC] || row.Tipo_CC;
-
-                const tipoNode = getOrCreateNode(tipoId, labelExibicao, 'root', root, ordemVal);
                 
+                const tipoNode = getOrCreateNode(tipoId, labelExibicao, 'root', root);
                 if (row.Root_Virtual_Id) tipoNode.virtualId = row.Root_Virtual_Id;
                 
-                if ((row.ordem_prioridade !== null || row.Ordem) && tipoNode.ordem >= 1000) {
-                    tipoNode.ordem = (row.ordem_prioridade !== null) ? row.ordem_prioridade : row.Ordem;
+                if (rawOrdem !== null && rawOrdem > 0 && rawOrdem < 1000) {
+                    if (tipoNode.ordem === 999999 || rawOrdem < tipoNode.ordem) {
+                        tipoNode.ordem = rawOrdem;
+                    }
                 }
+                
                 sumValues(tipoNode, row);
 
                 let currentNode = tipoNode;
                 let currentId = tipoId;
 
+                // --- 2. CENTRO DE CUSTO (Modo CC) ---
                 if (this.biState.viewMode === 'CC' && row.Nome_CC) {
                     const safeCCName = String(row.Nome_CC).replace(/[^a-zA-Z0-9]/g, '');
                     currentId += `_CC_${safeCCName}`;
@@ -516,28 +553,43 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     currentNode = ccNode;
                 }
 
+                // --- 3. SUBGRUPOS ---
                 if (row.Caminho_Subgrupos && row.Caminho_Subgrupos !== 'Não Classificado' && row.Caminho_Subgrupos !== 'Direto' && row.Caminho_Subgrupos !== 'Calculado') {
                     const groups = row.Caminho_Subgrupos.split('||');
+                    
                     groups.forEach((gName, idx) => {
                         const safeGName = gName.replace(/[^a-zA-Z0-9]/g, '');
                         currentId += `_G${idx}_${safeGName}`; 
-                        // O label aqui é o gName, que é usado na chave 'subgrupo:NOME'
+                        
                         const groupNode = getOrCreateNode(currentId, gName, 'group', currentNode.children);
+                        
+                        const isLastGroup = idx === groups.length - 1;
+                        if (isLastGroup && rawOrdem !== null && rawOrdem > 0) {
+                            if (groupNode.ordem === 999999 || rawOrdem < groupNode.ordem) {
+                                groupNode.ordem = rawOrdem;
+                            }
+                        }
+                        
                         sumValues(groupNode, row);
                         currentNode = groupNode;
                     });
                 }
 
+                // --- 4. CONTA (Folha) ---
                 const contaId = `C_${row.Conta}_${currentId}`; 
                 const contaNode = {
                     id: contaId,
                     label: `📄 ${row.Conta} - ${row.Titulo_Conta}`,
-                    rawTitle: row.Titulo_Conta, // <--- NOVO: Guarda o nome limpo para agregação
+                    rawTitle: row.Titulo_Conta,
+                    
+                    contaCodigo: row.Conta,   
+                    tipoCC: row.Tipo_CC,      
+
                     type: 'account',
                     children: [],
                     values: {},
-                    isVisible: true, // <-- CONTA: Define a visibilidade inicial como TRUE
-                    ordem: 0 
+                    isVisible: true,
+                    ordem: parseInt(row.Conta) || 999999
                 };
                 meses.forEach(m => contaNode.values[m] = parseFloat(row[m]) || 0);
                 currentNode.children.push(contaNode);
@@ -546,7 +598,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.biTreeData = root;
             this.applyBiFilters();
         }
-
+        
         // --- NOVO MÉTODO: Carrega a lista de CCs para o Select ---
         async loadCCList() {
             if (this.biState.listaCCs.length > 0) return; // Cache simples
@@ -1186,34 +1238,68 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         }
         async loadNosCalculados() { try { const r = await APIUtils.get((API_ROUTES?.getNosCalculados) || '/Configuracao/GetNosCalculados'); this.nosCalculados = r || []; return this.nosCalculados; } catch { return []; } }
         
-        calcularValorNo(formula, mes, valoresAgregados) {
+        calcularValorNo(formula, mes, valoresAgregados, contextoSuffix = null) {
             if (!formula || !formula.operandos) return 0;
-            const valores = formula.operandos.map(op => valoresAgregados[`${op.tipo}_${op.id}`]?.[mes] || 0);
+            
+            const valores = formula.operandos.map(op => {
+                const idOp = String(op.id).trim();
+                const tipoOp = op.tipo;
+                
+                // Lógica de Prioridade (Igual ao Python)
+                if (tipoOp === 'conta' && contextoSuffix) {
+                    const chaveEspecifica = `conta_${idOp}${contextoSuffix}`;
+                    if (valoresAgregados[chaveEspecifica] && valoresAgregados[chaveEspecifica][mes] !== undefined) {
+                        return valoresAgregados[chaveEspecifica][mes];
+                    }
+                }
+                
+                // Fallback genérico
+                return valoresAgregados[`${tipoOp}_${idOp}`]?.[mes] || 0;
+            });
+
             let res = 0;
             if (formula.operacao === 'soma') res = valores.reduce((a, b) => a + b, 0);
             else if (formula.operacao === 'subtracao') res = valores[0] - valores.slice(1).reduce((a, b) => a + b, 0);
             else if (formula.operacao === 'multiplicacao') res = valores.reduce((a, b) => a * b, 1);
             else if (formula.operacao === 'divisao') res = valores[1] !== 0 ? valores[0] / valores[1] : 0;
+            
             if (formula.multiplicador) res *= formula.multiplicador;
+            
             return res;
         }
 
         async processBiTreeWithCalculated() {
             this.processBiTree();
-            const nosCalc = await this.loadNosCalculados();
+            const nosCalc = await this.loadNosCalculados(); // Array de nós calculados
+
             if (nosCalc.length > 0) {
                 const valoresAgregados = this.agregarValoresPorTipo();
                 const meses = this.biState.columnsOrder;
+                
                 nosCalc.forEach(noCalc => {
                     if (!noCalc.formula) return;
+                    
+                    // === DETECÇÃO DE CONTEXTO NO JS ===
+                    let contextoSuffix = null;
+                    const nomeUpper = (noCalc.nome || '').toUpperCase();
+                    
+                    if (nomeUpper.includes('CUSTO') || nomeUpper.includes('OPERACIONAL')) contextoSuffix = 'Oper';
+                    else if (nomeUpper.includes('ADMINISTRATIVO')) contextoSuffix = 'Adm';
+                    else if (nomeUpper.includes('COMERCIAL') || nomeUpper.includes('VENDAS')) contextoSuffix = 'Coml';
+                    // ==================================
+
                     const valores = {};
                     meses.forEach(mes => {
-                        valores[mes] = this.calcularValorNo(noCalc.formula, mes, valoresAgregados);
+                        // Passamos o contextoSuffix para a função
+                        valores[mes] = this.calcularValorNo(noCalc.formula, mes, valoresAgregados, contextoSuffix);
                     });
+
+                    // Salva na memória para uso em fórmulas subsequentes
                     const chaveMemoria = `no_virtual_${noCalc.id}`;
                     if (!valoresAgregados[chaveMemoria]) valoresAgregados[chaveMemoria] = {};
                     meses.forEach(mes => valoresAgregados[chaveMemoria][mes] = valores[mes]);
 
+                    // Tooltip
                     let textoTooltip = noCalc.formula_descricao;
                     if (!textoTooltip && noCalc.formula) {
                         const ops = noCalc.formula.operandos || [];
@@ -1222,6 +1308,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         textoTooltip = `Fórmula: ${opMap[noCalc.formula.operacao] || noCalc.formula.operacao}\nEnvolvendo: ${nomesOps}`;
                     }
 
+                    // Tenta encontrar a ordem original se ela existir nos dados brutos, senão usa a do cadastro
                     const rowBackend = this.biRawData.find(r => (r.Root_Virtual_Id == noCalc.id) || (r.Titulo_Conta === noCalc.nome));
                     let ordemCorreta = 50;
                     if (rowBackend && rowBackend.ordem_prioridade !== null) ordemCorreta = rowBackend.ordem_prioridade;
@@ -1245,6 +1332,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 });
             }
 
+            // 4. Filtra duplicatas (Se um nó calculado substitui uma raiz padrão)
             const nomesCalculados = new Set(this.biTreeData.filter(n => n.type === 'calculated').map(n => (n.rawLabel || n.label.replace('📊 ', '')).toUpperCase().trim()));
             this.biTreeData = this.biTreeData.filter(node => {
                 if (node.type === 'root') {
@@ -1253,18 +1341,33 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 }
                 return true;
             });
-            this.biTreeData.sort((a, b) => {
-                const ordA = (a.ordem !== undefined && a.ordem !== null) ? a.ordem : 9999;
-                const ordB = (b.ordem !== undefined && b.ordem !== null) ? b.ordem : 9999;
-                return ordA - ordB;
-            });
+
+            // 5. ORDENAÇÃO RECURSIVA (Correção do Bug)
+            const sortRecursive = (nodes) => {
+                if (!nodes || nodes.length === 0) return;
+
+                // Ordena o nível atual
+                nodes.sort((a, b) => {
+                    const ordA = (a.ordem !== undefined && a.ordem !== null) ? a.ordem : 99999;
+                    const ordB = (b.ordem !== undefined && b.ordem !== null) ? b.ordem : 99999;
+                    return ordA - ordB;
+                });
+
+                // Ordena os filhos recursivamente
+                nodes.forEach(node => {
+                    if (node.children && node.children.length > 0) {
+                        sortRecursive(node.children);
+                    }
+                });
+            };
+
+            sortRecursive(this.biTreeData);
         }
 
         agregarValoresPorTipo() {
             const agregados = {};
             const meses = this.biState.columnsOrder;
 
-            // Helper para inicializar o objeto se não existir
             const initKey = (key) => {
                 if (!agregados[key]) {
                     agregados[key] = {};
@@ -1272,7 +1375,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 }
             };
 
-            // Função recursiva para varrer toda a árvore
             const traverse = (node) => {
                 // 1. Agregação por TIPO (Raiz)
                 if (node.type === 'root') {
@@ -1289,28 +1391,46 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     meses.forEach(m => agregados[keyVirt][m] += (node.values[m] || 0));
                 }
 
-                // 3. Agregação por SUBGRUPO (Aqui está a correção para DESCONTOS)
+                // 3. Agregação por SUBGRUPO
                 if (node.type === 'group') {
-                    // node.label contém o nome do grupo (ex: "DESCONTOS")
                     const keySub = `subgrupo_${node.label}`;
                     initKey(keySub);
                     meses.forEach(m => agregados[keySub][m] += (node.values[m] || 0));
                 }
+                
+                // 4. Agregação por CONTA (Folha)
+                // É aqui que garantimos a chave composta
+                if (node.type === 'account' && node.contaCodigo) {
+                    
+                    // A. Chave Pura (ex: conta_60301020101)
+                    const keyPura = `conta_${node.contaCodigo}`;
+                    initKey(keyPura);
+                    meses.forEach(m => agregados[keyPura][m] += (node.values[m] || 0));
 
-                // 4. Agregação por TÍTULO DE CONTA (Fallback)
-                if (node.type === 'account' && node.rawTitle) {
-                    const keyConta = `subgrupo_${node.rawTitle}`;
-                    initKey(keyConta);
-                    meses.forEach(m => agregados[keyConta][m] += (node.values[m] || 0));
+                    // B. Chave Composta (ex: conta_60301020101Oper)
+                    // Verifica se temos o tipoCC limpo
+                    if (node.tipoCC) {
+                        const tipoClean = node.tipoCC.trim();
+                        // Lista segura de tipos para evitar criação de chaves inválidas
+                        if (['Coml', 'Oper', 'Adm'].includes(tipoClean)) {
+                            const keyComposta = `conta_${node.contaCodigo}${tipoClean}`;
+                            
+                            initKey(keyComposta);
+                            meses.forEach(m => agregados[keyComposta][m] += (node.values[m] || 0));
+                            
+                            // DEBUG TEMPORÁRIO NO CONSOLE DO BROWSER
+                            if (node.contaCodigo === '60301020101') {
+                                // console.log(`[JS DEBUG] Chave Gerada: ${keyComposta} | Valor Jan: ${node.values['Jan']}`);
+                            }
+                        }
+                    }
                 }
 
-                // Continua descendo na árvore
                 if (node.children && node.children.length > 0) {
                     node.children.forEach(child => traverse(child));
                 }
             };
 
-            // Inicia a varredura a partir da raiz
             this.biTreeData.forEach(rootNode => traverse(rootNode));
             
             return agregados;

@@ -282,8 +282,7 @@
                     Selecione os elementos que compõem o cálculo:
                 </p>
                 <div id="containerOperandos" class="operandos-list">
-                    <!-- Gerado dinamicamente -->
-                </div>
+                    </div>
                 <button class="btn btn-xs btn-outline mt-2" onclick="addOperando()">
                     <i class="fas fa-plus"></i> Adicionar Operando
                 </button>
@@ -308,8 +307,7 @@
             <div class="preview-formula">
                 <label>Pré-visualização:</label>
                 <div id="previewFormula" class="formula-preview">
-                    <!-- Ex: Faturamento + Operacional -->
-                </div>
+                    </div>
             </div>
         </div>
         
@@ -355,7 +353,7 @@
             </div>
             
             <div class="scrollable-list" id="listStdLinkedAccounts">
-                </div>
+            </div>
 
             <div class="footer-input-area">
                 <label>Adicionar Conta</label>
@@ -395,17 +393,19 @@
 <div id="modalReplicar" class="modal-backdrop">
     <div class="modal-window modal-md">
         <div class="modal-header">
-            <h3>Replicar Estrutura</h3>
+            <h3 id="lblReplicarTitle">Replicar Estrutura</h3>
             <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
         </div>
         <div class="modal-body full-height">
-            <p class="modal-subtitle">Origem: <strong id="lblOrigemReplicar">...</strong></p>
+            <div class="mb-2">
+                <strong id="lblOrigemReplicar">...</strong>
+            </div>
+            
             <div class="selection-controls">
                 <button class="btn btn-xs btn-text" onclick="toggleAllDestinos()">Inverter Seleção</button>
                 <span id="lblTotalSelecionados">0 selecionados</span>
             </div>
-            <div id="listaDestinos" class="checklist-container">
-                </div>
+            <div id="listaDestinos" class="checklist-container"></div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
@@ -449,6 +449,10 @@
 
     <div class="ctx-item highlight" id="ctxMassManager" onclick="openMassManager()">
         <i class="fas fa-layer-group"></i> Gerenciar em Massa
+    </div>
+
+    <div class="ctx-item" id="ctxReplicarTipo" onclick="openReplicarTipoModal()" style="display: none; color: #e74c3c;">
+        <i class="fas fa-exchange-alt"></i> Replicar (Substituir)
     </div>
 
     <div class="ctx-separator" id="divCopy"></div>
@@ -506,6 +510,7 @@
         vincularContaEmMassa:   "{{ url_for('DreConfig.VincularContaEmMassa') }}",
         colarEstrutura:         "{{ url_for('DreConfig.ColarEstrutura') }}",
         replicarEstrutura:      "{{ url_for('DreConfig.ReplicarEstrutura') }}",
+        replicarTipoIntegral:   "{{ url_for('DreConfig.ReplicarTipoIntegral') }}", // ROTA ADICIONADA
 
         // --- CONFIGURAÇÃO: ESCRITA (DELETAR/DESVINCULAR) ---
         deleteSubgrupo:         "{{ url_for('DreConfig.DeleteSubgrupo') }}",

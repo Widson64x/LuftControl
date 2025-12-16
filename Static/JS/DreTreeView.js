@@ -9,6 +9,7 @@ let contextNode = { id: null, type: null, text: null, ordem: null };
 let clipboard = null;
 let currentSelectedGroup = null;
 let ordenamentoAtivo = false;
+let tipoDestinoIntegral = null; // Controle para replicação de Tipos
 
 // DEFINIÇÃO DE PREFIXOS (Baseado nos seus logs)
 const PREFIX_ORDEM = '/T-controllership/DreOrdenamento';
@@ -412,6 +413,7 @@ function handleRightClick(e, node, element) {
     // 3. Menus Específicos por Tipo
     if (isRoot) {
         show('ctxMassManager'); 
+        show('ctxReplicarTipo');
     } 
     else if (isGroup) {
         show('ctxAddSub'); showDiv('divCopy');
@@ -1140,6 +1142,131 @@ async function submitMassReorder() {
     }
 }
 
+// --- REPLICAÇÃO INTEGRAL DE TIPO CC ---
+
+let tipoDestinoSelecionado = null;
+
+// ==========================================================================
+// 9. REPLICAÇÃO INTEGRAL (TIPO -> TIPO)
+// ==========================================================================
+
+async function openReplicarTipoModal() {
+    // Verifica se é um nó de tipo (ex: "tipo_Oper")
+    if (!contextNode.id.startsWith('tipo_')) return;
+    
+    tipoDestinoIntegral = contextNode.id.replace('tipo_', '');
+    const nomeDestino = getLabelTipoCC(tipoDestinoIntegral);
+    
+    const modal = document.getElementById('modalReplicar');
+    const content = document.getElementById('listaDestinos');
+    const btn = document.querySelector('#modalReplicar .btn-primary');
+    const title = document.querySelector('#modalReplicar .modal-header h3');
+    const headerInfo = document.querySelector('#modalReplicar .modal-body .mb-2') || document.querySelector('#lblOrigemReplicar').parentElement;
+
+    // 1. Adapta o Modal (Reutiliza a estrutura visual)
+    if(title) title.innerText = "Replicar Estrutura Completa";
+    
+    // Altera o cabeçalho para focar no DESTINO (que será apagado)
+    if(headerInfo) {
+        headerInfo.innerHTML = `
+            <div style="background:#fff5f5; border-left:4px solid #e74c3c; padding:10px;">
+                <h5 style="margin:0; color:#c0392b;">DESTINO: ${nomeDestino}</h5>
+                <small style="color:#7f8c8d;">Todo o conteúdo deste tipo será APAGADO e substituído.</small>
+            </div>
+            <div style="margin-top:15px; font-weight:bold;">Selecione a ORIGEM (Modelo):</div>
+        `;
+    }
+
+    // 2. Preenche lista de Tipos de Origem (excluindo o destino atual)
+    const tiposDisponiveis = Object.keys(MAPA_TIPOS_CC).filter(t => t !== tipoDestinoIntegral);
+
+    if (tiposDisponiveis.length === 0) {
+        content.innerHTML = '<div class="alert alert-warning">Não há outros tipos cadastrados para usar como origem.</div>';
+        btn.disabled = true;
+    } else {
+        let html = `<select id="selectTipoOrigemIntegral" class="form-select" style="width:100%; padding:10px; font-size:1.1em; margin-bottom:15px;">
+            <option value="" selected disabled>-- Selecione o Tipo de Origem --</option>`;
+        
+        tiposDisponiveis.forEach(t => {
+            html += `<option value="${t}">📂 ${getLabelTipoCC(t)}</option>`;
+        });
+        
+        html += `</select>
+        <div class="alert alert-info small">
+            <i class="fas fa-info-circle"></i> 
+            A estrutura de grupos e vínculos de contas da origem selecionada será copiada para <strong>todos</strong> os Centros de Custo de <em>${nomeDestino}</em>.
+        </div>`;
+        
+        content.innerHTML = html;
+        btn.disabled = false;
+    }
+
+    // 3. Configura o Botão de Ação
+    btn.onclick = submitReplicarTipoAction; // Aponta para a nova função
+    btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Substituir Tudo';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-danger'); // Muda cor para indicar perigo (se CSS permitir)
+
+    // Abre o modal
+    openModal('modalReplicar');
+}
+
+async function submitReplicarTipoAction() {
+    const select = document.getElementById('selectTipoOrigemIntegral');
+    if(!select || !select.value) return showToast("Por favor, selecione uma origem.");
+    
+    const tipoOrigem = select.value;
+    const nomeDestino = getLabelTipoCC(tipoDestinoIntegral);
+    const nomeOrigem = getLabelTipoCC(tipoOrigem);
+
+    // Confirmação Dupla
+    if (!confirm(`⚠️ ATENÇÃO CRÍTICA ⚠️\n\nVocê escolheu replicar a estrutura de "${nomeOrigem}" para "${nomeDestino}".\n\n1. TODOS os grupos atuais de "${nomeDestino}" serão excluídos.\n2. TODOS os vínculos de contas de "${nomeDestino}" serão removidos.\n3. A nova estrutura será criada idêntica à de "${nomeOrigem}".\n\nDeseja realmente continuar?`)) return;
+
+    // Prepara UI
+    const btn = document.querySelector('#modalReplicar .btn-primary') || document.querySelector('#modalReplicar .btn-danger');
+    const txtOriginal = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+    btn.disabled = true;
+
+    // Usa a rota mapeada no API_ROUTES
+    const url = getRoute('replicarTipoIntegral', '/Configuracao/ReplicarTipoIntegral', 'config');
+
+    try {
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                tipo_origem: tipoOrigem,
+                tipo_destino: tipoDestinoIntegral
+            })
+        });
+        
+        const data = await r.json();
+
+        if (r.ok) {
+            showToast("Replicação concluída com sucesso!");
+            closeModals();
+            
+            // Restaura estilo do botão (boa prática)
+            btn.classList.add('btn-primary');
+            btn.classList.remove('btn-danger');
+            
+            await autoSync(); // Sincroniza ordenamento
+            await loadTree(); // Recarrega árvore
+        } else {
+            alert("Erro na replicação: " + (data.error || "Erro desconhecido"));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Erro de comunicação: " + e.message);
+    } finally {
+        if(btn) {
+            btn.innerHTML = txtOriginal;
+            btn.disabled = false;
+        }
+    }
+}
+
 function submitMassDelete() {
     // CORREÇÃO: Lê do dataset.code
     const nome = document.getElementById('selectMassDeleteGroup').value;
@@ -1177,9 +1304,27 @@ function openAddRootGroup() {
 
 async function openReplicarModal() {
     openModal('modalReplicar');
-    document.getElementById('lblOrigemReplicar').innerText = contextNode.text;
+    
+    // RESET DE INTERFACE (Para evitar conflito com a Replicação de Tipo)
+    const btn = document.querySelector('#modalReplicar .btn-primary');
+    const title = document.querySelector('#modalReplicar .modal-header h3');
+    const headerInfo = document.querySelector('#modalReplicar .modal-body .mb-2') || document.querySelector('#lblOrigemReplicar').parentElement;
+
+    if(btn) {
+        btn.onclick = submitReplicar; // Restaura função original
+        btn.innerHTML = 'Replicar';
+        btn.disabled = false;
+    }
+    if(title) title.innerText = "Replicar Estrutura (Subgrupo)";
+    
+    // Restaura o cabeçalho padrão
+    if(headerInfo) {
+        headerInfo.innerHTML = `Origem: <strong id="lblOrigemReplicar">${contextNode.text}</strong>`;
+    }
+
+    // Lógica original de carregar destinos
     const list = document.getElementById('listaDestinos');
-    list.innerHTML = 'Carregando...';
+    list.innerHTML = '<div class="text-center text-muted p-2"><i class="fas fa-spinner fa-spin"></i> Carregando destinos...</div>';
     
     try {
         const url = getRoute('getDadosArvore', '/Configuracao/GetDadosArvore', 'config');
@@ -1188,16 +1333,23 @@ async function openReplicarModal() {
         let html = '';
         data.forEach(root => {
             if(root.type === 'root_tipo') {
-                html += `<div style="background:rgba(0,0,0,0.2);padding:5px;font-weight:bold;margin-top:5px;">${root.text}</div>`;
+                html += `<div style="background:var(--bg-secondary); padding:5px; font-weight:bold; margin-top:8px; border-radius:4px;">${root.text}</div>`;
                 root.children.forEach(cc => {
+                    // Não mostra o próprio nó origem na lista de destinos
                     if(cc.id !== contextNode.id) {
-                        html += `<label style="display:block;padding:5px;cursor:pointer;"><input type="checkbox" class="chk-dest" value="${cc.id.replace('cc_','')}"> ${cc.text}</label>`;
+                        html += `
+                        <label style="display:block; padding:8px 5px; cursor:pointer; border-bottom:1px solid #eee;">
+                            <input type="checkbox" class="chk-dest" value="${cc.id.replace('cc_','')}"> 
+                            <span style="margin-left:8px;">${cc.text}</span>
+                        </label>`;
                     }
                 });
             }
         });
-        list.innerHTML = html;
-    } catch(e){ list.innerHTML = 'Erro: ' + e.message; }
+        list.innerHTML = html || '<div class="p-2">Nenhum destino disponível.</div>';
+    } catch(e){ 
+        list.innerHTML = `<div class="text-danger p-2">Erro: ${e.message}</div>`; 
+    }
 }
 
 function toggleAllDestinos() {
