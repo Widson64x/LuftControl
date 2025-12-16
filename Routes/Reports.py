@@ -117,25 +117,18 @@ def RelatorioRentabilidade():
         session = get_pg_session()
         report = AnaliseDREReport(session)
         
-        # Parâmetros da URL
-        # Agora 'origem' pode ser "FARMA,INTEC" ou vazio
         filtro_origem_raw = request.args.get('origem', '')
-        
-        # Se vier vazio, definimos um padrão ou enviamos vazio (o processador lidará)
         if not filtro_origem_raw:
-             # Opcional: Se quiser forçar todas caso nada seja enviado
              filtro_origem_raw = "FARMA,FARMADIST,INTEC" 
 
         scale_mode = request.args.get('scale_mode', 'dre')
-        # AJUSTE: Mudar para receber múltiplos CCs (string separada por vírgula)
         filtro_cc = request.args.get('centro_custo', 'Todos')
         
         # Processamento
-        # Passamos a string bruta separada por vírgula
         data = report.processar_relatorio(
             filtro_origem=filtro_origem_raw, 
             agrupar_por_cc=False, 
-            filtro_cc=filtro_cc # CC é passado como string "cc1,cc2" ou "Todos"
+            filtro_cc=filtro_cc 
         )
         
         # Cálculos de nós virtuais (fórmulas)
@@ -145,9 +138,20 @@ def RelatorioRentabilidade():
         if scale_mode == 'dre':
             final_data = report.aplicar_milhares(final_data)
         
+        # === DEBUG BACKEND ===
+        print(f"\n[DEBUG ROUTE] Enviando {len(final_data)} linhas.")
+        if len(final_data) > 0:
+            import json
+            print("[DEBUG ROUTE] Amostra das 5 primeiras linhas:")
+            # Usamos default=str para evitar erro de serialização de data/decimal
+            print(json.dumps(final_data[:5], indent=2, default=str)) 
+        # =====================
+
         return jsonify(final_data), 200
     except Exception as e:
         current_app.logger.error(f"Erro AnaliseDREReport: {e}")
+        # Print do erro no console também para facilitar
+        print(f"ERRO CRÍTICO NO RELATÓRIO: {e}")
         abort(500, description=f"Erro interno: {str(e)}")
     finally:
         if session: session.close()

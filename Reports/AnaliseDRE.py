@@ -109,39 +109,43 @@ class AnaliseDREReport:
         rows = self.session.execute(sql).fetchall()
         return {f"{r.tipo_no}:{r.id_referencia}": r.ordem for r in rows}
 
-    def _get_ordem_subgrupos_por_nome(self):
+    def _get_ordem_subgrupos_por_contexto(self):
         """
-        NOVO: Busca a ordem dos subgrupos agrupados por NOME.
-        Como o mesmo subgrupo (ex: 'Pessoal') pode existir em vários CCs,
-        pegamos a MENOR ordem encontrada para usar como referência.
+        CORREÇÃO BUG ORDENAÇÃO:
+        Busca a ordem dos subgrupos considerando o NOME e o TIPO DE CC.
+        Isso impede que a ordem do 'Comercial' afete o 'Operacional' e vice-versa.
         
-        Retorna: {nome_subgrupo: menor_ordem_encontrada}
+        Retorna: {(nome_subgrupo, tipo_cc): ordem}
         """
         sql = text("""
             SELECT 
                 h."Nome",
-                h."Id",
+                h."Raiz_Centro_Custo_Tipo",
                 COALESCE(o.ordem, 999) as ordem
             FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" h
             LEFT JOIN "Dre_Schema"."DRE_Ordenamento" o 
                 ON CAST(h."Id" AS TEXT) = o.id_referencia 
                 AND o.tipo_no = 'subgrupo'
             WHERE h."Id_Pai" IS NULL
-            ORDER BY ordem ASC
+            ORDER BY o.ordem ASC
         """)
         rows = self.session.execute(sql).fetchall()
         
-        # Agrupa por nome, pegando a MENOR ordem (primeira aparição)
-        ordem_por_nome = {}
+        # Agora a chave é composta: (Nome, Tipo)
+        ordem_por_contexto = {}
         for r in rows:
-            nome = r.Nome
-            if nome not in ordem_por_nome:
-                ordem_por_nome[nome] = r.ordem
+            nome = str(r.Nome).strip()
+            tipo = str(r.Raiz_Centro_Custo_Tipo).strip() if r.Raiz_Centro_Custo_Tipo else 'Indefinido'
+            
+            chave = (nome, tipo)
+            
+            # Se já existe, mantemos a menor ordem (caso haja duplicidade dentro do MESMO tipo, o que é raro)
+            if chave not in ordem_por_contexto:
+                ordem_por_contexto[chave] = r.ordem
             else:
-                # Mantém a menor ordem
-                ordem_por_nome[nome] = min(ordem_por_nome[nome], r.ordem)
+                ordem_por_contexto[chave] = min(ordem_por_contexto[chave], r.ordem)
         
-        return ordem_por_nome
+        return ordem_por_contexto
 
     def debug_structure_and_order(self):
         """
@@ -223,14 +227,14 @@ class AnaliseDREReport:
         ajustes_edicao, ajustes_inclusao = self._get_ajustes_map()
         ordem_map = self._get_ordenamento()
         
-        # Busca ordem dos subgrupos por NOME (para ordenação secundária)
-        ordem_subgrupos_por_nome = self._get_ordem_subgrupos_por_nome()
+        # --- ALTERAÇÃO AQUI: Busca dicionário por contexto (Nome + Tipo) ---
+        ordem_subgrupos_contexto = self._get_ordem_subgrupos_por_contexto()
         
         sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Razao_Dados_Consolidado"')
         res_nomes = self.session.execute(sql_nomes).fetchall()
         mapa_titulos = {row[0]: row[1] for row in res_nomes}
 
-        aggregated_data = {} 
+        aggregated_data = {}
 
         def process_row(origem, conta, titulo, data, saldo, cc_original_str, row_hash=None, is_skeleton=False, forced_match=None):
             # A. EDIÇÕES (Prioridade sobre dados originais)
@@ -273,36 +277,41 @@ class AnaliseDREReport:
                 if not match: 
                     match = rules[0]
             
-            if not match: return
-
             # C. AGRUPAMENTO E SOMA
+            if not match: return # (Só pra garantir contexto do código)
+
             tipo_cc = match.Tipo_Principal or 'Outros'
             root_virtual_id = match.Raiz_No_Virtual_Id
             caminho = match.full_path or 'Não Classificado'
             
-            # CORREÇÃO DE ORDEM: Ordem primária + secundária (subgrupos)
+            # --- CORREÇÃO DE ORDEM ---
             ordem = 999
-            ordem_secundaria = 500  # Valor médio default
+            ordem_secundaria = 500
             
-            # 1. Se tem ID de Virtual, busca ordem do virtual
+            # 1. Ordem Primária (Raiz)
             if root_virtual_id:
                 ordem = ordem_map.get(f"virtual:{root_virtual_id}", 999)
-            
-            # 2. Se é grupo raiz (sem CC nem Virtual), busca ordem do subgrupo
             elif match.Is_Root_Group:
                 if match.Id_Hierarquia:
                     ordem = ordem_map.get(f"subgrupo:{match.Id_Hierarquia}", 0)
-            
-            # 3. Senão, busca ordem do tipo_cc
             else:
                 ordem = ordem_map.get(f"tipo_cc:{tipo_cc}", 999)
             
-            # 4. Ordem secundária baseada no PRIMEIRO subgrupo do caminho
+            # 2. Ordem Secundária (Subgrupos) - CORRIGIDO
             if caminho and caminho not in ['Não Classificado', 'Direto', 'Calculado']:
                 partes = caminho.split('||')
                 if partes:
                     primeiro_grupo = partes[0].strip()
-                    ordem_secundaria = ordem_subgrupos_por_nome.get(primeiro_grupo, 500)
+                    # Busca usando a chave composta (Nome do Grupo, Tipo do CC Atual)
+                    chave_busca = (primeiro_grupo, str(tipo_cc).strip())
+                    
+                    # Se não achar com o tipo específico, tenta buscar só pelo nome como fallback (opcional, mas seguro)
+                    if chave_busca in ordem_subgrupos_contexto:
+                        ordem_secundaria = ordem_subgrupos_contexto[chave_busca]
+                    else:
+                        # Fallback: Tenta achar qualquer ocorrência desse grupo (para evitar ficar no fim da lista)
+                        # Isso é útil se o Tipo vier como 'Outros' ou nulo
+                        ordem_secundaria = 999 
 
             conta_display = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else conta
             titulo_para_exibicao = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else titulo
