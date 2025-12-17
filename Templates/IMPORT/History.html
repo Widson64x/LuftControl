@@ -1,0 +1,100 @@
+{% extends "Base.html" %}
+
+{% block title %}Histórico de Importações | T-Controllership{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h2 style="font-weight: 700;">Auditoria de Importações</h2>
+            <p class="text-secondary">Logs de execução e reversão de cargas de dados.</p>
+        </div>
+        <a href="{{ url_for('import_data.index') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i> Nova Importação
+        </a>
+    </div>
+
+    <div class="card" style="border-radius: var(--radius-lg); border: 1px solid var(--border-primary); overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background: var(--bg-secondary);">
+                <tr>
+                    <th style="padding: 1rem; text-align: left;">Data/Hora</th>
+                    <th style="padding: 1rem; text-align: left;">Usuário</th>
+                    <th style="padding: 1rem; text-align: left;">Origem</th>
+                    <th style="padding: 1rem; text-align: left;">Arquivo</th>
+                    <th style="padding: 1rem; text-align: left;">Competência</th>
+                    <th style="padding: 1rem; text-align: center;">Status</th>
+                    <th style="padding: 1rem; text-align: right;">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr style="border-bottom: 1px solid var(--border-primary);">
+                    <td style="padding: 1rem;">{{ log.Data_Importacao.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td style="padding: 1rem;">{{ log.Usuario }}</td>
+                    <td style="padding: 1rem; font-size: 0.9rem;">{{ log.Tabela_Destino.replace('Razao_Dados_Origem_', '') }}</td>
+                    <td style="padding: 1rem;">{{ log.Nome_Arquivo }}</td>
+                    <td style="padding: 1rem; font-weight: 700;">{{ log.Competencia }}</td>
+                    <td style="padding: 1rem; text-align: center;">
+                        {% if log.Status == 'Ativo' %}
+                            <span class="badge" style="background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 4px;">Ativo</span>
+                        {% else %}
+                            <span class="badge" style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px;">Revertido</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1rem; text-align: right;">
+                        {% if log.Status == 'Ativo' %}
+                            <button onclick="openRollbackModal('{{ log.Id }}', '{{ log.Competencia }}')" class="btn btn-sm btn-ghost text-danger" title="Reverter Importação">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        {% else %}
+                            <i class="fas fa-ban text-secondary" title="Já revertido"></i>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Nenhum registro encontrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="rollbackModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card slide-in-up" style="width: 400px; padding: 2rem; background: white;">
+        <h3 style="color: var(--danger); margin-bottom: 1rem;">Confirmar Reversão</h3>
+        <p>Você está prestes a remover <b>TODOS</b> os dados da competência <span id="modalComp" style="font-weight: bold;"></span> desta origem.</p>
+        <p style="font-size: 0.9rem; margin-bottom: 1rem;">Esta ação será auditada.</p>
+        
+        <form action="{{ url_for('import_data.rollback') }}" method="POST">
+            <input type="hidden" name="log_id" id="modalLogId">
+            
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Motivo (Obrigatório):</label>
+            <textarea name="reason" required class="form-control" rows="3" style="width: 100%; margin-bottom: 1.5rem; border: 1px solid var(--border-primary); padding: 0.5rem;" placeholder="Ex: Arquivo enviado com dados incorretos..."></textarea>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('rollbackModal').style.display='none'">Cancelar</button>
+                <button type="submit" class="btn btn-danger">Confirmar Reversão</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openRollbackModal(id, competencia) {
+        document.getElementById('modalLogId').value = id;
+        document.getElementById('modalComp').innerText = competencia;
+        document.getElementById('rollbackModal').style.display = 'flex';
+    }
+    
+    // Fecha modal ao clicar fora
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('rollbackModal')) {
+            document.getElementById('rollbackModal').style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}

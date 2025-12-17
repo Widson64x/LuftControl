@@ -1,0 +1,173 @@
+{% extends "Base.html" %}
+
+{% block title %}Mapeamento e Ajustes | T-Controllership{% endblock %}
+
+{% block content %}
+<div class="container fade-in" style="max-width: 1400px;">
+    
+    <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+            <span class="badge" style="background: var(--primary); color: white; margin-bottom: 0.5rem;">Origem: {{ source }}</span>
+            <h2 style="font-weight: 700;">Mapeamento e Transformação</h2>
+            <p class="text-secondary">O sistema carregou suas preferências da última importação.</p>
+        </div>
+        <div id="loadingPreview" style="display: none; color: var(--primary); font-weight: 600;">
+            <i class="fas fa-spinner fa-spin me-2"></i> Atualizando Preview...
+        </div>
+    </div>
+
+    <form action="{{ url_for('import_data.confirm') }}" method="POST" id="importForm">
+        <input type="hidden" name="filename" id="filename" value="{{ filename }}">
+        <input type="hidden" name="source" value="{{ source }}">
+
+        <div class="card" style="overflow: visible; border-radius: var(--radius-lg); border: 1px solid var(--border-primary);">
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
+                <thead style="background: var(--bg-secondary); position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); text-align: left;">Coluna Excel</th>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); width: 15%; text-align: left;">Amostra (Linha 5)</th>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); width: 20%; text-align: left;">Transformação / Ajuste</th>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); width: 5%; text-align: center;"><i class="fas fa-arrow-right"></i></th>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); width: 25%; text-align: left;">Destino (Banco de Dados) <span style="color:red">*</span></th>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); width: 15%; background: #f8fafc; text-align: left;">Preview Final (Banco)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for col in excel_columns %}
+                    <tr style="border-bottom: 1px solid var(--border-primary);">
+                        <td style="padding: 1rem;">
+                            <div style="font-weight: 600; color: var(--text-primary);">{{ col }}</div>
+                            <small style="color: var(--text-tertiary);">{{ col_types[col] }}</small>
+                        </td>
+
+                        <td style="padding: 1rem; font-family: monospace; color: var(--text-secondary); background: #fff; font-size: 0.9rem;">
+                            {{ sample_row[col] }}
+                        </td>
+
+                        <td style="padding: 1rem;">
+                            <select name="trans_{{ col }}" class="form-select trans-select" data-col="{{ col }}" style="font-size: 0.9rem; width: 100%;">
+                                <option value="none" {% if not saved_transforms.get(col) %}selected{% endif %}>-- Original --</option>
+                                <option value="clean_code" style="font-weight: bold; color: #d97706;" 
+                                    {% if saved_transforms.get(col) == 'clean_code' %}selected{% endif %}>Limpar Códigos (Apenas Números)</option>
+                                <option value="currency_br" {% if saved_transforms.get(col) == 'currency_br' %}selected{% endif %}>Moeda BR (1.000,00 -> 1000.00)</option>
+                                <option value="date_auto" {% if saved_transforms.get(col) == 'date_auto' %}selected{% endif %}>Data Automática</option>
+                                <option value="upper" {% if saved_transforms.get(col) == 'upper' %}selected{% endif %}>TEXTO MAIÚSCULO</option>
+                                <option value="lower" {% if saved_transforms.get(col) == 'lower' %}selected{% endif %}>texto minúsculo</option>
+                                <option value="clean_spaces" {% if saved_transforms.get(col) == 'clean_spaces' %}selected{% endif %}>Remover Espaços Extras</option>
+                                <option value="to_int" {% if saved_transforms.get(col) == 'to_int' %}selected{% endif %}>Forçar Inteiro</option>
+                            </select>
+                        </td>
+
+                        <td style="padding: 1rem; text-align: center; color: var(--text-tertiary);">
+                            <i class="fas fa-chevron-right"></i>
+                        </td>
+
+                        <td style="padding: 1rem;">
+                            <select name="map_{{ col }}" class="form-select map-select" data-col="{{ col }}" style="width: 100%; border-color: var(--primary);">
+                                <option value="IGNORE" style="color: #999;">-- Ignorar Coluna --</option>
+                                {% for db_key, db_label in db_columns.items() %}
+                                    <option value="{{ db_key }}" 
+                                        {# Regra: Se existe salvo, usa o salvo. Se não, tenta bater pelo nome #}
+                                        {% if saved_mapping.get(col) == db_key %}selected
+                                        {% elif not saved_mapping.get(col) and col.lower() == db_key.lower() %}selected{% endif %}>
+                                        {{ db_label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+
+                        <td style="padding: 1rem; background: #f8fafc; border-left: 1px solid var(--border-primary);">
+                            <div id="preview_{{ col|replace(' ', '_') }}" class="preview-cell">
+                                <span style="color: #ccc; font-style: italic; font-size: 0.85rem;">Ignorado</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+            <a href="{{ url_for('import_data.index') }}" class="btn btn-ghost">Cancelar</a>
+            <button type="submit" class="btn btn-success" id="btnConfirm">
+                <i class="fas fa-check-circle me-2"></i> Confirmar e Importar
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selects = document.querySelectorAll('select');
+        const filename = document.getElementById('filename').value;
+        const loading = document.getElementById('loadingPreview');
+        let timeout = null;
+
+        function updatePreview() {
+            loading.style.display = 'block';
+            
+            const mapping = {};
+            const transforms = {};
+            
+            document.querySelectorAll('.map-select').forEach(el => {
+                if(el.value !== 'IGNORE') mapping[el.dataset.col] = el.value;
+            });
+            
+            document.querySelectorAll('.trans-select').forEach(el => {
+                if(el.value !== 'none') transforms[el.dataset.col] = el.value;
+            });
+
+            fetch("{{ url_for('import_data.api_preview') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename, mapping, transforms })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.querySelectorAll('.preview-cell').forEach(el => {
+                    el.innerHTML = '<span style="color: #ccc; font-style: italic; font-size: 0.85rem;">Ignorado</span>';
+                });
+
+                if(data.error) {
+                    console.error("Erro no preview:", data.error);
+                    return;
+                }
+
+                for (const [col, info] of Object.entries(data)) {
+                    const safeId = col.replace(/ /g, '_'); 
+                    const cell = document.getElementById('preview_' + safeId);
+                    
+                    if(cell) {
+                        let badgeColor = '#e2e8f0'; 
+                        let badgeText = '#333';
+                        
+                        if (info.tipo === 'Numérico') { badgeColor = '#dbeafe'; badgeText = '#1e40af'; }
+                        if (info.tipo === 'Data/Hora') { badgeColor = '#dcfce7'; badgeText = '#166534'; }
+                        if (info.tipo === 'Vazio' || info.valor === 'NULL') { badgeColor = '#fee2e2'; badgeText = '#991b1b'; }
+
+                        cell.innerHTML = `
+                            <div style="font-weight: bold; color: #334155; font-size: 0.9rem;">${info.valor}</div>
+                            <span class="badge" style="background: ${badgeColor}; color: ${badgeText}; font-size: 0.7rem; margin-top: 4px; padding: 2px 6px; border-radius: 4px;">
+                                ${info.tipo}
+                            </span>
+                        `;
+                    }
+                }
+            })
+            .catch(err => console.error("Falha na requisição:", err))
+            .finally(() => {
+                loading.style.display = 'none';
+            });
+        }
+
+        updatePreview();
+
+        selects.forEach(select => {
+            select.addEventListener('change', () => {
+                clearTimeout(timeout);
+                timeout = setTimeout(updatePreview, 500); 
+            });
+        });
+    });
+</script>
+{% endblock %}
