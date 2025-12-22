@@ -1755,10 +1755,7 @@ def ColarEstrutura():
 @login_required
 def ReplicarTipoIntegral():
     """
-    OTIMIZADO: Replicação Integral (Deep Copy) de Tipo CC para Tipo CC.
-    1. Apaga TODA a estrutura do Tipo Destino.
-    2. Copia a estrutura de Subgrupos da Origem para TODOS os CCs do Destino.
-    3. Copia os vínculos de contas ajustando as Chaves.
+    Replicação Integral (Grupos + Vínculos Padrão + Personalizadas + Transformação de String).
     """
     session = get_session()
     try:
@@ -1773,31 +1770,37 @@ def ReplicarTipoIntegral():
             return jsonify({"error": "Origem e destino devem ser diferentes."}), 400
 
         start = time.time()
+        print(f"\n[DEBUG] --- INICIANDO REPLICAÇÃO COMPLETA: {tipo_origem} -> {tipo_destino} ---")
 
         # ==============================================================================
         # PASSO 1: LIMPEZA TOTAL DO DESTINO (WIPE)
         # ==============================================================================
+        print(f"[DEBUG] 1. Limpando destino '{tipo_destino}'...")
         
         sql_ids_destino = text("""
             SELECT "Id" FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" 
             WHERE "Raiz_Centro_Custo_Tipo" = :dest
         """)
-        ids_destino = [row[0] for row in session.execute(sql_ids_destino, {"dest": tipo_destino}).fetchall()]
+        rows_destino = session.execute(sql_ids_destino, {"dest": tipo_destino}).fetchall()
+        ids_destino = [row[0] for row in rows_destino]
         
         if ids_destino:
-            # Limpeza geral
+            print(f"[DEBUG] -> Removendo {len(ids_destino)} grupos antigos.")
+            
+            # Limpa ordenamento
             limpar_ordenamento_bulk(session, [('subgrupo', str(id)) for id in ids_destino])
             limpar_ordenamento_por_contextos(session, [f'sg_{id}' for id in ids_destino])
             
+            # Deletes em ordem de dependência
             session.execute(text('DELETE FROM "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" WHERE "Id_Hierarquia" = ANY(:ids)'), {"ids": ids_destino})
             session.execute(text('DELETE FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" WHERE "Id_Hierarquia" = ANY(:ids)'), {"ids": ids_destino})
             session.execute(text('DELETE FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" WHERE "Id" = ANY(:ids)'), {"ids": ids_destino})
-
+        
         # ==============================================================================
-        # PASSO 2: PREPARAÇÃO DOS DADOS (BLUEPRINT)
+        # PASSO 2: PREPARAÇÃO (BLUEPRINT)
         # ==============================================================================
+        print(f"[DEBUG] 2. Lendo estrutura de '{tipo_origem}'...")
 
-        # Busca todos os CCs do Destino
         sql_ccs_destino = text("""
             SELECT DISTINCT "Codigo", "Nome" 
             FROM "Dre_Schema"."Classificacao_Centro_Custo"
@@ -1806,9 +1809,8 @@ def ReplicarTipoIntegral():
         ccs_destino = session.execute(sql_ccs_destino, {"dest": tipo_destino}).fetchall()
 
         if not ccs_destino:
-            return jsonify({"error": f"Não existem Centros de Custo cadastrados para o tipo '{tipo_destino}'."}), 400
+            return jsonify({"error": f"Sem Centros de Custo para '{tipo_destino}'."}), 400
 
-        # Busca a estrutura baseada em nomes (Nível 0 e Nível 1)
         sql_blueprint = text("""
             SELECT DISTINCT 
                 h."Nome", 
@@ -1822,21 +1824,27 @@ def ReplicarTipoIntegral():
         blueprint_structure = session.execute(sql_blueprint, {"orig": tipo_origem}).fetchall()
 
         # ==============================================================================
-        # PASSO 3: RECRIAÇÃO DA HIERARQUIA
+        # PASSO 3: RECRIAÇÃO DOS GRUPOS
         # ==============================================================================
+        print(f"[DEBUG] 3. Recriando estrutura de grupos...")
         
-        mapa_ids_criados = {} # (NomeGrupo, CodigoCC) -> NovoId
-        grupos_raiz_nomes = set() # Para uso no ordenamento
+        mapa_ids_criados = {} 
+        grupos_raiz_nomes = set()
+        
+        def transformar_nome(nome_atual):
+            if not nome_atual: return nome_atual
+            return nome_atual.replace(tipo_origem, tipo_destino)
 
-        # 3.1 Criar Grupos Raiz
+        # 3.1 Grupos Raiz
         grupos_raiz = [b for b in blueprint_structure if b.Nivel == 0]
         inserts_raiz = []
         
         for cc in ccs_destino:
             for gr in grupos_raiz:
-                grupos_raiz_nomes.add(gr.Nome)
+                novo_nome = transformar_nome(gr.Nome)
+                grupos_raiz_nomes.add(novo_nome)
                 inserts_raiz.append({
-                    "Nome": gr.Nome,
+                    "Nome": novo_nome,
                     "Id_Pai": None,
                     "Raiz_Centro_Custo_Codigo": cc.Codigo,
                     "Raiz_Centro_Custo_Nome": cc.Nome,
@@ -1854,21 +1862,24 @@ def ReplicarTipoIntegral():
                 res = session.execute(stmt, item).fetchone()
                 mapa_ids_criados[(res.Nome, res.Raiz_Centro_Custo_Codigo)] = res.Id
 
-        # 3.2 Criar Subgrupos (Filhos)
+        # 3.2 Subgrupos
         grupos_filhos = [b for b in blueprint_structure if b.Nivel == 1]
         inserts_filhos = []
 
         for cc in ccs_destino:
             for gf in grupos_filhos:
-                id_pai = mapa_ids_criados.get((gf.Nome_Pai, cc.Codigo))
+                novo_nome_pai = transformar_nome(gf.Nome_Pai)
+                novo_nome_filho = transformar_nome(gf.Nome)
+                id_pai = mapa_ids_criados.get((novo_nome_pai, cc.Codigo))
+                
                 if id_pai:
                     inserts_filhos.append({
-                        "Nome": gf.Nome,
+                        "Nome": novo_nome_filho,
                         "Id_Pai": id_pai,
                         "Raiz_Centro_Custo_Codigo": cc.Codigo,
                         "Raiz_Centro_Custo_Nome": cc.Nome,
                         "Raiz_Centro_Custo_Tipo": tipo_destino,
-                        "Nome_Pai": gf.Nome_Pai # Auxiliar para ordenamento
+                        "Nome_Pai": novo_nome_pai 
                     })
 
         if inserts_filhos:
@@ -1883,10 +1894,10 @@ def ReplicarTipoIntegral():
                 mapa_ids_criados[(res.Nome, res.Raiz_Centro_Custo_Codigo)] = res.Id
 
         # ==============================================================================
-        # PASSO 4: RECRIAÇÃO DOS VÍNCULOS DE CONTAS
+        # PASSO 4: VÍNCULOS PADRÃO
         # ==============================================================================
+        print(f"[DEBUG] 4. Copiando contas padrão...")
         
-        # (Mantido idêntico ao anterior para brevidade, focado no ordenamento abaixo)
         sql_contas_origem = text("""
             SELECT DISTINCT h."Nome" as "Nome_Grupo", v."Conta_Contabil"
             FROM "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v
@@ -1897,8 +1908,9 @@ def ReplicarTipoIntegral():
 
         inserts_contas = []
         for row in contas_blueprint:
+            nome_grupo_dest = transformar_nome(row.Nome_Grupo)
             for cc in ccs_destino:
-                id_hier = mapa_ids_criados.get((row.Nome_Grupo, cc.Codigo))
+                id_hier = mapa_ids_criados.get((nome_grupo_dest, cc.Codigo))
                 if id_hier:
                     inserts_contas.append({
                         "Conta_Contabil": str(row.Conta_Contabil),
@@ -1913,78 +1925,90 @@ def ReplicarTipoIntegral():
                 ("Conta_Contabil", "Id_Hierarquia", "Chave_Conta_Tipo_CC", "Chave_Conta_Codigo_CC")
                 VALUES (:Conta_Contabil, :Id_Hierarquia, :Chave_Conta_Tipo_CC, :Chave_Conta_Codigo_CC)
                 ON CONFLICT ("Chave_Conta_Codigo_CC") DO UPDATE SET
-                    "Id_Hierarquia" = EXCLUDED."Id_Hierarquia",
-                    "Chave_Conta_Tipo_CC" = EXCLUDED."Chave_Conta_Tipo_CC"
+                    "Id_Hierarquia" = EXCLUDED."Id_Hierarquia"
             """)
             session.execute(stmt_contas, inserts_contas)
 
         # ==============================================================================
-        # PASSO 5: REPLICAÇÃO DO ORDENAMENTO (NOVO)
+        # PASSO 4.1: CONTAS PERSONALIZADAS (CORREÇÃO)
         # ==============================================================================
+        print(f"[DEBUG] 4.1. Copiando contas personalizadas...")
+
+        sql_pers_origem = text("""
+            SELECT DISTINCT h."Nome" as "Nome_Grupo", p."Conta_Contabil", p."Nome_Personalizado"
+            FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p
+            JOIN "Dre_Schema"."DRE_Estrutura_Hierarquia" h ON p."Id_Hierarquia" = h."Id"
+            WHERE h."Raiz_Centro_Custo_Tipo" = :orig
+        """)
+        pers_blueprint = session.execute(sql_pers_origem, {"orig": tipo_origem}).fetchall()
+
+        inserts_pers = []
+        for row in pers_blueprint:
+            nome_grupo_dest = transformar_nome(row.Nome_Grupo)
+            
+            for cc in ccs_destino:
+                id_hier = mapa_ids_criados.get((nome_grupo_dest, cc.Codigo))
+                if id_hier:
+                    # Chave única conceitual para personalizadas é (Conta, Hierarquia)
+                    inserts_pers.append({
+                        "Conta_Contabil": str(row.Conta_Contabil),
+                        "Nome_Personalizado": row.Nome_Personalizado,
+                        "Id_Hierarquia": id_hier
+                    })
+
+        if inserts_pers:
+            print(f"[DEBUG] -> Inserindo {len(inserts_pers)} personalizadas.")
+            stmt_pers = text("""
+                INSERT INTO "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" 
+                ("Conta_Contabil", "Nome_Personalizado", "Id_Hierarquia")
+                VALUES (:Conta_Contabil, :Nome_Personalizado, :Id_Hierarquia)
+                ON CONFLICT ("Conta_Contabil", "Id_Hierarquia") DO UPDATE SET
+                    "Nome_Personalizado" = EXCLUDED."Nome_Personalizado"
+            """)
+            session.execute(stmt_pers, inserts_pers)
+
+        # ==============================================================================
+        # PASSO 5: ORDENAMENTO (GRUPOS)
+        # ==============================================================================
+        print(f"[DEBUG] 5. Ordenamento...")
         
-        # 5.1 Busca o "Blueprint" da ordem na origem
-        # Agrupa pelo nome para pegar uma ordem padrão (MIN) caso existam divergências na origem
         sql_ordem_blueprint = text("""
-            SELECT 
-                h."Nome", 
-                p."Nome" as "Nome_Pai",
-                MIN(o.ordem) as "Ordem_Padrao"
+            SELECT h."Nome", p."Nome" as "Nome_Pai", MIN(o.ordem) as "Ordem_Padrao"
             FROM "Dre_Schema"."DRE_Ordenamento" o
             JOIN "Dre_Schema"."DRE_Estrutura_Hierarquia" h ON o.id_referencia = CAST(h."Id" AS TEXT)
             LEFT JOIN "Dre_Schema"."DRE_Estrutura_Hierarquia" p ON h."Id_Pai" = p."Id"
             WHERE o.tipo_no = 'subgrupo' AND h."Raiz_Centro_Custo_Tipo" = :orig
             GROUP BY h."Nome", p."Nome"
         """)
-        
         ordem_rows = session.execute(sql_ordem_blueprint, {"orig": tipo_origem}).fetchall()
         
-        # Mapa: (NomeGrupo, NomePai_ou_None) -> Ordem
         mapa_ordem = {}
         for row in ordem_rows:
-            key = (row.Nome, row.Nome_Pai) # NomePai é None para raiz
-            mapa_ordem[key] = row.Ordem_Padrao
+            mapa_ordem[(transformar_nome(row.Nome), transformar_nome(row.Nome_Pai))] = row.Ordem_Padrao
 
-        # 5.2 Prepara os inserts na tabela de ordenamento do destino
         inserts_ordenamento = []
-        
         for (nome_grupo, cod_cc), novo_id in mapa_ids_criados.items():
-            
-            # Descobre se é Raiz ou Filho para saber a chave de busca da ordem e o contexto
-            # Verificamos se esse nome estava na lista de raizes capturada no passo 3.1
             eh_raiz = nome_grupo in grupos_raiz_nomes
-            
             ordem_valor = 999
             contexto_pai = ""
             nivel = 0
             
             if eh_raiz:
-                # Raiz: Contexto é o código do CC (ex: cc_1001)
                 contexto_pai = f"cc_{cod_cc}"
                 nivel = 2
                 ordem_valor = mapa_ordem.get((nome_grupo, None), 999)
             else:
-                # Filho: Precisamos achar o ID do Pai no destino para definir o contexto (ex: sg_500)
-                # Como não temos o nome do pai fácil aqui no loop do mapa_ids, 
-                # vamos inferir procurando nos inserts_filhos que guardamos na memória
-                
-                # Procura quem é o pai desse grupo neste CC específico
-                # (Nota: isso pode ser otimizado, mas para volumes normais de DRE é rápido)
                 match_filho = next((x for x in inserts_filhos if x['Nome'] == nome_grupo and x['Raiz_Centro_Custo_Codigo'] == cod_cc), None)
-                
                 if match_filho:
                     id_pai_novo = match_filho['Id_Pai']
                     contexto_pai = f"sg_{id_pai_novo}"
                     nivel = 3
                     ordem_valor = mapa_ordem.get((nome_grupo, match_filho['Nome_Pai']), 999)
-                else:
-                    continue # Segurança
+                else: continue
 
             inserts_ordenamento.append(DreOrdenamento(
-                tipo_no='subgrupo',
-                id_referencia=str(novo_id),
-                contexto_pai=contexto_pai,
-                ordem=ordem_valor,
-                nivel_profundidade=nivel
+                tipo_no='subgrupo', id_referencia=str(novo_id),
+                contexto_pai=contexto_pai, ordem=ordem_valor, nivel_profundidade=nivel
             ))
 
         if inserts_ordenamento:
@@ -1993,11 +2017,9 @@ def ReplicarTipoIntegral():
         session.commit()
         
         elapsed = time.time() - start
-        msg = f"Sucesso! Estrutura replicada de '{tipo_origem}' para '{tipo_destino}'. " \
-              f"Grupos: {len(mapa_ids_criados)}. Vínculos: {len(inserts_contas)}. Ordenamento: {len(inserts_ordenamento)}."
-        print(f"⚡ ReplicarTipoIntegral: {elapsed:.2f}s - {msg}")
+        print(f"[DEBUG] --- CONCLUÍDO ({elapsed:.2f}s) ---\n")
 
-        return jsonify({"success": True, "msg": msg}), 200
+        return jsonify({"success": True, "msg": f"Replicação completa concluída."}), 200
 
     except Exception as e:
         session.rollback()
