@@ -124,6 +124,8 @@ def RelatorioRentabilidade():
         scale_mode = request.args.get('scale_mode', 'dre')
         filtro_cc = request.args.get('centro_custo', 'Todos')
         
+        print(f"\n[ROTA DEBUG] Chamando processar_relatorio...")
+        
         # Processamento
         data = report.processar_relatorio(
             filtro_origem=filtro_origem_raw, 
@@ -131,21 +133,16 @@ def RelatorioRentabilidade():
             filtro_cc=filtro_cc 
         )
         
+        print(f"[ROTA DEBUG] Retorno processar_relatorio: {len(data)} linhas.")
+
         # Cálculos de nós virtuais (fórmulas)
         final_data = report.calcular_nos_virtuais(data)
+        
+        print(f"[ROTA DEBUG] Retorno calcular_nos_virtuais: {len(final_data)} linhas.")
         
         # Aplicação da escala
         if scale_mode == 'dre':
             final_data = report.aplicar_milhares(final_data)
-        
-        # === DEBUG BACKEND ===
-        print(f"\n[DEBUG ROUTE] Enviando {len(final_data)} linhas.")
-        if len(final_data) > 0:
-            import json
-            print("[DEBUG ROUTE] Amostra das 5 primeiras linhas:")
-            # Usamos default=str para evitar erro de serialização de data/decimal
-            print(json.dumps(final_data[:5], indent=2, default=str)) 
-        # =====================
 
         return jsonify(final_data), 200
     except Exception as e:

@@ -1219,8 +1219,18 @@ async function submitReplicarTipoAction() {
     const nomeDestino = getLabelTipoCC(tipoDestinoIntegral);
     const nomeOrigem = getLabelTipoCC(tipoOrigem);
 
+    // Logs de Debug do Cliente
+    console.group("🚀 Debug: Replicar Tipo CC");
+    console.log(`Origem Selecionada: ${tipoOrigem} (${nomeOrigem})`);
+    console.log(`Destino Alvo: ${tipoDestinoIntegral} (${nomeDestino})`);
+    console.log("Ação: Substituição Integral com Transformação de String");
+
     // Confirmação Dupla
-    if (!confirm(`⚠️ ATENÇÃO CRÍTICA ⚠️\n\nVocê escolheu replicar a estrutura de "${nomeOrigem}" para "${nomeDestino}".\n\n1. TODOS os grupos atuais de "${nomeDestino}" serão excluídos.\n2. TODOS os vínculos de contas de "${nomeDestino}" serão removidos.\n3. A nova estrutura será criada idêntica à de "${nomeOrigem}".\n\nDeseja realmente continuar?`)) return;
+    if (!confirm(`⚠️ ATENÇÃO: Iniciando clonagem de '${nomeOrigem}' para '${nomeDestino}'.\nIsso apagará TODO o conteúdo de '${nomeDestino}'.\n\nConfirma?`)) {
+        console.log("Cancelado pelo usuário.");
+        console.groupEnd();
+        return;
+    }
 
     // Prepara UI
     const btn = document.querySelector('#modalReplicar .btn-primary') || document.querySelector('#modalReplicar .btn-danger');
@@ -1228,10 +1238,10 @@ async function submitReplicarTipoAction() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
     btn.disabled = true;
 
-    // Usa a rota mapeada no API_ROUTES
     const url = getRoute('replicarTipoIntegral', '/Configuracao/ReplicarTipoIntegral', 'config');
 
     try {
+        console.log("Enviando requisição para API...");
         const r = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -1244,26 +1254,30 @@ async function submitReplicarTipoAction() {
         const data = await r.json();
 
         if (r.ok) {
+            console.log("✅ Sucesso API:", data.msg);
             showToast("Replicação concluída com sucesso!");
             closeModals();
             
-            // Restaura estilo do botão (boa prática)
+            // Restaura estilo do botão
             btn.classList.add('btn-primary');
             btn.classList.remove('btn-danger');
             
-            await autoSync(); // Sincroniza ordenamento
-            await loadTree(); // Recarrega árvore
+            console.log("Atualizando interface...");
+            await autoSync(); 
+            await loadTree(); 
         } else {
+            console.error("❌ Erro API:", data.error);
             alert("Erro na replicação: " + (data.error || "Erro desconhecido"));
         }
     } catch (e) {
-        console.error(e);
+        console.error("❌ Erro de Rede/JS:", e);
         alert("Erro de comunicação: " + e.message);
     } finally {
         if(btn) {
             btn.innerHTML = txtOriginal;
             btn.disabled = false;
         }
+        console.groupEnd();
     }
 }
 
