@@ -219,16 +219,18 @@ def delete_records_by_competencia(engine, table_name, competencia):
 def process_and_save_dynamic(file_path, column_mapping, table_destination, engine, transformations=None):
     """
     Processa o arquivo completo, aplica transformações, filtra regras de negócio e salva.
+    Versão Corrigida: Tratamento robusto de Tipos (Texto vs Inteiro) e Limpeza de Dados.
     """
     try:
         df = pd.read_excel(file_path, engine='openpyxl')
+        # Normaliza nomes das colunas (remove quebras de linha e espaços extras)
         df.columns = [str(c).replace('\n', ' ').strip() for c in df.columns]
 
-        # 1. Aplica Transformações de Usuário
+        # 1. Aplica Transformações de Usuário (se houver)
         if transformations:
             df = apply_transformations(df, transformations)
         
-        # 2. Renomeia Colunas
+        # 2. Renomeia Colunas usando o mapeamento
         final_mapping = {k: v for k, v in column_mapping.items() if v and v != 'IGNORE'}
         if not final_mapping: raise Exception("Nenhum mapeamento válido encontrado.")
             
@@ -237,59 +239,84 @@ def process_and_save_dynamic(file_path, column_mapping, table_destination, engin
         cols_existentes = [c for c in cols_destino if c in df_db.columns]
         df_db = df_db[cols_existentes]
 
-        # Regra: Remover SALDO ANTERIOR
-        if 'Descricao' in df_db.columns:
-            df_db = df_db[df_db['Descricao'].astype(str).str.strip() != 'SALDO ANTERIOR']
-
-        # Regra: Validação Data
+        # Regra: Validação Data (Obrigatória)
         if 'Data' not in df_db.columns: raise Exception("A coluna 'Data' é obrigatória.")
         df_db['Data'] = pd.to_datetime(df_db['Data'], errors='coerce')
+        # Remove linhas onde a Data é inválida (NaT) antes de pegar a competência
+        df_db = df_db.dropna(subset=['Data'])
+        if df_db.empty: raise Exception("Arquivo sem datas válidas.")
+        
         competencia = get_competencia_from_df(df_db, 'Data')
 
-        # Regra: Tratamento BIGINT (Chaves e Códigos)
-        cols_bigint = ['Conta', 'Filial', 'Centro de Custo', 'Item', 'Numero']
-        for col in cols_bigint:
+        # Regra: Remover linha de 'SALDO ANTERIOR' se existir
+        if 'Descricao' in df_db.columns:
+            # Converte para string antes de comparar para evitar erro
+            df_db = df_db[df_db['Descricao'].astype(str).str.strip().str.upper() != 'SALDO ANTERIOR']
+
+        # -------------------------------------------------------------------
+        # TRATAMENTO DE TIPOS BLINDADO
+        # -------------------------------------------------------------------
+        
+        # GRUPO 1: Colunas de IDENTIFICAÇÃO TEXTUAL (VARCHAR no Banco)
+        # Evita erro de conversão de números gigantes (overflow) e preserva zeros à esquerda.
+        cols_text_ids = ['Conta', 'Numero', 'Cod Cl Valor', 'Descricao', 'Contra Partida - Credito']
+        
+        for col in cols_text_ids:
+            if col in df_db.columns:
+                def clean_text_id(x):
+                    if pd.isna(x) or x == '': return None
+                    s = str(x).strip()
+                    # Se o Excel leu como float (ex: '1234.0'), remove o decimal
+                    if s.endswith('.0'): s = s[:-2]
+                    # Retorna limpo. Para 'Numero' e 'Conta', mantemos carateres numéricos e separadores comuns
+                    return s 
+                
+                df_db[col] = df_db[col].apply(clean_text_id).astype(str).replace('None', None)
+
+        # GRUPO 2: Colunas de INTEIROS (BIGINT no Banco)
+        # Remove pontos e traços (ex: '2.1.1.01' -> 21101) para o banco aceitar.
+        cols_int_ids = ['Filial', 'Item', 'Centro de Custo']
+        
+        for col in cols_int_ids:
             if col in df_db.columns:
                 def clean_and_int(x):
                     if pd.isna(x): return None
-                    s = str(x)
+                    s = str(x).strip()
+                    # Remove tudo que NÃO for dígito (0-9)
                     s_clean = re.sub(r'\D', '', s)
                     if not s_clean: return None
                     return int(s_clean)
+                
+                # Converte para numérico (Int64 permite NaN/Null, int normal não)
                 df_db[col] = df_db[col].apply(clean_and_int).astype('Int64')
 
-        # -------------------------------------------------------------------
-        # Regra: VALORES NUMÉRICOS ABSOLUTOS (SEM SINAL) - BLOCO CRÍTICO
-        # -------------------------------------------------------------------
+        # GRUPO 3: Colunas de VALOR (DECIMAL/FLOAT)
+        # Garante valor absoluto (sem sinal negativo) e trata nulos como 0.0
         cols_valor = ['Debito', 'Credito']
         for col in cols_valor:
             if col in df_db.columns:
-                # 1. Força conversão para numérico (qualquer erro vira NaN)
-                # 2. Preenche NaN com 0.0
-                # 3. APLICA ABS() PARA REMOVER O SINAL NEGATIVO
                 df_db[col] = pd.to_numeric(df_db[col], errors='coerce').fillna(0.0).abs()
             else:
-                # Se a coluna não existe no mapeamento, cria zerada
                 df_db[col] = 0.0
 
-        # Regra: Filtro de Linhas Zeradas
-        # Como aplicamos .abs() acima, não importa se era negativo ou positivo,
-        # só removemos se for ZERO absoluto.
+        # Regra: Filtro de Linhas Zeradas (ignora registros sem valor financeiro)
         mask_valor = (df_db['Debito'] != 0) | (df_db['Credito'] != 0)
         df_db = df_db[mask_valor]
 
         if df_db.empty: raise Exception("Nenhum registro válido encontrado após filtros.")
 
+        # Inserção no Banco
         df_db.to_sql(
             table_destination,
             engine,
             schema='Dre_Schema',
             if_exists='append', 
             index=False,
-            chunksize=1000
+            chunksize=1000 # Lotes menores para evitar timeout
         )
         
         return len(df_db), competencia
 
     except Exception as e:
+        # Adiciona contexto ao erro para facilitar debug
         raise Exception(f"Erro no processamento final: {str(e)}")

@@ -22,7 +22,7 @@ def get_pg_session():
 @reports_bp.route('/', methods=['GET']) 
 @login_required 
 def PaginaRelatorios():
-    return render_template('MENUS/Relatórios.html')
+    return render_template('PAGES/Relatórios.html')
 
 @reports_bp.route('/RelatorioRazao/Dados', methods=['GET']) 
 @login_required 

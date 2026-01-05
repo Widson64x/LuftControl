@@ -1,0 +1,91 @@
+{% extends "Base.html" %}
+
+{% block title %}Relatórios - T-Controllership{% endblock %}
+
+{% block extra_css %}
+    <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports.css') }}">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports/Report_AnaliseGerencial.css') }}">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports/Report_RelatorioRazao.css') }}">
+
+
+{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <div class="header-decoration decoration-1"></div>
+    <div class="header-decoration decoration-2"></div>
+    
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-chart-bar"></i> Relatórios Financeiros
+            </h1>
+            <p class="page-subtitle">Central de análises gerenciais e contábeis</p>
+        </div>
+    </div>
+</div>
+
+<div class="relatorios-grid">
+    <div class="relatorio-card">
+        <div class="relatorio-icon">📈</div>
+        <h3>Relatório de Razão (Full)</h3>
+        <p>Base analítica completa. Detalhamento por lançamento, histórico e contra-partidas.</p>
+        <div class="mb-3">
+            <span class="status-badge status-active">Operacional</span>
+        </div>
+        <button class="btn-primary-custom" onclick="relatorioSystem.loadRazaoReport()">
+            <i class="fas fa-database"></i> Acessar Razão
+        </button>
+    </div>
+    
+    <div class="relatorio-card">
+        <div class="relatorio-icon">📊</div>
+        <h3>Análise Gerencial</h3>
+        <p>Visão hierárquica dinâmica (DRE). Filtros tipo Excel, ordenação por arraste e drill-down.</p>
+        <div class="mb-3">
+            <span class="status-badge status-active" style="background: rgba(var(--primary-rgb), 0.1); border-color: var(--primary);">Novo Motor</span>
+        </div>
+        <button class="btn-primary-custom" onclick="relatorioSystem.loadRentabilidadeReport()">
+            <i class="fas fa-cubes"></i> Abrir Análise Gerencial
+        </button>
+    </div>
+</div>
+
+<div id="modalRelatorio" class="modal-overlay">
+    <div class="modal-container" style="max-width: 98vw; height: 92vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+            <h2 class="modal-title"><i class="fas fa-table"></i> <span id="modalTitleText">Visualização de Dados</span></h2>
+            <button class="modal-close" onclick="fecharModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body" id="modalBodyContent" style="padding: 0; flex: 1; position: relative; display: flex; flex-direction: column;">
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Aguardando comando...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+<script type="text/javascript" src="https://oss.sheetjs.com/sheetjs/xlsx.full.min.js"></script>
+<script>
+    const API_ROUTES = {
+        getRazaoData:           "{{ url_for('Reports.RelatorioRazaoDados') }}",
+        getRazaoResumo:         "{{ url_for('Reports.RelatorioRazaoResumo') }}",
+        getRentabilidadeData:   "{{ url_for('Reports.RelatorioRentabilidade') }}",
+        getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}",
+        getRazaoDownload:       "{{ url_for('Reports.download_razao_full') }}",
+        getListaCCs:            "{{ url_for('Reports.ListaCentrosCusto') }}"      
+    };
+</script>
+<script src="{{ url_for('static', filename='JS/Relatorios.js') }}"></script>
+{% endblock %}

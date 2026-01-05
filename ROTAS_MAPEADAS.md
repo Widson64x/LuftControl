@@ -47,7 +47,7 @@
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Descrição:** Hub central para acessar todas as configurações do sistema
-- **Resposta:** Renderiza `MENUS/Configuracoes.html`
+- **Resposta:** Renderiza `CONFIGS/ConfigsSystem.html`
 
 ---
 
@@ -59,7 +59,7 @@
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Descrição:** Renderiza página de seleção de relatórios
-- **Resposta:** Renderiza `MENUS/Relatórios.html`
+- **Resposta:** Renderiza `PAGES/Relatórios.html`
 
 ### 2. Relatório Razão - Dados
 - **URL:** `/Reports/RelatorioRazao/Dados`
@@ -109,7 +109,7 @@
 - **URL:** `/DreConfig/Configuracao/Arvore`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
-- **Resposta:** Renderiza `MENUS/ConfiguracaoDRE.html`
+- **Resposta:** Renderiza `CONFIGS/ConfigsDRE.html`
 
 ### Consultas (GET)
 
@@ -573,14 +573,14 @@
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Permissão:** `security.view`
-- **Resposta:** Renderiza `MENUS/ConfiguracaoSeguranca.html`
+- **Resposta:** Renderiza `CONFIGS/ConfigsPerms.html`
 
 #### 2. Visualizador de Segurança (Grafo)
 - **URL:** `/SecurityConfig/Visualizador`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Permissão:** `security.view`
-- **Resposta:** Renderiza `MENUS/SecurityMap.html`
+- **Resposta:** Renderiza `COMPONENTS/SecurityMap.html`
 
 ### API
 
