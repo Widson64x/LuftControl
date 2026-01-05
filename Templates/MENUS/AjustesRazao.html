@@ -34,57 +34,121 @@
     </div>
 </div>
 
+<div id="filterBackdrop" class="filter-backdrop" onclick="ajustesSystem.toggleFilterPanel()"></div>
+
 <div id="advancedFilterPanel" class="filter-panel-wrapper">
-    <div class="filter-panel-content">
-        <div class="filter-header">
-            <h3><i class="fas fa-search"></i> Filtragem Avançada</h3>
-            <button class="btn-text" onclick="ajustesSystem.clearFilters()">Limpar Filtros</button>
-        </div>
-        <div class="filter-grid">
-            <div class="filter-group">
-                <label>Período (De - Até)</label>
-                <div class="d-flex gap-2">
-                    <input type="date" id="fDataIni" class="form-control form-control-sm">
-                    <input type="date" id="fDataFim" class="form-control form-control-sm">
+    <div class="filter-header">
+        <h3><i class="fas fa-sliders-h"></i> Controle & Filtragem</h3>
+        <button class="btn-text" onclick="ajustesSystem.toggleFilterPanel()" title="Fechar" style="font-size: 1.2rem;">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <div class="filter-body-grid">
+        
+        <div class="filter-section">
+            <h5 class="section-title">📅 Período & Competência</h5>
+            <div class="row-inputs">
+                <div class="input-group">
+                    <label>Mês</label>
+                    <select id="fMes" class="modern-input">
+                        <option value="">Todos</option>
+                        <option value="1">Janeiro</option>
+                        <option value="2">Fevereiro</option>
+                        <option value="3">Março</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Maio</option>
+                        <option value="6">Junho</option>
+                        <option value="7">Julho</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Setembro</option>
+                        <option value="10">Outubro</option>
+                        <option value="11">Novembro</option>
+                        <option value="12">Dezembro</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Ano</label>
+                    <input type="number" id="fAno" class="modern-input" placeholder="Ex: 2025">
                 </div>
             </div>
+            
+            <div class="row-inputs mt-2">
+                <div class="input-group full">
+                    <label>Intervalo Específico (Opcional)</label>
+                    <div class="date-range-group">
+                        <input type="date" id="fDataIni" class="modern-input">
+                        <span class="range-separator">até</span>
+                        <input type="date" id="fDataFim" class="modern-input">
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            <div class="filter-group">
-                <label>Status</label>
-                <select id="fStatus" class="form-control form-control-sm" multiple style="height: 38px; padding: 2px;">
+        <div class="filter-section">
+            <h5 class="section-title">📂 Categorização</h5>
+            
+            <div class="input-group">
+                <div class="d-flex justify-content-between align-items-center">
+                    <label>Status</label>
+                    <small style="font-size: 0.75em; color: var(--primary); cursor: pointer; text-decoration: underline;" 
+                           onclick="document.getElementById('fStatus').selectedIndex = -1">
+                        Limpar seleção
+                    </small>
+                </div>
+                <select id="fStatus" class="modern-input" multiple size="4" style="overflow-y: hidden;">
                     <option value="Pendente">Pendente</option>
                     <option value="Aprovado">Aprovado</option>
                     <option value="Reprovado">Reprovado</option>
                     <option value="Invalido">Inválido</option>
                 </select>
-                <small style="font-size:10px; opacity:0.7;">Segure Ctrl para múltiplos</small>
+                <small style="font-size:10px; color: #666; margin-top: 4px; display: block;">
+                    * Segure CTRL para selecionar vários. Se nenhum for selecionado, busca todos.
+                </small>
             </div>
 
-            <div class="filter-group">
+            <div class="input-group mt-2">
                 <label>Origem</label>
-                <select id="fOrigem" class="form-control form-control-sm">
+                <select id="fOrigem" class="modern-input">
                     <option value="">Todas</option>
                     <option value="FARMA">Farma</option>
-                    <option value="FARMADIST">Farma dist</option>
+                    <option value="FARMADIST">Farma Dist</option>
                     <option value="INTEC">Intec</option>
+                    <option value="MANUAL">Manual</option>
                 </select>
             </div>
+        </div>
 
-            <div class="filter-group">
+        <div class="filter-section">
+            <h5 class="section-title">🔍 Busca & Valores</h5>
+            <div class="input-group">
+                <label>Busca Global</label>
+                <input type="text" id="fBuscaGlobal" class="modern-input" placeholder="Conta, Descrição, Histórico...">
+            </div>
+            <div class="input-group mt-2">
                 <label>Valor Mínimo (Saldo)</label>
-                <input type="number" id="fValorMin" class="form-control form-control-sm" placeholder="Ex: 100.00">
+                <input type="number" id="fValorMin" class="modern-input" placeholder="0,00">
             </div>
+        </div>
+        
+        <div class="filter-section">
+            <h5 class="section-title">⚡ Ordenar Por</h5>
+            <div class="sort-buttons">
+                <button class="btn-sort" onclick="ajustesSystem.quickSort('Data', 'desc')">📅 Data Recente</button>
+                <button class="btn-sort" onclick="ajustesSystem.quickSort('Data', 'asc')">📅 Data Antiga</button>
+                <button class="btn-sort" onclick="ajustesSystem.quickSort('Saldo', 'desc')">💰 Maior Valor</button>
+            </div>
+        </div>
+    </div>
 
-            <div class="filter-group span-2">
-                <label>Busca Global (Conta, Descrição, Histórico)</label>
-                <input type="text" id="fBuscaGlobal" class="form-control form-control-sm" placeholder="Digite para buscar...">
-            </div>
-            
-            <div class="filter-group d-flex align-items-end">
-                <button class="btn-primary-custom w-100" onclick="ajustesSystem.applyAdvancedFilters()">
-                    <i class="fas fa-check"></i> Aplicar Filtros
-                </button>
-            </div>
+    <div class="filter-footer">
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-secondary-custom" style="flex: 1;" onclick="ajustesSystem.clearFilters()">
+                <i class="fas fa-eraser"></i> Limpar Tudo
+            </button>
+            <button class="btn-primary-custom" style="flex: 1;" onclick="ajustesSystem.applyAdvancedFilters()">
+                <i class="fas fa-filter"></i> Aplicar Filtros
+            </button>
         </div>
     </div>
 </div>
