@@ -93,6 +93,8 @@ class AnaliseDREReport:
         
         edicoes = {}
         inclusoes = []
+        
+        print("\n[DEBUG] --- Iniciando Carga de Ajustes ---")
         for row in rows:
             # Tipos que SUBSTITUEM linha existente (Merge)
             if row.Tipo_Operacao in ['EDICAO', 'NO-OPER_AUTO']:
@@ -101,6 +103,10 @@ class AnaliseDREReport:
             # Tipos que CRIAM NOVA linha (Append)
             elif row.Tipo_Operacao in ['INCLUSAO', 'INTERGRUPO_AUTO']:
                 inclusoes.append(row)
+                # DEBUG ESPECIFICO PARA A LINHA DO PRINT
+                print(f"[DEBUG] Inclusão Carregada do Banco: ID={getattr(row, 'Id', '?')} | Conta={row.Conta} | Origem={row.Origem} | Valor={row.Debito or row.Credito}")
+
+        print(f"[DEBUG] Total Edições: {len(edicoes)} | Total Inclusões: {len(inclusoes)}")
         return edicoes, inclusoes
 
     def _get_ordenamento(self):
@@ -206,28 +212,21 @@ class AnaliseDREReport:
     def processar_relatorio(self, filtro_origem='FARMA,FARMADIST,INTEC', agrupar_por_cc=False, filtro_cc=None):
         """
         Gera os dados base do relatório com suporte a múltiplas empresas e ordenação correta de subpastas.
-        Args:
-            filtro_origem (str): String separada por vírgula. Ex: "FARMA,INTEC" ou "INTEC".
         """
-        # DEBUG VISUAL PARA CONFIRMAR A ATUALIZAÇÃO
-        print(f"\n[DEBUG] AnaliseDRE.processar_relatorio -> Filtro CC: {filtro_cc}\n")
+        print(f"\n[DEBUG] AnaliseDRE.processar_relatorio -> Filtro Origem: {filtro_origem} | Filtro CC: {filtro_cc}\n")
 
         # 0. Preparação das Empresas Selecionadas
         if not filtro_origem:
             lista_empresas = []
         else:
-            # Remove espaços e cria lista limpa
             lista_empresas = [x.strip() for x in filtro_origem.split(',') if x.strip()]
         
-        # Se lista vazia, retorna vazio imediatamente
         if not lista_empresas:
             return []
 
         tree_map, definitions = self._get_estrutura_hierarquia()
         ajustes_edicao, ajustes_inclusao = self._get_ajustes_map()
         ordem_map = self._get_ordenamento()
-        
-        # --- ALTERAÇÃO AQUI: Busca dicionário por contexto (Nome + Tipo) ---
         ordem_subgrupos_contexto = self._get_ordem_subgrupos_por_contexto()
         
         sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Razao_Dados_Consolidado"')
@@ -236,35 +235,30 @@ class AnaliseDREReport:
 
         aggregated_data = {}
 
+        # --- DEFINIÇÃO DA FUNÇÃO INTERNA PROCESS_ROW (MANTIDA IGUAL, REPLIQUE O CÓDIGO ORIGINAL AQUI) ---
         def process_row(origem, conta, titulo, data, saldo, cc_original_str, row_hash=None, is_skeleton=False, forced_match=None):
-            # A. EDIÇÕES (Prioridade sobre dados originais)
+            # A. EDIÇÕES
             if not is_skeleton and row_hash and row_hash in ajustes_edicao:
                 adj = ajustes_edicao[row_hash]
                 if adj.Invalido: return 
-                
-                # Override com valores do ajuste
                 origem = adj.Origem or origem
                 conta = adj.Conta or conta
                 titulo = adj.Titulo_Conta or titulo
                 cc_original_str = str(adj.Centro_Custo) if adj.Centro_Custo else cc_original_str
                 data = adj.Data or data
-                
                 if adj.Is_Nao_Operacional:
                     conta = '00000000000'
                     titulo = 'Não Operacionais'
-                
                 if adj.Exibir_Saldo:
                     saldo = (float(adj.Debito or 0) - float(adj.Credito or 0))
                 else:
                     saldo = 0.0
 
-            # B. MATCH (Encontrar regra de hierarquia)
+            # B. MATCH
             match = forced_match
             if not match:
                 rules = definitions.get(conta, [])
                 if not rules: return
-                
-                # Tenta match específico por CC alvo na regra
                 if cc_original_str:
                     cc_int = None
                     try: cc_int = int(''.join(filter(str.isdigit, str(cc_original_str))))
@@ -273,22 +267,18 @@ class AnaliseDREReport:
                         for rule in rules:
                             if rule.CC_Alvo is not None and cc_int == rule.CC_Alvo:
                                 match = rule; break
-                # Se não achou específico, pega o genérico (CC_Alvo null)
-                if not match: 
-                    match = rules[0]
+                if not match: match = rules[0]
             
-            # C. AGRUPAMENTO E SOMA
-            if not match: return # (Só pra garantir contexto do código)
+            # C. AGRUPAMENTO
+            if not match: return
 
             tipo_cc = match.Tipo_Principal or 'Outros'
             root_virtual_id = match.Raiz_No_Virtual_Id
             caminho = match.full_path or 'Não Classificado'
             
-            # --- CORREÇÃO DE ORDEM ---
             ordem = 999
             ordem_secundaria = 500
             
-            # 1. Ordem Primária (Raiz)
             if root_virtual_id:
                 ordem = ordem_map.get(f"virtual:{root_virtual_id}", 999)
             elif match.Is_Root_Group:
@@ -297,20 +287,14 @@ class AnaliseDREReport:
             else:
                 ordem = ordem_map.get(f"tipo_cc:{tipo_cc}", 999)
             
-            # 2. Ordem Secundária (Subgrupos) - CORRIGIDO
             if caminho and caminho not in ['Não Classificado', 'Direto', 'Calculado']:
                 partes = caminho.split('||')
                 if partes:
                     primeiro_grupo = partes[0].strip()
-                    # Busca usando a chave composta (Nome do Grupo, Tipo do CC Atual)
                     chave_busca = (primeiro_grupo, str(tipo_cc).strip())
-                    
-                    # Se não achar com o tipo específico, tenta buscar só pelo nome como fallback (opcional, mas seguro)
                     if chave_busca in ordem_subgrupos_contexto:
                         ordem_secundaria = ordem_subgrupos_contexto[chave_busca]
                     else:
-                        # Fallback: Tenta achar qualquer ocorrência desse grupo (para evitar ficar no fim da lista)
-                        # Isso é útil se o Tipo vier como 'Outros' ou nulo
                         ordem_secundaria = 999 
 
             conta_display = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else conta
@@ -335,47 +319,37 @@ class AnaliseDREReport:
             if not is_skeleton and data:
                 try:
                     mes_nome = self.meses[data.month - 1]
-                    val_inv = saldo * -1 # Inverte sinal (Crédito é receita positiva no DRE)
+                    val_inv = saldo * -1 
                     aggregated_data[group_key][mes_nome] += val_inv
                     aggregated_data[group_key]['Total_Ano'] += val_inv
                 except: pass
+        # --- FIM PROCESS_ROW ---
 
-        # 1. Esqueleto (Garante que a estrutura apareça vazia se necessário)
+        # 1. Esqueleto
         for conta_def, lista_regras in definitions.items():
             titulo_conta = mapa_titulos.get(conta_def, "Conta Configurada")
             for regra in lista_regras:
                 process_row("Config", conta_def, titulo_conta, None, 0.0, None, None, is_skeleton=True, forced_match=regra)
 
-        # 2. Construção da Query SQL Dinâmica (Multi-Origem e Multi-CC)
+        # 2. Query SQL Dinâmica
         where_clauses = []
         params = {}
         
-        # 2.1 Filtro de Origem (IN)
         orig_params_keys = []
         for i, emp in enumerate(lista_empresas):
-            key = f"orig{i}"
-            params[key] = emp
-            orig_params_keys.append(f":{key}")
+            key = f"orig{i}"; params[key] = emp; orig_params_keys.append(f":{key}")
         
-        if orig_params_keys:
-            where_clauses.append(f"\"origem\" IN ({', '.join(orig_params_keys)})")
-        else:
-            where_clauses.append("1=0")
+        if orig_params_keys: where_clauses.append(f"\"origem\" IN ({', '.join(orig_params_keys)})")
+        else: where_clauses.append("1=0")
 
-        # 2.2 Filtro de Centro de Custo (CORRIGIDO PARA IN)
         cc_list = []
         if filtro_cc and filtro_cc.lower() != 'todos':
             cc_list = [cc.strip() for cc in filtro_cc.split(',') if cc.strip()]
 
         if cc_list:
-            # Cria lista de placeholders :cc_0, :cc_1, etc.
             cc_params_keys = []
             for i, cc_val in enumerate(cc_list):
-                key = f"cc_{i}"
-                params[key] = cc_val
-                cc_params_keys.append(f":{key}")
-            
-            # Adiciona a cláusula IN ao WHERE
+                key = f"cc_{i}"; params[key] = cc_val; cc_params_keys.append(f":{key}")
             where_clauses.append(f"\"Centro de Custo\" IN ({', '.join(cc_params_keys)})")
 
         where_final = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
@@ -385,9 +359,7 @@ class AnaliseDREReport:
             FROM "Dre_Schema"."Razao_Dados_Consolidado" {where_final}
         """)
         
-        # Executa a query com os parâmetros expandidos
         raw_rows = self.session.execute(sql_raw, params).fetchall()
-        
         for row in raw_rows:
             h = gerar_hash(row)
             process_row(
@@ -395,17 +367,26 @@ class AnaliseDREReport:
                 getattr(row, 'Centro de Custo'), h, is_skeleton=False
             )
 
-        # 3. Inclusões Manuais (Filtra por lista de empresas e CC)
+        # 3. Inclusões Manuais (DEBUG AQUI)
+        print("\n[DEBUG] --- Processando Inclusões Manuais ---")
         for adj in ajustes_inclusao:
-            if adj.Origem not in lista_empresas: continue
+            # DEBUG: Mostra o que está sendo avaliado
+            log_prefix = f"[DEBUG] Inclusão ID {getattr(adj, 'Id', '?')} ({adj.Conta})"
             
-            # Lógica corrigida para CC nas inclusões
+            # Checagem de Origem
+            if adj.Origem not in lista_empresas: 
+                print(f"{log_prefix} -> IGNORADO: Origem '{adj.Origem}' não está na lista {lista_empresas}")
+                continue
+            
+            # Checagem de Centro de Custo
             if cc_list:
-                # Se o ajuste tem CC, verifica se está na lista selecionada
-                if str(adj.Centro_Custo or '').strip() not in cc_list:
+                cc_adj = str(adj.Centro_Custo or '').strip()
+                if cc_adj not in cc_list:
+                    print(f"{log_prefix} -> IGNORADO: CC '{cc_adj}' não está na lista {cc_list}")
                     continue
             
             if not adj.Invalido:
+                print(f"{log_prefix} -> PROCESSADO COM SUCESSO!")
                 saldo_adj = (float(adj.Debito or 0) - float(adj.Credito or 0)) if adj.Exibir_Saldo else 0.0
                 c = '00000000000' if adj.Is_Nao_Operacional else adj.Conta
                 t = 'Não Operacionais' if adj.Is_Nao_Operacional else adj.Titulo_Conta
@@ -417,23 +398,10 @@ class AnaliseDREReport:
 
         final_list = list(aggregated_data.values())
         
-        # Ordenação final
         if agrupar_por_cc: 
-            final_list.sort(key=lambda x: (
-                x.get('ordem_prioridade', 999), 
-                x.get('ordem_secundaria', 500),
-                x.get('Tipo_CC', ''), 
-                x.get('Nome_CC') or '', 
-                x.get('Caminho_Subgrupos') or '', 
-                x.get('Conta', '')
-            ))
+            final_list.sort(key=lambda x: (x.get('ordem_prioridade', 999), x.get('ordem_secundaria', 500), x.get('Tipo_CC', ''), x.get('Nome_CC') or '', x.get('Caminho_Subgrupos') or '', x.get('Conta', '')))
         else: 
-            final_list.sort(key=lambda x: (
-                x.get('ordem_prioridade', 999), 
-                x.get('ordem_secundaria', 500),
-                x.get('Caminho_Subgrupos') or '', 
-                x.get('Conta', '')
-            ))
+            final_list.sort(key=lambda x: (x.get('ordem_prioridade', 999), x.get('ordem_secundaria', 500), x.get('Caminho_Subgrupos') or '', x.get('Conta', '')))
         
         return final_list
     
