@@ -370,71 +370,110 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
         
         toggleFilterPanel() {
             const panel = document.getElementById('advancedFilterPanel');
-            panel.classList.toggle('active');
+            const backdrop = document.getElementById('filterBackdrop');
+            
+            // Verifica se já está ativo
+            const isActive = panel.classList.contains('active');
+            
+            if (isActive) {
+                // Fechar
+                panel.classList.remove('active');
+                if(backdrop) backdrop.classList.remove('active');
+            } else {
+                // Abrir
+                panel.classList.add('active');
+                if(backdrop) backdrop.classList.add('active');
+            }
+        }
+
+        quickSort(field, dir) {
+            if(!this.table) return;
+            this.table.setSort(field, dir);
+            // Feedback visual
+            this.showToast(`Ordenando por ${field}...`, 'info');
         }
 
         clearFilters() {
-            // Limpa inputs
-            document.getElementById('fDataIni').value = '';
-            document.getElementById('fDataFim').value = '';
-            document.getElementById('fOrigem').value = '';
-            document.getElementById('fValorMin').value = '';
-            document.getElementById('fBuscaGlobal').value = '';
+            // Limpar inputs de texto/data/número
+            ['fDataIni', 'fDataFim', 'fMes', 'fAno', 'fOrigem', 'fValorMin', 'fBuscaGlobal']
+                .forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) el.value = '';
+                });
             
-            // Limpa Select Multiplo
-            const sel = document.getElementById('fStatus');
-            for(let i=0; i<sel.options.length; i++) sel.options[i].selected = false;
+            // Limpar Select Múltiplo de Status (Importante: selectedIndex = -1 limpa tudo)
+            const selStatus = document.getElementById('fStatus');
+            if(selStatus) selStatus.selectedIndex = -1;
 
-            // Limpa filtros da tabela
+            // Limpar filtros e ordenação da tabela
             this.table.clearFilter();
-            this.table.clearHeaderFilter(); // Limpa também os filtros dos cabeçalhos
+            this.table.clearHeaderFilter();
+            this.table.clearSort();
             
             this.showToast('Filtros limpos!', 'info');
         }
 
         applyAdvancedFilters() {
-            // Coleta Valores
+            // 1. Coleta Inputs
             const dtIni = document.getElementById('fDataIni').value;
             const dtFim = document.getElementById('fDataFim').value;
+            const mes   = document.getElementById('fMes').value;
+            const ano   = document.getElementById('fAno').value;
             const origem = document.getElementById('fOrigem').value;
             const valMin = parseFloat(document.getElementById('fValorMin').value);
             const busca = document.getElementById('fBuscaGlobal').value.toLowerCase();
             
-            // Coleta Status Multiplo
+            // Coleta Status (Array)
             const selStatus = document.getElementById('fStatus');
             const statusList = Array.from(selStatus.selectedOptions).map(o => o.value);
 
-            // Cria função de filtro customizada para o Tabulator
+            // 2. Cria Filtro Customizado
             const customFilter = (data) => {
                 let match = true;
 
-                // 1. Data Range
-                if (dtIni || dtFim) {
-                    const rowDateStr = this.formatDateInput(data.Data); // Retorna YYYY-MM-DD
+                // --- A. DATA (Mês/Ano e Range) ---
+                let rowDate = null;
+                if (data.Data) {
+                    // Tenta criar data (assumindo YYYY-MM-DD ou ISO do banco)
+                    // Ajuste o timezone se necessário, mas para mês/ano 'new Date' funciona
+                    rowDate = new Date(data.Data);
+                }
+
+                // A.1 Mês (1-12)
+                if (match && mes && rowDate) {
+                    // getUTCMonth retorna 0-11, adicionamos 1 para comparar
+                    if ((rowDate.getUTCMonth() + 1) != parseInt(mes)) match = false;
+                }
+                // A.2 Ano
+                if (match && ano && rowDate) {
+                    if (rowDate.getUTCFullYear() != parseInt(ano)) match = false;
+                }
+                // A.3 Range (String compare funciona bem para YYYY-MM-DD)
+                if (match && (dtIni || dtFim)) {
+                    const rowDateStr = this.formatDateInput(data.Data);
                     if (dtIni && rowDateStr < dtIni) match = false;
                     if (dtFim && rowDateStr > dtFim) match = false;
                 }
 
-                // 2. Status (Array Check)
+                // --- B. STATUS (Lógica Opcional) ---
+                // Só filtra se statusList TIVER itens. Se vazio (length 0), ignora (match true).
                 if (match && statusList.length > 0) {
-                    // Se não tiver status, considera como Original ou vazio
-                    const st = data.Status_Ajuste || 'Original'; 
-                    // Se o status da linha não estiver na lista selecionada
+                    const st = data.Status_Ajuste || 'Original';
                     if (!statusList.includes(st)) match = false;
                 }
 
-                // 3. Origem
+                // --- C. ORIGEM ---
                 if (match && origem) {
                     if ((data.origem || '') !== origem) match = false;
                 }
 
-                // 4. Valor Mínimo (Absoluto do Saldo)
+                // --- D. VALOR MÍNIMO (Saldo Absoluto) ---
                 if (match && !isNaN(valMin)) {
                     const saldo = Math.abs(parseFloat(data.Saldo || 0));
                     if (saldo < valMin) match = false;
                 }
 
-                // 5. Busca Global (Texto)
+                // --- E. BUSCA TEXTUAL ---
                 if (match && busca) {
                     const textContent = [
                         data.Conta, 
@@ -449,9 +488,12 @@ if (typeof window.ajustesSystemInitialized === 'undefined') {
                 return match;
             };
 
-            // Aplica
+            // 3. Aplica no Tabulator
             this.table.setFilter(customFilter);
-            this.showToast('Filtros aplicados!', 'success');
+            this.showToast('Filtros aplicados com sucesso!', 'success');
+            
+            // Fecha o painel automaticamente
+            this.toggleFilterPanel();
         }
 
         // =====================================================================

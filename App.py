@@ -9,15 +9,15 @@ import os
 from Routes.Auth import auth_bp
 from Routes.Main import main_bp
 from Routes.Reports import reports_bp
-from Routes.DreConfig import dre_config_bp
-from Routes.DreOrdenamento import dre_ordem_bp
+from Routes.DRE_Configs import dre_config_bp
+from Routes.DRE_Ordering import dre_ordem_bp
 from Routes.Auth import carregar_usuario_flask
-from Routes.SecurityConfig import security_bp
-from Routes.Adjustments import ajustes_bp
+from Routes.Security_Configs import security_bp
+from Routes.ManualAdjustments import ajustes_bp
 from Routes.DataImport import import_bp
 
 # --- IMPORTS PARA BANCO DE DADOS ---
-# 1. (ALTERADO) Importamos a URL e agora a função de CHECK
+# 1. Importamos a URL e agora a função de CHECK
 from Db.Connections import PG_DATABASE_URL, check_connections
 
 # 2. Importa a Base dos modelos que queremos migrar (DreEstrutura)

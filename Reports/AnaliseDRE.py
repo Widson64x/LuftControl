@@ -3,8 +3,8 @@ import json
 import math
 from collections import defaultdict, namedtuple
 from sqlalchemy import text
-from Utils.hash_utils import gerar_hash
-from Reports.Shared.Utils import ReportUtils
+from Utils.Hash_Utils import gerar_hash
+from Utils.Utils import ReportUtils
 
 class AnaliseDREReport:
     def __init__(self, session):

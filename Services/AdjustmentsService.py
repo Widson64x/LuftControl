@@ -1,0 +1,499 @@
+import datetime
+import calendar
+import hashlib
+from sqlalchemy import text
+from Models.POSTGRESS.Ajustes import AjustesRazao, AjustesLog, AjustesIntergrupoLog
+from Utils.Hash_Utils import gerar_hash
+from Utils.Common import parse_bool
+
+class AdjustmentService:
+    def __init__(self, session_db):
+        self.session = session_db
+
+    # --- HELPERS INTERNOS ---
+
+    def _registrar_log(self, ajuste_antigo, dados_novos, usuario):
+        """Registra logs de edição comparando valor antigo vs novo."""
+        campos_mapeados = {
+            'origem': 'Origem', 'Conta': 'Conta', 'Titulo_Conta': 'Titulo_Conta',
+            'Numero': 'Numero', 'Descricao': 'Descricao', 'Contra_Partida': 'Contra_Partida',
+            'Filial': 'Filial', 'Centro de Custo': 'Centro_Custo', 'Item': 'Item',
+            'Cod_Cl_Valor': 'Cod_Cl_Valor', 'Debito': 'Debito', 'Credito': 'Credito',
+            'NaoOperacional': 'Is_Nao_Operacional', 'Exibir_Saldo': 'Exibir_Saldo',
+            'Data': 'Data', 'Invalido': 'Invalido'
+        }
+        
+        for json_key, model_attr in campos_mapeados.items():
+            # Definição correta das variáveis RAW
+            valor_novo_raw = dados_novos.get(json_key)
+            valor_antigo_raw = getattr(ajuste_antigo, model_attr)
+
+            val_antigo = str(valor_antigo_raw) if valor_antigo_raw is not None else ''
+            val_novo = str(valor_novo_raw) if valor_novo_raw is not None else ''
+            
+            # Tratamento Data (CORRIGIDO: usa valor_antigo_raw)
+            if model_attr == 'Data' and valor_antigo_raw:
+                val_antigo = valor_antigo_raw.strftime('%Y-%m-%d')
+                if val_novo and 'T' in val_novo: val_novo = val_novo.split('T')[0]
+            
+            # Tratamento Float (Usa valor_antigo_raw corretamente)
+            if model_attr in ['Debito', 'Credito']:
+                try:
+                    f_antigo = float(valor_antigo_raw or 0)
+                    f_novo = float(valor_novo_raw or 0)
+                    if abs(f_antigo - f_novo) < 0.001: continue
+                    val_antigo, val_novo = str(f_antigo), str(f_novo)
+                except: pass
+            
+            # Tratamento Booleano (CORRIGIDO: usa valor_antigo_raw/valor_novo_raw)
+            if model_attr in ['Is_Nao_Operacional', 'Exibir_Saldo', 'Invalido']:
+                val_antigo = 'Sim' if parse_bool(valor_antigo_raw) else 'Não'
+                val_novo = 'Sim' if parse_bool(valor_novo_raw) else 'Não'
+
+            if val_antigo != val_novo:
+                novo_log = AjustesLog(
+                    Id_Ajuste=ajuste_antigo.Id, Campo_Alterado=model_attr, 
+                    Valor_Antigo=val_antigo, Valor_Novo=val_novo, 
+                    Usuario_Acao=usuario, Data_Acao=datetime.datetime.now(), 
+                    Tipo_Acao='EDICAO'
+                )
+                self.session.add(novo_log)
+
+    def _gerar_hash_intergrupo(self, row):
+        """
+        Hash específico para a lógica de Intergrupo (preservando comportamento original).
+        Usa valores de Debito/Credito e Descricao na chave.
+        """
+        def clean(val):
+            if val is None: return 'None'
+            s = str(val).strip()
+            return 'None' if s == '' or s.lower() == 'none' else s
+
+        campos = [
+            row.get('Conta'), row.get('Data'), row.get('Descricao'),
+            str(row.get('Debito') or 0.0), str(row.get('Credito') or 0.0),
+            row.get('Filial'), row.get('Centro_Custo') or row.get('Centro de Custo'),
+            row.get('Origem') 
+        ]
+        
+        lista_limpa = []
+        for item in campos:
+            val = item
+            if isinstance(item, (datetime.date, datetime.datetime)):
+                val = item.strftime('%Y-%m-%d')
+            lista_limpa.append(clean(val))
+
+        raw_str = "".join(lista_limpa)
+        return hashlib.md5(raw_str.encode('utf-8')).hexdigest()
+
+    # --- MÉTODOS PRINCIPAIS ---
+
+    def obter_dados_grid(self):
+        """
+        Retorna dados mesclados da View (ERP) e da Tabela de Ajustes.
+        """
+        # 1. Carrega dados da View (Razão Original)
+        # ALERTA: O LIMIT 100000 pode estar cortando dados se a base for maior que isso.
+        # Idealmente, remova o LIMIT ou aumente-o drasticamente para teste.
+        q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 10000000') 
+        res_view = self.session.execute(q_view)
+        rows_view = [dict(row._mapping) for row in res_view]
+
+        # ==============================================================================
+        # [INICIO] BLOCO DE DEBUG (Adicione isto para ver no log do servidor)
+        # ==============================================================================
+        print(f"\n--- DEBUG START: Total Linhas Carregadas: {len(rows_view)} ---")
+        
+        stats = {
+            'FARMA': {'Total': 0, 'Item_10190': 0},
+            'FARMADIST': {'Total': 0, 'Item_10190': 0},
+            'INTEC': {'Total': 0, 'Item_10190': 0},
+            'OUTROS': {'Total': 0, 'Item_10190': 0}
+        }
+
+        for row in rows_view:
+            # Tenta pegar a origem com variações de maiúscula/minúscula para garantir
+            raw_origem = row.get('origem') or row.get('Origem') or 'UNKNOWN'
+            origem_str = str(raw_origem).upper().strip()
+            
+            # Identifica o grupo
+            grupo = 'OUTROS'
+            if 'INTEC' in origem_str: grupo = 'INTEC'
+            elif 'FARMADIST' in origem_str: grupo = 'FARMADIST' # Checar antes de Farma pois contem "Farma"
+            elif 'FARMA' in origem_str: grupo = 'FARMA'
+            
+            stats[grupo]['Total'] += 1
+            
+            # Verifica item 10190
+            item_val = str(row.get('Item')).strip()
+            if item_val == '10190':
+                stats[grupo]['Item_10190'] += 1
+
+        print("ESTATISTICAS ENCONTRADAS NA VIEW:")
+        for grp, data in stats.items():
+            print(f" > {grp}: Total Linhas={data['Total']} | Itens 10190={data['Item_10190']}")
+        print("--- DEBUG END ---\n")
+        # ==============================================================================
+        # [FIM] BLOCO DE DEBUG
+        # ==============================================================================
+
+        # 2. Carrega TODOS os Ajustes Existentes
+        ajustes = self.session.query(AjustesRazao).all()
+        mapa_existentes = {aj.Hash_Linha_Original: aj for aj in ajustes}
+        
+        # 3. Regra Automática: Item 10190
+        novos_ajustes_auto = []
+        for row in rows_view:
+            if str(row.get('Item')).strip() == '10190':
+                h = gerar_hash(row)
+                
+                if h not in mapa_existentes:
+                    now = datetime.datetime.now()
+                    novo_ajuste = AjustesRazao(
+                        Hash_Linha_Original=h, Tipo_Operacao='NO-OPER_AUTO', Status='Aprovado',
+                        Origem=row.get('origem'), Conta=row.get('Conta'), Titulo_Conta=row.get('Título Conta'),
+                        Data=row.get('Data'), Numero=row.get('Numero'), Descricao=row.get('Descricao'),
+                        Contra_Partida=row.get('Contra Partida - Credito'), 
+                        Filial=str(row.get('Filial')) if row.get('Filial') else None,
+                        Centro_Custo=str(row.get('Centro de Custo')) if row.get('Centro de Custo') else None,
+                        Item=str(row.get('Item')), Cod_Cl_Valor=str(row.get('Cod Cl. Valor')) if row.get('Cod Cl. Valor') else None,
+                        Debito=float(row.get('Debito') or 0), Credito=float(row.get('Credito') or 0),
+                        Is_Nao_Operacional=True, Exibir_Saldo=True, Invalido=False,
+                        Criado_Por='SISTEMA_AUTO', Data_Criacao=now, Aprovado_Por='Sistema (Auto 10190)', Data_Aprovacao=now
+                    )
+                    novos_ajustes_auto.append(novo_ajuste)
+                    mapa_existentes[h] = novo_ajuste
+
+        if novos_ajustes_auto:
+            self.session.bulk_save_objects(novos_ajustes_auto)
+            self.session.commit()
+            ajustes = self.session.query(AjustesRazao).all() # Reload para garantir IDs
+        
+        # 4. Segregação
+        mapa_edicao = {}
+        lista_adicionais = []
+        for aj in ajustes:
+            if aj.Tipo_Operacao in ['EDICAO', 'NO-OPER_AUTO']:
+                if aj.Hash_Linha_Original: mapa_edicao[aj.Hash_Linha_Original] = aj
+            elif aj.Tipo_Operacao in ['INCLUSAO', 'INTERGRUPO_AUTO']:
+                lista_adicionais.append(aj)
+
+        # 5. Construção Final
+        dados_finais = []
+
+        def montar_linha(base, ajuste=None, is_inclusao=False):
+            row = base.copy()
+            row['Exibir_Saldo'] = True 
+            if ajuste:
+                row.update({
+                    'origem': ajuste.Origem, 'Conta': ajuste.Conta, 'Título Conta': ajuste.Titulo_Conta,
+                    'Data': ajuste.Data.strftime('%Y-%m-%d') if ajuste.Data else None,
+                    'Numero': ajuste.Numero, 'Descricao': ajuste.Descricao, 'Contra Partida - Credito': ajuste.Contra_Partida, 
+                    'Filial': ajuste.Filial, 'Centro de Custo': ajuste.Centro_Custo, 'Item': ajuste.Item,
+                    'Cod Cl. Valor': ajuste.Cod_Cl_Valor, 'Debito': ajuste.Debito, 'Credito': ajuste.Credito, 
+                    'NaoOperacional': ajuste.Is_Nao_Operacional, 'Exibir_Saldo': ajuste.Exibir_Saldo, 
+                    'Invalido': ajuste.Invalido, 'Status_Ajuste': ajuste.Status, 
+                    'Ajuste_ID': ajuste.Id, 'Criado_Por': ajuste.Criado_Por 
+                })
+                if is_inclusao:
+                    prefixo = "AUTO_" if ajuste.Tipo_Operacao == 'INTERGRUPO_AUTO' else "NEW_"
+                    row['Hash_ID'] = f"{prefixo}{ajuste.Id}"
+                    row['Tipo_Linha'] = 'Inclusao'
+                
+            if row.get('Exibir_Saldo'):
+                row['Saldo'] = (float(row.get('Debito') or 0) - float(row.get('Credito') or 0))
+            else:
+                row['Saldo'] = 0.0
+            return row
+
+        for row in rows_view:
+            h = gerar_hash(row)
+            ajuste = mapa_edicao.get(h)
+            linha = montar_linha(row, ajuste, is_inclusao=False)
+            linha['Hash_ID'] = h
+            linha['Tipo_Linha'] = 'Original'
+            if not ajuste: linha['Status_Ajuste'] = 'Original'
+            dados_finais.append(linha)
+
+        for adic in lista_adicionais:
+            dados_finais.append(montar_linha({}, adic, is_inclusao=True))
+
+        return dados_finais
+
+    def salvar_ajuste(self, payload, usuario):
+        d = payload['Dados']
+        hash_id = payload.get('Hash_ID')
+        ajuste_id = payload.get('Ajuste_ID')
+        
+        ajuste = None
+        is_novo = False
+        
+        if ajuste_id:
+            ajuste = self.session.query(AjustesRazao).get(ajuste_id)
+        
+        if not ajuste and payload['Tipo_Operacao'] == 'EDICAO':
+            ajuste = self.session.query(AjustesRazao).filter_by(Hash_Linha_Original=hash_id).first()
+        
+        if not ajuste:
+            ajuste = AjustesRazao()
+            is_novo = True
+            ajuste.Criado_Por = usuario
+            ajuste.Data_Criacao = datetime.datetime.now()
+            self.session.add(ajuste)
+        else:
+            self._registrar_log(ajuste, d, usuario)
+
+        ajuste.Tipo_Operacao = payload['Tipo_Operacao']
+        ajuste.Hash_Linha_Original = hash_id
+        ajuste.Status = 'Pendente'
+        
+        ajuste.Origem = d.get('origem')
+        ajuste.Conta = d.get('Conta')
+        ajuste.Titulo_Conta = d.get('Titulo_Conta')
+        if d.get('Data'): ajuste.Data = datetime.datetime.strptime(d['Data'], '%Y-%m-%d')
+        ajuste.Numero = d.get('Numero')
+        ajuste.Descricao = d.get('Descricao')
+        ajuste.Contra_Partida = d.get('Contra_Partida')
+        ajuste.Filial = d.get('Filial')
+        ajuste.Centro_Custo = d.get('Centro de Custo')
+        ajuste.Item = d.get('Item')
+        ajuste.Cod_Cl_Valor = d.get('Cod_Cl_Valor')
+        ajuste.Debito = float(d.get('Debito') or 0)
+        ajuste.Credito = float(d.get('Credito') or 0)
+        
+        ajuste.Invalido = parse_bool(d.get('Invalido'))
+        ajuste.Is_Nao_Operacional = parse_bool(d.get('NaoOperacional'))
+        ajuste.Exibir_Saldo = parse_bool(d.get('Exibir_Saldo'))
+        
+        self.session.flush() 
+
+        if is_novo:
+            log = AjustesLog(Id_Ajuste=ajuste.Id, Campo_Alterado='TODOS', Valor_Antigo='-', 
+                             Valor_Novo='CRIADO', Usuario_Acao=usuario, Data_Acao=datetime.datetime.now(), Tipo_Acao='CRIACAO')
+            self.session.add(log)
+        
+        self.session.commit()
+        return ajuste.Id
+
+    def aprovar_ajuste(self, ajuste_id, acao, usuario):
+        ajuste = self.session.query(AjustesRazao).get(ajuste_id)
+        if ajuste:
+            novo_status = 'Aprovado' if acao == 'Aprovar' else 'Reprovado'
+            log = AjustesLog(Id_Ajuste=ajuste.Id, Campo_Alterado='Status', Valor_Antigo=ajuste.Status, 
+                             Valor_Novo=novo_status, Usuario_Acao=usuario, Data_Acao=datetime.datetime.now(), Tipo_Acao='APROVACAO')
+            self.session.add(log)
+            ajuste.Status = novo_status
+            ajuste.Aprovado_Por = usuario
+            ajuste.Data_Aprovacao = datetime.datetime.now()
+            self.session.commit()
+
+    def toggle_invalido(self, ajuste_id, acao, usuario):
+        ajuste = self.session.query(AjustesRazao).get(ajuste_id)
+        if not ajuste: raise Exception('Ajuste não encontrado')
+
+        novo_estado_invalido = (acao == 'INVALIDAR')
+        log = AjustesLog(
+            Id_Ajuste=ajuste.Id, Campo_Alterado='Invalido', 
+            Valor_Antigo=str(ajuste.Invalido), Valor_Novo=str(novo_estado_invalido),
+            Usuario_Acao=usuario, Data_Acao=datetime.datetime.now(),
+            Tipo_Acao='INVALIDACAO' if novo_estado_invalido else 'RESTAURACAO'
+        )
+        self.session.add(log)
+
+        ajuste.Invalido = novo_estado_invalido
+        if novo_estado_invalido:
+            ajuste.Status = 'Invalido'
+        else:
+            ajuste.Status = 'Pendente'
+        self.session.commit()
+
+    def obter_historico(self, ajuste_id):
+        logs = self.session.query(AjustesLog).filter(AjustesLog.Id_Ajuste == ajuste_id).order_by(AjustesLog.Data_Acao.desc()).all()
+        return [{
+            'Id_Log': l.Id_Log, 'Campo': l.Campo_Alterado, 'De': l.Valor_Antigo, 'Para': l.Valor_Novo,
+            'Usuario': l.Usuario_Acao, 'Data': l.Data_Acao.strftime('%d/%m/%Y %H:%M:%S'), 'Tipo': l.Tipo_Acao
+        } for l in logs]
+
+    def gerar_intergrupo(self, ano):
+        """
+        Executa a lógica completa de geração de ajustes intergrupo.
+        """
+        config_contas = {
+            '60301020290': {'destino': '60301020290B', 'descricao': 'ajuste intergrupo ( fretes Dist.)', 'titulo_origem': 'FRETE DISTRIBUIÇÃO', 'titulo_destino': 'FRETE DISTRIBUIÇÃO'},
+            '60301020288': {'destino': '60301020288C', 'descricao': 'ajuste intergrupo ( fretes Aéreo)', 'titulo_origem': 'FRETES AEREO', 'titulo_destino': 'FRETES AEREO'},
+            '60101010201': {'destino': '60101010201A', 'descricao': 'VLR. CFE DIARIO AUXILIAR N/ DATA (aéreo)', 'titulo_origem': 'VENDA DE FRETES', 'titulo_destino': 'VENDA DE FRETES'}
+        }
+        
+        logs_retorno = []
+
+        def salvar_log_interno(mes, conta, origem_erp, valor, tipo, acao, id_orig=None, id_dest=None, hash_val=None):
+            novo_log = AjustesIntergrupoLog(
+                Ano=ano, Mes=mes, Conta_Origem=conta, Origem_ERP=origem_erp, 
+                Valor_Encontrado_ERP=valor, Tipo_Fluxo=tipo, Id_Ajuste_Origem=id_orig, 
+                Id_Ajuste_Destino=id_dest, Acao_Realizada=acao, Hash_Gerado=hash_val, 
+                Data_Processamento=datetime.datetime.now()
+            )
+            self.session.add(novo_log)
+
+        for conta_origem, config in config_contas.items():
+            conta_destino = config['destino']
+            desc_regra = config['descricao']
+            titulo_origem = config['titulo_origem']
+            titulo_destino = config['titulo_destino']
+
+            for mes in range(1, 13):
+                ultimo_dia = calendar.monthrange(ano, mes)[1]
+                data_inicio = datetime.datetime(ano, mes, 1)
+                data_fim_busca = datetime.datetime(ano, mes, ultimo_dia, 23, 59, 59)
+                data_gravacao = datetime.datetime(ano, mes, ultimo_dia, 0, 0, 0)
+
+                # A. VERIFICAÇÃO RIGOROSA NO ERP
+                qtd_erp = self.session.execute(text("""
+                    SELECT COUNT(*) FROM "Dre_Schema"."Razao_Dados_Consolidado"
+                    WHERE "Conta" = :conta AND "Data" >= :d_ini AND "Data" <= :d_fim
+                """), {'conta': conta_destino, 'd_ini': data_inicio, 'd_fim': data_fim_busca}).scalar()
+
+                if qtd_erp > 0:
+                    logs_retorno.append(f"[{conta_origem} | {mes:02d}/{ano}] PULADO: Já consolidado no ERP.")
+                    continue
+
+                # B. BUSCA DADOS BRUTOS
+                rows = self.session.execute(text("""
+                    SELECT "origem", "Debito", "Credito", "Item", "Filial", "Centro de Custo"
+                    FROM "Dre_Schema"."Razao_Dados_Consolidado"
+                    WHERE "Conta" = :conta AND "Data" >= :d_ini AND "Data" <= :d_fim
+                    ORDER BY "Data" ASC
+                """), {'conta': conta_origem, 'd_ini': data_inicio, 'd_fim': data_fim_busca}).fetchall()
+
+                # C. AGRUPAMENTO
+                dados_agrupados = {}
+                for row in rows:
+                    org = str(row.origem) if row.origem else 'SEM_ORIGEM'
+                    if org not in dados_agrupados:
+                        dados_agrupados[org] = {'deb': 0.0, 'cred': 0.0, 'last_item': 'INTERGRUPO', 'last_filial': '99', 'last_cc': 'SEM_CC'}
+                    dados_agrupados[org]['deb'] += float(row.Debito or 0.0)
+                    dados_agrupados[org]['cred'] += float(row.Credito or 0.0)
+                    if row.Item: dados_agrupados[org]['last_item'] = str(row.Item)
+                    if row.Filial: dados_agrupados[org]['last_filial'] = str(row.Filial)
+                    cc = getattr(row, 'Centro de Custo', None) or getattr(row, 'Centro_Custo', None)
+                    if cc: dados_agrupados[org]['last_cc'] = str(cc)
+
+                if not dados_agrupados: continue
+
+                # D. PROCESSAMENTO
+                for org_atual, valores in dados_agrupados.items():
+                    prefixo_log = f"[{conta_origem} | {org_atual} | {mes:02d}/{ano}]"
+                    soma_debito_real = round(abs(valores['deb']), 2)
+                    soma_credito_real = round(abs(valores['cred']), 2)
+                    item_real = valores['last_item']
+                    filial_ref = valores['last_filial']
+                    cc_ref = valores['last_cc']
+
+                    # --- FLUXO DE DÉBITOS ---
+                    if soma_debito_real > 0.00:
+                        ajuste_deb_origem = self.session.query(AjustesRazao).filter(
+                            AjustesRazao.Conta == conta_origem, AjustesRazao.Data == data_gravacao,
+                            AjustesRazao.Origem == org_atual, AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
+                            AjustesRazao.Credito > 0, AjustesRazao.Invalido == False
+                        ).first()
+
+                        row_origem_params = {'Conta': conta_origem, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': 0.0, 'Credito': soma_debito_real, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
+                        hash_novo_origem = self._gerar_hash_intergrupo(row_origem_params)
+
+                        row_destino_params = {'Conta': conta_destino, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': soma_debito_real, 'Credito': 0.0, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
+                        hash_novo_destino = self._gerar_hash_intergrupo(row_destino_params)
+
+                        if ajuste_deb_origem:
+                            if abs(ajuste_deb_origem.Credito - soma_debito_real) > 0.01 or ajuste_deb_origem.Item != item_real:
+                                ajuste_deb_origem.Credito = soma_debito_real
+                                ajuste_deb_origem.Item = item_real
+                                ajuste_deb_origem.Hash_Linha_Original = hash_novo_origem
+                                
+                                ajuste_deb_destino = self.session.query(AjustesRazao).filter(
+                                    AjustesRazao.Conta == conta_destino, AjustesRazao.Data == data_gravacao,
+                                    AjustesRazao.Origem == org_atual, AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
+                                    AjustesRazao.Debito > 0, AjustesRazao.Invalido == False
+                                ).first()
+                                
+                                if ajuste_deb_destino:
+                                    ajuste_deb_destino.Debito = soma_debito_real
+                                    ajuste_deb_destino.Item = item_real
+                                    ajuste_deb_destino.Hash_Linha_Original = hash_novo_destino
+                                
+                                salvar_log_interno(mes, conta_origem, org_atual, soma_debito_real, 'DEBITO', 'ATUALIZACAO', id_orig=ajuste_deb_origem.Id, id_dest=ajuste_deb_destino.Id if ajuste_deb_destino else None, hash_val=hash_novo_origem)
+                                logs_retorno.append(f"{prefixo_log} [DEBITO] ATUALIZADO: {soma_debito_real}")
+                        else:
+                            l1 = AjustesRazao(
+                                Conta=conta_origem, Titulo_Conta=titulo_origem, Data=data_gravacao, Descricao=desc_regra,
+                                Debito=0.0, Credito=soma_debito_real, Filial=filial_ref, Centro_Custo=cc_ref, Item=item_real, 
+                                Hash_Linha_Original=hash_novo_origem, Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
+                                Status='Aprovado', Invalido=False, Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', 
+                                Data_Aprovacao=datetime.datetime.now(), Is_Nao_Operacional=False, Exibir_Saldo=True
+                            )
+                            l2 = AjustesRazao(
+                                Conta=conta_destino, Titulo_Conta=titulo_destino, Data=data_gravacao, Descricao=desc_regra,
+                                Debito=soma_debito_real, Credito=0.0, Filial=filial_ref, Centro_Custo=cc_ref, Item=item_real, 
+                                Hash_Linha_Original=hash_novo_destino, Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
+                                Status='Aprovado', Invalido=False, Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', 
+                                Data_Aprovacao=datetime.datetime.now(), Is_Nao_Operacional=False, Exibir_Saldo=True
+                            )
+                            self.session.add(l1); self.session.add(l2)
+                            self.session.flush()
+                            salvar_log_interno(mes, conta_origem, org_atual, soma_debito_real, 'DEBITO', 'CRIACAO', id_orig=l1.Id, id_dest=l2.Id, hash_val=hash_novo_origem)
+                            logs_retorno.append(f"{prefixo_log} [DEBITO] CRIADO: {soma_debito_real}")
+
+                    # --- FLUXO DE CRÉDITOS ---
+                    if soma_credito_real > 0.00:
+                        ajuste_cred_origem = self.session.query(AjustesRazao).filter(
+                            AjustesRazao.Conta == conta_origem, AjustesRazao.Data == data_gravacao,
+                            AjustesRazao.Origem == org_atual, AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
+                            AjustesRazao.Debito > 0, AjustesRazao.Invalido == False
+                        ).first()
+
+                        row_origem_cred_params = {'Conta': conta_origem, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': soma_credito_real, 'Credito': 0.0, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
+                        hash_novo_origem_cred = self._gerar_hash_intergrupo(row_origem_cred_params)
+
+                        row_destino_cred_params = {'Conta': conta_destino, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': 0.0, 'Credito': soma_credito_real, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
+                        hash_novo_destino_cred = self._gerar_hash_intergrupo(row_destino_cred_params)
+
+                        if ajuste_cred_origem:
+                            if abs(ajuste_cred_origem.Debito - soma_credito_real) > 0.01 or ajuste_cred_origem.Item != item_real:
+                                ajuste_cred_origem.Debito = soma_credito_real
+                                ajuste_cred_origem.Item = item_real
+                                ajuste_cred_origem.Hash_Linha_Original = hash_novo_origem_cred
+                                
+                                ajuste_cred_destino = self.session.query(AjustesRazao).filter(
+                                    AjustesRazao.Conta == conta_destino, AjustesRazao.Data == data_gravacao,
+                                    AjustesRazao.Origem == org_atual, AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
+                                    AjustesRazao.Credito > 0, AjustesRazao.Invalido == False
+                                ).first()
+                                
+                                if ajuste_cred_destino:
+                                    ajuste_cred_destino.Credito = soma_credito_real
+                                    ajuste_cred_destino.Item = item_real
+                                    ajuste_cred_destino.Hash_Linha_Original = hash_novo_destino_cred
+                                
+                                salvar_log_interno(mes, conta_origem, org_atual, soma_credito_real, 'CREDITO', 'ATUALIZACAO', id_orig=ajuste_cred_origem.Id, id_dest=ajuste_cred_destino.Id if ajuste_cred_destino else None, hash_val=hash_novo_origem_cred)
+                                logs_retorno.append(f"{prefixo_log} [CREDITO] ATUALIZADO: {soma_credito_real}")
+                        else:
+                            l3 = AjustesRazao(
+                                Conta=conta_origem, Titulo_Conta=titulo_origem, Data=data_gravacao, Descricao=desc_regra,
+                                Debito=soma_credito_real, Credito=0.0, Filial=filial_ref, Centro_Custo=cc_ref, Item=item_real, 
+                                Hash_Linha_Original=hash_novo_origem_cred, Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
+                                Status='Aprovado', Invalido=False, Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', 
+                                Data_Aprovacao=datetime.datetime.now(), Is_Nao_Operacional=False, Exibir_Saldo=True
+                            )
+                            l4 = AjustesRazao(
+                                Conta=conta_destino, Titulo_Conta=titulo_destino, Data=data_gravacao, Descricao=desc_regra,
+                                Debito=0.0, Credito=soma_credito_real, Filial=filial_ref, Centro_Custo=cc_ref, Item=item_real, 
+                                Hash_Linha_Original=hash_novo_destino_cred, Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
+                                Status='Aprovado', Invalido=False, Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', 
+                                Data_Aprovacao=datetime.datetime.now(), Is_Nao_Operacional=False, Exibir_Saldo=True
+                            )
+                            self.session.add(l3); self.session.add(l4)
+                            self.session.flush()
+                            salvar_log_interno(mes, conta_origem, org_atual, soma_credito_real, 'CREDITO', 'CRIACAO', id_orig=l3.Id, id_dest=l4.Id, hash_val=hash_novo_origem_cred)
+                            logs_retorno.append(f"{prefixo_log} [CREDITO] CRIADO: {soma_credito_real}")
+
+        self.session.commit()
+        return logs_retorno

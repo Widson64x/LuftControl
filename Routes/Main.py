@@ -16,4 +16,4 @@ def settings_hub():
     Página centralizadora de configurações do sistema.
     Aqui o usuário escolhe se quer configurar DRE, Usuários, etc.
     """
-    return render_template('MENUS/Configuracoes.html')
+    return render_template('CONFIGS/ConfigsSystem.html')

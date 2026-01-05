@@ -1114,3 +1114,218 @@ input:focus + .slider {
     margin-left: 10px;
 }
 .btn-bulk-close:hover { color: white; }
+
+/* Container do Painel */
+.filter-panel-wrapper {
+    position: fixed;
+    top: 0; right: -450px; /* Escondido */
+    width: 450px;
+    height: 100vh;
+    background: #ffffff;
+    box-shadow: -5px 0 30px rgba(0,0,0,0.15);
+    z-index: 9999;
+    transition: right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    display: flex;
+    flex-direction: column;
+}
+.filter-panel-wrapper.active { right: 0; }
+
+/* Header e Footer */
+.filter-header {
+    padding: 20px 25px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.filter-header h3 { margin: 0; font-size: 1.1rem; color: #2c3e50; font-weight: 700; }
+
+.filter-footer {
+    padding: 20px;
+    background: #fff;
+    border-top: 1px solid #e9ecef;
+    margin-top: auto; /* Empurra para baixo */
+}
+
+/* Grid Layout do Corpo */
+.filter-body-grid {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Seções */
+.filter-section {
+    background: #fff;
+    /* Opcional: borda leve para separar seções se quiser */
+}
+.section-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #adb5bd;
+    font-weight: 700;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #f1f3f5;
+    padding-bottom: 5px;
+}
+
+/* Inputs Modernos */
+.modern-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #495057;
+    transition: all 0.2s;
+    background: #fdfdfd;
+}
+.modern-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: none;
+    background: #fff;
+}
+.row-inputs {
+    display: flex;
+    gap: 10px;
+}
+.input-group { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.input-group.full { width: 100%; }
+.input-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #343a40;
+}
+
+/* Date Range Específico */
+.date-range-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.range-separator { font-size: 0.8rem; color: #888; }
+
+/* Botões de Ordenação (Tags) */
+.sort-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.btn-sort {
+    background: #f1f3f5;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-sort:hover {
+    background: #e9ecef;
+    color: #212529;
+    transform: translateY(-1px);
+}
+.btn-sort:active {
+    background: #dee2e6;
+    transform: translateY(0);
+}
+
+/* === NOVO: BACKDROP (Fundo escuro atrás do filtro) === */
+.filter-backdrop {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* Fundo escuro semitransparente */
+    backdrop-filter: blur(3px);      /* Desfoque leve no fundo */
+    z-index: 9998;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.filter-backdrop.active {
+    display: block;
+    opacity: 1;
+}
+
+/* === REFORMULAÇÃO: MODAL CENTRALIZADO === */
+.filter-panel-wrapper {
+    position: fixed;
+    top: 50%; 
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9); /* Começa um pouco menor */
+    width: 500px;           /* Largura fixa confortável */
+    max-width: 90%;         /* Responsivo */
+    max-height: 85vh;       /* Altura máxima de 85% da tela */
+    background: #ffffff;
+    border-radius: 12px;    /* Bordas mais arredondadas */
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    z-index: 9999;
+    
+    /* Flex para gerenciar o Header, Body e Footer */
+    display: flex;
+    flex-direction: column;
+    
+    /* Animação de entrada */
+    opacity: 0;
+    pointer-events: none; /* Não clicável quando invisível */
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.filter-panel-wrapper.active { 
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1); /* Escala normal ao abrir */
+    pointer-events: all;
+}
+
+/* Header e Footer fixos */
+.filter-header {
+    padding: 20px 25px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 12px 12px 0 0;
+    flex-shrink: 0; /* Não encolhe */
+}
+
+.filter-footer {
+    padding: 20px;
+    background: #fff;
+    border-top: 1px solid #e9ecef;
+    border-radius: 0 0 12px 12px;
+    flex-shrink: 0; /* Não encolhe */
+}
+
+/* CORPO COM SCROLLBAR */
+.filter-body-grid {
+    padding: 20px;
+    overflow-y: auto; /* Scroll vertical automático */
+    flex: 1;          /* Ocupa o espaço restante */
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Estilo da Scrollbar interna */
+.filter-body-grid::-webkit-scrollbar {
+    width: 8px;
+}
+.filter-body-grid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+.filter-body-grid::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+.filter-body-grid::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

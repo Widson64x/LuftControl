@@ -1,0 +1,534 @@
+{% extends 'Base.html' %}
+
+{% block title %}Configuração DRE | T-Controllership{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/ConfiguracaoDRE.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dre-layout-wrapper">
+    
+    <header class="dre-page-header fade-in">
+        <div class="header-content">
+            <div class="header-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <div class="header-text">
+                <h1>Gerenciador DRE</h1>
+                <p>Estruturação financeira e hierarquia de contas</p>
+            </div>
+        </div>
+        
+        <div class="header-controls">
+            <div class="btn-group">
+                <button class="btn btn-outline" onclick="toggleAllTree(true)" title="Expandir Tudo">
+                    <i class="fas fa-expand-alt"></i>
+                </button>
+                <button class="btn btn-outline" onclick="toggleAllTree(false)" title="Recolher Tudo">
+                    <i class="fas fa-compress-alt"></i>
+                </button>
+            </div>
+            
+            <div class="separator-vertical"></div>
+
+            <button class="btn btn-secondary" onclick="openModal('modalAddVirtual')">
+                <i class="fas fa-plus"></i> Novo Nó Virtual
+            </button>
+
+            <button class="btn btn-secondary" onclick="openModalCalculado()"> 
+                <i class="fas fa-calculator"></i> Novo Nó Calculado
+            </button>
+            
+            <button class="btn btn-secondary" onclick="openAddRootGroup()"> 
+                <i class="fas fa-folder-plus"></i> Novo Grupo Raiz
+            </button>
+
+            <button class="btn btn-primary" onclick="loadTree()">
+                <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+        </div>
+    </header>
+
+    <div class="dre-toolbar fade-in delay-1" id="ordenamentoToolbar">
+        <div class="toolbar-status">
+            <div class="status-dot" id="ordenamentoIndicator"></div>
+            <span id="ordenamentoStatusText">Verificando status...</span>
+        </div>
+        
+        <div class="toolbar-actions">
+            <span class="toolbar-help" data-tooltip="Arraste os itens na árvore para reordenar.">
+                <i class="far fa-question-circle"></i> Ajuda
+            </span>
+            
+            <button class="btn btn-xs btn-ghost" id="btnInicializarOrdem" onclick="inicializarOrdenamento()" style="display: none;">
+                <i class="fas fa-magic"></i> Inicializar
+            </button>
+            <button class="btn btn-xs btn-ghost" id="btnResetarOrdem" onclick="resetarOrdenamento()" style="display: none;">
+                <i class="fas fa-undo"></i> Resetar
+            </button>
+            <button class="btn btn-xs btn-ghost" id="btnNormalizarOrdem" onclick="normalizarOrdenamento()" style="display: none;">
+                <i class="fas fa-sort-numeric-down"></i> Normalizar
+            </button>
+            <button class="btn btn-xs btn-ghost" onclick="sincronizarOrdem()">
+                <i class="fas fa-sync"></i> Sincronizar
+            </button>
+        </div>
+    </div>
+
+    <main class="dre-tree-container fade-in delay-2">
+        <div class="tree-scroll-wrapper" id="treeContainer">
+            <ul id="treeRoot" class="tree-root">
+                <li class="loading-state">
+                    <div class="spinner"></div>
+                    <span>Carregando estrutura...</span>
+                </li>
+            </ul>
+        </div>
+    </main>
+
+</div>
+
+<div id="modalMassManager" class="modal-backdrop">
+    <div class="modal-window modal-xl">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-cubes"></i>
+                <div>
+                    <h3>Gestão em Massa</h3>
+                    <p>Tipo: <span id="lblMassType" class="text-highlight">...</span></p>
+                </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeModals()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="modal-body-split">
+            <aside class="modal-sidebar">
+                <nav class="sidebar-nav">
+                    <button class="nav-btn active" onclick="switchMassTab('tabGroupManager', this)">
+                        <i class="fas fa-layer-group"></i> Gerenciar Grupos
+                    </button>
+                    
+                    <button class="nav-btn" onclick="switchMassTab('tabLinkAccount', this)">
+                        <i class="fas fa-link"></i> Vincular Contas
+                    </button>
+                    <button class="nav-btn" onclick="switchMassTab('tabUnlinkAccount', this)">
+                        <i class="fas fa-unlink"></i> Desvincular
+                    </button>
+                </nav>
+            </aside>
+
+            <section class="modal-content-area">
+                
+                <div id="tabGroupManager" class="tab-pane active full-height">
+                    <div class="tab-header">
+                        <h4>Estrutura de Grupos</h4>
+                        <p>Crie, ordene ou exclua grupos para <strong>todos</strong> os Centros de Custo deste tipo.</p>
+                    </div>
+
+                    <div class="mass-create-bar">
+                        <input type="text" id="inputMassCreateName" class="form-input" placeholder="Nome do novo grupo..." onkeydown="if(event.key === 'Enter') submitMassCreate()">
+                        <button class="btn btn-primary" onclick="submitMassCreate()">
+                            <i class="fas fa-plus"></i> Criar
+                        </button>
+                    </div>
+
+                    <div class="mass-list-header">
+                        <span>Ordem</span>
+                        <span>Nome do Grupo</span>
+                        <span>Ações</span>
+                    </div>
+                    
+                    <div class="mass-reorder-container">
+                        <ul id="listGroupManager" class="reorder-list">
+                            <li class="loading-state">Carregando grupos...</li>
+                        </ul>
+                    </div>
+
+                    <div class="modal-footer-embedded">
+                        <small class="text-muted"><i class="fas fa-info-circle"></i> Arraste para reordenar. As alterações de ordem são salvas no botão abaixo.</small>
+                        <button class="btn btn-success" onclick="submitMassReorder()">
+                            <i class="fas fa-save"></i> Salvar Nova Ordem
+                        </button>
+                    </div>
+                </div>
+
+                <div id="tabLinkAccount" class="tab-pane full-height">
+                    <div class="dual-pane-layout">
+                        <div class="pane-left">
+                            <div class="pane-header">
+                                <span>Grupos Disponíveis</span>
+                            </div>
+                            <div class="pane-list" id="listMassGroups"></div>
+                        </div>
+
+                        <div class="pane-right">
+                            <div id="noGroupSelected" class="empty-selection">
+                                <i class="fas fa-mouse-pointer"></i>
+                                <p>Selecione um grupo à esquerda</p>
+                            </div>
+
+                            <div id="groupDetails" class="details-view" style="display: none;">
+                                <div class="details-header">
+                                    <h5 id="lblSelectedGroup">Nome do Grupo</h5>
+                                    <span class="badge" id="lblCountAccounts">0 contas</span>
+                                </div>
+
+                                <div class="accounts-list-wrapper">
+                                    <label>Contas Vinculadas</label>
+                                    <div id="listLinkedAccounts" class="tags-container"></div>
+                                </div>
+
+                                <div class="add-account-footer">
+                                    <div class="toggle-wrapper">
+                                        <label class="switch">
+                                            <input type="checkbox" id="chkMassPersonalizada" onchange="toggleMassCustomInput()">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span>Personalizada?</span>
+                                    </div>
+                                    
+                                    <div id="divMassCustomName" style="display: none;" class="mt-2 mb-2">
+                                        <input type="text" id="inputMassCustomName" class="form-input" placeholder="Nome personalizado (Opcional)">
+                                    </div>
+
+                                    <div class="input-group">
+                                        <input type="text" id="inputMassLinkConta" list="massContasDataList" class="form-input" placeholder="Buscar conta...">
+                                        <button class="btn btn-icon" onclick="addAccountToGroup()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tabUnlinkAccount" class="tab-pane">
+                    <div class="tab-header">
+                        <h4>Desvincular Conta</h4>
+                        <p>Remove o vínculo de uma conta específica em massa.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Número da Conta</label>
+                        <input type="text" id="inputMassUnlinkConta" list="contasDataList" class="form-input" placeholder="Digite a conta...">
+                    </div>
+                    <button class="btn btn-danger btn-block" onclick="submitMassUnlink()">
+                        <i class="fas fa-unlink"></i> Remover Vínculo
+                    </button>
+                </div>
+
+            </section>
+        </div>
+    </div>
+</div>
+
+<div id="modalAddVirtual" class="modal-backdrop">
+    <div class="modal-window modal-sm">
+        <div class="modal-header">
+            <h3>Novo Nó Virtual</h3>
+            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Nome da Estrutura</label>
+                <input type="text" id="inputVirtualName" class="form-input" placeholder="Ex: RECEITA LÍQUIDA">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitAddVirtual()">Criar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalAddCalculado" class="modal-backdrop">
+    <div class="modal-window modal-md">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-calculator"></i>
+                <div>
+                    <h3>Novo Nó Calculado</h3>
+                    <p>Crie uma linha de cálculo personalizada</p>
+                </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeModals()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Nome do Nó</label>
+                <input type="text" id="inputCalcNome" class="form-input" 
+                       placeholder="Ex: Margem Bruta, EBITDA, Lucro Líquido">
+            </div>
+            
+            <div class="form-group">
+                <label>Operação</label>
+                <select id="selectCalcOperacao" class="form-select">
+                    <option value="soma">Soma (+)</option>
+                    <option value="subtracao">Subtração (-)</option>
+                    <option value="multiplicacao">Multiplicação (×)</option>
+                    <option value="divisao">Divisão (÷)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Operandos</label>
+                <p class="text-sm text-secondary mb-2">
+                    Selecione os elementos que compõem o cálculo:
+                </p>
+                <div id="containerOperandos" class="operandos-list">
+                    </div>
+                <button class="btn btn-xs btn-outline mt-2" onclick="addOperando()">
+                    <i class="fas fa-plus"></i> Adicionar Operando
+                </button>
+            </div>
+            
+            <div class="form-group">
+                <label>Ordem de Exibição</label>
+                <input type="number" id="inputCalcOrdem" class="form-input" 
+                       value="50" min="0" max="999">
+                <small class="text-muted">Números menores aparecem primeiro</small>
+            </div>
+            
+            <div class="form-group">
+                <label>Tipo de Exibição</label>
+                <select id="selectCalcTipoExibicao" class="form-select">
+                    <option value="valor">Valor Monetário</option>
+                    <option value="percentual">Percentual (%)</option>
+                    <option value="indice">Índice</option>
+                </select>
+            </div>
+            
+            <div class="preview-formula">
+                <label>Pré-visualização:</label>
+                <div id="previewFormula" class="formula-preview">
+                    </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitNoCalculado()">
+                <i class="fas fa-save"></i> Criar Nó
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="modalAddSub" class="modal-backdrop">
+    <div class="modal-window modal-sm">
+        <div class="modal-header">
+            <h3>Novo Subgrupo</h3>
+            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Pai: <strong id="lblParentName">...</strong></p>
+            <div class="form-group">
+                <label>Nome do Grupo</label>
+                <input type="text" id="inputSubName" class="form-input" placeholder="Ex: Pessoal">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitAddSub()">Criar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalLinkConta" class="modal-backdrop">
+    <div class="modal-window modal-md">
+        <div class="modal-header">
+            <h3>Gerenciar Contas</h3>
+            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="stats-bar">
+                <span>Grupo: <strong id="lblGroupTarget">...</strong></span>
+                <span class="badge" id="lblCountStd">0</span>
+            </div>
+            
+            <div class="scrollable-list" id="listStdLinkedAccounts">
+            </div>
+
+            <div class="footer-input-area">
+                <label>Adicionar Conta</label>
+                <div class="input-group">
+                    <input type="text" id="inputContaSearch" list="stdContasDataList" class="form-input" placeholder="Buscar conta...">
+                    <button class="btn btn-primary" onclick="submitLinkConta()">Adicionar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalLinkDetalhe" class="modal-backdrop">
+    <div class="modal-window modal-sm">
+        <div class="modal-header">
+            <h3>Vincular Personalizada</h3>
+            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Destino: <strong id="lblDetailTarget">...</strong></p>
+            <div class="form-group">
+                <label>1. Conta Contábil</label>
+                <input type="text" id="inputDetailConta" list="contasDataList" class="form-input" placeholder="6010...">
+            </div>
+            <div class="form-group">
+                <label>2. Nome de Exibição (Opcional)</label>
+                <input type="text" id="inputDetailName" class="form-input" placeholder="Ex: Venda Matriz">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-success" onclick="submitLinkDetalhe()">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalReplicar" class="modal-backdrop">
+    <div class="modal-window modal-md">
+        <div class="modal-header">
+            <h3 id="lblReplicarTitle">Replicar Estrutura</h3>
+            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body full-height">
+            <div class="mb-2">
+                <strong id="lblOrigemReplicar">...</strong>
+            </div>
+            
+            <div class="selection-controls">
+                <button class="btn btn-xs btn-text" onclick="toggleAllDestinos()">Inverter Seleção</button>
+                <span id="lblTotalSelecionados">0 selecionados</span>
+            </div>
+            <div id="listaDestinos" class="checklist-container"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitReplicar()">Replicar</button>
+        </div>
+    </div>
+</div>
+
+<datalist id="contasDataList"></datalist>
+<datalist id="stdContasDataList"></datalist>
+<datalist id="massContasDataList"></datalist>
+
+<div id="toast" class="toast">Notificação</div>
+<div id="dropIndicator" class="drop-indicator"><div class="drop-line"></div></div>
+
+<div id="contextMenu" class="context-menu">
+    <div class="ctx-group">
+        <div class="ctx-item" id="ctxEditCalc" onclick="editCalculado()" style="display: none;">
+            <i class="fas fa-calculator"></i> Editar Fórmula
+        </div>
+        
+        <div class="ctx-item" id="ctxRename" onclick="renameNode()">
+            <i class="fas fa-pen"></i> Renomear
+        </div>
+    </div>
+    
+    <div class="ctx-separator" id="divOrdem"></div>
+    
+    <div class="ctx-group">
+        <div class="ctx-item" id="ctxMoveUp" onclick="moverParaCima()">
+            <i class="fas fa-arrow-up"></i> Mover p/ Cima
+            <span class="shortcut">Alt+↑</span>
+        </div>
+        <div class="ctx-item" id="ctxMoveDown" onclick="moverParaBaixo()">
+            <i class="fas fa-arrow-down"></i> Mover p/ Baixo
+            <span class="shortcut">Alt+↓</span>
+        </div>
+    </div>
+
+    <div class="ctx-separator" id="divSystematic"></div>
+
+    <div class="ctx-item highlight" id="ctxMassManager" onclick="openMassManager()">
+        <i class="fas fa-layer-group"></i> Gerenciar em Massa
+    </div>
+
+    <div class="ctx-item" id="ctxReplicarTipo" onclick="openReplicarTipoModal()" style="display: none; color: #e74c3c;">
+        <i class="fas fa-exchange-alt"></i> Replicar (Substituir)
+    </div>
+
+    <div class="ctx-separator" id="divCopy"></div>
+
+    <div class="ctx-group">
+        <div class="ctx-item" id="ctxAddSub" onclick="openModal('modalAddSub')">
+            <i class="fas fa-folder-plus"></i> Novo Subgrupo
+        </div>
+        <div class="ctx-item" id="ctxLinkConta" onclick="openModal('modalLinkConta')">
+            <i class="fas fa-link"></i> Vincular Conta
+        </div>
+        <div class="ctx-item" id="ctxLinkDetalhe" onclick="openModal('modalLinkDetalhe')">
+            <i class="fas fa-tag"></i> Vincular Personalizada
+        </div>
+    </div>
+
+    <div class="ctx-group">
+        <div class="ctx-item" id="ctxCopy" onclick="copyNode()"><i class="fas fa-copy"></i> Copiar</div>
+        <div class="ctx-item" id="ctxPaste" onclick="pasteNode()"><i class="fas fa-paste"></i> Colar</div>
+        <div class="ctx-item" id="ctxReplicar" onclick="openReplicarModal()"><i class="fas fa-clone"></i> Replicar</div>
+    </div>
+
+    <div class="ctx-separator" id="ctxDivider"></div>
+
+    <div class="ctx-item danger" id="ctxDelete" onclick="deleteNode()">
+        <i class="fas fa-trash"></i> <span id="lblDelete">Excluir</span>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const API_ROUTES = {
+        // --- CONFIGURAÇÃO: LEITURA ---
+        getDadosArvore:         "{{ url_for('DreConfig.GetDadosArvore') }}",
+        getContasDisponiveis:   "{{ url_for('DreConfig.GetContasDisponiveis') }}",
+        getOperandosDisponiveis:"{{ url_for('DreConfig.GetOperandosDisponiveis') }}",
+        getSubgruposPorTipo:    "{{ url_for('DreConfig.GetSubgruposPorTipo') }}",
+        getContasDoGrupoMassa:  "{{ url_for('DreConfig.GetContasDoGrupoMassa') }}",
+        getContasDoSubgrupo:    "{{ url_for('DreConfig.GetContasDoSubgrupo') }}",
+
+        // --- CONFIGURAÇÃO: ESCRITA (RENOMEAR) ---
+        renameNoVirtual:        "{{ url_for('DreConfig.RenameNoVirtual') }}",
+        renameSubgrupo:         "{{ url_for('DreConfig.RenameSubgrupo') }}",
+        renameContaPersonalizada:"{{ url_for('DreConfig.RenameContaPersonalizada') }}",
+
+        // --- CONFIGURAÇÃO: ESCRITA (CRIAR/VINCULAR) ---
+        addNoVirtual:           "{{ url_for('DreConfig.AddNoVirtual') }}",
+        addSubgrupo:            "{{ url_for('DreConfig.AddSubgrupo') }}",
+        addSubgrupoSistematico: "{{ url_for('DreConfig.AddSubgrupoSistematico') }}", // Massa
+        addNoCalculado:         "{{ url_for('DreConfig.AddNoCalculado') }}",
+        vincularConta:          "{{ url_for('DreConfig.VincularConta') }}",
+        vincularContaDetalhe:   "{{ url_for('DreConfig.VincularContaDetalhe') }}",
+        vincularContaEmMassa:   "{{ url_for('DreConfig.VincularContaEmMassa') }}",
+        colarEstrutura:         "{{ url_for('DreConfig.ColarEstrutura') }}",
+        replicarEstrutura:      "{{ url_for('DreConfig.ReplicarEstrutura') }}",
+        replicarTipoIntegral:   "{{ url_for('DreConfig.ReplicarTipoIntegral') }}", // ROTA ADICIONADA
+
+        // --- CONFIGURAÇÃO: ESCRITA (DELETAR/DESVINCULAR) ---
+        deleteSubgrupo:         "{{ url_for('DreConfig.DeleteSubgrupo') }}",
+        deleteSubgrupoEmMassa:  "{{ url_for('DreConfig.DeleteSubgrupoEmMassa') }}",
+        deleteNoVirtual:        "{{ url_for('DreConfig.DeleteNoVirtual') }}",
+        desvincularConta:       "{{ url_for('DreConfig.DesvincularConta') }}",
+        desvincularContaEmMassa:"{{ url_for('DreConfig.DesvincularContaEmMassa') }}",
+
+        // --- ORDENAMENTO ---
+        ordenamentoInicializar: "{{ url_for('DreOrdenamento.inicializarOrdenamento') }}",
+        ordenamentoNormalizar:  "{{ url_for('DreOrdenamento.normalizarContexto') }}",
+        getArvoreOrdenada:      "{{ url_for('DreOrdenamento.getArvoreOrdenada') }}",
+        getFilhosOrdenados: "{{ url_for('DreOrdenamento.getFilhosOrdenados') }}",
+        reordenarLote: "{{ url_for('DreOrdenamento.reordenarLote') }}",
+        reordenarEmMassa: "{{ url_for('DreOrdenamento.reordenarEmMassa') }}", 
+    };
+</script>
+
+<script src="{{ url_for('static', filename='js/DreOrdenamento.js') }}"></script>
+<script src="{{ url_for('static', filename='js/DreTreeView.js') }}"></script>
+{% endblock %}
