@@ -1,6 +1,6 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import login_user, logout_user, login_required, UserMixin
+from flask_login import login_user, logout_user, login_required, UserMixin, current_user
 from sqlalchemy.orm import sessionmaker
 # Biblioteca para comunicação com o Active Directory (LDAP)
 from ldap3 import Server, Connection, SIMPLE, core
@@ -11,6 +11,9 @@ from Db.Connections import GetSqlServerEngine, GetPostgresEngine
 from Models.SQL_SERVER.Usuario import Usuario, UsuarioGrupo, MenuAcesso, Menu
 # Modelo de segurança estendida (Permissões extras) no Postgres
 from Models.POSTGRESS.Seguranca import SecUserExtension
+
+# --- IMPORT DO LOGGER ---
+from Utils.Logger import RegistrarLog 
 
 # Definição do Blueprint 'Auth'. 
 # Blueprints organizam o código, permitindo que todas as rotas de autenticação fiquem neste arquivo.
@@ -78,8 +81,9 @@ class UserWrapper(UserMixin):
                 for perm in pg_user.direct_permissions:
                     self.all_permissions.add(perm.Slug)
         except Exception as e:
-            # Loga o erro mas não trava o login do usuário
+            # [LOG] Erro ao carregar contexto, mas não trava o login
             print(f"⚠️ Erro ao carregar contexto de segurança: {e}")
+            RegistrarLog(f"Erro ao carregar contexto de segurança para {self.nome}", "ERROR", erro=e)
         finally:
             # Garante o fechamento da conexão com o Postgres
             session_pg.close()
@@ -122,7 +126,9 @@ def AutenticarAd(usuario, senha):
         return False
     except Exception as e:
         # Erros gerais de conexão (Servidor fora do ar, rede, etc)
-        print(f"❌ [AUTH AD] Erro LDAP: {e}")
+        msg_erro = f"Erro LDAP ao conectar no servidor {LDAP_SERVER}"
+        print(f"❌ [AUTH AD] {msg_erro}: {e}")
+        RegistrarLog(msg_erro, "ERROR", erro=e)
         return False
 
 def CarregarUsuarioFlask(user_id):
@@ -158,6 +164,8 @@ def CarregarUsuarioFlask(user_id):
             
     except Exception as e:
         print(f"⚠️ Erro ao recarregar usuário: {e}")
+        # [LOG] Erro ao recarregar usuário (pode indicar queda do banco)
+        RegistrarLog(f"Erro ao recarregar sessão do usuário ID {user_id}", "ERROR", erro=e)
     finally:
         session_db.close()
     
@@ -175,6 +183,9 @@ def Login():
         username = request.form.get('username')
         password = request.form.get('password')
         
+        # [LOG] Início da tentativa
+        RegistrarLog(f"Iniciando tentativa de login: Usuário '{username}'", "AUTH")
+
         # --- ETAPA 1: Validação de Credenciais no AD ---
         if AutenticarAd(username, password):
             
@@ -198,10 +209,16 @@ def Login():
                     if usuario_flask.nome_grupo not in grupos_permitidos:
                         # Se não for do grupo permitido, desloga imediatamente e avisa
                         logout_user()
+                        # [LOG] Tentativa bloqueada por Grupo
+                        msg = f"Acesso negado: Grupo '{usuario_flask.nome_grupo}' não autorizado."
+                        RegistrarLog(f"{msg} Usuário: {username}", "WARNING")
+                        
                         flash('Usuário não possui permissão para acessar o sistema.', 'danger')
                         return redirect(url_for('Auth.Login'))
                     
-                    # Sucesso Total
+                    # [LOG] Sucesso Total
+                    RegistrarLog(f"Login efetuado com sucesso: {user_db.Nome_Usuario} (Grupo: {usuario_flask.nome_grupo})", "AUTH")
+                    
                     flash(f'Bem-vindo(a), {user_db.Nome_Usuario}!', 'success')
                     
                     # Verifica se havia uma página 'next' na URL (usuário tentou acessar pag restrita antes de logar)
@@ -210,15 +227,21 @@ def Login():
                     
                 else:
                     # Caso: Senha correta (AD), mas não tem cadastro no sistema
+                    # [LOG] Inconsistência Cadastral
+                    RegistrarLog(f"Usuário autenticado no AD mas sem cadastro no sistema: {username}", "WARNING")
                     flash('Login correto (AD), mas usuário não possui cadastro neste sistema.', 'warning')
             
             except Exception as e:
+                # [LOG] Erro Técnico
+                RegistrarLog("Erro técnico no fluxo de login (Banco de Dados)", "ERROR", erro=e)
                 flash(f'Erro ao validar usuário no banco: {e}', 'danger')
             finally:
                 # Sempre fecha a sessão do banco
                 session_db.close()
         else:
             # Caso: Senha ou usuário incorretos no AD
+            # [LOG] Credenciais Inválidas
+            RegistrarLog(f"Falha de autenticação AD (Senha inválida ou usuário inexistente): {username}", "AUTH")
             flash('Usuário ou senha inválidos.', 'danger')
             
     # Se for GET, apenas renderiza o template de login
@@ -230,7 +253,17 @@ def Logout():
     """
     Rota para encerrar a sessão do usuário.
     """
+    # Captura nome para log antes de destruir a sessão
+    nome_usuario = "Desconhecido"
+    if current_user and current_user.is_authenticated:
+        # Tenta pegar atributo 'nome_completo' ou 'nome', se não existir usa fallback
+        nome_usuario = getattr(current_user, 'nome_completo', getattr(current_user, 'nome', 'Usuário'))
+
     logout_user() # Limpa o cookie de sessão do Flask
+    
+    # [LOG] Logout
+    RegistrarLog(f"Logout efetuado pelo usuário: {nome_usuario}", "AUTH")
+    
     flash('Você saiu do sistema.', 'info')
     
     # Redireciona para a tela de login (usando o nome do Blueprint 'Auth' e função 'Login')

@@ -1,532 +1,105 @@
 /* ============================================================================
-   T-CONTROLLERSHIP | AJUSTES RAZÃO
-   Design: Premium Dark Finance Theme
-   Base: Themes.css variables
+   T-CONTROLLERSHIP | AJUSTES RAZÃO (REFACTORED)
+   Design: Modern Admin / Data Grid
+   Base: Themes.css
    ============================================================================ */
 
-/* === EXTENSÕES LOCAIS (complementam Themes.css) === */
-:root {
-    /* Glow effects específicos */
-    --ar-glow-primary: 0 0 30px rgba(var(--primary-rgb), 0.4);
-    --ar-glow-success: 0 0 20px rgba(16, 185, 129, 0.4);
-    --ar-glow-danger: 0 0 20px rgba(239, 68, 68, 0.4);
-    
-    /* Status backgrounds */
-    --ar-success-bg: rgba(16, 185, 129, 0.12);
-    --ar-warning-bg: rgba(245, 158, 11, 0.12);
-    --ar-danger-bg: rgba(239, 68, 68, 0.12);
-    --ar-info-bg: rgba(59, 130, 246, 0.12);
-}
-
-
-/* === PAGE CONTAINER === */
-.content-card {
-    background: var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-primary);
-    box-shadow: var(--shadow-lg);
-    overflow: hidden;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-}
-
-.content-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, 
-        transparent, 
-        var(--primary) 20%, 
-        var(--primary-light) 50%, 
-        var(--primary) 80%, 
-        transparent
-    );
-    opacity: 0.6;
-}
-
-
-/* ============================================================================
-   TABULATOR GRID - COMPLETE OVERRIDE
-   ============================================================================ */
-
-.tabulator {
-    border: none !important;
-    background: transparent !important;
-    font-family: var(--font-primary) !important;
-    font-size: var(--font-sm) !important;
-}
-
-/* Header */
-.tabulator .tabulator-header {
-    background: var(--bg-tertiary) !important;
-    border-bottom: 1px solid var(--border-primary) !important;
-    font-weight: var(--font-weight-semibold) !important;
-    color: var(--text-secondary) !important;
-    font-size: var(--font-xs) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
-}
-
-.tabulator .tabulator-header .tabulator-col {
-    background: transparent !important;
-    border-right: 1px solid var(--border-primary) !important;
-}
-
-.tabulator .tabulator-header .tabulator-col:last-child {
-    border-right: none !important;
-}
-
-.tabulator .tabulator-header .tabulator-col-content {
-    padding: 14px 12px !important;
-}
-
-.tabulator .tabulator-header .tabulator-col .tabulator-col-title {
-    color: var(--text-secondary) !important;
-}
-
-/* Header Filters */
-.tabulator .tabulator-header-filter input {
-    background: var(--bg-hover) !important;
-    border: 1px solid var(--border-primary) !important;
-    border-radius: var(--radius-sm) !important;
-    color: var(--text-primary) !important;
-    padding: 6px 10px !important;
-    font-size: var(--font-xs) !important;
-    transition: var(--transition-fast) !important;
-}
-
-.tabulator .tabulator-header-filter input:focus {
-    border-color: var(--primary) !important;
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15) !important;
-    outline: none !important;
-}
-
-.tabulator .tabulator-header-filter input::placeholder {
-    color: var(--text-muted) !important;
-}
-
-/* Rows */
-.tabulator .tabulator-tableholder .tabulator-table .tabulator-row {
-    background: var(--bg-secondary) !important;
-    border-bottom: 1px solid var(--border-secondary) !important;
-    color: var(--text-primary) !important;
-    transition: var(--transition-fast) !important;
-}
-
-.tabulator .tabulator-tableholder .tabulator-table .tabulator-row:nth-child(even) {
-    background: var(--bg-tertiary) !important;
-}
-
-.tabulator .tabulator-tableholder .tabulator-table .tabulator-row:hover {
-    background: var(--bg-hover) !important;
-}
-
-/* Cells */
-.tabulator .tabulator-cell {
-    border-right: 1px solid var(--border-secondary) !important;
-    padding: 12px !important;
-}
-
-.tabulator .tabulator-cell:last-child {
-    border-right: none !important;
-}
-
-/* Frozen Columns */
-.tabulator .tabulator-frozen {
-    background: var(--bg-tertiary) !important;
-}
-
-.tabulator .tabulator-row:hover .tabulator-frozen {
-    background: var(--bg-hover) !important;
-}
-
-/* Footer / Calcs */
-.tabulator .tabulator-footer {
-    background: var(--bg-tertiary) !important;
-    border-top: 2px solid var(--primary) !important;
-    padding: 0 !important;
-}
-
-.tabulator .tabulator-calcs-holder {
-    background: var(--bg-tertiary) !important;
-    border: none !important;
-}
-
-.tabulator .tabulator-calcs-holder .tabulator-row {
-    background: var(--bg-tertiary) !important;
-}
-
-.tabulator .tabulator-calcs-holder .tabulator-cell {
-    color: var(--primary-light) !important;
-    font-weight: var(--font-weight-bold) !important;
-    font-size: var(--font-sm) !important;
-}
-
-/* Scrollbar */
-.tabulator .tabulator-tableholder::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.tabulator .tabulator-tableholder::-webkit-scrollbar-track {
-    background: var(--bg-primary);
-}
-
-.tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
-    background: var(--bg-hover);
-    border-radius: var(--radius-xs);
-}
-
-.tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
-}
-
-
-/* === STATUS ROWS === */
-.row-inclusao {
-    background: var(--ar-info-bg) !important;
-}
-
-.row-inclusao:nth-child(even) {
-    background: rgba(59, 130, 246, 0.08) !important;
-}
-
-.st-pendente {
-    border-left: 4px solid var(--warning) !important;
-}
-
-.st-aprovado {
-    border-left: 4px solid var(--success) !important;
-}
-
-.st-reprovado {
-    border-left: 4px solid var(--danger) !important;
-    opacity: 0.6;
-}
-
-
-/* === STATUS BADGES === */
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 10px;
-    border-radius: var(--radius-full);
-    font-size: var(--font-xs);
-    font-weight: var(--font-weight-bold);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.status-pendente {
-    background: var(--ar-warning-bg);
-    color: var(--warning);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.status-pendente::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    background: var(--warning);
-    border-radius: var(--radius-full);
-    animation: pulse-warning 2s infinite;
-}
-
-.status-aprovado {
-    background: var(--ar-success-bg);
-    color: var(--success);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.status-aprovado::before {
-    content: '✓';
-    font-size: 9px;
-}
-
-.status-reprovado {
-    background: var(--ar-danger-bg);
-    color: var(--danger);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.status-reprovado::before {
-    content: '✕';
-    font-size: 9px;
-}
-
-.status-original {
-    background: var(--bg-hover);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-primary);
-}
-
-@keyframes pulse-warning {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-}
-
-
-/* === ACTION BUTTONS === */
-.action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: var(--transition-fast);
-    font-size: var(--font-xs);
-}
-
-.action-btn:hover {
-    transform: translateY(-1px);
-}
-
-.btn-edit {
-    color: var(--primary-light);
-    background: rgba(var(--primary-rgb), 0.1);
-}
-
-.btn-edit:hover {
-    background: var(--primary);
-    color: white;
-    box-shadow: var(--ar-glow-primary);
-}
-
-.btn-ok {
-    color: var(--success);
-    background: var(--ar-success-bg);
-}
-
-.btn-ok:hover {
-    background: var(--success);
-    color: white;
-    box-shadow: var(--ar-glow-success);
-}
-
-.btn-no {
-    color: var(--danger);
-    background: var(--ar-danger-bg);
-}
-
-.btn-no:hover {
-    background: var(--danger);
-    color: white;
-    box-shadow: var(--ar-glow-danger);
-}
-
-
-/* ============================================================================
-   MODAL SYSTEM
-   ============================================================================ */
-
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    z-index: var(--z-modal);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    padding: var(--spacing-lg);
-    opacity: 0;
-    transition: opacity var(--transition-normal);
-}
-
-.modal-overlay.active {
-    display: flex;
-    opacity: 1;
-}
-
-/* --- TABELA DE HISTÓRICO --- */
-.history-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
-}
-
-.history-table th {
-    background-color: var(--bg-secondary, #f4f4f4);
-    color: var(--text-primary, #333);
-    font-weight: 600;
-    padding: 12px 15px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    border-bottom: 2px solid var(--border-primary, #ddd);
-    text-align: left;
-}
-
-.history-table td {
-    padding: 10px 15px;
-    border-bottom: 1px solid var(--border-primary, #eee);
-    color: var(--text-primary, #444);
-    vertical-align: middle;
-}
-
-.history-table tr:hover {
-    background-color: rgba(0,0,0,0.02);
-}
-
-/* Badges e Cores */
-.val-old { 
-    color: var(--ar-danger, #ef4444); 
-    text-decoration: line-through; 
-    font-size: 0.85em; 
-    display: block;
-}
-.val-new { 
-    color: var(--ar-success, #10b981); 
-    font-weight: 600; 
-}
-
-/* Botão de Histórico na Grid */
-.btn-hist {
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-.btn-hist:hover {
-    transform: scale(1.1);
-    color: var(--primary-color);
-}
-
-.custom-modal {
-    background: var(--bg-secondary);
-    width: 100%;
-    max-width: 1100px;
-    border-radius: var(--radius-xl);
-    border: 1px solid var(--border-primary);
-    box-shadow: var(--shadow-2xl), var(--shadow-glow);
-    display: flex;
-    flex-direction: column;
-    max-height: 92vh;
-    overflow: hidden;
-    animation: modalSlideIn var(--transition-slow) ease-out;
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(40px) scale(0.96);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-
-/* Modal Header */
-.modal-header {
-    padding: var(--spacing-lg) var(--spacing-xl);
-    background: var(--primary);
-    border-bottom: 1px solid var(--border-primary);
+/* --- 1. LAYOUT & CONTAINER --- */
+.page-header {
+    margin-bottom: var(--spacing-lg);
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    position: relative;
+    align-items: flex-end;
+    gap: var(--spacing-md);
+    animation: fade-in var(--transition-normal);
 }
 
-.modal-header::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: var(--spacing-xl);
-    right: var(--spacing-xl);
-    height: 1px;
-    background: linear-gradient(90deg, 
-        transparent, 
-        var(--primary) 30%, 
-        var(--primary-light) 70%, 
-        transparent
-    );
-}
-
-.modal-header h2 {
-    margin: 0;
-    color: white;
-    font-size: var(--font-xl);
-    font-weight: var(--font-weight-semibold);
+.page-title {
+    font-size: var(--font-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin: 0 0 var(--spacing-xs) 0;
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
 }
 
-.modal-header h2 i {
-    color: white;
-    font-size: var(--font-lg);
+.page-subtitle {
+    color: var(--text-tertiary);
+    font-size: var(--font-sm);
+    margin: 0;
 }
 
-.modal-close {
-    background: var(--bg-hover);
-    border: 1px solid var(--border-primary);
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    color: var(--text-secondary);
+.header-actions {
     display: flex;
+    gap: var(--spacing-sm);
+}
+
+.content-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    position: relative;
+    height: calc(100vh - 200px); /* Ajuste dinâmico */
+}
+
+/* --- 2. BOTÕES (Padronizados) --- */
+button { font-family: var(--font-primary); }
+
+.btn-primary-custom, 
+.btn-secondary-custom {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--font-lg);
-    transition: var(--transition-fast);
+    gap: var(--spacing-sm);
+    padding: 0.6rem 1.2rem;
+    font-size: var(--font-sm);
+    font-weight: var(--font-weight-medium);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    height: 40px;
 }
 
-.modal-close:hover {
-    background: var(--danger);
-    border-color: var(--danger);
-    color: white;
-    transform: rotate(90deg);
+.btn-primary-custom {
+    background: var(--primary);
+    color: #FFF;
+    border: 1px solid transparent;
+    box-shadow: var(--shadow-glow-sm);
 }
 
-
-/* Modal Body */
-.modal-body {
-    padding: var(--spacing-xl);
-    overflow-y: auto;
-    flex: 1;
+.btn-primary-custom:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-glow);
 }
 
-.modal-body::-webkit-scrollbar {
-    width: 6px;
+.btn-secondary-custom {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
 }
 
-.modal-body::-webkit-scrollbar-track {
-    background: var(--bg-primary);
+.btn-secondary-custom:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
 }
 
-.modal-body::-webkit-scrollbar-thumb {
-    background: var(--bg-hover);
-    border-radius: var(--radius-xs);
-}
-
-
-/* === FORM GRID === */
+/* --- 3. FORMULÁRIOS & INPUTS --- */
 .form-grid-wrapper {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-lg);
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm);
 }
 
-.span-2 { grid-column: span 2; }
-.span-3 { grid-column: span 3; }
-.span-4 { grid-column: span 4; }
-
-
-/* Form Groups */
 .form-group {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: 6px;
 }
 
 .form-group label {
@@ -534,682 +107,566 @@
     font-weight: var(--font-weight-semibold);
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.5px;
 }
 
 .form-control {
-    padding: 12px 16px;
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
     color: var(--text-primary);
-    font-size: var(--font-sm);
     font-family: var(--font-primary);
+    font-size: var(--font-sm);
     transition: var(--transition-fast);
-}
-
-.form-control:hover {
-    border-color: var(--text-muted);
 }
 
 .form-control:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.15);
-    background: var(--bg-hover);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+    background: var(--bg-secondary);
 }
 
-.form-control::placeholder {
+.form-control::placeholder { color: var(--text-muted); }
+
+/* Estilo para campos bloqueados/técnicos */
+.form-control:disabled,
+.form-control[readonly] {
+    background: var(--bg-primary); /* Fundo mais escuro */
     color: var(--text-muted);
+    border-color: var(--border-secondary);
+    cursor: not-allowed;
+    opacity: 0.8;
+    font-family: var(--font-mono); /* Fonte mono para códigos/hash */
+    font-size: var(--font-xs);
 }
 
-/* Select Styling */
-select.form-control {
-    cursor: pointer;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A0AEC0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    padding-right: 40px;
-}
+/* Classes utilitárias de grid */
+.span-2 { grid-column: span 2; }
+.span-3 { grid-column: span 3; }
+.span-4 { grid-column: span 4; }
 
-select.form-control option {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    padding: 10px;
-}
-
-/* Date Input Fix */
-input[type="date"].form-control {
-    cursor: pointer;
-}
-
-input[type="date"].form-control::-webkit-calendar-picker-indicator {
-    filter: invert(0.7);
-    cursor: pointer;
-    opacity: 0.7;
-    transition: var(--transition-fast);
-}
-
-input[type="date"].form-control::-webkit-calendar-picker-indicator:hover {
-    opacity: 1;
-}
-
-/* Money Inputs */
-.lbl-debito {
-    color: var(--danger) !important;
-}
-
-.lbl-credito {
-    color: var(--success) !important;
-}
-
-.input-money {
-    font-weight: var(--font-weight-semibold);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.5px;
-}
-
-.form-group:has(.lbl-debito) .form-control:focus {
-    border-color: var(--danger);
-    box-shadow: 0 0 0 4px var(--ar-danger-bg);
-}
-
-.form-group:has(.lbl-credito) .form-control:focus {
-    border-color: var(--success);
-    box-shadow: 0 0 0 4px var(--ar-success-bg);
-}
-
-
-/* === SWITCH TOGGLES === */
-.flex-center {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding-top: var(--spacing-lg);
-}
-
+/* Switch Toggle Customizado */
 .switch-container {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
     cursor: pointer;
-    padding: 10px 16px;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-primary);
-    transition: var(--transition-fast);
 }
-
-.switch-container:hover {
-    border-color: var(--text-muted);
-}
-
-.switch-label {
-    font-size: var(--font-sm);
-    font-weight: var(--font-weight-medium);
-    color: var(--text-secondary);
-    user-select: none;
-}
-
 .switch {
     position: relative;
-    display: inline-block;
-    width: 44px;
-    height: 24px;
-    flex-shrink: 0;
+    width: 40px;
+    height: 22px;
 }
-
-.switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
+.switch input { opacity: 0; width: 0; height: 0; }
 .slider {
     position: absolute;
     cursor: pointer;
     inset: 0;
-    background: var(--bg-hover);
-    border: 1px solid var(--border-primary);
-    transition: var(--transition-fast);
+    background-color: var(--bg-hover);
+    transition: .4s;
     border-radius: var(--radius-full);
+    border: 1px solid var(--border-secondary);
 }
-
-.slider::before {
+.slider:before {
     position: absolute;
     content: "";
-    height: 18px;
-    width: 18px;
+    height: 16px;
+    width: 16px;
     left: 2px;
     bottom: 2px;
-    background: var(--text-secondary);
-    transition: var(--transition-fast);
-    border-radius: var(--radius-full);
+    background-color: var(--text-muted);
+    transition: .4s;
+    border-radius: 50%;
+}
+input:checked + .slider { background-color: var(--primary); border-color: var(--primary); }
+input:checked + .slider:before { transform: translateX(18px); background-color: #FFF; }
+
+/* --- 4. MODAIS (Unificado) --- */
+.modal-overlay, .filter-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: var(--z-modal-backdrop);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-normal);
 }
 
-input:checked + .slider {
-    background: var(--danger);
-    border-color: var(--danger);
+.modal-overlay.active, .filter-backdrop.active {
+    opacity: 1;
+    visibility: visible;
 }
 
-input:checked + .slider.blue {
-    background: var(--primary);
-    border-color: var(--primary);
+/* Container do Modal (Edição e Filtros compartilham base similar) */
+.custom-modal, .filter-panel-wrapper {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2xl);
+    border: 1px solid var(--border-primary);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    animation: modal-pop var(--transition-normal) cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: var(--z-modal);
 }
 
-input:checked + .slider::before {
-    transform: translateX(20px);
-    background: white;
+.custom-modal { width: 900px; max-width: 95%; }
+/* Filtro é fixo no centro via CSS do JS, mas estilizamos aqui */
+.filter-panel-wrapper { 
+    width: 500px; 
+    max-width: 90%;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    opacity: 0;
+    pointer-events: none;
+    transition: all var(--transition-normal);
+}
+.filter-panel-wrapper.active {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: all;
 }
 
-input:focus + .slider {
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
-}
-
-
-/* === MODAL FOOTER === */
-.modal-footer {
-    padding: var(--spacing-lg) var(--spacing-xl);
+/* Header & Footer do Modal */
+.modal-header, .filter-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     background: var(--bg-tertiary);
-    border-top: 1px solid var(--border-primary);
+    border-radius: 20px;
+}
+
+.modal-header h2, .filter-header h3 {
+    margin: 0;
+    font-size: var(--font-lg);
+    color: #FFF;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.modal-body, .filter-body-grid {
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer, .filter-footer {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-tertiary);
     display: flex;
     justify-content: flex-end;
     gap: var(--spacing-sm);
 }
 
-.btn-secondary-custom {
-    padding: 12px 24px;
-    background: var(--bg-hover);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    color: var(--text-secondary);
-    font-size: var(--font-sm);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: var(--transition-fast);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.btn-secondary-custom:hover {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    border-color: var(--text-muted);
-}
-
-.btn-primary-custom {
-    padding: 12px 28px;
-    background: var(--gradient-primary);
+.modal-close {
+    background: none;
     border: none;
-    border-radius: var(--radius-md);
-    color: white;
-    font-size: var(--font-sm);
-    font-weight: var(--font-weight-semibold);
+    color: var(--text-tertiary);
     cursor: pointer;
-    transition: var(--transition-fast);
+    font-size: var(--font-lg);
+    transition: color var(--transition-fast);
+}
+.modal-close:hover { color: var(--danger); }
+
+/* --- 5. TABULATOR OVERRIDES (Clean Dark Theme) --- */
+.tabulator-custom {
+    background: transparent;
+    border: none;
+}
+
+.tabulator {
+    background: transparent !important;
+    font-family: var(--font-primary) !important;
+}
+
+/* Header da Tabela */
+.tabulator .tabulator-header {
+    background: var(--bg-tertiary) !important;
+    border-bottom: 2px solid var(--border-secondary) !important;
+    color: var(--text-secondary) !important;
+    font-weight: var(--font-weight-semibold) !important;
+    text-transform: uppercase;
+    font-size: var(--font-xs) !important;
+}
+
+.tabulator .tabulator-col {
+    background: transparent !important;
+    border-right: 1px solid transparent !important; /* Remove bordas verticais pesadas */
+}
+.tabulator .tabulator-col:hover { background: var(--bg-hover) !important; }
+
+.tabulator .tabulator-col-content { padding: 12px !important; }
+
+/* Inputs de Filtro no Header */
+.tabulator .tabulator-header-filter input {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-secondary) !important;
+    color: var(--text-primary) !important;
+    border-radius: var(--radius-sm) !important;
+    font-size: 11px !important;
+    margin-top: 4px;
+}
+.tabulator .tabulator-header-filter input:focus {
+    border-color: var(--primary) !important;
+}
+
+/* Linhas da Tabela */
+.tabulator .tabulator-tableholder .tabulator-row {
+    background: var(--bg-secondary) !important;
+    border-bottom: 1px solid var(--border-secondary) !important;
+    color: var(--text-primary) !important;
+    transition: background-color var(--transition-fast) !important;
+}
+
+.tabulator .tabulator-row.tabulator-row-even {
+    background: var(--bg-tertiary) !important; /* Zebra sutil */
+}
+
+.tabulator .tabulator-row:hover {
+    background: var(--bg-hover) !important;
+    cursor: pointer;
+}
+
+/* Células */
+.tabulator .tabulator-cell {
+    padding: 10px 12px !important;
+    border-right: none !important;
+    display: inline-flex !important;
+    align-items: center;
+    height: 100%;
+}
+
+
+.tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row {
+  display: inline-block;
+  background: var(--bg-tertiary) !important
+}
+
+/* Status e Cores Específicas na Grid */
+.status-badge {
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     display: inline-flex;
     align-items: center;
-    gap: var(--spacing-sm);
-    box-shadow: var(--shadow-glow);
+    gap: 6px;
+}
+.status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+
+/* Variações de Status */
+.status-pendente { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+.status-pendente::before { background: var(--warning); }
+
+.status-aprovado { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+.status-aprovado::before { background: var(--success); }
+
+.status-reprovado { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+.status-reprovado::before { background: var(--danger); }
+
+.status-original { background: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border-secondary); }
+.status-original::before { background: var(--text-muted); }
+
+/* Linhas Especiais */
+.row-inclusao {
+    border-left: 3px solid var(--info) !important;
+}
+.row-invalida {
+    opacity: 0.5 !important;
+    filter: grayscale(1);
+    background: var(--bg-primary) !important;
+    text-decoration: line-through;
 }
 
-.btn-primary-custom:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-glow), var(--shadow-lg);
+/* Footer / Totais */
+.tabulator .tabulator-footer {
+    background: var(--bg-tertiary) !important;
+    border-top: 1px solid var(--border-primary) !important;
+}
+.tabulator .tabulator-calcs-holder {
+    background: var(--bg-secondary) !important;
+    border-bottom: none !important;
+}
+.tabulator .tabulator-calcs-holder .tabulator-cell {
+    color: var(--primary-light) !important;
+    font-weight: var(--font-weight-bold) !important;
 }
 
-.btn-primary-custom:active {
-    transform: translateY(0);
+/* --- 6. MENU DE CONTEXTO --- */
+.ar-context-menu {
+    position: absolute;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-md);
+    padding: 6px 0;
+    min-width: 200px;
+    z-index: var(--z-popover);
+    animation: fade-in 0.1s ease-out;
 }
 
-.btn-primary-custom:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
+.ar-ctx-list { list-style: none; margin: 0; padding: 0; }
+
+.ar-ctx-item {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background var(--transition-fast);
 }
 
+.ar-ctx-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
 
-/* === RESPONSIVE === */
+.ar-ctx-separator {
+    height: 1px;
+    background: var(--border-secondary);
+    margin: 4px 0;
+}
+
+/* --- 7. TOAST NOTIFICATION --- */
+.ar-toast {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-left: 4px solid var(--primary);
+    box-shadow: var(--shadow-xl);
+    padding: 16px 20px;
+    border-radius: var(--radius-md);
+    font-size: var(--font-sm);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: var(--z-tooltip);
+}
+.ar-toast-success { border-color: var(--success); }
+.ar-toast-error { border-color: var(--danger); }
+
+/* --- 8. HISTÓRICO TABLE (Dentro do Modal) --- */
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-xs);
+}
+.history-table th {
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    padding: 12px;
+    text-align: left;
+    position: sticky; top: 0;
+}
+.history-table td {
+    border-bottom: 1px solid var(--border-secondary);
+    padding: 10px 12px;
+    color: var(--text-primary);
+}
+.val-old { color: var(--danger); text-decoration: line-through; opacity: 0.7; }
+.val-new { color: var(--success); font-weight: bold; }
+
+/* --- 9. KEYFRAMES & RESPONSIVIDADE --- */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-pop { 
+    from { opacity: 0; transform: translate(-50%, -40%) scale(0.95); } 
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); } 
+}
+
 @media (max-width: 1024px) {
-    .form-grid-wrapper {
-        grid-template-columns: repeat(2, 1fr);
-        gap: var(--spacing-md);
-    }
-    
-    .span-3, .span-4 {
-        grid-column: span 2;
-    }
-    
-    .custom-modal {
-        max-width: 95%;
-    }
+    .form-grid-wrapper { grid-template-columns: repeat(2, 1fr); }
+    .span-3, .span-4 { grid-column: span 2; }
 }
 
 @media (max-width: 640px) {
-    .form-grid-wrapper {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-md);
-    }
-    
-    .span-2, .span-3, .span-4 {
-        grid-column: span 1;
-    }
-    
-    .modal-header, .modal-body, .modal-footer {
-        padding: var(--spacing-md);
-    }
-    
-    .flex-center {
-        justify-content: flex-start;
-    }
-    
-    .modal-footer {
-        flex-direction: column;
-    }
-    
-    .modal-footer button {
-        width: 100%;
-        justify-content: center;
-    }
+    .page-header { flex-direction: column; align-items: flex-start; }
+    .header-actions { width: 100%; }
+    .header-actions button { flex: 1; }
+    .form-grid-wrapper { grid-template-columns: 1fr; }
+    .span-2, .span-3, .span-4 { grid-column: span 1; }
+    .modal-footer { flex-direction: column; }
 }
 
+/* ============================================================================
+   10. PAINEL DE FILTROS AVANÇADOS (FIX)
+   ============================================================================ */
 
-/* === UTILITY: Number colors in grid === */
-.tabulator .tabulator-cell[tabulator-field="Saldo"] {
-    font-weight: var(--font-weight-semibold);
-    font-variant-numeric: tabular-nums;
-}
-
-.tabulator .tabulator-cell[tabulator-field="Debito"],
-.tabulator .tabulator-cell[tabulator-field="Credito"] {
-    font-variant-numeric: tabular-nums;
-}
-
-
-/* === TOAST NOTIFICATIONS === */
-.ar-toast {
-    position: fixed;
-    bottom: var(--spacing-lg);
-    right: var(--spacing-lg);
-    padding: 14px 20px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    font-size: var(--font-sm);
-    font-weight: var(--font-weight-medium);
-    z-index: calc(var(--z-tooltip) + 1);
-    animation: toastSlide var(--transition-normal) ease-out;
-    color: white;
-    box-shadow: var(--shadow-xl);
-    transition: var(--transition-normal);
-}
-
-.ar-toast-success {
-    background: var(--success);
-}
-
-.ar-toast-error {
-    background: var(--danger);
-}
-
-.ar-toast-warning {
-    background: var(--warning);
-}
-
-.ar-toast-info {
-    background: var(--info);
-}
-
-@keyframes toastSlide {
-    from { 
-        transform: translateX(100%); 
-        opacity: 0; 
-    }
-    to { 
-        transform: translateX(0); 
-        opacity: 1; 
-    }
-}
-
-/* Linha Inválida: Opacidade reduzida e visual discreto */
-.tabulator-row.row-invalida {
-    background-color: #f9fafb !important; /* Cinza bem claro */
-    color: #9ca3af !important; /* Texto cinza */
-    opacity: 0.6; /* Opacidade reduzida conforme solicitado */
-}
-
-/* Garante que o status ainda seja legível */
-.tabulator-row.row-invalida .status-badge {
-    opacity: 0.8;
-    filter: grayscale(100%); /* Tira a cor do badge */
-}
-
-/* Ajuste fino no Menu de Contexto do Tabulator */
-.tabulator-menu-item {
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    padding: 8px 12px;
-}
-.tabulator-menu-item:hover {
-    background-color: #f3f4f6;
-    color: #1f2937;
-}
-.menu-danger { color: #dc2626; }
-.menu-success { color: #16a34a; }
-
-/* ... [MANTENHA O CONTEÚDO ANTERIOR DO ARQUIVO] ... */
-
-/* === NOVO: PAINEL DE FILTROS AVANÇADOS === */
+/* Container Principal (Janela Flutuante) */
 .filter-panel-wrapper {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    width: 500px;
+    max-width: 95%;
+    max-height: 85vh;
     background: var(--bg-secondary);
-    border-radius: var(--radius-lg);
     border: 1px solid var(--border-primary);
-    margin-top: 15px;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.4s ease-in-out, padding 0.4s ease, opacity 0.3s;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2xl);
+    z-index: var(--z-modal);
+    display: flex;
+    flex-direction: column;
     opacity: 0;
-    box-shadow: var(--shadow-md);
+    pointer-events: none;
+    transition: all var(--transition-normal) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .filter-panel-wrapper.active {
-    max-height: 400px; /* Altura suficiente para os filtros */
     opacity: 1;
-    border: 1px solid var(--primary); /* Destaque quando ativo */
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: all;
 }
 
-.filter-panel-content {
-    padding: 20px;
-}
-
+/* Header e Footer */
 .filter-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-secondary);
+    background: var(--bg-tertiary);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .filter-header h3 {
     margin: 0;
-    font-size: var(--font-md);
-    color: var(--primary);
+    font-size: var(--font-lg);
+    color: var(--text-primary);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-sm);
 }
 
-.filter-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    align-items: end; /* Alinha os inputs na base */
-}
-
-.btn-text {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: var(--font-sm);
-    text-decoration: underline;
-}
-.btn-text:hover { color: var(--danger); }
-
-/* Ajustes nos Inputs do Filtro */
-.filter-group label {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    margin-bottom: 4px;
-    display: block;
-    font-weight: 600;
-}
-
-/* Tabulator Header Filters Modernization */
-.tabulator .tabulator-header-filter input {
-    background: var(--bg-primary) !important;
-    border: 1px solid transparent !important;
-    border-bottom: 1px solid var(--border-secondary) !important;
-    border-radius: 0 !important;
-    font-size: 11px !important;
-    padding: 4px !important;
-    margin-top: 4px;
-}
-.tabulator .tabulator-header-filter input:focus {
-    border-bottom-color: var(--primary) !important;
-    box-shadow: none !important;
-}
-
-/* Responsividade do Painel */
-@media (max-width: 768px) {
-    .filter-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* ... [MANTENHA O CSS ANTERIOR] ... */
-
-/* === RODAPÉ DE INFORMAÇÕES === */
-.grid-footer-info {
-    padding: 8px 15px;
+.filter-footer {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--border-secondary);
     background: var(--bg-tertiary);
-    border-top: 1px solid var(--border-primary);
-    font-size: 12px;
-    color: var(--text-secondary);
-    display: flex;
-    gap: 10px;
-    align-items: center;
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
-.grid-footer-info b {
-    color: var(--primary);
-}
-
-.grid-footer-info .separator {
-    color: var(--border-primary);
-}
-
-/* === BARRA DE AÇÕES FLUTUANTE (BULK ACTIONS) === */
-.bulk-actions-bar {
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%) translateY(150%); /* Escondido para baixo */
-    background: rgba(30, 41, 59, 0.95); /* Cor escura translúcida */
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border-primary);
-    border-radius: 50px;
-    padding: 10px 20px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-    z-index: 1000;
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    min-width: 400px;
-    justify-content: space-between;
-}
-
-.bulk-actions-bar.active {
-    transform: translateX(-50%) translateY(0); /* Visível */
-}
-
-.bulk-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: white;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.bulk-count-badge {
-    background: var(--primary);
-    color: white;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.bulk-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.btn-bulk {
-    border: none;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.btn-bulk-approve {
-    background: rgba(16, 185, 129, 0.2);
-    color: #34d399;
-}
-.btn-bulk-approve:hover { background: #10b981; color: white; }
-
-.btn-bulk-reject {
-    background: rgba(239, 68, 68, 0.2);
-    color: #f87171;
-}
-.btn-bulk-reject:hover { background: #ef4444; color: white; }
-
-.btn-bulk-export {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-}
-.btn-bulk-export:hover { background: white; color: var(--bg-secondary); }
-
-.bulk-separator {
-    width: 1px;
-    height: 20px;
-    background: rgba(255,255,255,0.2);
-    margin: 0 5px;
-}
-
-.btn-bulk-close {
-    background: none;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    font-size: 16px;
-    margin-left: 10px;
-}
-.btn-bulk-close:hover { color: white; }
-
-/* Container do Painel */
-.filter-panel-wrapper {
-    position: fixed;
-    top: 0; right: -450px; /* Escondido */
-    width: 450px;
-    height: 100vh;
-    background: #ffffff;
-    box-shadow: -5px 0 30px rgba(0,0,0,0.15);
-    z-index: 9999;
-    transition: right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    display: flex;
-    flex-direction: column;
-}
-.filter-panel-wrapper.active { right: 0; }
-
-/* Header e Footer */
-.filter-header {
-    padding: 20px 25px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e9ecef;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.filter-header h3 { margin: 0; font-size: 1.1rem; color: #2c3e50; font-weight: 700; }
-
-.filter-footer {
-    padding: 20px;
-    background: #fff;
-    border-top: 1px solid #e9ecef;
-    margin-top: auto; /* Empurra para baixo */
-}
-
-/* Grid Layout do Corpo */
+/* Corpo com Scroll */
 .filter-body-grid {
-    padding: 20px;
+    padding: var(--spacing-lg);
     overflow-y: auto;
-    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: var(--spacing-lg);
+    flex: 1;
 }
 
-/* Seções */
+/* Seções Internas */
 .filter-section {
-    background: #fff;
-    /* Opcional: borda leve para separar seções se quiser */
-}
-.section-title {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #adb5bd;
-    font-weight: 700;
-    margin-bottom: 12px;
-    border-bottom: 1px solid #f1f3f5;
-    padding-bottom: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
 }
 
-/* Inputs Modernos */
-.modern-input {
+.section-title {
+    font-size: var(--font-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-light);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border-secondary);
+    padding-bottom: 8px;
+    margin: 0 0 4px 0;
+}
+
+/* Inputs e Labels */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    color: #495057;
-    transition: all 0.2s;
-    background: #fdfdfd;
 }
-.modern-input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    outline: none;
-    background: #fff;
+
+.input-group label {
+    font-size: var(--font-xs);
+    color: var(--text-secondary);
+    font-weight: var(--font-weight-medium);
+    display: flex;
+    justify-content: space-between;
 }
+
 .row-inputs {
     display: flex;
-    gap: 10px;
-}
-.input-group { flex: 1; display: flex; flex-direction: column; gap: 5px; }
-.input-group.full { width: 100%; }
-.input-group label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #343a40;
+    gap: var(--spacing-md);
+    width: 100%;
 }
 
-/* Date Range Específico */
+/* Estilização dos Inputs (Reutilizando visual do form-control) */
+.modern-input {
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-primary);
+    font-size: var(--font-sm);
+    transition: var(--transition-fast);
+}
+
+.modern-input:focus {
+    border-color: var(--primary);
+    background: var(--bg-secondary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+/* Select Múltiplo (Status) - Correção Visual Importante */
+select[multiple].modern-input {
+    height: auto;
+    min-height: 100px;
+    padding: 4px;
+    overflow-y: auto;
+}
+
+select[multiple].modern-input option {
+    padding: 8px 10px;
+    border-radius: var(--radius-xs);
+    margin-bottom: 2px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+select[multiple].modern-input option:checked {
+    background: var(--primary); /* Fundo roxo quando selecionado */
+    color: white;
+}
+
+select[multiple].modern-input option:hover:not(:checked) {
+    background: var(--bg-hover);
+}
+
+/* Grupo de Datas (Range) */
 .date-range-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-sm);
 }
-.range-separator { font-size: 0.8rem; color: #888; }
+.range-separator {
+    color: var(--text-muted);
+    font-size: var(--font-xs);
+}
 
 /* Botões de Ordenação (Tags) */
 .sort-buttons {
@@ -1217,115 +674,194 @@ input:focus + .slider {
     flex-wrap: wrap;
     gap: 8px;
 }
+
 .btn-sort {
-    background: #f1f3f5;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    color: #495057;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: var(--radius-full); /* Formato de pílula */
+    font-size: var(--font-xs);
     cursor: pointer;
-    transition: all 0.2s;
-    font-weight: 500;
+    transition: all var(--transition-fast);
     display: flex;
     align-items: center;
     gap: 6px;
 }
+
 .btn-sort:hover {
-    background: #e9ecef;
-    color: #212529;
-    transform: translateY(-1px);
-}
-.btn-sort:active {
-    background: #dee2e6;
-    transform: translateY(0);
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
 }
 
-/* === NOVO: BACKDROP (Fundo escuro atrás do filtro) === */
+/* Botão de Fechar (X) no Header */
+.btn-text {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: var(--font-lg);
+}
+.btn-text:hover { color: var(--danger); }
+
+/* Backdrop (Fundo escuro atrás) */
 .filter-backdrop {
     position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.5); /* Fundo escuro semitransparente */
-    backdrop-filter: blur(3px);      /* Desfoque leve no fundo */
-    z-index: 9998;
-    display: none;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: var(--z-modal-backdrop); /* Abaixo do modal, acima do resto */
     opacity: 0;
-    transition: opacity 0.3s ease;
+    visibility: hidden;
+    transition: all var(--transition-normal);
 }
 .filter-backdrop.active {
-    display: block;
     opacity: 1;
+    visibility: visible;
 }
 
-/* === REFORMULAÇÃO: MODAL CENTRALIZADO === */
-.filter-panel-wrapper {
-    position: fixed;
-    top: 50%; 
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0.9); /* Começa um pouco menor */
-    width: 500px;           /* Largura fixa confortável */
-    max-width: 90%;         /* Responsivo */
-    max-height: 85vh;       /* Altura máxima de 85% da tela */
-    background: #ffffff;
-    border-radius: 12px;    /* Bordas mais arredondadas */
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    z-index: 9999;
-    
-    /* Flex para gerenciar o Header, Body e Footer */
+/* ============================================================================
+   11. HISTÓRICO DE ALTERAÇÕES (REFACTORED)
+   ============================================================================ */
+
+/* Ajuste do Modal de Histórico para garantir altura correta */
+#modalHistorico .custom-modal {
+    height: 80vh; /* Altura fixa confortável */
     display: flex;
     flex-direction: column;
-    
-    /* Animação de entrada */
-    opacity: 0;
-    pointer-events: none; /* Não clicável quando invisível */
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    overflow: hidden; /* Impede scroll duplo */
 }
 
-.filter-panel-wrapper.active { 
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1); /* Escala normal ao abrir */
-    pointer-events: all;
-}
-
-/* Header e Footer fixos */
-.filter-header {
+/* Removemos o roxo sólido e usamos o tema padrão */
+#modalHistorico .modal-header {
+    background: var(--primary);
+    border-bottom: 1px solid var(--border-primary);
     padding: 20px 25px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e9ecef;
-    border-radius: 12px 12px 0 0;
-    flex-shrink: 0; /* Não encolhe */
 }
 
-.filter-footer {
-    padding: 20px;
-    background: #fff;
-    border-top: 1px solid #e9ecef;
-    border-radius: 0 0 12px 12px;
-    flex-shrink: 0; /* Não encolhe */
+#modalHistorico .modal-body {
+    padding: 0; /* Remove padding para a tabela encostar nas bordas */
+    background: var(--bg-secondary);
 }
 
-/* CORPO COM SCROLLBAR */
-.filter-body-grid {
-    padding: 20px;
-    overflow-y: auto; /* Scroll vertical automático */
-    flex: 1;          /* Ocupa o espaço restante */
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+/* --- Tabela de Histórico --- */
+.history-table {
+    width: 100%;
+    border-collapse: separate; /* Permite sticky header */
+    border-spacing: 0;
+    font-size: var(--font-sm);
 }
 
-/* Estilo da Scrollbar interna */
-.filter-body-grid::-webkit-scrollbar {
+/* Cabeçalho da Tabela (Sticky) */
+.history-table thead th {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-primary);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    text-align: left;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Linhas do Corpo */
+.history-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.history-table tbody tr:not(:last-child) td {
+    border-bottom: 1px solid var(--border-secondary);
+}
+
+.history-table tbody tr:hover {
+    background-color: var(--bg-hover);
+}
+
+.history-table td {
+    padding: 14px 20px;
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+
+/* --- Colunas Específicas --- */
+
+/* 1. Usuário */
+.history-table td:nth-child(2) {
+    color: var(--text-secondary);
+    font-family: var(--font-mono); /* Fonte mono para user.name */
+    font-size: 0.9em;
+}
+
+/* 2. Badge de Ação (Refatorando o que vem do JS) */
+.history-table .status-badge {
+    background: var(--bg-primary); /* Fundo escuro sutil */
+    border: 1px solid var(--border-secondary);
+    color: var(--text-primary);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 90px;
+    justify-content: center;
+}
+
+/* 3. Campo Alterado */
+.history-table td strong {
+    color: var(--primary-light);
+    font-weight: 600;
+    background: rgba(var(--primary-rgb), 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    text-transform: uppercase;
+}
+
+/* 4. Valores (Antigo vs Novo) */
+.val-old {
+    color: var(--text-muted);
+    text-decoration: line-through;
+    font-size: 0.9em;
+    display: block;
+    opacity: 0.7;
+}
+
+.val-new {
+    color: var(--success);
+    font-weight: 700;
+    background: rgba(16, 185, 129, 0.1); /* Fundo verde bem suave */
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* Estado Vazio (Caso não tenha histórico) */
+.history-empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Scrollbar personalizada para a tabela */
+#modalHistorico .modal-body::-webkit-scrollbar {
     width: 8px;
 }
-.filter-body-grid::-webkit-scrollbar-track {
-    background: #f1f1f1;
+#modalHistorico .modal-body::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+#modalHistorico .modal-body::-webkit-scrollbar-thumb {
+    background: var(--border-primary);
     border-radius: 4px;
 }
-.filter-body-grid::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-.filter-body-grid::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+#modalHistorico .modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
 }

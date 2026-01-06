@@ -13,6 +13,9 @@ from Services.DataImportService import (
     ALLOWED_TABLES
 )
 
+# --- Import do Logger ---
+from Utils.Logger import RegistrarLog
+
 # Cria o Blueprint com nome padronizado (primeira letra maiúscula)
 import_bp = Blueprint('Import', __name__)
 
@@ -53,7 +56,10 @@ def Analyze():
     file = request.files['file']
     source = request.form.get('source')
 
+    user_id = current_user.get_id() if current_user else "Anonimo"
+
     if not source or source not in ALLOWED_TABLES:
+        RegistrarLog(f"Tentativa de upload para origem inválida: {source} por {user_id}", "WARNING")
         flash('Origem inválida.', 'danger')
         return redirect(url_for('Import.Index'))
 
@@ -62,6 +68,8 @@ def Analyze():
         return redirect(url_for('Import.Index'))
 
     try:
+        RegistrarLog(f"Recebendo arquivo {file.filename} para análise ({source}) - Usuário: {user_id}", "WEB")
+        
         # Salva o arquivo no disco (pasta Temp)
         full_path, unique_filename = SaveTempFile(file)
         
@@ -85,6 +93,7 @@ def Analyze():
         )
 
     except Exception as e:
+        RegistrarLog(f"Erro na rota de análise para {file.filename}", "ERROR", e)
         flash(f'Erro ao processar arquivo: {str(e)}', 'danger')
         return redirect(url_for('Import.Index'))
     
@@ -102,6 +111,7 @@ def ApiPreview():
         result = GetPreviewTransformation(filename, mapping, transforms)
         return jsonify(result), 200
     except Exception as e:
+        RegistrarLog("Erro na API de Preview", "ERROR", e)
         return jsonify({"error": str(e)}), 500
 
 @import_bp.route('/importacao/confirmar', methods=['POST'])
@@ -113,19 +123,32 @@ def Confirm():
     try:
         filename = request.form.get('filename')
         source = request.form.get('source')
+        user_name = current_user.get_id() or "Usuario_Sistema"
+        
+        RegistrarLog(f"Usuário {user_name} confirmou mapeamento para {source}", "WEB")
+
         mapping = {}
         transforms = {}
         
         # Varre o formulário separando o que é Mapeamento e o que é Transformação
         for key in request.form:
+            # CORREÇÃO CRÍTICA AQUI:
+            # Antes estava: if key.startswith('map_'): excel_col = key.replace('map-_', '')
+            # O replace estava procurando 'map-_' (com hífen) que não existia.
+            
             if key.startswith('map_'):
-                excel_col = key.replace('map-_', '')
+                # Remove os 4 primeiros caracteres ('map_') para pegar o nome real da coluna no Excel
+                excel_col = key[4:] 
                 val = request.form.get(key)
-                if val and val != 'IGNORE': mapping[excel_col] = val
+                if val and val != 'IGNORE': 
+                    mapping[excel_col] = val
+            
             if key.startswith('trans_'):
-                excel_col = key.replace('trans_', '')
+                # Remove os 6 primeiros caracteres ('trans_')
+                excel_col = key[6:] 
                 val = request.form.get(key)
-                if val and val != 'none': transforms[excel_col] = val
+                if val and val != 'none': 
+                    transforms[excel_col] = val
 
         if not mapping:
             flash('Nenhuma coluna foi mapeada.', 'warning')
@@ -134,12 +157,13 @@ def Confirm():
         # Executa a transação completa
         rows, comp = ExecuteImportTransaction(
             filename, mapping, source, 
-            current_user.get_id() or "Usuario_Sistema",
+            user_name,
             transformations=transforms
         )
         flash(f'Sucesso! {rows} registos importados em {source} (Competência: {comp}).', 'success')
         return redirect(url_for('Import.History'))
     except Exception as e:
+        RegistrarLog(f"Erro fatal na rota Confirmar para {source}", "ERROR", e)
         flash(f'Erro na importação: {str(e)}', 'danger')
         return redirect(url_for('Import.Index'))
 
@@ -160,12 +184,17 @@ def Rollback():
     """
     log_id = request.form.get('log_id')
     reason = request.form.get('reason')
+    user_name = current_user.get_id()
+
     if not reason:
         flash('Motivo obrigatório.', 'warning')
         return redirect(url_for('Import.History'))
     try:
-        count, table = PerformRollback(log_id, current_user.get_id(), reason)
+        RegistrarLog(f"Rota Rollback acionada por {user_name}. ID: {log_id}", "WEB")
+        count, table = PerformRollback(log_id, user_name, reason)
         flash(f'Reversão concluída. {count} registros removidos de {table}.', 'warning')
     except Exception as e:
+        # Erro já logado no Service, mas registramos o erro de interface aqui
+        RegistrarLog(f"Erro na interface de Rollback ID {log_id}", "ERROR", e)
         flash(f'Falha na reversão: {str(e)}', 'danger')
     return redirect(url_for('Import.History'))

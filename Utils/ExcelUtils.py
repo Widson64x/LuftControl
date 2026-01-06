@@ -4,13 +4,17 @@ import re
 from datetime import datetime, timedelta
 from sqlalchemy import text
 
+# --- Import do Logger ---
+from Utils.Logger import RegistrarLog
+
 def excel_date_to_datetime(serial):
     """Converte serial de data do Excel (int) para datetime do Python."""
     try:
         if pd.isna(serial): return None
         # Excel base date é 1899-12-30 para sistemas Windows
         return datetime(1899, 12, 30) + timedelta(days=float(serial))
-    except:
+    except Exception as e:
+        # Não logamos erro aqui para não floodar o log (chamado por linha), apenas retornamos None
         return None
 
 def find_best_sample_row_index(df):
@@ -59,6 +63,8 @@ def apply_transformations(df, transformations):
     """Aplica transformações específicas nas colunas do DataFrame."""
     if not transformations:
         return df
+
+    RegistrarLog(f"Aplicando transformações: {list(transformations.keys())}", "EXCEL_TRANSFORM")
 
     for col, trans_type in transformations.items():
         if col not in df.columns:
@@ -116,6 +122,8 @@ def apply_transformations(df, transformations):
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
 
         except Exception as e:
+            # Logamos o warning mas não paramos o processo
+            RegistrarLog(f"Falha ao aplicar transformação '{trans_type}' na coluna '{col}'", "WARNING", e)
             pass
     
     return df
@@ -123,9 +131,12 @@ def apply_transformations(df, transformations):
 def analyze_excel_sample(file_path):
     """Lê o ficheiro e retorna colunas, tipos e a MELHOR linha de amostra."""
     if not os.path.exists(file_path):
+        RegistrarLog(f"Arquivo não encontrado para análise: {file_path}", "ERROR")
         raise FileNotFoundError("Ficheiro temporário não encontrado.")
 
     try:
+        # RegistrarLog(f"Iniciando análise de amostra: {os.path.basename(file_path)}", "EXCEL_READ")
+        
         df_preview = pd.read_excel(file_path, engine='openpyxl', nrows=50)
         df_preview.columns = [str(c).replace('\n', ' ').strip() for c in df_preview.columns]
         columns = df_preview.columns.tolist()
@@ -153,6 +164,7 @@ def analyze_excel_sample(file_path):
         return columns, types, sample_row
 
     except Exception as e:
+        RegistrarLog("Erro crítico na análise do Excel", "ERROR", e)
         raise Exception(f"Erro na análise do Excel: {str(e)}")
 
 def generate_preview_value(file_path, mapping, transformations):
@@ -196,6 +208,7 @@ def generate_preview_value(file_path, mapping, transformations):
             
         return preview_result
     except Exception as e:
+        RegistrarLog("Erro ao gerar preview dinâmico", "ERROR", e)
         return {"error": str(e)}
 
 def get_competencia_from_df(df, col_data_mapped):
@@ -205,12 +218,16 @@ def get_competencia_from_df(df, col_data_mapped):
         mode_date = dates.dt.to_period('M').mode()[0]
         return str(mode_date)
     except Exception as e:
+        # Erro é capturado e relançado para ser logado no Service
         raise Exception(f"Erro ao identificar competência: {str(e)}")
 
 def delete_records_by_competencia(engine, table_name, competencia):
     schema = "Dre_Schema"
     if not competencia or '-' not in competencia: raise Exception("Competência inválida.")
     year, month = map(int, competencia.split('-'))
+    
+    RegistrarLog(f"Executando DELETE em {table_name} para {month}/{year}", "DB_QUERY")
+    
     sql = text(f""" DELETE FROM "{schema}"."{table_name}" WHERE EXTRACT(YEAR FROM "Data") = :year AND EXTRACT(MONTH FROM "Data") = :month """)
     with engine.begin() as conn:
         result = conn.execute(sql, {"year": year, "month": month})
@@ -222,6 +239,8 @@ def process_and_save_dynamic(file_path, column_mapping, table_destination, engin
     Versão Corrigida: Tratamento robusto de Tipos (Texto vs Inteiro) e Limpeza de Dados.
     """
     try:
+        RegistrarLog(f"Iniciando leitura e processamento Pandas: {os.path.basename(file_path)}", "EXCEL_CORE")
+        
         df = pd.read_excel(file_path, engine='openpyxl')
         # Normaliza nomes das colunas (remove quebras de linha e espaços extras)
         df.columns = [str(c).replace('\n', ' ').strip() for c in df.columns]
@@ -243,10 +262,12 @@ def process_and_save_dynamic(file_path, column_mapping, table_destination, engin
         if 'Data' not in df_db.columns: raise Exception("A coluna 'Data' é obrigatória.")
         df_db['Data'] = pd.to_datetime(df_db['Data'], errors='coerce')
         # Remove linhas onde a Data é inválida (NaT) antes de pegar a competência
+        initial_rows = len(df_db)
         df_db = df_db.dropna(subset=['Data'])
         if df_db.empty: raise Exception("Arquivo sem datas válidas.")
         
         competencia = get_competencia_from_df(df_db, 'Data')
+        RegistrarLog(f"Competência calculada: {competencia}. Linhas válidas (data): {len(df_db)}/{initial_rows}", "INFO")
 
         # Regra: Remover linha de 'SALDO ANTERIOR' se existir
         if 'Descricao' in df_db.columns:
@@ -257,6 +278,8 @@ def process_and_save_dynamic(file_path, column_mapping, table_destination, engin
         # TRATAMENTO DE TIPOS BLINDADO
         # -------------------------------------------------------------------
         
+        RegistrarLog("Iniciando sanitização de tipos...", "DEBUG")
+
         # GRUPO 1: Colunas de IDENTIFICAÇÃO TEXTUAL (VARCHAR no Banco)
         # Evita erro de conversão de números gigantes (overflow) e preserva zeros à esquerda.
         cols_text_ids = ['Conta', 'Numero', 'Cod Cl Valor', 'Descricao', 'Contra Partida - Credito']
@@ -305,6 +328,8 @@ def process_and_save_dynamic(file_path, column_mapping, table_destination, engin
 
         if df_db.empty: raise Exception("Nenhum registro válido encontrado após filtros.")
 
+        RegistrarLog(f"Dados sanitizados. Preparando para inserir {len(df_db)} registros em {table_destination}", "INFO")
+
         # Inserção no Banco
         df_db.to_sql(
             table_destination,
@@ -319,4 +344,5 @@ def process_and_save_dynamic(file_path, column_mapping, table_destination, engin
 
     except Exception as e:
         # Adiciona contexto ao erro para facilitar debug
+        RegistrarLog("Erro durante o processamento do Excel (Pandas)", "ERROR", e)
         raise Exception(f"Erro no processamento final: {str(e)}")

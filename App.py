@@ -20,6 +20,8 @@ from Routes.DataImport import import_bp
 from Db.Connections import PG_DATABASE_URL, CheckConnections
 from Models.POSTGRESS.DreEstrutura import Base as DreBase
 
+from Utils.Logger import ConfigurarLogger, RegistrarLog
+
 load_dotenv()
 
 ROUTE_PREFIX = os.getenv("ROUTE_PREFIX", "")
@@ -64,9 +66,15 @@ def Index(): # Até o index merece um PascalCase
     return redirect(url_for('Main.Dashboard'))
 
 if __name__ == "__main__":
-    bancos_ok = CheckConnections() 
-
+    ConfigurarLogger()
+    
+    RegistrarLog("Verificando conexões...", "System")
+    
+    bancos_ok = CheckConnections()
+    
     if not bancos_ok:
-        print("⚠️  [AVISO CRÍTICO] Falha na conexão com Banco de Dados.")
-
+        RegistrarLog("Falha ao conectar nos bancos.", "Critical")
+    else:
+        RegistrarLog("Bancos conectados.", "Database")
+        
     app.run(debug=True, host='0.0.0.0', port=5000)

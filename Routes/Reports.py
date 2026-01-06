@@ -1,6 +1,6 @@
 # Routes/Reports.py
 from flask import Blueprint, jsonify, request, current_app, abort, render_template, send_file
-from flask_login import login_required 
+from flask_login import login_required, current_user 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 import io
@@ -12,6 +12,9 @@ from datetime import datetime
 from Db.Connections import GetPostgresEngine
 from Reports.AnaliseDRE import AnaliseDREReport
 from Reports.Razao import RazaoReport
+
+# --- Import do Logger ---
+from Utils.Logger import RegistrarLog
 
 # Definição do Blueprint com Nome PascalCase
 reports_bp = Blueprint('Reports', __name__) 
@@ -42,10 +45,16 @@ def RelatorioRazaoDados():
         view_type = request.args.get('view_type', 'original')
         per_page = 1000 # Limite alto para performance no grid
         
+        user_id = current_user.get_id() if current_user else "Anonimo"
+        # Loga apenas a primeira página para não floodar na paginação
+        if page == 1:
+            RegistrarLog(f"Relatório Razão solicitado por {user_id}. Filtro: '{search_term}'", "WEB_REPORT")
+
         # Chama o método refatorado em PascalCase
         dados = report.GetDados(page, per_page, search_term, view_type)
         return jsonify(dados), 200
     except Exception as e: 
+        RegistrarLog("Erro na rota RelatorioRazaoDados", "ERROR", e)
         current_app.logger.error(f"Erro no RelatorioRazaoDados: {e}")
         abort(500, description=f"Erro: {str(e)}")
     finally:
@@ -64,6 +73,7 @@ def RelatorioRazaoResumo():
         resumo = report.GetResumo(view_type)
         return jsonify(resumo), 200
     except Exception as e: 
+        RegistrarLog("Erro no resumo do Razão", "ERROR", e)
         abort(500, description=str(e))
     finally:
         if session: session.close()
@@ -108,6 +118,7 @@ def ListaCentrosCusto():
         return jsonify(lista_ccs), 200
         
     except Exception as e:
+        RegistrarLog("Erro ao listar Centros de Custo", "ERROR", e)
         current_app.logger.error(f"Erro ao listar Centros de Custo: {e}")
         return jsonify([]), 200 
     finally:
@@ -132,7 +143,11 @@ def RelatorioRentabilidade():
         scale_mode = request.args.get('scale_mode', 'dre')
         filtro_cc = request.args.get('centro_custo', 'Todos')
         
-        print(f"\n[ROTA DEBUG] Chamando ProcessarRelatorio...")
+        user_id = current_user.get_id() if current_user else "Anonimo"
+        RegistrarLog(f"Relatório Rentabilidade (DRE) solicitado por {user_id}", "WEB_REPORT")
+        
+        # print(f"\n[ROTA DEBUG] Chamando ProcessarRelatorio...") 
+        # Removido print, o log interno do Service já captura isso
         
         # 1. Busca Dados Base e Aplica Hierarquia
         data = report.ProcessarRelatorio(
@@ -141,21 +156,18 @@ def RelatorioRentabilidade():
             filtro_cc=filtro_cc 
         )
         
-        print(f"[ROTA DEBUG] Retorno ProcessarRelatorio: {len(data)} linhas.")
-
         # 2. Executa Fórmulas (Margens, EBITDA, etc)
         final_data = report.CalcularNosVirtuais(data)
-        
-        print(f"[ROTA DEBUG] Retorno CalcularNosVirtuais: {len(final_data)} linhas.")
         
         # 3. Formatação
         if scale_mode == 'dre':
             final_data = report.AplicarMilhares(final_data)
 
+        RegistrarLog(f"DRE Finalizado. Retornando {len(final_data)} linhas.", "WEB_SUCCESS")
         return jsonify(final_data), 200
     except Exception as e:
+        RegistrarLog("Erro Crítico no Relatório de Rentabilidade", "ERROR", e)
         current_app.logger.error(f"Erro AnaliseDREReport: {e}")
-        print(f"ERRO CRÍTICO NO RELATÓRIO: {e}")
         abort(500, description=f"Erro interno: {str(e)}")
     finally:
         if session: session.close()
@@ -168,12 +180,17 @@ def DownloadRazaoFull():
     try:
         view_type = request.args.get('view_type', 'original')
         search_term = request.args.get('search', '').strip()
+        user_id = current_user.get_id() if current_user else "Anonimo"
+
+        RegistrarLog(f"Download Excel Razão iniciado por {user_id}", "WEB_EXPORT")
         
         session = GetPgSession()
         report = RazaoReport(session)
         
         data_rows = report.ExportFull(search_term, view_type)
-        if not data_rows: return jsonify({'message': 'Sem dados para exportar'}), 404
+        if not data_rows: 
+            RegistrarLog("Download cancelado: Sem dados.", "WARNING")
+            return jsonify({'message': 'Sem dados para exportar'}), 404
 
         df = pd.DataFrame(data_rows)
         if 'Data' in df.columns:
@@ -190,10 +207,12 @@ def DownloadRazaoFull():
 
         output.seek(0)
         filename = f"Razao_Full_{view_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-
+        
+        RegistrarLog(f"Arquivo Excel gerado com sucesso: {filename}", "WEB_SUCCESS")
         return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
 
     except Exception as e:
+        RegistrarLog("Erro ao gerar Download Excel", "ERROR", e)
         current_app.logger.error(f"Erro Download: {e}")
         return jsonify({'error': str(e)}), 500
     finally:
