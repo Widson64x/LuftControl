@@ -17,7 +17,7 @@ from sqlalchemy.orm import sessionmaker, joinedload
 from functools import lru_cache
 import time
 
-from Db.Connections import get_postgres_engine
+from Db.Connections import GetPostgresEngine
 from Models.POSTGRESS.DreEstrutura import (
     DreContaVinculo, 
     DreNoVirtual, 
@@ -34,7 +34,7 @@ dre_config_bp = Blueprint('DreConfig', __name__)
 
 def get_session():
     """Cria e retorna uma sessão do PostgreSQL."""
-    engine = get_postgres_engine()
+    engine = GetPostgresEngine()
     Session = sessionmaker(bind=engine)
     return Session()
 

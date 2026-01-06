@@ -4,7 +4,7 @@ from sqlalchemy import text
 # Ajusta o path para importar módulos da raiz
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Db.Connections import get_postgres_engine
+from Db.Connections import GetPostgresEngine
 from sqlalchemy.orm import sessionmaker
 from Models.POSTGRESS.Seguranca import SecPermission, SecRole, SecUserExtension
 
@@ -12,7 +12,7 @@ def grant_admin():
     # SEU USUÁRIO DE LOGIN (Conforme visto no log)
     MEU_LOGIN = "widson.araujo"  # <--- CONFIRME SE É ESSE O LOGIN EXATO
     
-    engine = get_postgres_engine()
+    engine = GetPostgresEngine()
     Session = sessionmaker(bind=engine)
     session = Session()
     

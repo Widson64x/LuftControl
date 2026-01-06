@@ -7,7 +7,7 @@ from sqlalchemy import text
 # Setup de diretórios: Adiciona a raiz do projeto ao path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Db.Connections import get_postgres_engine
+from Db.Connections import GetPostgresEngine
 
 def excel_date_to_datetime(serial):
     """Converte serial de data do Excel (int) para datetime do Python"""
@@ -19,7 +19,7 @@ def excel_date_to_datetime(serial):
         return None
 
 def importar_intec(caminho_arquivo):
-    engine = get_postgres_engine()
+    engine = GetPostgresEngine()
     
     print(f"📂 Lendo arquivo: {caminho_arquivo}")
     

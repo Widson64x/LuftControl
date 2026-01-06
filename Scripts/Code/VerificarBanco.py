@@ -9,7 +9,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from Db.Connections import get_postgres_engine
+from Db.Connections import GetPostgresEngine
 from sqlalchemy import text
 
 def verificar_banco():
@@ -19,7 +19,7 @@ def verificar_banco():
     print("="*70 + "\n")
     
     try:
-        engine = get_postgres_engine()
+        engine = GetPostgresEngine()
         
         with engine.connect() as conn:
             # Verifica TABELAS

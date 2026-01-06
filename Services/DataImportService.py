@@ -1,51 +1,73 @@
 import os
 import uuid
 import json
+import pandas as pd # Importado no topo para evitar import dentro de função
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from sqlalchemy.orm import sessionmaker
 
+# --- Imports Utilitários (O cérebro da operação Excel) ---
 from Utils.ExcelUtils import (
     analyze_excel_sample, 
     generate_preview_value, 
     process_and_save_dynamic, 
-    delete_records_by_competencia
+    delete_records_by_competencia,
+    apply_transformations, # Trazendo para o topo
+    get_competencia_from_df # Trazendo para o topo
 )
-from Db.Connections import get_postgres_engine
-from Models.POSTGRESS.ImportHistory import ImportHistory
-from Models.POSTGRESS.ImportConfig import ImportConfig # <--- Novo Import
 
-# ... (CONSTANTES E FUNÇÕES AUXILIARES MANTIDAS IGUAIS) ...
+# --- Imports de Banco de Dados ---
+from Db.Connections import GetPostgresEngine
+from Models.POSTGRESS.ImportHistory import ImportHistory
+from Models.POSTGRESS.ImportConfig import ImportConfig
+
+# Definição do local onde os arquivos temporários vão morar (temporariamente, claro)
 TEMP_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Data', 'Temp'))
+
+# Lista VIP: Apenas essas tabelas podem receber dados
 ALLOWED_TABLES = [
     'Razao_Dados_Origem_INTEC',
     'Razao_Dados_Origem_FARMADIST',
     'Razao_Dados_Origem_FARMA',
-    'Razao_Dados_Origem_LOGISTICA'
 ]
 
-def get_session():
-    engine = get_postgres_engine()
+def GetSession():
+    """
+    Fabrica uma sessão novinha com o Postgres.
+    Use com sabedoria e feche quando terminar!
+    """
+    engine = GetPostgresEngine()
     Session = sessionmaker(bind=engine)
     return Session()
 
-def ensure_temp_folder():
+def EnsureTempFolder():
+    """Garante que a pasta de arquivos temporários existe."""
     if not os.path.exists(TEMP_FOLDER):
         os.makedirs(TEMP_FOLDER)
 
-def save_temp_file(file_storage):
-    ensure_temp_folder()
+def SaveTempFile(file_storage):
+    """
+    Salva o arquivo que o usuário enviou com um nome único (UUID)
+    para evitar que 'planilha.xlsx' de um sobrescreva 'planilha.xlsx' de outro.
+    """
+    EnsureTempFolder()
+    # Limpa o nome do arquivo para evitar injeção de caminho
     original_filename = secure_filename(file_storage.filename)
+    # Cria um RG único para o arquivo
     unique_name = f"{uuid.uuid4()}_{original_filename}"
     file_path = os.path.join(TEMP_FOLDER, unique_name)
+    
     file_storage.save(file_path)
     return file_path, unique_name
 
-# --- NOVAS FUNÇÕES DE CONFIGURAÇÃO ---
+# --- NOVAS FUNÇÕES DE CONFIGURAÇÃO (MEMÓRIA DO SISTEMA) ---
 
-def load_last_config(source):
-    """Carrega a última configuração salva para esta origem."""
-    session = get_session()
+def LoadLastConfig(source):
+    """
+    Busca no banco se já fizemos uma importação para essa origem antes.
+    Se sim, recupera o mapeamento de colunas para o usuário não ter que refazer tudo.
+    """
+    session = GetSession()
     try:
         config = session.query(ImportConfig).filter_by(Source_Table=source).first()
         if config:
@@ -54,8 +76,11 @@ def load_last_config(source):
     finally:
         session.close()
 
-def save_current_config(session, source, mapping, transforms):
-    """Salva/Atualiza a configuração atual como padrão."""
+def SaveCurrentConfig(session, source, mapping, transforms):
+    """
+    Salva a configuração atual como a nova 'padrão' para futuras importações.
+    Nota: Não faz commit aqui, aproveita a transação do pai.
+    """
     config = session.query(ImportConfig).filter_by(Source_Table=source).first()
     if not config:
         config = ImportConfig(Source_Table=source)
@@ -63,21 +88,31 @@ def save_current_config(session, source, mapping, transforms):
     
     config.set_mapping(mapping)
     config.set_transforms(transforms)
-    # Commit é feito pelo caller (execute_import_transaction)
 
 # -------------------------------------
 
-def get_file_analysis_sample(filename):
+def GetFileAnalysisSample(filename):
+    """
+    Lê o cabeçalho e as primeiras linhas do Excel para mostrar na tela de mapeamento.
+    """
     file_path = os.path.join(TEMP_FOLDER, filename)
     return analyze_excel_sample(file_path)
 
-def get_preview_transformation(filename, mapping, transformations):
+def GetPreviewTransformation(filename, mapping, transformations):
+    """
+    Gera uma prévia de como os dados ficarão após aplicar as regras (ex: datas, valores).
+    Útil para o frontend via AJAX.
+    """
     file_path = os.path.join(TEMP_FOLDER, filename)
     if not os.path.exists(file_path):
-        return {"error": "Arquivo temporário expirou."}
+        return {"error": "Arquivo temporário expirou ou foi deletado."}
     return generate_preview_value(file_path, mapping, transformations)
 
-def check_existing_import(session, table_dest, competencia):
+def CheckExistingImport(session, table_dest, competencia):
+    """
+    Verifica se já existe uma importação 'Ativa' para essa tabela e competência (Mês/Ano).
+    Evita duplicidade de dados contábeis.
+    """
     exists = session.query(ImportHistory).filter_by(
         Tabela_Destino=table_dest,
         Competencia=competencia,
@@ -85,91 +120,104 @@ def check_existing_import(session, table_dest, competencia):
     ).first()
     return exists is not None
 
-def execute_import_transaction(filename, mapping, table_destination, user_name, transformations=None):
+def ExecuteImportTransaction(filename, mapping, table_destination, user_name, transformations=None):
+    """
+    O Coração da Importação:
+    1. Valida integridade e regras de negócio.
+    2. Lê o Excel completo.
+    3. Aplica transformações.
+    4. Salva no Banco.
+    5. Registra Log e atualiza Configurações.
+    """
     if table_destination not in ALLOWED_TABLES:
         raise Exception("Tabela de destino inválida ou não permitida.")
 
     file_path = os.path.join(TEMP_FOLDER, filename)
     if not os.path.exists(file_path):
-        raise Exception("O arquivo temporário não foi encontrado. Faça o upload novamente.")
+        raise Exception("O arquivo temporário sumiu. Por favor, faça o upload novamente.")
 
-    engine = get_postgres_engine()
-    session = get_session()
+    engine = GetPostgresEngine()
+    session = GetSession()
 
     try:
-        # 1. Validação de Competência (Leitura Preliminar)
-        import pandas as pd
+        # 1. Validação de Competência (Leitura Preliminar das primeiras 500 linhas)
+        # Usamos pandas aqui para ser rápido
         df_check = pd.read_excel(file_path, engine='openpyxl', nrows=500)
+        # Normaliza nomes de colunas (remove quebras de linha e espaços extras)
         df_check.columns = [str(c).replace('\n', ' ').strip() for c in df_check.columns]
         
+        # Descobre qual coluna do Excel foi mapeada para 'Data'
         col_excel_data = next((k for k, v in mapping.items() if v == 'Data'), None)
         if not col_excel_data:
-            raise Exception("Coluna 'Data' não mapeada.")
+            raise Exception("Coluna obrigatória 'Data' não foi mapeada.")
             
+        # Se tiver transformação na data (ex: converter string pra date), aplica agora
         if transformations and col_excel_data in transformations:
-            from Utils.ExcelUtils import apply_transformations
             df_check = apply_transformations(df_check, {col_excel_data: transformations[col_excel_data]})
             
-        from Utils.ExcelUtils import get_competencia_from_df
+        # Calcula a competência (ex: '2023-10') baseada nos dados
         competencia_prevista = get_competencia_from_df(df_check, col_excel_data)
         
-        if check_existing_import(session, table_destination, competencia_prevista):
+        # O Guardião: Impede importar se já existe dados ativos desse mês
+        if CheckExistingImport(session, table_destination, competencia_prevista):
             raise Exception(f"Já existe uma importação ATIVA para {table_destination} na competência {competencia_prevista}.")
             
-        # 2. Executa Carga Real
+        # 2. Executa Carga Real (Processamento pesado)
         rows_inserted, competencia_real = process_and_save_dynamic(
             file_path, mapping, table_destination, engine, transformations
         )
 
-        # 3. Grava Log
+        # 3. Grava Log de Histórico
         new_log = ImportHistory(
             Usuario=user_name,
             Tabela_Destino=table_destination,
             Competencia=competencia_real,
-            Nome_Arquivo=filename.split('_', 1)[1], 
+            Nome_Arquivo=filename.split('_', 1)[1], # Remove o UUID do nome visual
             Status='Ativo'
         )
         session.add(new_log)
 
-        # 4. SALVA CONFIGURAÇÃO COMO PADRÃO (NOVO)
-        save_current_config(session, table_destination, mapping, transformations)
+        # 4. Salva essa configuração como a nova favorita do usuário
+        SaveCurrentConfig(session, table_destination, mapping, transformations)
 
         session.commit()
         return rows_inserted, competencia_real
 
     except Exception as e:
-        session.rollback()
+        session.rollback() # Se der ruim, desfaz tudo
         raise e
     finally:
         session.close()
+        # Faxina: Remove o arquivo temporário
         if os.path.exists(file_path):
             os.remove(file_path)
 
-def perform_rollback(log_id, user_name, reason):
+def PerformRollback(log_id, user_name, reason):
     """
-    Executa a reversão de uma importação.
+    Botão de Pânico: Reverte uma importação inteira.
+    Regra: Só pode reverter se tiver menos de 7 dias.
     """
-    session = get_session()
-    engine = get_postgres_engine()
+    session = GetSession()
+    engine = GetPostgresEngine()
     
     try:
         log_entry = session.query(ImportHistory).get(log_id)
         
         if not log_entry:
-            raise Exception("Registro não encontrado.")
+            raise Exception("Registro de histórico não encontrado.")
         
         if log_entry.Status != 'Ativo':
-            raise Exception("Importação já revertida.")
+            raise Exception("Esta importação já foi revertida anteriormente.")
             
-        # Validação de Prazo (7 dias)
+        # Validação de Prazo (Segurança)
         delta = datetime.now() - log_entry.Data_Importacao
         if delta.days > 7:
-            raise Exception(f"Prazo expirado ({delta.days} dias). Limite de 7 dias.")
+            raise Exception(f"Prazo para reversão expirado ({delta.days} dias). O limite é de 7 dias.")
 
-        # Delete físico
+        # Delete físico dos dados na tabela destino
         deleted_count = delete_records_by_competencia(engine, log_entry.Tabela_Destino, log_entry.Competencia)
         
-        # Update Log
+        # Atualiza o status no log para saber quem fez a besteira e porquê
         log_entry.Status = 'Revertido'
         log_entry.Data_Reversao = datetime.now()
         log_entry.Usuario_Reversao = user_name
@@ -184,9 +232,9 @@ def perform_rollback(log_id, user_name, reason):
     finally:
         session.close()
 
-def get_import_history():
-    """Lista histórico ordenado por data."""
-    session = get_session()
+def GetImportHistory():
+    """Retorna a lista completa de importações para o painel de controle."""
+    session = GetSession()
     try:
         return session.query(ImportHistory).order_by(ImportHistory.Data_Importacao.desc()).all()
     finally:

@@ -7,7 +7,7 @@ from sqlalchemy.pool import NullPool
 # ==========================================
 # SETUP (Settings da Raiz)
 # ==========================================
-# Garante que conseguimos importar o Settings.py da pasta acima
+# Adiciona o diretório pai ao path para conseguir importar o arquivo Settings.py
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Settings import settings, ProductionConfig
@@ -15,6 +15,7 @@ from Settings import settings, ProductionConfig
 # ==========================================
 # VARIÁVEIS DE URL (Globais)
 # ==========================================
+# Carregamos as strings de conexão logo de cara para não ter surpresa depois
 PG_DATABASE_URL = settings.get_postgres_uri()
 SQL_DATABASE_URL = settings.get_sqlserver_uri()
 
@@ -22,60 +23,72 @@ SQL_DATABASE_URL = settings.get_sqlserver_uri()
 # FUNÇÕES DE ENGINE (Core)
 # ==========================================
 
-def get_postgres_engine():
+def GetPostgresEngine():
     """
-    Retorna a engine do PostgreSQL com suporte a Fallback (Segurança).
-    Se o ambiente de DEV/HOMOLOG falhar, tenta conectar em PRODUÇÃO.
+    Retorna a engine do PostgreSQL padrão.
+    Utiliza 'pool_pre_ping' para verificar se a conexão está viva antes de usar.
     """
-    # 1. Tenta conectar na URL configurada (Dev ou Homolog)
     try:
-        # pool_pre_ping=True ajuda a evitar conexões "fantasmas"
-        engine = create_engine(PG_DATABASE_URL, pool_pre_ping=True, echo=settings.DEBUG) # Debugar a conexão se DEBUG=True
+        # pool_pre_ping=True é o 'ping' cardíaco da conexão. Evita erros de "server closed connection unexpectedly".
+        engine = create_engine(PG_DATABASE_URL, pool_pre_ping=True, echo=settings.DEBUG) 
         return engine
-    except Exception:
-        # Se falhar a criação da engine inicial (raro, geralmente falha na conexão)
+    except Exception as e:
+        print(f"Erro ao criar engine Postgres: {e}")
         return None
 
-def get_postgres_engine_robust():
+def GetPostgresEngineRobust():
     """
-    Versão interna que tenta conectar e, se falhar, busca a Produção.
-    Usada internamente pelas funções de conexão e check.
+    Versão 'Blindada' da conexão Postgres.
+    Lógica: Tenta conectar no ambiente configurado (DEV/HOMOLOG).
+    Se falhar, tenta conectar automaticamente na PRODUÇÃO (Fallback) para leitura.
+    
+    Retorna: (engine, nome_do_banco, is_fallback)
     """
-    # Tenta engine padrão
+    # 1. Tentativa Principal (O que está no .env)
     engine = create_engine(PG_DATABASE_URL, pool_pre_ping=True, echo=False)
     try:
         with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return engine, settings.PG_DB, False # False = Não é fallback
+            conn.execute(text("SELECT 1")) # Teste real de conexão
+        return engine, settings.PG_DB, False # False = Conexão normal, não é fallback
     except Exception:
-        # Se falhar e NÃO for produção, tenta fallback
+        # 2. Plano B (Fallback)
+        # Se falhou e a gente NÃO estava tentando conectar na produção...
         if settings.PG_DB != ProductionConfig.PG_DB:
             prod_config = ProductionConfig()
             prod_url = prod_config.get_postgres_uri()
+            
             fallback_engine = create_engine(prod_url, pool_pre_ping=True, echo=False)
             try:
                 with fallback_engine.connect() as conn:
                     conn.execute(text("SELECT 1"))
-                return fallback_engine, prod_config.PG_DB, True # True = É fallback
+                # Retorna a engine de produção, mas avisa que é fallback (True)
+                return fallback_engine, prod_config.PG_DB, True 
             except Exception:
-                pass
+                pass # Se falhou na produção também, aí não tem jeito.
+                
     return None, None, False
 
-def get_sqlserver_engine():
-    """Retorna a engine do SQL Server"""
+def GetSqlServerEngine():
+    """
+    Retorna a engine do SQL Server (Legado/ERP).
+    Usa NullPool porque o SQL Server gerencia conexões de forma diferente e 
+    queremos fechar a conexão explicitamente após o uso para não travar o ERP.
+    """
     return create_engine(SQL_DATABASE_URL, pool_pre_ping=True, poolclass=NullPool)
 
 # ==========================================
-# NOVA FUNÇÃO DE DIAGNÓSTICO (O que você pediu)
+# FUNÇÃO DE DIAGNÓSTICO
 # ==========================================
 
-def check_connections(verbose=None):
+def CheckConnections(verbose=None):
     """
-    Testa as conexões.
-    Se verbose for None, usa a configuração do Settings.
+    Check-up Geral: Testa se os bancos estão respondendo e mede a latência.
+    Usado na inicialização do App.py para garantir que o sistema pode subir.
+    
+    Args:
+        verbose (bool): Se True, imprime o relatório bonitinho no terminal.
     """
-    # Lógica: Se o programador não passou True/False manualmente, 
-    # pega o valor do arquivo .env (via settings)
+    # Se não passar nada, olha no .env se o usuário quer ver logs (SHOW_DB_LOGS)
     if verbose is None:
         verbose = settings.SHOW_DB_LOGS
 
@@ -84,9 +97,10 @@ def check_connections(verbose=None):
         print(f"🛠️  DIAGNÓSTICO DE AMBIENTE: {os.getenv('APP_ENV', 'DEV').upper()}")
         print("="*50)
 
-    # --- 1. TESTE POSTGRESQL ---
+    # --- 1. TESTE POSTGRESQL (Dados do Sistema/Logs) ---
     t0 = time.time()
-    pg_engine, db_name, is_fallback = get_postgres_engine_robust()
+    # Usa a versão robusta para ver se caiu no Fallback
+    pg_engine, db_name, is_fallback = GetPostgresEngineRobust()
     pg_ms = (time.time() - t0) * 1000
 
     pg_status = False
@@ -94,7 +108,7 @@ def check_connections(verbose=None):
         pg_status = True
         if verbose:
             status_icon = "✅ [ONLINE]"
-            fallback_msg = "🚨 (MODO FALLBACK)" if is_fallback else ""
+            fallback_msg = "🚨 (MODO FALLBACK - USANDO PROD)" if is_fallback else ""
             print(f"🐘 POSTGRESQL {status_icon} {fallback_msg}")
             print(f"   ├─ Host: {settings.PG_HOST}")
             print(f"   ├─ Base: {db_name}")
@@ -102,17 +116,17 @@ def check_connections(verbose=None):
     else:
         if verbose:
             print(f"🐘 POSTGRESQL ❌ [OFFLINE]")
-            print(f"   └─ ⚠️  Não foi possível conectar em DEV nem em PROD.")
+            print(f"   └─ ⚠️  CRÍTICO: Não foi possível conectar em DEV nem em PROD.")
 
     if verbose: print("-" * 30)
 
-    # --- 2. TESTE SQL SERVER ---
+    # --- 2. TESTE SQL SERVER (ERP/Dados de Negócio) ---
     t0 = time.time()
     sql_status = False
     try:
-        sql_engine = get_sqlserver_engine()
+        sql_engine = GetSqlServerEngine()
         with sql_engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
+            conn.execute(text("SELECT 1")) # Query leve só pra testar
         sql_ms = (time.time() - t0) * 1000
         sql_status = True
         
@@ -124,10 +138,12 @@ def check_connections(verbose=None):
     except Exception as e:
         if verbose:
             print(f"🗄️  SQL SERVER ❌ [OFFLINE]")
-            print(f"   └─ ⚠️  Erro: {str(e).splitlines()[0]}")
+            # Pega só a primeira linha do erro pra não poluir o terminal
+            erro_resumido = str(e).splitlines()[0] if str(e) else "Erro desconhecido"
+            print(f"   └─ ⚠️  Erro: {erro_resumido}")
 
     if verbose:
         print("="*50 + "\n")
 
-    # Retorna True apenas se AMBOS estiverem conectados (ajuste conforme necessidade)
+    # O sistema só está saudável se AMBOS os bancos estiverem online
     return pg_status and sql_status
