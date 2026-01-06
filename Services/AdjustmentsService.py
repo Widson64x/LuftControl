@@ -5,6 +5,8 @@ from sqlalchemy import text
 from Models.POSTGRESS.Ajustes import AjustesRazao, AjustesLog, AjustesIntergrupoLog
 from Utils.Hash_Utils import gerar_hash
 from Utils.Common import parse_bool
+# Importando o Logger
+from Utils.Logger import RegistrarLog 
 
 class AdjustmentService:
     def __init__(self, session_db):
@@ -102,11 +104,15 @@ class AdjustmentService:
         3. Cria ajustes automáticos pro item 10190 se precisarem existir.
         4. Mistura tudo numa lista só pro front-end ser feliz.
         """
+        RegistrarLog("Iniciando ObterDadosGrid (Carga do Razão + Ajustes)", "SERVICE")
+        
         # 1. Carrega dados da View (Razão Original)
-        # Nota: Mantive o LIMIT 10M, que é praticamente 'tudo', mas previne travar o servidor se tiver infinito.
+        # Nota: Mantido o LIMIT 10M, que é praticamente 'tudo', mas previne travar o servidor se tiver infinito.
         q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 10000000') 
         res_view = self.session.execute(q_view)
         rows_view = [dict(row._mapping) for row in res_view]
+        
+        RegistrarLog(f"Dados da View Carregados. Linhas: {len(rows_view)}", "DEBUG")
 
         # [REMOVIDO] Bloco de Debug que contava linhas (Farma, Intec, etc). 
         # Era código morto gastando CPU à toa. Tchau, brigado.
@@ -145,6 +151,7 @@ class AdjustmentService:
             self.session.bulk_save_objects(novos_ajustes_auto)
             self.session.commit()
             ajustes = self.session.query(AjustesRazao).all() # Reload para garantir IDs frescos
+            RegistrarLog(f"Gerados {len(novos_ajustes_auto)} ajustes automáticos para Item 10190.", "INFO")
         
         # 4. Segregação: Quem é edição e quem é inclusão pura?
         mapa_edicao = {}
@@ -162,7 +169,7 @@ class AdjustmentService:
             # Função interna pra padronizar o dicionário de saída
             row = base.copy()
             row['Exibir_Saldo'] = True 
-            if ajuste:
+            if ajuste:  # Se tiver ajuste (edição ou inclusão), sobrescreve os campos abaixo
                 row.update({
                     'origem': ajuste.Origem, 'Conta': ajuste.Conta, 'Título Conta': ajuste.Titulo_Conta,
                     'Data': ajuste.Data.strftime('%Y-%m-%d') if ajuste.Data else None,
@@ -197,7 +204,8 @@ class AdjustmentService:
         # Adiciona as linhas puramente novas (inclusões manuais ou intergrupo)
         for adic in lista_adicionais:
             dados_finais.append(MontarLinha({}, adic, is_inclusao=True))
-
+        
+        RegistrarLog(f"Grid montado com sucesso. Total de linhas enviadas: {len(dados_finais)}", "SERVICE")
         return dados_finais
 
     def SalvarAjuste(self, payload, usuario):
@@ -205,6 +213,8 @@ class AdjustmentService:
         Recebe o payload do front e salva.
         Se já existe, atualiza. Se não, cria. Simples assim.
         """
+        RegistrarLog(f"Iniciando SalvarAjuste. Usuario: {usuario}", "SERVICE")
+        
         d = payload['Dados']
         hash_id = payload.get('Hash_ID')
         ajuste_id = payload.get('Ajuste_ID')
@@ -262,12 +272,15 @@ class AdjustmentService:
             self.session.add(log)
         
         self.session.commit()
+        RegistrarLog(f"Ajuste salvo com sucesso. ID: {ajuste.Id}, Operacao: {payload['Tipo_Operacao']}", "INFO")
         return ajuste.Id
 
     def AprovarAjuste(self, ajuste_id, acao, usuario):
         """
         Carimba o passaporte do ajuste: Aprovado ou Reprovado.
         """
+        RegistrarLog(f"Processando Aprovação. ID: {ajuste_id}, Acao: {acao}, User: {usuario}", "SERVICE")
+        
         ajuste = self.session.query(AjustesRazao).get(ajuste_id)
         if ajuste:
             novo_status = 'Aprovado' if acao == 'Aprovar' else 'Reprovado'
@@ -278,13 +291,20 @@ class AdjustmentService:
             ajuste.Aprovado_Por = usuario
             ajuste.Data_Aprovacao = datetime.datetime.now()
             self.session.commit()
+            RegistrarLog(f"Ajuste {ajuste_id} marcado como {novo_status}", "INFO")
+        else:
+            RegistrarLog(f"Falha ao aprovar: Ajuste {ajuste_id} não encontrado.", "WARNING")
 
     def ToggleInvalido(self, ajuste_id, acao, usuario):
         """
         Marca como inválido (esconde) ou restaura.
         """
+        RegistrarLog(f"Toggle Invalido. ID: {ajuste_id}, Acao: {acao}", "SERVICE")
+        
         ajuste = self.session.query(AjustesRazao).get(ajuste_id)
-        if not ajuste: raise Exception('Ajuste não encontrado')
+        if not ajuste: 
+            RegistrarLog(f"Toggle Invalido falhou: Ajuste {ajuste_id} não existe", "ERROR")
+            raise Exception('Ajuste não encontrado')
 
         novo_estado_invalido = (acao == 'INVALIDAR')
         log = AjustesLog(
@@ -301,11 +321,14 @@ class AdjustmentService:
         else:
             ajuste.Status = 'Pendente'
         self.session.commit()
+        RegistrarLog(f"Status Invalido atualizado para: {novo_estado_invalido}", "INFO")
 
     def ObterHistorico(self, ajuste_id):
         """
         Retorna a capivara completa do ajuste.
         """
+        # Apenas debug leve
+        RegistrarLog(f"Buscando histórico para ajuste ID: {ajuste_id}", "DEBUG")
         logs = self.session.query(AjustesLog).filter(AjustesLog.Id_Ajuste == ajuste_id).order_by(AjustesLog.Data_Acao.desc()).all()
         return [{
             'Id_Log': l.Id_Log, 'Campo': l.Campo_Alterado, 'De': l.Valor_Antigo, 'Para': l.Valor_Novo,
@@ -317,6 +340,8 @@ class AdjustmentService:
         Executa a lógica complexa de geração de ajustes intergrupo.
         Cruza contas, datas e filiais pra gerar os pares de D/C.
         """
+        RegistrarLog(f"Iniciando Rotina GerarIntergrupo. Ano: {ano}", "SYSTEM")
+        
         # Configuração hardcoded das contas (regra de negócio)
         config_contas = {
             '60301020290': {'destino': '60301020290B', 'descricao': 'ajuste intergrupo ( fretes Dist.)', 'titulo_origem': 'FRETE DISTRIBUIÇÃO', 'titulo_destino': 'FRETE DISTRIBUIÇÃO'},
@@ -503,4 +528,5 @@ class AdjustmentService:
                             logs_retorno.append(f"{prefixo_log} [CREDITO] CRIADO: {soma_credito_real}")
 
         self.session.commit()
+        RegistrarLog(f"Rotina Intergrupo finalizada com sucesso. Logs gerados: {len(logs_retorno)}", "SYSTEM")
         return logs_retorno
