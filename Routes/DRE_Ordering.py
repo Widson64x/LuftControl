@@ -12,7 +12,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import login_required
 from sqlalchemy import text, func, bindparam
 from sqlalchemy.orm import sessionmaker
-from Db.Connections import get_postgres_engine
+from Db.Connections import GetPostgresEngine
 import time
 
 from Models.POSTGRESS.DreOrdenamento import (
@@ -33,7 +33,7 @@ dre_ordem_bp = Blueprint('DreOrdenamento', __name__)
 
 def getSession():
     """Cria e retorna uma sessão do PostgreSQL"""
-    engine = get_postgres_engine()
+    engine = GetPostgresEngine()
     Session = sessionmaker(bind=engine)
     return Session()
 

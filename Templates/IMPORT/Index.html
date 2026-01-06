@@ -10,14 +10,14 @@
             <h2 style="font-weight: 700;">Nova Importação</h2>
             <p class="text-secondary">Carregamento de dados para Razão Analítico.</p>
         </div>
-        <a href="{{ url_for('import_data.history') }}" class="btn btn-ghost">
+        <a href="{{ url_for('Import.History') }}" class="btn btn-ghost">
             <i class="fas fa-history me-2"></i> Ver Logs / Reversão
         </a>
     </div>
 
     <div class="card" style="padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-primary); box-shadow: var(--shadow-md);">
         
-        <form action="{{ url_for('import_data.analyze') }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ url_for('Import.Analyze') }}" method="POST" enctype="multipart/form-data">
             
             <div style="margin-bottom: 2rem;">
                 <label for="sourceSelect" style="display: block; font-weight: 600; margin-bottom: 0.5rem;">

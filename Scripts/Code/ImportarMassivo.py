@@ -6,7 +6,7 @@ from sqlalchemy import text
 # Adiciona diretório ao path para importar módulos do projeto
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Db.Connections import get_postgres_engine
+from Db.Connections import GetPostgresEngine
 
 def corrigir_constraints(conn):
     """
@@ -159,7 +159,7 @@ def importar_massivo():
         'Coml': os.path.join('Data', 'ComlGruposContas.csv'),
     }
     
-    engine = get_postgres_engine()
+    engine = GetPostgresEngine()
     
     total_grupos = 0
     total_contas = 0

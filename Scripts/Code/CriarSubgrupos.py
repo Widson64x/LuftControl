@@ -6,7 +6,7 @@ from sqlalchemy import text
 # Adiciona o diretório raiz ao path para conseguir importar 'Db.Connections'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Db.Connections import get_postgres_engine
+from Db.Connections import GetPostgresEngine
 
 def processar_relacao_contas():
     # Caminho do arquivo
@@ -25,7 +25,7 @@ def processar_relacao_contas():
         print(f"❌ Erro ao abrir Excel: {e}")
         return
 
-    engine = get_postgres_engine()
+    engine = GetPostgresEngine()
     
     # Abre conexão com o banco
     with engine.connect() as conn:

@@ -8,12 +8,16 @@ from Utils.Common import parse_bool
 
 class AdjustmentService:
     def __init__(self, session_db):
+        # Guardamos a sessão para usar nos métodos
         self.session = session_db
 
-    # --- HELPERS INTERNOS ---
+    # --- HELPERS INTERNOS (Métodos auxiliares) ---
 
-    def _registrar_log(self, ajuste_antigo, dados_novos, usuario):
-        """Registra logs de edição comparando valor antigo vs novo."""
+    def _RegistrarLog(self, ajuste_antigo, dados_novos, usuario):
+        """
+        Registra logs de edição comparando valor antigo vs novo.
+        Se nada mudou, vida que segue. Se mudou, dedura no banco.
+        """
         campos_mapeados = {
             'origem': 'Origem', 'Conta': 'Conta', 'Titulo_Conta': 'Titulo_Conta',
             'Numero': 'Numero', 'Descricao': 'Descricao', 'Contra_Partida': 'Contra_Partida',
@@ -24,19 +28,19 @@ class AdjustmentService:
         }
         
         for json_key, model_attr in campos_mapeados.items():
-            # Definição correta das variáveis RAW
+            # Pegando os valores crus pra não ter erro de interpretação
             valor_novo_raw = dados_novos.get(json_key)
             valor_antigo_raw = getattr(ajuste_antigo, model_attr)
 
             val_antigo = str(valor_antigo_raw) if valor_antigo_raw is not None else ''
             val_novo = str(valor_novo_raw) if valor_novo_raw is not None else ''
             
-            # Tratamento Data (CORRIGIDO: usa valor_antigo_raw)
+            # Formata Data pra ficar bonitinho na comparação
             if model_attr == 'Data' and valor_antigo_raw:
                 val_antigo = valor_antigo_raw.strftime('%Y-%m-%d')
                 if val_novo and 'T' in val_novo: val_novo = val_novo.split('T')[0]
             
-            # Tratamento Float (Usa valor_antigo_raw corretamente)
+            # Compara floats com tolerância (pra evitar aquele 0.00000001 de diferença)
             if model_attr in ['Debito', 'Credito']:
                 try:
                     f_antigo = float(valor_antigo_raw or 0)
@@ -45,11 +49,12 @@ class AdjustmentService:
                     val_antigo, val_novo = str(f_antigo), str(f_novo)
                 except: pass
             
-            # Tratamento Booleano (CORRIGIDO: usa valor_antigo_raw/valor_novo_raw)
+            # Normaliza booleanos para Sim/Não
             if model_attr in ['Is_Nao_Operacional', 'Exibir_Saldo', 'Invalido']:
                 val_antigo = 'Sim' if parse_bool(valor_antigo_raw) else 'Não'
                 val_novo = 'Sim' if parse_bool(valor_novo_raw) else 'Não'
 
+            # Se for diferente, anota no caderninho (Log)
             if val_antigo != val_novo:
                 novo_log = AjustesLog(
                     Id_Ajuste=ajuste_antigo.Id, Campo_Alterado=model_attr, 
@@ -59,12 +64,13 @@ class AdjustmentService:
                 )
                 self.session.add(novo_log)
 
-    def _gerar_hash_intergrupo(self, row):
+    def _GerarHashIntergrupo(self, row):
         """
-        Hash específico para a lógica de Intergrupo (preservando comportamento original).
-        Usa valores de Debito/Credito e Descricao na chave.
+        Gera um ID único (MD5) para linhas de intergrupo.
+        Usa valores de débito/crédito na chave pra garantir unicidade.
         """
-        def clean(val):
+        def Clean(val):
+            # Limpa o valor pra string, lidando com Nones
             if val is None: return 'None'
             s = str(val).strip()
             return 'None' if s == '' or s.lower() == 'none' else s
@@ -81,67 +87,37 @@ class AdjustmentService:
             val = item
             if isinstance(item, (datetime.date, datetime.datetime)):
                 val = item.strftime('%Y-%m-%d')
-            lista_limpa.append(clean(val))
+            lista_limpa.append(Clean(val))
 
         raw_str = "".join(lista_limpa)
         return hashlib.md5(raw_str.encode('utf-8')).hexdigest()
 
-    # --- MÉTODOS PRINCIPAIS ---
+    # --- MÉTODOS PRINCIPAIS (Ação real) ---
 
-    def obter_dados_grid(self):
+    def ObterDadosGrid(self):
         """
-        Retorna dados mesclados da View (ERP) e da Tabela de Ajustes.
+        O Grande Chefão.
+        1. Pega tudo do ERP (View).
+        2. Pega todos os ajustes do banco.
+        3. Cria ajustes automáticos pro item 10190 se precisarem existir.
+        4. Mistura tudo numa lista só pro front-end ser feliz.
         """
         # 1. Carrega dados da View (Razão Original)
-        # ALERTA: O LIMIT 100000 pode estar cortando dados se a base for maior que isso.
-        # Idealmente, remova o LIMIT ou aumente-o drasticamente para teste.
+        # Nota: Mantive o LIMIT 10M, que é praticamente 'tudo', mas previne travar o servidor se tiver infinito.
         q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 10000000') 
         res_view = self.session.execute(q_view)
         rows_view = [dict(row._mapping) for row in res_view]
 
-        # ==============================================================================
-        # [INICIO] BLOCO DE DEBUG (Adicione isto para ver no log do servidor)
-        # ==============================================================================
-        print(f"\n--- DEBUG START: Total Linhas Carregadas: {len(rows_view)} ---")
-        
-        stats = {
-            'FARMA': {'Total': 0, 'Item_10190': 0},
-            'FARMADIST': {'Total': 0, 'Item_10190': 0},
-            'INTEC': {'Total': 0, 'Item_10190': 0},
-            'OUTROS': {'Total': 0, 'Item_10190': 0}
-        }
-
-        for row in rows_view:
-            # Tenta pegar a origem com variações de maiúscula/minúscula para garantir
-            raw_origem = row.get('origem') or row.get('Origem') or 'UNKNOWN'
-            origem_str = str(raw_origem).upper().strip()
-            
-            # Identifica o grupo
-            grupo = 'OUTROS'
-            if 'INTEC' in origem_str: grupo = 'INTEC'
-            elif 'FARMADIST' in origem_str: grupo = 'FARMADIST' # Checar antes de Farma pois contem "Farma"
-            elif 'FARMA' in origem_str: grupo = 'FARMA'
-            
-            stats[grupo]['Total'] += 1
-            
-            # Verifica item 10190
-            item_val = str(row.get('Item')).strip()
-            if item_val == '10190':
-                stats[grupo]['Item_10190'] += 1
-
-        print("ESTATISTICAS ENCONTRADAS NA VIEW:")
-        for grp, data in stats.items():
-            print(f" > {grp}: Total Linhas={data['Total']} | Itens 10190={data['Item_10190']}")
-        print("--- DEBUG END ---\n")
-        # ==============================================================================
-        # [FIM] BLOCO DE DEBUG
-        # ==============================================================================
+        # [REMOVIDO] Bloco de Debug que contava linhas (Farma, Intec, etc). 
+        # Era código morto gastando CPU à toa. Tchau, brigado.
 
         # 2. Carrega TODOS os Ajustes Existentes
         ajustes = self.session.query(AjustesRazao).all()
+        # Mapeia por Hash pra busca ficar O(1) e voar baixo
         mapa_existentes = {aj.Hash_Linha_Original: aj for aj in ajustes}
         
         # 3. Regra Automática: Item 10190
+        # Se achar esse item na view e não tiver ajuste, cria um automático
         novos_ajustes_auto = []
         for row in rows_view:
             if str(row.get('Item')).strip() == '10190':
@@ -164,12 +140,13 @@ class AdjustmentService:
                     novos_ajustes_auto.append(novo_ajuste)
                     mapa_existentes[h] = novo_ajuste
 
+        # Salva em lote pra não matar o banco de requisições
         if novos_ajustes_auto:
             self.session.bulk_save_objects(novos_ajustes_auto)
             self.session.commit()
-            ajustes = self.session.query(AjustesRazao).all() # Reload para garantir IDs
+            ajustes = self.session.query(AjustesRazao).all() # Reload para garantir IDs frescos
         
-        # 4. Segregação
+        # 4. Segregação: Quem é edição e quem é inclusão pura?
         mapa_edicao = {}
         lista_adicionais = []
         for aj in ajustes:
@@ -178,10 +155,11 @@ class AdjustmentService:
             elif aj.Tipo_Operacao in ['INCLUSAO', 'INTERGRUPO_AUTO']:
                 lista_adicionais.append(aj)
 
-        # 5. Construção Final
+        # 5. Construção Final do Retorno
         dados_finais = []
 
-        def montar_linha(base, ajuste=None, is_inclusao=False):
+        def MontarLinha(base, ajuste=None, is_inclusao=False):
+            # Função interna pra padronizar o dicionário de saída
             row = base.copy()
             row['Exibir_Saldo'] = True 
             if ajuste:
@@ -206,21 +184,27 @@ class AdjustmentService:
                 row['Saldo'] = 0.0
             return row
 
+        # Processa linhas originais (com ou sem edição)
         for row in rows_view:
             h = gerar_hash(row)
             ajuste = mapa_edicao.get(h)
-            linha = montar_linha(row, ajuste, is_inclusao=False)
+            linha = MontarLinha(row, ajuste, is_inclusao=False)
             linha['Hash_ID'] = h
             linha['Tipo_Linha'] = 'Original'
             if not ajuste: linha['Status_Ajuste'] = 'Original'
             dados_finais.append(linha)
 
+        # Adiciona as linhas puramente novas (inclusões manuais ou intergrupo)
         for adic in lista_adicionais:
-            dados_finais.append(montar_linha({}, adic, is_inclusao=True))
+            dados_finais.append(MontarLinha({}, adic, is_inclusao=True))
 
         return dados_finais
 
-    def salvar_ajuste(self, payload, usuario):
+    def SalvarAjuste(self, payload, usuario):
+        """
+        Recebe o payload do front e salva.
+        Se já existe, atualiza. Se não, cria. Simples assim.
+        """
         d = payload['Dados']
         hash_id = payload.get('Hash_ID')
         ajuste_id = payload.get('Ajuste_ID')
@@ -228,12 +212,15 @@ class AdjustmentService:
         ajuste = None
         is_novo = False
         
+        # Tenta achar pelo ID direto
         if ajuste_id:
             ajuste = self.session.query(AjustesRazao).get(ajuste_id)
         
+        # Se não achou e é edição, tenta pelo Hash da linha original
         if not ajuste and payload['Tipo_Operacao'] == 'EDICAO':
             ajuste = self.session.query(AjustesRazao).filter_by(Hash_Linha_Original=hash_id).first()
         
+        # Se ainda não achou, é novo mesmo
         if not ajuste:
             ajuste = AjustesRazao()
             is_novo = True
@@ -241,11 +228,13 @@ class AdjustmentService:
             ajuste.Data_Criacao = datetime.datetime.now()
             self.session.add(ajuste)
         else:
-            self._registrar_log(ajuste, d, usuario)
+            # Se já existe, loga o que mudou antes de sobrescrever
+            self._RegistrarLog(ajuste, d, usuario)
 
+        # Atualiza os campos
         ajuste.Tipo_Operacao = payload['Tipo_Operacao']
         ajuste.Hash_Linha_Original = hash_id
-        ajuste.Status = 'Pendente'
+        ajuste.Status = 'Pendente' # Toda alteração volta pra pendente
         
         ajuste.Origem = d.get('origem')
         ajuste.Conta = d.get('Conta')
@@ -265,7 +254,7 @@ class AdjustmentService:
         ajuste.Is_Nao_Operacional = parse_bool(d.get('NaoOperacional'))
         ajuste.Exibir_Saldo = parse_bool(d.get('Exibir_Saldo'))
         
-        self.session.flush() 
+        self.session.flush() # Garante que o ID foi gerado se for novo
 
         if is_novo:
             log = AjustesLog(Id_Ajuste=ajuste.Id, Campo_Alterado='TODOS', Valor_Antigo='-', 
@@ -275,7 +264,10 @@ class AdjustmentService:
         self.session.commit()
         return ajuste.Id
 
-    def aprovar_ajuste(self, ajuste_id, acao, usuario):
+    def AprovarAjuste(self, ajuste_id, acao, usuario):
+        """
+        Carimba o passaporte do ajuste: Aprovado ou Reprovado.
+        """
         ajuste = self.session.query(AjustesRazao).get(ajuste_id)
         if ajuste:
             novo_status = 'Aprovado' if acao == 'Aprovar' else 'Reprovado'
@@ -287,7 +279,10 @@ class AdjustmentService:
             ajuste.Data_Aprovacao = datetime.datetime.now()
             self.session.commit()
 
-    def toggle_invalido(self, ajuste_id, acao, usuario):
+    def ToggleInvalido(self, ajuste_id, acao, usuario):
+        """
+        Marca como inválido (esconde) ou restaura.
+        """
         ajuste = self.session.query(AjustesRazao).get(ajuste_id)
         if not ajuste: raise Exception('Ajuste não encontrado')
 
@@ -307,17 +302,22 @@ class AdjustmentService:
             ajuste.Status = 'Pendente'
         self.session.commit()
 
-    def obter_historico(self, ajuste_id):
+    def ObterHistorico(self, ajuste_id):
+        """
+        Retorna a capivara completa do ajuste.
+        """
         logs = self.session.query(AjustesLog).filter(AjustesLog.Id_Ajuste == ajuste_id).order_by(AjustesLog.Data_Acao.desc()).all()
         return [{
             'Id_Log': l.Id_Log, 'Campo': l.Campo_Alterado, 'De': l.Valor_Antigo, 'Para': l.Valor_Novo,
             'Usuario': l.Usuario_Acao, 'Data': l.Data_Acao.strftime('%d/%m/%Y %H:%M:%S'), 'Tipo': l.Tipo_Acao
         } for l in logs]
 
-    def gerar_intergrupo(self, ano):
+    def GerarIntergrupo(self, ano):
         """
-        Executa a lógica completa de geração de ajustes intergrupo.
+        Executa a lógica complexa de geração de ajustes intergrupo.
+        Cruza contas, datas e filiais pra gerar os pares de D/C.
         """
+        # Configuração hardcoded das contas (regra de negócio)
         config_contas = {
             '60301020290': {'destino': '60301020290B', 'descricao': 'ajuste intergrupo ( fretes Dist.)', 'titulo_origem': 'FRETE DISTRIBUIÇÃO', 'titulo_destino': 'FRETE DISTRIBUIÇÃO'},
             '60301020288': {'destino': '60301020288C', 'descricao': 'ajuste intergrupo ( fretes Aéreo)', 'titulo_origem': 'FRETES AEREO', 'titulo_destino': 'FRETES AEREO'},
@@ -326,7 +326,8 @@ class AdjustmentService:
         
         logs_retorno = []
 
-        def salvar_log_interno(mes, conta, origem_erp, valor, tipo, acao, id_orig=None, id_dest=None, hash_val=None):
+        def SalvarLogInterno(mes, conta, origem_erp, valor, tipo, acao, id_orig=None, id_dest=None, hash_val=None):
+            # Log técnico específico dessa rotina
             novo_log = AjustesIntergrupoLog(
                 Ano=ano, Mes=mes, Conta_Origem=conta, Origem_ERP=origem_erp, 
                 Valor_Encontrado_ERP=valor, Tipo_Fluxo=tipo, Id_Ajuste_Origem=id_orig, 
@@ -348,6 +349,7 @@ class AdjustmentService:
                 data_gravacao = datetime.datetime(ano, mes, ultimo_dia, 0, 0, 0)
 
                 # A. VERIFICAÇÃO RIGOROSA NO ERP
+                # Se já tem dado na conta destino no ERP, a gente não mexe.
                 qtd_erp = self.session.execute(text("""
                     SELECT COUNT(*) FROM "Dre_Schema"."Razao_Dados_Consolidado"
                     WHERE "Conta" = :conta AND "Data" >= :d_ini AND "Data" <= :d_fim
@@ -357,7 +359,7 @@ class AdjustmentService:
                     logs_retorno.append(f"[{conta_origem} | {mes:02d}/{ano}] PULADO: Já consolidado no ERP.")
                     continue
 
-                # B. BUSCA DADOS BRUTOS
+                # B. BUSCA DADOS BRUTOS (Origem)
                 rows = self.session.execute(text("""
                     SELECT "origem", "Debito", "Credito", "Item", "Filial", "Centro de Custo"
                     FROM "Dre_Schema"."Razao_Dados_Consolidado"
@@ -365,7 +367,7 @@ class AdjustmentService:
                     ORDER BY "Data" ASC
                 """), {'conta': conta_origem, 'd_ini': data_inicio, 'd_fim': data_fim_busca}).fetchall()
 
-                # C. AGRUPAMENTO
+                # C. AGRUPAMENTO (Soma tudo por origem)
                 dados_agrupados = {}
                 for row in rows:
                     org = str(row.origem) if row.origem else 'SEM_ORIGEM'
@@ -380,7 +382,7 @@ class AdjustmentService:
 
                 if not dados_agrupados: continue
 
-                # D. PROCESSAMENTO
+                # D. PROCESSAMENTO (Gera os ajustes)
                 for org_atual, valores in dados_agrupados.items():
                     prefixo_log = f"[{conta_origem} | {org_atual} | {mes:02d}/{ano}]"
                     soma_debito_real = round(abs(valores['deb']), 2)
@@ -391,24 +393,28 @@ class AdjustmentService:
 
                     # --- FLUXO DE DÉBITOS ---
                     if soma_debito_real > 0.00:
+                        # Busca se já criamos esse ajuste antes
                         ajuste_deb_origem = self.session.query(AjustesRazao).filter(
                             AjustesRazao.Conta == conta_origem, AjustesRazao.Data == data_gravacao,
                             AjustesRazao.Origem == org_atual, AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
                             AjustesRazao.Credito > 0, AjustesRazao.Invalido == False
                         ).first()
 
+                        # Parâmetros pra gerar o hash e garantir unicidade
                         row_origem_params = {'Conta': conta_origem, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': 0.0, 'Credito': soma_debito_real, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
-                        hash_novo_origem = self._gerar_hash_intergrupo(row_origem_params)
+                        hash_novo_origem = self._GerarHashIntergrupo(row_origem_params)
 
                         row_destino_params = {'Conta': conta_destino, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': soma_debito_real, 'Credito': 0.0, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
-                        hash_novo_destino = self._gerar_hash_intergrupo(row_destino_params)
+                        hash_novo_destino = self._GerarHashIntergrupo(row_destino_params)
 
                         if ajuste_deb_origem:
+                            # Se já existe e mudou valor ou item, atualiza
                             if abs(ajuste_deb_origem.Credito - soma_debito_real) > 0.01 or ajuste_deb_origem.Item != item_real:
                                 ajuste_deb_origem.Credito = soma_debito_real
                                 ajuste_deb_origem.Item = item_real
                                 ajuste_deb_origem.Hash_Linha_Original = hash_novo_origem
                                 
+                                # Busca o par dele (destino)
                                 ajuste_deb_destino = self.session.query(AjustesRazao).filter(
                                     AjustesRazao.Conta == conta_destino, AjustesRazao.Data == data_gravacao,
                                     AjustesRazao.Origem == org_atual, AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
@@ -420,9 +426,10 @@ class AdjustmentService:
                                     ajuste_deb_destino.Item = item_real
                                     ajuste_deb_destino.Hash_Linha_Original = hash_novo_destino
                                 
-                                salvar_log_interno(mes, conta_origem, org_atual, soma_debito_real, 'DEBITO', 'ATUALIZACAO', id_orig=ajuste_deb_origem.Id, id_dest=ajuste_deb_destino.Id if ajuste_deb_destino else None, hash_val=hash_novo_origem)
+                                SalvarLogInterno(mes, conta_origem, org_atual, soma_debito_real, 'DEBITO', 'ATUALIZACAO', id_orig=ajuste_deb_origem.Id, id_dest=ajuste_deb_destino.Id if ajuste_deb_destino else None, hash_val=hash_novo_origem)
                                 logs_retorno.append(f"{prefixo_log} [DEBITO] ATUALIZADO: {soma_debito_real}")
                         else:
+                            # Se não existe, cria o par (Origem e Destino)
                             l1 = AjustesRazao(
                                 Conta=conta_origem, Titulo_Conta=titulo_origem, Data=data_gravacao, Descricao=desc_regra,
                                 Debito=0.0, Credito=soma_debito_real, Filial=filial_ref, Centro_Custo=cc_ref, Item=item_real, 
@@ -439,7 +446,7 @@ class AdjustmentService:
                             )
                             self.session.add(l1); self.session.add(l2)
                             self.session.flush()
-                            salvar_log_interno(mes, conta_origem, org_atual, soma_debito_real, 'DEBITO', 'CRIACAO', id_orig=l1.Id, id_dest=l2.Id, hash_val=hash_novo_origem)
+                            SalvarLogInterno(mes, conta_origem, org_atual, soma_debito_real, 'DEBITO', 'CRIACAO', id_orig=l1.Id, id_dest=l2.Id, hash_val=hash_novo_origem)
                             logs_retorno.append(f"{prefixo_log} [DEBITO] CRIADO: {soma_debito_real}")
 
                     # --- FLUXO DE CRÉDITOS ---
@@ -451,10 +458,10 @@ class AdjustmentService:
                         ).first()
 
                         row_origem_cred_params = {'Conta': conta_origem, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': soma_credito_real, 'Credito': 0.0, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
-                        hash_novo_origem_cred = self._gerar_hash_intergrupo(row_origem_cred_params)
+                        hash_novo_origem_cred = self._GerarHashIntergrupo(row_origem_cred_params)
 
                         row_destino_cred_params = {'Conta': conta_destino, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': 0.0, 'Credito': soma_credito_real, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
-                        hash_novo_destino_cred = self._gerar_hash_intergrupo(row_destino_cred_params)
+                        hash_novo_destino_cred = self._GerarHashIntergrupo(row_destino_cred_params)
 
                         if ajuste_cred_origem:
                             if abs(ajuste_cred_origem.Debito - soma_credito_real) > 0.01 or ajuste_cred_origem.Item != item_real:
@@ -473,7 +480,7 @@ class AdjustmentService:
                                     ajuste_cred_destino.Item = item_real
                                     ajuste_cred_destino.Hash_Linha_Original = hash_novo_destino_cred
                                 
-                                salvar_log_interno(mes, conta_origem, org_atual, soma_credito_real, 'CREDITO', 'ATUALIZACAO', id_orig=ajuste_cred_origem.Id, id_dest=ajuste_cred_destino.Id if ajuste_cred_destino else None, hash_val=hash_novo_origem_cred)
+                                SalvarLogInterno(mes, conta_origem, org_atual, soma_credito_real, 'CREDITO', 'ATUALIZACAO', id_orig=ajuste_cred_origem.Id, id_dest=ajuste_cred_destino.Id if ajuste_cred_destino else None, hash_val=hash_novo_origem_cred)
                                 logs_retorno.append(f"{prefixo_log} [CREDITO] ATUALIZADO: {soma_credito_real}")
                         else:
                             l3 = AjustesRazao(
@@ -492,7 +499,7 @@ class AdjustmentService:
                             )
                             self.session.add(l3); self.session.add(l4)
                             self.session.flush()
-                            salvar_log_interno(mes, conta_origem, org_atual, soma_credito_real, 'CREDITO', 'CRIACAO', id_orig=l3.Id, id_dest=l4.Id, hash_val=hash_novo_origem_cred)
+                            SalvarLogInterno(mes, conta_origem, org_atual, soma_credito_real, 'CREDITO', 'CRIACAO', id_orig=l3.Id, id_dest=l4.Id, hash_val=hash_novo_origem_cred)
                             logs_retorno.append(f"{prefixo_log} [CREDITO] CRIADO: {soma_credito_real}")
 
         self.session.commit()

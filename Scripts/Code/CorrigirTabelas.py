@@ -5,10 +5,10 @@ from sqlalchemy import text
 # Setup de diretórios
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Db.Connections import get_postgres_engine
+from Db.Connections import GetPostgresEngine
 
 def corrigir_tabelas():
-    engine = get_postgres_engine()
+    engine = GetPostgresEngine()
     print("🛠️  Iniciando correção das tabelas de origem...")
 
     # Lista de tabelas para corrigir (Drop e Create com Varchars)

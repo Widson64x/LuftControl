@@ -227,12 +227,12 @@
 <script src="{{ url_for('static', filename='JS/AjustesRazao.js') }}"></script>
 <script>
     const API_ROUTES = {
-        getDados:    "{{ url_for('Ajustes.get_dados') }}",
-        getIntergrupos: "{{ url_for('Ajustes.gerar_ajuste_intergrupo') }}",
-        postSalvar:  "{{ url_for('Ajustes.salvar') }}",
-        postAprovar: "{{ url_for('Ajustes.aprovar') }}",
-        postStatusInvalido: "{{ url_for('Ajustes.alterar_status_invalido') }}",
-        getHistoricoTemplate: "{{ url_for('Ajustes.get_historico', id_ajuste=0) }}"
+        getDados:    "{{ url_for('Ajustes.GetDados') }}",
+        getIntergrupos: "{{ url_for('Ajustes.GerarAjusteIntergrupo') }}",
+        postSalvar:  "{{ url_for('Ajustes.Salvar') }}",
+        postAprovar: "{{ url_for('Ajustes.Aprovar') }}",
+        postStatusInvalido: "{{ url_for('Ajustes.AlterarStatusInvalido') }}",
+        getHistoricoTemplate: "{{ url_for('Ajustes.GetHistorico', id_ajuste=0) }}"
     };
 </script>
 {% endblock %}

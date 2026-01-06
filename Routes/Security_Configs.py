@@ -3,48 +3,57 @@ from flask_login import login_required
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
-# Imports de Conexão
-from Db.Connections import get_postgres_engine
+# --- Imports de Conexão ---
+from Db.Connections import GetPostgresEngine
 
-# Imports dos Modelos e Helpers
+# --- Imports dos Modelos e Helpers ---
 from Models.POSTGRESS.Seguranca import SecUserExtension, SecRole, SecPermission
-from Utils.Security import requires_permission
+# Importa o nosso novo decorator em PascalCase
+from Utils.Security import RequiresPermission
 
+# Define o Blueprint com nome elegante
 security_bp = Blueprint('SecurityConfig', __name__)
 
-def get_pg_session():
-    engine = get_postgres_engine()
+def GetPgSession():
+    """Cria uma sessão isolada para transações de segurança no Postgres."""
+    engine = GetPostgresEngine()
     return sessionmaker(bind=engine)()
 
 # ============================================================
-# VIEWS (Páginas HTML)
+# VIEWS (Páginas HTML para o Usuário Final)
 # ============================================================
 
-@security_bp.route('/Manager', methods=['GET'])
+@security_bp.route('/manager', methods=['GET'])
 @login_required
-@requires_permission('security.view')
+@RequiresPermission('security.view')
 def ViewSecurityManager():
+    """Tela Principal de Gestão de Permissões (Matriz)"""
     return render_template('CONFIGS/ConfigsPerms.html')
 
-@security_bp.route('/Visualizador', methods=['GET'])
+@security_bp.route('/visualizador', methods=['GET'])
 @login_required
-@requires_permission('security.view')
+@RequiresPermission('security.view')
 def ViewSecurityMap():
+    """Tela Visual do Grafo de Segurança (Nodes e Edges)"""
     return render_template('COMPONENTS/SecurityMap.html')
 
 # ============================================================
-# API: DADOS DO GRAFO E USUÁRIOS
+# API: DADOS DO GRAFO E USUÁRIOS (Leitura)
 # ============================================================
 
-@security_bp.route('/API/GetSecurityGraph', methods=['GET'])
+@security_bp.route('/api/get-security-graph', methods=['GET'])
 @login_required
 def GetSecurityGraph():
-    pg_session = get_pg_session()
+    """
+    Retorna a estrutura de nós e arestas para desenhar o grafo visual.
+    Mostra quem é quem e quem pode o quê.
+    """
+    pg_session = GetPgSession()
     try:
         nodes = []
         edges = []
         
-        # A. Papéis (Roles)
+        # A. Processa Papéis (Roles) - Os grupos de permissão
         roles = pg_session.query(SecRole).all()
         for r in roles:
             role_node_id = f"role_{r.Id}"
@@ -53,13 +62,13 @@ def GetSecurityGraph():
                 "label": r.Nome,
                 "group": "role",
                 "title": f"Grupo: {r.Descricao}",
-                "value": 25
+                "value": 25 # Tamanho visual do nó
             })
             
-            # Aresta: Grupo -> Permissão
+            # Cria linhas conectando Grupo -> Permissão
             for perm in r.permissions:
                 perm_id = f"perm_{perm.Id}"
-                _add_permission_node(nodes, perm)
+                _AddPermissionNode(nodes, perm) # Garante que o nó da permissão existe
                 edges.append({
                     "from": role_node_id,
                     "to": perm_id,
@@ -67,7 +76,7 @@ def GetSecurityGraph():
                     "color": {"color": "#6C5CE7", "opacity": 0.4}
                 })
 
-        # B. Usuários
+        # B. Processa Usuários
         users = pg_session.query(SecUserExtension).all()
         for u in users:
             user_node_id = f"user_{u.Id}"
@@ -78,6 +87,7 @@ def GetSecurityGraph():
                 "value": 15
             })
             
+            # Conecta Usuário -> Grupo (Role)
             if u.RoleId:
                 edges.append({
                     "from": user_node_id,
@@ -87,19 +97,20 @@ def GetSecurityGraph():
                     "width": 2
                 })
             else:
-                _add_no_access_node(nodes)
+                # Se não tem grupo, conecta num nó de alerta "Sem Acesso"
+                _AddNoAccessNode(nodes)
                 edges.append({ "from": user_node_id, "to": "no_access", "dashes": [5,5], "color": "#ff7675" })
 
-            # B2. Permissões Diretas
+            # B2. Conecta Usuário -> Permissões Diretas (Exceções)
             for direct_perm in u.direct_permissions:
                 perm_id = f"perm_{direct_perm.Id}"
-                _add_permission_node(nodes, direct_perm)
+                _AddPermissionNode(nodes, direct_perm)
                 edges.append({
                     "from": user_node_id,
                     "to": perm_id,
                     "arrows": "to",
-                    "color": {"color": "#fdcb6e"},
-                    "dashes": [2, 2]
+                    "color": {"color": "#fdcb6e"}, # Cor diferente para destacar que é direto
+                    "dashes": [2, 2] # Linha tracejada
                 })
 
         return jsonify({"nodes": nodes, "edges": edges}), 200
@@ -109,7 +120,10 @@ def GetSecurityGraph():
     finally:
         pg_session.close()
 
-def _add_permission_node(nodes_list, perm_obj):
+# --- Funções Auxiliares Privadas (para montar o grafo) ---
+
+def _AddPermissionNode(nodes_list, perm_obj):
+    """Adiciona um nó de permissão à lista se ele ainda não existir."""
     pid = f"perm_{perm_obj.Id}"
     if not any(n['id'] == pid for n in nodes_list):
         nodes_list.append({
@@ -120,15 +134,16 @@ def _add_permission_node(nodes_list, perm_obj):
             "value": 8
         })
 
-def _add_no_access_node(nodes_list):
+def _AddNoAccessNode(nodes_list):
+    """Adiciona o nó triangular de alerta 'Sem Grupo'."""
     if not any(n['id'] == 'no_access' for n in nodes_list):
         nodes_list.append({ "id": "no_access", "label": "Sem Grupo", "group": "warning", "shape": "triangle", "value": 20 })
 
-@security_bp.route('/API/GetActiveUsers', methods=['GET'])
+@security_bp.route('/api/get-active-users', methods=['GET'])
 @login_required
 def GetActiveUsers():
-    """Retorna apenas usuários que já existem na tabela SEC_Users"""
-    pg_session = get_pg_session()
+    """Lista usuários cadastrados na tabela de extensão de segurança."""
+    pg_session = GetPgSession()
     try:
         users = pg_session.query(SecUserExtension).all()
         result = []
@@ -146,15 +161,15 @@ def GetActiveUsers():
         pg_session.close()
 
 # ============================================================
-# API: GERENCIAMENTO (CRUD) - AS ROTAS QUE FALTAVAM
+# API: GERENCIAMENTO (CRUD - Escrita)
 # ============================================================
 
-@security_bp.route('/API/UpdateUserRole', methods=['POST'])
+@security_bp.route('/api/update-user-role', methods=['POST'])
 @login_required
-@requires_permission('security.manage')
+@RequiresPermission('security.manage')
 def UpdateUserRole():
-    """Define o Papel (Role) de um usuário específico."""
-    pg_session = get_pg_session()
+    """Define ou altera o Papel (Role) de um usuário."""
+    pg_session = GetPgSession()
     try:
         data = request.json
         login = data.get('login')
@@ -163,29 +178,35 @@ def UpdateUserRole():
         user_ext = pg_session.query(SecUserExtension).filter_by(Login_Usuario=login).first()
         
         if not user_ext:
-            # Cria se não existir (caso venha do modal visual)
+            # Se o usuário não existia na tabela de segurança, cria agora.
             user_ext = SecUserExtension(Login_Usuario=login)
             pg_session.add(user_ext)
         
+        # Converte para int se existir valor, senão fica None (sem grupo)
         user_ext.RoleId = int(role_id) if role_id else None
         
         pg_session.commit()
-        return jsonify({"success": True, "msg": "Perfil atualizado!"}), 200
+        return jsonify({"success": True, "msg": "Perfil atualizado com sucesso!"}), 200
     except Exception as e:
         pg_session.rollback()
         return jsonify({"error": str(e)}), 500
     finally:
         pg_session.close()
 
-@security_bp.route('/API/GetRolesAndPermissions', methods=['GET'])
+@security_bp.route('/api/get-roles-and-permissions', methods=['GET'])
 @login_required
 def GetRolesAndPermissions():
-    """Retorna lista de Roles e Permissões disponíveis"""
-    pg_session = get_pg_session()
+    """
+    Retorna todos os Grupos e todas as Permissões do sistema.
+    Usado para preencher os selects e modais do frontend.
+    """
+    pg_session = GetPgSession()
     try:
+        # Busca todas as permissões
         all_perms = pg_session.query(SecPermission).all()
         perms_list = [{"id": p.Id, "slug": p.Slug, "desc": p.Descricao} for p in all_perms]
         
+        # Busca todos os grupos
         roles = pg_session.query(SecRole).all()
         roles_data = []
         for r in roles:
@@ -193,7 +214,7 @@ def GetRolesAndPermissions():
                 "id": r.Id,
                 "nome": r.Nome,
                 "descricao": r.Descricao,
-                "permissions": [p.Id for p in r.permissions]
+                "permissions": [p.Id for p in r.permissions] # Lista de IDs para facilitar o check no front
             })
             
         return jsonify({"roles": roles_data, "all_permissions": perms_list}), 200
@@ -202,12 +223,12 @@ def GetRolesAndPermissions():
     finally:
         pg_session.close()
 
-@security_bp.route('/API/SaveRole', methods=['POST'])
+@security_bp.route('/api/save-role', methods=['POST'])
 @login_required
-@requires_permission('security.manage')
+@RequiresPermission('security.manage')
 def SaveRole():
-    """Cria ou Edita um Papel"""
-    pg_session = get_pg_session()
+    """Cria um novo Grupo ou edita um existente."""
+    pg_session = GetPgSession()
     try:
         data = request.json
         role_id = data.get('id')
@@ -216,131 +237,129 @@ def SaveRole():
         perm_ids = data.get('permissions', [])
         
         if role_id:
+            # Edição
             role = pg_session.query(SecRole).get(role_id)
         else:
+            # Criação
             role = SecRole()
             pg_session.add(role)
             
         role.Nome = nome
         role.Descricao = descricao
         
-        # Atualiza permissões
+        # Atualiza a lista de permissões do grupo
+        # Primeiro limpa, depois adiciona as selecionadas
         role.permissions = []
         if perm_ids:
             perms = pg_session.query(SecPermission).filter(SecPermission.Id.in_(perm_ids)).all()
             role.permissions = perms
             
         pg_session.commit()
-        return jsonify({"success": True, "msg": "Papel salvo!"}), 200
+        return jsonify({"success": True, "msg": "Grupo salvo com sucesso!"}), 200
     except Exception as e:
         pg_session.rollback()
         return jsonify({"error": str(e)}), 500
     finally:
         pg_session.close()
 
-# No final de SecurityConfig.py, adicione/atualize estas rotas:
-
-# --- NOVAS ROTAS DE CRIAÇÃO/EXCLUSÃO ---
-
-@security_bp.route('/API/SavePermission', methods=['POST'])
+@security_bp.route('/api/save-permission', methods=['POST'])
 @login_required
-@requires_permission('security.manage')
+@RequiresPermission('security.manage')
 def SavePermission():
-    """Cria ou Edita uma Permissão Avulsa"""
-    pg_session = get_pg_session()
+    """Cria uma nova Permissão no sistema (ex: 'relatorios.exportar')."""
+    pg_session = GetPgSession()
     try:
         data = request.json
         slug = data.get('slug')
         descricao = data.get('descricao')
         
-        # Verifica duplicidade de Slug na criação
+        # Verifica se já não existe uma com o mesmo nome técnico (Slug)
         exists = pg_session.query(SecPermission).filter_by(Slug=slug).first()
         if exists:
-            return jsonify({"error": "Já existe uma permissão com este Slug."}), 400
+            return jsonify({"error": "Ops! Já existe uma permissão com este Slug."}), 400
 
         new_perm = SecPermission(Slug=slug, Descricao=descricao)
         pg_session.add(new_perm)
         pg_session.commit()
         
-        return jsonify({"success": True, "msg": "Permissão criada!"}), 200
+        return jsonify({"success": True, "msg": "Permissão criada com sucesso!"}), 200
     except Exception as e:
         pg_session.rollback()
         return jsonify({"error": str(e)}), 500
     finally:
         pg_session.close()
 
-@security_bp.route('/API/DeleteRole', methods=['POST'])
+@security_bp.route('/api/delete-role', methods=['POST'])
 @login_required
-@requires_permission('security.manage')
+@RequiresPermission('security.manage')
 def DeleteRole():
-    """Exclui um Grupo e remove a associação dos usuários"""
-    pg_session = get_pg_session()
+    """Exclui um Grupo e solta os usuários que estavam nele (ficam sem grupo)."""
+    pg_session = GetPgSession()
     try:
         role_id = request.json.get('id')
         role = pg_session.query(SecRole).get(role_id)
         
         if not role:
-            return jsonify({"error": "Grupo não encontrado"}), 404
+            return jsonify({"error": "Grupo não encontrado."}), 404
             
-        # Opcional: Impedir exclusão se tiver usuários, ou apenas limpar (setar null)
-        # O comportamento padrão do SQLAlchemy depende do cascade, 
-        # mas aqui vamos forçar a desassociação manual para segurança.
+        # Remove a associação dos usuários antes de deletar o grupo
         users = pg_session.query(SecUserExtension).filter_by(RoleId=role_id).all()
         for u in users:
             u.RoleId = None
             
         pg_session.delete(role)
         pg_session.commit()
-        return jsonify({"success": True, "msg": "Grupo excluído."}), 200
+        return jsonify({"success": True, "msg": "Grupo excluído permanentemente."}), 200
     except Exception as e:
         pg_session.rollback()
         return jsonify({"error": str(e)}), 500
     finally:
         pg_session.close()
 
-@security_bp.route('/API/DeletePermission', methods=['POST'])
+@security_bp.route('/api/delete-permission', methods=['POST'])
 @login_required
-@requires_permission('security.manage')
+@RequiresPermission('security.manage')
 def DeletePermission():
-    """Exclui uma Permissão (remove de todos os grupos e usuários)"""
-    pg_session = get_pg_session()
+    """Exclui uma Permissão do sistema (remove de todos os grupos e usuários)."""
+    pg_session = GetPgSession()
     try:
         perm_id = request.json.get('id')
         perm = pg_session.query(SecPermission).get(perm_id)
         
         if not perm:
-            return jsonify({"error": "Permissão não encontrada"}), 404
+            return jsonify({"error": "Permissão não encontrada."}), 404
 
-        # Remover associações diretas de usuários (tabela de associação many-to-many user_permissions)
-        # SQLAlchemy gerencia a tabela de associação role_permissions automaticamente se configurado corretamente,
-        # mas usuários diretos precisam de atenção se não houver CASCADE configurado no banco.
-        
+        # O SQLAlchemy cuida da tabela de associação Many-to-Many se estiver bem configurado.
+        # Caso contrário, seria necessário limpar manualmente as tabelas de ligação.
         pg_session.delete(perm)
         pg_session.commit()
-        return jsonify({"success": True, "msg": "Permissão removida."}), 200
+        return jsonify({"success": True, "msg": "Permissão removida do sistema."}), 200
     except Exception as e:
         pg_session.rollback()
-        return jsonify({"error": "Erro ao excluir (possivelmente em uso restrito): " + str(e)}), 500
+        return jsonify({"error": "Erro ao excluir (Pode estar em uso): " + str(e)}), 500
     finally:
         pg_session.close()
         
-@security_bp.route('/API/ToggleDirectPermission', methods=['POST'])
+@security_bp.route('/api/toggle-direct-permission', methods=['POST'])
 @login_required
-@requires_permission('security.manage')
+@RequiresPermission('security.manage')
 def ToggleDirectPermission():
-    """Adiciona ou remove permissão direta de usuário"""
-    pg_session = get_pg_session()
+    """
+    Adiciona ou remove uma permissão direta de um usuário específico.
+    Isso cria exceções (o usuário pode algo que o grupo dele não pode).
+    """
+    pg_session = GetPgSession()
     try:
         data = request.json
         user_login = data.get('login') 
         perm_id = data.get('permission_id') 
-        action = data.get('action')
+        action = data.get('action') # 'add' ou 'remove'
 
         user = pg_session.query(SecUserExtension).filter_by(Login_Usuario=user_login).first()
         perm = pg_session.query(SecPermission).get(perm_id)
 
         if not user or not perm:
-            return jsonify({"error": "Usuário ou Permissão não encontrados"}), 404
+            return jsonify({"error": "Usuário ou Permissão não encontrados."}), 404
 
         if action == 'add':
             if perm not in user.direct_permissions:

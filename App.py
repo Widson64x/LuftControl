@@ -5,22 +5,19 @@ from flask_migrate import Migrate
 from dotenv import load_dotenv
 import os
 
-# Importa as rotas
-from Routes.Auth import auth_bp
+# --- Imports das Rotas ---
+# Importando a função auxiliar que também foi renomeada
+from Routes.Auth import auth_bp, CarregarUsuarioFlask
 from Routes.Main import main_bp
 from Routes.Reports import reports_bp
 from Routes.DRE_Configs import dre_config_bp
 from Routes.DRE_Ordering import dre_ordem_bp
-from Routes.Auth import carregar_usuario_flask
 from Routes.Security_Configs import security_bp
 from Routes.ManualAdjustments import ajustes_bp
 from Routes.DataImport import import_bp
 
-# --- IMPORTS PARA BANCO DE DADOS ---
-# 1. Importamos a URL e agora a função de CHECK
-from Db.Connections import PG_DATABASE_URL, check_connections
-
-# 2. Importa a Base dos modelos que queremos migrar (DreEstrutura)
+# --- Imports Banco de Dados ---
+from Db.Connections import PG_DATABASE_URL, CheckConnections
 from Models.POSTGRESS.DreEstrutura import Base as DreBase
 
 load_dotenv()
@@ -28,51 +25,48 @@ load_dotenv()
 ROUTE_PREFIX = os.getenv("ROUTE_PREFIX", "")
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_PASSPHRASE", "chave_dev_super_secreta")
+app.secret_key = os.getenv("SECRET_PASSPHRASE", "40028922") # Chave secreta padrão para desenvolvimento
 
-# --- CONFIGURAÇÃO FLASK-SQLALCHEMY & MIGRATE ---
+# --- Configuração SQLAlchemy ---
 app.config['SQLALCHEMY_DATABASE_URI'] = PG_DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-
-# Inicializa o Migrate
 migrate = Migrate(app, db, metadata=DreBase.metadata)
 
-# --- Configuração do Flask-Login ---
+# --- Configuração Flask-Login ---
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'auth.login'
+
+# ATENÇÃO: Como renomeamos o blueprint para 'Auth' e a função para 'Login', 
+# o endpoint mudou de 'auth.login' para 'Auth.Login'.
+login_manager.login_view = 'Auth.Login' 
 login_manager.login_message = "Por favor, faça login para acessar essa página."
 login_manager.login_message_category = "warning"
 
 @login_manager.user_loader
-def load_user(user_id):
-    return carregar_usuario_flask(user_id)
+def LoadUser(user_id):
+    """Callback do Flask-Login em PascalCase."""
+    return CarregarUsuarioFlask(user_id)
 
 # --- Registro de Blueprints ---
-app.register_blueprint(auth_bp, url_prefix=ROUTE_PREFIX + '/Auth')
-app.register_blueprint(main_bp , url_prefix=ROUTE_PREFIX + '/')
-app.register_blueprint(reports_bp, url_prefix=ROUTE_PREFIX + '/Reports')
-app.register_blueprint(dre_config_bp, url_prefix=ROUTE_PREFIX + '/DreConfig')
-app.register_blueprint(dre_ordem_bp, url_prefix=ROUTE_PREFIX + '/DreOrdenamento')
-app.register_blueprint(ajustes_bp, url_prefix=ROUTE_PREFIX + '/Adjustments')
-app.register_blueprint(security_bp, url_prefix=ROUTE_PREFIX + '/SecurityConfig')
-app.register_blueprint(import_bp, url_prefix=ROUTE_PREFIX + '/Import')
+app.register_blueprint(auth_bp,        url_prefix=ROUTE_PREFIX + '/Auth')
+app.register_blueprint(main_bp,        url_prefix=ROUTE_PREFIX + '/')
+app.register_blueprint(reports_bp,     url_prefix=ROUTE_PREFIX + '/Reports')
+app.register_blueprint(dre_config_bp,  url_prefix=ROUTE_PREFIX + '/DreConfig')
+app.register_blueprint(dre_ordem_bp,   url_prefix=ROUTE_PREFIX + '/DreOrdenamento')
+app.register_blueprint(ajustes_bp,     url_prefix=ROUTE_PREFIX + '/Adjustments')
+app.register_blueprint(security_bp,    url_prefix=ROUTE_PREFIX + '/SecurityConfig')
+app.register_blueprint(import_bp,      url_prefix=ROUTE_PREFIX + '/Import')
 
 @app.route('/')
-def index():
-    return redirect(url_for('main.dashboard'))
+def Index(): # Até o index merece um PascalCase
+    return redirect(url_for('Main.Dashboard'))
 
 if __name__ == "__main__":
-    # Chamamos sem parâmetros. Ele vai ler do .env (DB_CONNECT_LOGS)
-    # Se quiser forçar ver o log independente do env, use check_connections(verbose=True)
-    bancos_ok = check_connections() 
+    bancos_ok = CheckConnections() 
 
     if not bancos_ok:
-        # Nota: Se os logs estiverem desligados (False), 
-        # é importante ter um print aqui caso dê erro, senão o app morre em silêncio.
         print("⚠️  [AVISO CRÍTICO] Falha na conexão com Banco de Dados.")
-        # exit(1)
 
     app.run(debug=True, host='0.0.0.0', port=5000)
