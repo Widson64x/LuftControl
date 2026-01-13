@@ -273,6 +273,7 @@ def GetDadosArvore():
                 "text": v.Nome,
                 "type": "root_virtual",
                 "is_calculado": v.Is_Calculado,
+                "estilo_css": v.Estilo_CSS, # INCLUSÃO DO ESTILO AQUI
                 "children": children_virtual
             }
             final_tree.append(node_virtual)
@@ -327,7 +328,6 @@ def GetDadosArvore():
         return jsonify({"error": str(e)}), 500
     finally:
         session.close()
-
 
 @dre_config_bp.route('/Configuracao/GetContasDisponiveis', methods=['GET'])
 @login_required
@@ -814,21 +814,23 @@ def AddNoVirtual():
     try:
         data = request.json
         nome = data.get('nome')
+        cor = data.get('cor')
+        estilo = f"color: {cor};" if cor else None
         
         if not nome: 
             return jsonify({"error": "Nome obrigatório"}), 400
         
         # Query única com verificação
         sql = text("""
-            INSERT INTO "Dre_Schema"."DRE_Estrutura_No_Virtual" ("Nome")
-            SELECT :nome
+            INSERT INTO "Dre_Schema"."DRE_Estrutura_No_Virtual" ("Nome", "Estilo_CSS")
+            SELECT :nome, :estilo
             WHERE NOT EXISTS (
                 SELECT 1 FROM "Dre_Schema"."DRE_Estrutura_No_Virtual"
                 WHERE LOWER("Nome") = LOWER(:nome)
             )
             RETURNING "Id"
         """)
-        result = session.execute(sql, {"nome": nome.strip()})
+        result = session.execute(sql, {"nome": nome.strip(), "estilo": estilo})
         row = result.fetchone()
         
         if not row:
@@ -842,7 +844,6 @@ def AddNoVirtual():
         return jsonify({"error": str(e)}), 500
     finally:
         session.close()
-
 
 @dre_config_bp.route('/Configuracao/AddNoCalculado', methods=['POST'])
 @login_required
@@ -906,7 +907,6 @@ def AddNoCalculado():
         return jsonify({"error": str(e)}), 500
     finally:
         session.close()
-
 
 @dre_config_bp.route('/Configuracao/VincularConta', methods=['POST'])
 @login_required

@@ -158,19 +158,43 @@
     border-top: 1px solid var(--bi-border);
     color: var(--bi-row-root-text) !important;
 }
-.bi-row-root td:first-child { background: var(--bi-row-root-bg) !important; }
+/* Tipos de Linha - VERSÃO CORRIGIDA */
 
-.bi-row-group { background: var(--bi-row-group-bg) !important; }
+/* Removemos o !important do background para aceitar o estilo inline do banco */
+
+.bi-row-root { background: var(--bi-row-root-bg); } /* !important removido */
+.bi-row-root td {
+    font-weight: var(--font-weight-extrabold);
+    text-transform: uppercase;
+    padding-top: 14px; padding-bottom: 14px;
+    border-top: 1px solid var(--bi-border);
+    color: var(--bi-row-root-text) !important;
+}
+.bi-row-root td:first-child { background: var(--bi-row-root-bg); } /* !important removido */
+
+.bi-row-group { background: var(--bi-row-group-bg); } /* !important removido */
 .bi-row-group td { font-weight: var(--font-weight-semibold); color: var(--bi-row-group-text); }
-.bi-row-group td:first-child { background: var(--bi-row-group-bg) !important; }
+.bi-row-group td:first-child { background: var(--bi-row-group-bg); } /* !important removido */
 
-.bi-row-account { background: var(--bi-row-acct-bg) !important; }
+.bi-row-account { background: var(--bi-row-acct-bg); } /* !important removido */
 .bi-row-account td { font-size: 0.8rem; color: var(--bi-row-acct-text); }
-.bi-row-account td:first-child { background: var(--bi-row-acct-bg) !important; }
+.bi-row-account td:first-child { background: var(--bi-row-acct-bg); } /* !important removido */
 
-.bi-row-calculated { background: var(--bi-row-calc-bg) !important; border-top: 1px solid var(--bi-border); border-bottom: 1px solid var(--bi-border); }
-.bi-row-calculated td { font-weight: var(--font-weight-bold); font-size: 0.9rem; color: var(--bi-row-calc-text) !important; }
-.bi-row-calculated td:first-child { background: var(--bi-row-calc-bg) !important; opacity: 1 !important; }
+/* AQUI ERA O SEU PROBLEMA PRINCIPAL (EBITDA é Calculated) */
+.bi-row-calculated { 
+    background: var(--bi-row-calc-bg); /* !important removido */
+    border-top: 1px solid var(--bi-border); 
+    border-bottom: 1px solid var(--bi-border); 
+}
+.bi-row-calculated td { 
+    font-weight: var(--font-weight-bold); 
+    font-size: 0.9rem; 
+    color: var(--bi-row-calc-text) !important; 
+}
+.bi-row-calculated td:first-child { 
+    background: var(--bi-row-calc-bg); /* !important removido */
+    opacity: 1 !important; 
+}
 
 /* Hover */
 .table-modern tr:hover td { background: var(--bi-row-hover) !important; }
