@@ -164,7 +164,11 @@ function openModal(id) {
         resetInput('inputDetailConta'); 
         document.getElementById('inputDetailName').value = ''; 
     }
-    if(id === 'modalAddVirtual') resetInput('inputVirtualName');
+    if(id === 'modalAddVirtual') {
+        resetInput('inputVirtualName');
+        // Reset da Cor
+        document.getElementById('inputVirtualColor').value = '#34495e'; 
+    }
     
     if(id === 'modalLinkConta') { 
         document.getElementById('lblGroupTarget').innerText = contextNode.text || '...'; 
@@ -273,6 +277,11 @@ function createNodeHTML(node) {
         typeClass = 'node-virtual'; 
         icon = 'fa-cube'; 
         styleIcon = COLOR_DARK;
+        
+        // APLICAÇÃO DA COR CUSTOMIZADA
+        if (node.estilo_css) {
+            styleIcon = node.estilo_css; 
+        }
     }
     else if(node.type === 'subgrupo') { 
         if (!node.parent || node.parent === 'root' || node.id_pai === null) {
@@ -488,6 +497,14 @@ async function editCalculado() {
         document.getElementById('inputCalcOrdem').value = dadosNo.ordem || 50;
         document.getElementById('selectCalcTipoExibicao').value = dadosNo.tipo_exibicao || 'valor';
         
+        // Carrega a Cor (Extrai do CSS)
+        let corSalva = '#34495e';
+        if (dadosNo.estilo_css && dadosNo.estilo_css.includes('background-color:')) {
+            const match = dadosNo.estilo_css.match(/background-color:\s*(#[0-9a-fA-F]{6})/);
+            if (match) corSalva = match[1];
+        }
+        document.getElementById('inputCalcColor').value = corSalva;
+        
         // Reconstrói a fórmula
         if (dadosNo.formula) {
             document.getElementById('selectCalcOperacao').value = dadosNo.formula.operacao || 'soma';
@@ -516,7 +533,6 @@ async function editCalculado() {
         alert("Erro ao carregar detalhes do cálculo.");
     }
 }
-
 
 async function renameNode() {
     const novoNome = prompt("Novo nome:", contextNode.text);
@@ -681,8 +697,14 @@ async function moverElemento(direcao) {
 
 function submitAddVirtual() { 
     const n = document.getElementById('inputVirtualName').value; 
+    const c = document.getElementById('inputVirtualColor').value; 
+
     if(!n) return alert('Nome?'); 
-    fetchAPI(getRoute(null, '/Configuracao/AddNoVirtual', 'config'), {nome:n}, 'Nó Virtual criado!');
+    
+    fetchAPI(getRoute(null, '/Configuracao/AddNoVirtual', 'config'), {
+        nome: n,
+        cor: c // Envia a cor
+    }, 'Nó Virtual criado!');
 }
 
 function submitAddSub() { 
@@ -1455,12 +1477,15 @@ let operandosDisponiveis = null;
 let operandosSelecionados = [];
 
 async function openModalCalculado() {
-
     // Reset de estado
     currentEditingNodeId = null;
     document.getElementById('inputCalcNome').value = '';
     document.getElementById('inputCalcOrdem').value = '50';
     document.getElementById('selectCalcOperacao').value = 'soma';
+    
+    // Reset da Cor
+    document.getElementById('inputCalcColor').value = '#34495e';
+
     const modalTitle = document.querySelector('#modalAddCalculado .modal-header h3');
     if(modalTitle) modalTitle.innerText = "Novo Nó Calculado";
 
@@ -1582,6 +1607,10 @@ async function submitNoCalculado() {
     const ordem = parseInt(document.getElementById('inputCalcOrdem').value) || 50;
     const tipoExibicao = document.getElementById('selectCalcTipoExibicao').value;
     
+    // Captura e formata a cor
+    const cor = document.getElementById('inputCalcColor').value;
+    const estiloCss = `background-color: ${cor}; font-weight: bold; color: #000000;`;
+
     if (!nome) return alert('Informe o nome do nó');
     if (operandosSelecionados.length < 2) return alert('Adicione pelo menos 2 operandos');
     
@@ -1603,7 +1632,8 @@ async function submitNoCalculado() {
             nome: nome,
             formula: formula,
             ordem: ordem,
-            tipo_exibicao: tipoExibicao
+            tipo_exibicao: tipoExibicao,
+            estilo_css: estiloCss // Envia o CSS
         }, 'Cálculo atualizado com sucesso!');
     } else {
         // Modo Criação
@@ -1612,7 +1642,8 @@ async function submitNoCalculado() {
             nome: nome,
             formula: formula,
             ordem: ordem,
-            tipo_exibicao: tipoExibicao
+            tipo_exibicao: tipoExibicao,
+            estilo_css: estiloCss // Envia o CSS
         }, 'Nó calculado criado!');
     }
 }

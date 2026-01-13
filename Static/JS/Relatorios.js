@@ -475,7 +475,8 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         values: {},
                         isVisible: true,
                         isExpanded: this.biState.expanded.has(id),
-                        ordem: 999999 
+                        ordem: 999999,
+                        estiloCss: null // <--- Inicializa o campo de CSS
                     };
                     meses.forEach(m => node.values[m] = 0);
                     map[id] = node;
@@ -532,6 +533,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 
                 const tipoNode = getOrCreateNode(tipoId, labelExibicao, 'root', root);
                 if (row.Root_Virtual_Id) tipoNode.virtualId = row.Root_Virtual_Id;
+                
+                // === ALTERAÇÃO AQUI: Aplica o CSS vindo do backend se o nó ainda não tiver ===
+                if (row.Estilo_CSS && !tipoNode.estiloCss) {
+                    tipoNode.estiloCss = row.Estilo_CSS;
+                }
+                // ============================================================================
                 
                 if (rawOrdem !== null && rawOrdem > 0 && rawOrdem < 1000) {
                     if (tipoNode.ordem === 999999 || rawOrdem < tipoNode.ordem) {
@@ -597,6 +604,238 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
             this.biTreeData = root;
             this.applyBiFilters();
+        }
+
+        async processBiTreeWithCalculated() {
+            this.processBiTree();
+            const nosCalc = await this.loadNosCalculados(); 
+
+            if (nosCalc.length > 0) {
+                const valoresAgregados = this.agregarValoresPorTipo();
+                const meses = this.biState.columnsOrder;
+                
+                nosCalc.forEach(noCalc => {
+                    if (!noCalc.formula) return;
+                    
+                    // Lógica de Contexto (Operacional, Adm, Coml)
+                    let contextoSuffix = null;
+                    const nomeUpper = (noCalc.nome || '').toUpperCase();
+                    if (nomeUpper.includes('CUSTO') || nomeUpper.includes('OPERACIONAL')) contextoSuffix = 'Oper';
+                    else if (nomeUpper.includes('ADMINISTRATIVO')) contextoSuffix = 'Adm';
+                    else if (nomeUpper.includes('COMERCIAL') || nomeUpper.includes('VENDAS')) contextoSuffix = 'Coml';
+
+                    const valores = {};
+                    meses.forEach(mes => {
+                        valores[mes] = this.calcularValorNo(noCalc.formula, mes, valoresAgregados, contextoSuffix);
+                    });
+
+                    // Salva memória
+                    const chaveMemoria = `no_virtual_${noCalc.id}`;
+                    if (!valoresAgregados[chaveMemoria]) valoresAgregados[chaveMemoria] = {};
+                    meses.forEach(mes => valoresAgregados[chaveMemoria][mes] = valores[mes]);
+
+                    // Tooltip
+                    let textoTooltip = noCalc.formula_descricao;
+                    if (!textoTooltip && noCalc.formula) {
+                        const ops = noCalc.formula.operandos || [];
+                        const nomesOps = ops.map(o => o.label || o.id).join(', ');
+                        textoTooltip = `Fórmula Calculada: ${nomesOps}`;
+                    }
+
+                    // Tenta encontrar a linha "física" que veio do Backend (Python)
+                    // O Python manda 'Root_Virtual_Id' igual ao ID do nó
+                    const rowBackend = this.biRawData.find(r => 
+                        (String(r.Root_Virtual_Id) === String(noCalc.id)) || 
+                        (r.Titulo_Conta === noCalc.nome && r.Is_Calculado)
+                    );
+
+                    let ordemCorreta = 50;
+                    if (rowBackend && rowBackend.ordem_prioridade !== null) ordemCorreta = rowBackend.ordem_prioridade;
+                    else if (noCalc.ordem !== null && noCalc.ordem !== undefined) ordemCorreta = noCalc.ordem;
+                    
+                    // === DEBUG CORRIGIDO ===
+                    let cssFinal = noCalc.estilo_css; // Tenta pegar da configuração
+                    
+                    if (!cssFinal && rowBackend && rowBackend.Estilo_CSS) {
+                        cssFinal = rowBackend.Estilo_CSS; // Se falhar, pega do dado bruto do Python
+                    }
+
+                    // Log de Debug para ver no F12
+                    if (noCalc.nome.toUpperCase().includes('EBITDA')) {
+                        console.log('--- DEBUG EBITDA ---');
+                        console.log('Dados Config (noCalc):', noCalc);
+                        console.log('Dados Backend (rowBackend):', rowBackend);
+                        console.log('CSS Final Aplicado:', cssFinal);
+                    }
+                    // =======================
+
+                    const nodeCalc = {
+                        id: `calc_${noCalc.id}`,
+                        label: `${noCalc.nome}`, 
+                        rawLabel: noCalc.nome,     
+                        type: 'calculated',
+                        children: [],
+                        values: valores,
+                        isVisible: true,
+                        isExpanded: false,
+                        formulaDescricao: textoTooltip,
+                        estiloCss: cssFinal, // <--- Aplica aqui
+                        tipoExibicao: noCalc.tipo_exibicao,
+                        ordem: ordemCorreta
+                    };
+                    this.biTreeData.push(nodeCalc);
+                });
+            }
+
+            // Filtros de duplicatas e ordenação
+            const nomesCalculados = new Set(this.biTreeData.filter(n => n.type === 'calculated').map(n => (n.rawLabel || n.label.replace('📊 ', '')).toUpperCase().trim()));
+            this.biTreeData = this.biTreeData.filter(node => {
+                if (node.type === 'root') {
+                    const labelPadrao = node.label.toUpperCase().trim();
+                    if (nomesCalculados.has(labelPadrao)) return false; 
+                }
+                return true;
+            });
+
+            const sortRecursive = (nodes) => {
+                if (!nodes || nodes.length === 0) return;
+                nodes.sort((a, b) => {
+                    const ordA = (a.ordem !== undefined && a.ordem !== null) ? a.ordem : 99999;
+                    const ordB = (b.ordem !== undefined && b.ordem !== null) ? b.ordem : 99999;
+                    return ordA - ordB;
+                });
+                nodes.forEach(node => {
+                    if (node.children && node.children.length > 0) sortRecursive(node.children);
+                });
+            };
+
+            sortRecursive(this.biTreeData);
+        }
+
+        renderBiTable() {
+            const container = document.getElementById('biGridContainer');
+            if (!container) return;
+
+            const cols = this.biState.columnsOrder.filter(c => !this.biState.hiddenCols.has(c));
+            const rootHeaderName = this.biState.viewMode === 'CC' ? 'Estrutura / Centro de Custo' : 'Estrutura DRE';
+
+            let headerHtml = `
+                <thead style="position: sticky; top: 0; z-index: 20;">
+                    <tr>
+                        <th style="min-width: 350px; left: 0; position: sticky; z-index: 30;">
+                            ${rootHeaderName}
+                        </th>
+                        ${cols.map(c => `
+                            <th class="text-end" style="min-width: 110px;">
+                                <div class="d-flex flex-column">
+                                    <span class="mb-1 cursor-pointer text-xs font-bold" onclick="relatorioSystem.sortBiBy('${c}')">${c}</span>
+                                </div>
+                            </th>
+                        `).join('')}
+                    </tr>
+                </thead>`;
+
+            let bodyRows = '';
+            
+            const COLOR_DARK   = 'color: var(--icon-structure);'; 
+            const COLOR_GRAY   = 'color: var(--icon-secondary);'; 
+            const COLOR_FOLDER = 'color: var(--icon-folder);'; 
+            const COLOR_LIGHT  = 'color: var(--icon-account);';
+            
+            const showAccounts = this.biState.showAccounts;
+
+            const renderNode = (node, level) => {
+                
+                if (node.type === 'account' && !showAccounts) return;
+                
+                if (!node.isVisible) return;
+                const padding = level * 20 + 10;
+                const isGroup = node.children && node.children.length > 0;
+                const isExpanded = this.biState.expanded.has(node.id);
+                
+                let iconClass = '';
+                let iconStyle = '';
+
+                if (node.type === 'calculated') {
+                    iconClass = 'fa-calculator';
+                    iconStyle = COLOR_DARK;
+                } 
+                else if (node.type === 'root') {
+                    if (node.virtualId) {
+                        iconClass = 'fa-cube';
+                        iconStyle = COLOR_DARK;
+                    } else {
+                        iconClass = 'fa-layer-group';
+                        iconStyle = COLOR_DARK;
+                        if (node.ordem < 1000 && !node.virtualId) {
+                            iconClass = 'fa-globe';
+                            iconStyle = COLOR_GRAY;
+                        }
+                    }
+                }
+                else if (node.type === 'group') {
+                    iconClass = 'fa-folder';
+                    iconStyle = COLOR_FOLDER;
+                }
+                else if (node.type === 'account') {
+                    iconClass = 'fa-file-alt';
+                    iconStyle = COLOR_LIGHT;
+                }
+
+                let iconHtml = '';
+                if (isGroup) {
+                    iconHtml = `<i class="fas fa-caret-${isExpanded ? 'down' : 'right'} me-2 toggle-icon" onclick="event.stopPropagation(); relatorioSystem.toggleNode('${node.id}')" style="width:10px; cursor: pointer; color: var(--text-tertiary);"></i>`;
+                    iconHtml += `<i class="fas ${iconClass} me-2" style="${iconStyle}"></i>`;
+                } else {
+                    iconHtml = `<i class="fas ${iconClass} me-2" style="margin-left: 18px; ${iconStyle}"></i>`;
+                }
+
+                let labelStyle = ''; 
+                
+                // === CORREÇÃO: Prepara a string de CSS ===
+                // Se houver estilo no nó, usamos ele. Se não, string vazia.
+                const cssString = node.estiloCss || '';
+                const trStyle = cssString ? `style="${cssString}"` : '';
+                // ==========================================
+                
+                const cellsHtml = cols.map(c => {
+                    const val = node.values[c];
+                    let colorClass = '';
+                    if (val < 0) colorClass = 'text-danger'; 
+                    else if (val === 0) colorClass = 'text-muted';
+                    
+                    let displayVal = '-';
+                    if (val !== 0) {
+                        if (this.biState.scaleMode === 'dre') displayVal = this.formatDREValue(val);
+                        else displayVal = FormatUtils.formatNumber(val);
+                    }
+                    if (node.tipoExibicao === 'percentual' && val !== 0) displayVal = val.toFixed(2) + '%';
+                    
+                    const weight = (node.type === 'root' || node.type === 'calculated') ? 'font-weight: 600;' : '';
+                    
+                    // === CORREÇÃO: INJETA O CSS AQUI TAMBÉM ===
+                    // style recebe "font-weight: 600; background-color: #xxx;"
+                    return `<td class="text-end font-mono ${colorClass}" style="${weight} ${cssString}">${displayVal}</td>`;
+                    // ==========================================
+                }).join('');
+
+                const isMatch = this.biState.searchMatches.includes(node.id);
+                const searchClass = isMatch ? 'search-match' : '';
+
+                // === CORREÇÃO: INJETA O CSS NA PRIMEIRA TD TAMBÉM ===
+                bodyRows += `<tr id="row_${node.id}" class="bi-row-${node.type} ${searchClass}" ${trStyle}>
+                        <td style="padding-left: ${padding}px; ${cssString}"> 
+                            <div class="d-flex align-items-center cell-label" style="${labelStyle}">
+                                ${iconHtml}<span class="text-truncate" title="${node.formulaDescricao || ''}">${node.label}</span>
+                            </div>
+                        </td>${cellsHtml}</tr>`;
+                // ====================================================
+
+                if (isGroup && isExpanded) node.children.forEach(child => renderNode(child, level + 1));
+            };
+
+            this.biTreeData.forEach(node => renderNode(node, 0));
+            container.innerHTML = `<table class="table-modern w-100" style="border-collapse: separate; border-spacing: 0;">${headerHtml}<tbody>${bodyRows}</tbody></table>`;
         }
         
         // --- NOVO MÉTODO: Carrega a lista de CCs para o Select ---
@@ -942,122 +1181,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.renderBiTable();
         }
 
-        renderBiTable() {
-            const container = document.getElementById('biGridContainer');
-            if (!container) return;
-
-            const cols = this.biState.columnsOrder.filter(c => !this.biState.hiddenCols.has(c));
-            const rootHeaderName = this.biState.viewMode === 'CC' ? 'Estrutura / Centro de Custo' : 'Estrutura DRE';
-
-            let headerHtml = `
-                <thead style="position: sticky; top: 0; z-index: 20;">
-                    <tr>
-                        <th style="min-width: 350px; left: 0; position: sticky; z-index: 30;">
-                            ${rootHeaderName}
-                        </th>
-                        ${cols.map(c => `
-                            <th class="text-end" style="min-width: 110px;">
-                                <div class="d-flex flex-column">
-                                    <span class="mb-1 cursor-pointer text-xs font-bold" onclick="relatorioSystem.sortBiBy('${c}')">${c}</span>
-                                </div>
-                            </th>
-                        `).join('')}
-                    </tr>
-                </thead>`;
-
-            let bodyRows = '';
-            
-            const COLOR_DARK   = 'color: var(--icon-structure);'; 
-            const COLOR_GRAY   = 'color: var(--icon-secondary);'; 
-            const COLOR_FOLDER = 'color: var(--icon-folder);'; 
-            const COLOR_LIGHT  = 'color: var(--icon-account);';
-            
-            const showAccounts = this.biState.showAccounts; // <-- NOVO: Captura o estado
-
-            const renderNode = (node, level) => {
-                
-                // NOVO: Verifica se a linha é uma conta e se deve ser oculta
-                if (node.type === 'account' && !showAccounts) return;
-                
-                if (!node.isVisible) return;
-                const padding = level * 20 + 10;
-                const isGroup = node.children && node.children.length > 0;
-                const isExpanded = this.biState.expanded.has(node.id);
-                
-                let iconClass = '';
-                let iconStyle = '';
-
-                if (node.type === 'calculated') {
-                    iconClass = 'fa-calculator';
-                    iconStyle = COLOR_DARK;
-                } 
-                else if (node.type === 'root') {
-                    if (node.virtualId) {
-                        iconClass = 'fa-cube';
-                        iconStyle = COLOR_DARK;
-                    } else {
-                        iconClass = 'fa-layer-group';
-                        iconStyle = COLOR_DARK;
-                        if (node.ordem < 1000 && !node.virtualId) {
-                            iconClass = 'fa-globe';
-                            iconStyle = COLOR_GRAY;
-                        }
-                    }
-                }
-                else if (node.type === 'group') {
-                    iconClass = 'fa-folder';
-                    iconStyle = COLOR_FOLDER;
-                }
-                else if (node.type === 'account') {
-                    iconClass = 'fa-file-alt';
-                    iconStyle = COLOR_LIGHT;
-                }
-
-                let iconHtml = '';
-                if (isGroup) {
-                    iconHtml = `<i class="fas fa-caret-${isExpanded ? 'down' : 'right'} me-2 toggle-icon" onclick="event.stopPropagation(); relatorioSystem.toggleNode('${node.id}')" style="width:10px; cursor: pointer; color: var(--text-tertiary);"></i>`;
-                    iconHtml += `<i class="fas ${iconClass} me-2" style="${iconStyle}"></i>`;
-                } else {
-                    iconHtml = `<i class="fas ${iconClass} me-2" style="margin-left: 18px; ${iconStyle}"></i>`;
-                }
-
-                let labelStyle = ''; 
-                const customStyle = node.estiloCss ? `style="${node.estiloCss}"` : '';
-                
-                const cellsHtml = cols.map(c => {
-                    const val = node.values[c];
-                    let colorClass = '';
-                    if (val < 0) colorClass = 'text-danger'; 
-                    else if (val === 0) colorClass = 'text-muted';
-                    
-                    let displayVal = '-';
-                    if (val !== 0) {
-                        if (this.biState.scaleMode === 'dre') displayVal = this.formatDREValue(val);
-                        else displayVal = FormatUtils.formatNumber(val);
-                    }
-                    if (node.tipoExibicao === 'percentual' && val !== 0) displayVal = val.toFixed(2) + '%';
-                    
-                    const weight = (node.type === 'root' || node.type === 'calculated') ? 'font-weight: 600;' : '';
-                    return `<td class="text-end font-mono ${colorClass}" style="${weight}">${displayVal}</td>`;
-                }).join('');
-
-                const isMatch = this.biState.searchMatches.includes(node.id);
-                const searchClass = isMatch ? 'search-match' : '';
-
-                bodyRows += `<tr id="row_${node.id}" class="bi-row-${node.type} ${searchClass}" ${customStyle}>
-                        <td style="padding-left: ${padding}px;">
-                            <div class="d-flex align-items-center cell-label" style="${labelStyle}">
-                                ${iconHtml}<span class="text-truncate" title="${node.formulaDescricao || ''}">${node.label}</span>
-                            </div>
-                        </td>${cellsHtml}</tr>`;
-
-                if (isGroup && isExpanded) node.children.forEach(child => renderNode(child, level + 1));
-            };
-
-            this.biTreeData.forEach(node => renderNode(node, 0));
-            container.innerHTML = `<table class="table-modern w-100" style="border-collapse: separate; border-spacing: 0;">${headerHtml}<tbody>${bodyRows}</tbody></table>`;
-        }
-
         // --- MÉTODOS AUXILIARES ---
         applyBiFilters() {
             const colFilters = this.biState.filters;
@@ -1266,102 +1389,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             if (formula.multiplicador) res *= formula.multiplicador;
             
             return res;
-        }
-
-        async processBiTreeWithCalculated() {
-            this.processBiTree();
-            const nosCalc = await this.loadNosCalculados(); // Array de nós calculados
-
-            if (nosCalc.length > 0) {
-                const valoresAgregados = this.agregarValoresPorTipo();
-                const meses = this.biState.columnsOrder;
-                
-                nosCalc.forEach(noCalc => {
-                    if (!noCalc.formula) return;
-                    
-                    // === DETECÇÃO DE CONTEXTO NO JS ===
-                    let contextoSuffix = null;
-                    const nomeUpper = (noCalc.nome || '').toUpperCase();
-                    
-                    if (nomeUpper.includes('CUSTO') || nomeUpper.includes('OPERACIONAL')) contextoSuffix = 'Oper';
-                    else if (nomeUpper.includes('ADMINISTRATIVO')) contextoSuffix = 'Adm';
-                    else if (nomeUpper.includes('COMERCIAL') || nomeUpper.includes('VENDAS')) contextoSuffix = 'Coml';
-                    // ==================================
-
-                    const valores = {};
-                    meses.forEach(mes => {
-                        // Passamos o contextoSuffix para a função
-                        valores[mes] = this.calcularValorNo(noCalc.formula, mes, valoresAgregados, contextoSuffix);
-                    });
-
-                    // Salva na memória para uso em fórmulas subsequentes
-                    const chaveMemoria = `no_virtual_${noCalc.id}`;
-                    if (!valoresAgregados[chaveMemoria]) valoresAgregados[chaveMemoria] = {};
-                    meses.forEach(mes => valoresAgregados[chaveMemoria][mes] = valores[mes]);
-
-                    // Tooltip
-                    let textoTooltip = noCalc.formula_descricao;
-                    if (!textoTooltip && noCalc.formula) {
-                        const ops = noCalc.formula.operandos || [];
-                        const nomesOps = ops.map(o => o.label || o.id).join(', ');
-                        const opMap = { 'soma': 'Soma (+)', 'subtracao': 'Subtração (-)', 'multiplicacao': 'Multiplicação (×)', 'divisao': 'Divisão (÷)' };
-                        textoTooltip = `Fórmula: ${opMap[noCalc.formula.operacao] || noCalc.formula.operacao}\nEnvolvendo: ${nomesOps}`;
-                    }
-
-                    // Tenta encontrar a ordem original se ela existir nos dados brutos, senão usa a do cadastro
-                    const rowBackend = this.biRawData.find(r => (r.Root_Virtual_Id == noCalc.id) || (r.Titulo_Conta === noCalc.nome));
-                    let ordemCorreta = 50;
-                    if (rowBackend && rowBackend.ordem_prioridade !== null) ordemCorreta = rowBackend.ordem_prioridade;
-                    else if (noCalc.ordem !== null && noCalc.ordem !== undefined) ordemCorreta = noCalc.ordem;
-                    
-                    const nodeCalc = {
-                        id: `calc_${noCalc.id}`,
-                        label: `${noCalc.nome}`, 
-                        rawLabel: noCalc.nome,     
-                        type: 'calculated',
-                        children: [],
-                        values: valores,
-                        isVisible: true,
-                        isExpanded: false,
-                        formulaDescricao: textoTooltip,
-                        estiloCss: noCalc.estilo_css,
-                        tipoExibicao: noCalc.tipo_exibicao,
-                        ordem: ordemCorreta
-                    };
-                    this.biTreeData.push(nodeCalc);
-                });
-            }
-
-            // 4. Filtra duplicatas (Se um nó calculado substitui uma raiz padrão)
-            const nomesCalculados = new Set(this.biTreeData.filter(n => n.type === 'calculated').map(n => (n.rawLabel || n.label.replace('📊 ', '')).toUpperCase().trim()));
-            this.biTreeData = this.biTreeData.filter(node => {
-                if (node.type === 'root') {
-                    const labelPadrao = node.label.toUpperCase().trim();
-                    if (nomesCalculados.has(labelPadrao)) return false; 
-                }
-                return true;
-            });
-
-            // 5. ORDENAÇÃO RECURSIVA (Correção do Bug)
-            const sortRecursive = (nodes) => {
-                if (!nodes || nodes.length === 0) return;
-
-                // Ordena o nível atual
-                nodes.sort((a, b) => {
-                    const ordA = (a.ordem !== undefined && a.ordem !== null) ? a.ordem : 99999;
-                    const ordB = (b.ordem !== undefined && b.ordem !== null) ? b.ordem : 99999;
-                    return ordA - ordB;
-                });
-
-                // Ordena os filhos recursivamente
-                nodes.forEach(node => {
-                    if (node.children && node.children.length > 0) {
-                        sortRecursive(node.children);
-                    }
-                });
-            };
-
-            sortRecursive(this.biTreeData);
         }
 
         agregarValoresPorTipo() {

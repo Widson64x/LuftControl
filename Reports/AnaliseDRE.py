@@ -245,6 +245,11 @@ class AnaliseDREReport:
             ordem_map = self._GetOrdenamento()
             ordem_subgrupos_contexto = self._GetOrdemSubgruposPorContexto()
             
+            # --- ALTERAÇÃO AQUI: Carrega mapa de estilos CSS dos Nós Virtuais ---
+            sql_css = text('SELECT "Id", "Estilo_CSS" FROM "Dre_Schema"."DRE_Estrutura_No_Virtual"')
+            css_map = {row.Id: row.Estilo_CSS for row in self.session.execute(sql_css).fetchall() if row.Estilo_CSS}
+            # --------------------------------------------------------------------
+            
             # Mapa de Títulos de Conta para labels mais bonitas
             sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Razao_Dados_Consolidado"')
             mapa_titulos = {row[0]: row[1] for row in self.session.execute(sql_nomes).fetchall()}
@@ -328,12 +333,19 @@ class AnaliseDREReport:
 
                 # Inicializa a linha se não existir
                 if group_key not in aggregated_data:
+                    # --- ALTERAÇÃO AQUI: Busca CSS do mapa se houver um Pai Virtual ---
+                    css_style = None
+                    if root_virtual_id and root_virtual_id in css_map:
+                        css_style = css_map[root_virtual_id]
+                    # ------------------------------------------------------------------
+
                     item = {
                         'origem': origem, 'Conta': conta_display, 'Titulo_Conta': titulo_para_exibicao,
                         'Tipo_CC': tipo_cc, 'Root_Virtual_Id': root_virtual_id, 'Caminho_Subgrupos': caminho, 
                         'ordem_prioridade': ordem, 
                         'ordem_secundaria': ordem_secundaria,
-                        'Total_Ano': 0.0
+                        'Total_Ano': 0.0,
+                        'Estilo_CSS': css_style # <--- Campo preenchido
                     }
                     for m in self.meses[:-1]: item[m] = 0.0
                     if agrupar_por_cc: item['Nome_CC'] = match.Raiz_Centro_Custo_Nome
@@ -429,13 +441,12 @@ class AnaliseDREReport:
         except Exception as e:
             RegistrarLog("Erro durante o processamento do Relatório DRE", "ERROR", e)
             raise e
-    
+        
     def CalcularNosVirtuais(self, data_rows):
         """
-        Processa as fórmulas (Ex: Margem Bruta = Receita - CMV) e insere as linhas calculadas.
+        Processa as fórmulas (Ex: Margem Bruta, EBITDA) e insere as linhas calculadas.
         """
         RegistrarLog("Iniciando Cálculo de Nós Virtuais e Fórmulas...", "DRE_CALC")
-        # Memória para acesso rápido aos valores por chave
         memoria = defaultdict(lambda: {m: 0.0 for m in self.meses})
         debug_descontos_found = False
 
@@ -453,7 +464,6 @@ class AnaliseDREReport:
                     p_limpa = p.strip()
                     if p_limpa:
                         keys_to_update.append(f"subgrupo:{p_limpa}")
-                        if "DESCONTOS" in p_limpa.upper(): debug_descontos_found = True
 
             titulo = str(row.get('Titulo_Conta', '')).strip()
             if titulo: keys_to_update.append(f"subgrupo:{titulo}")
@@ -468,10 +478,8 @@ class AnaliseDREReport:
                     for k in keys_to_update:
                         memoria[k][m] += val
         
-        if not debug_descontos_found:
-            RegistrarLog("Subgrupo 'DESCONTOS' não encontrado na memória de cálculo.", "WARNING")
-
         # 2. Busca e Calcula Fórmulas do Banco
+        # --- ALTERAÇÃO: Garantindo que o SELECT pegue o Estilo_CSS ---
         sql_formulas = text("""
             SELECT nv."Id", nv."Nome", nv."Formula_JSON", nv."Estilo_CSS", nv."Tipo_Exibicao", COALESCE(ord.ordem, 999) as ordem
             FROM "Dre_Schema"."DRE_Estrutura_No_Virtual" nv
@@ -490,11 +498,16 @@ class AnaliseDREReport:
                 multiplicador = float(f_data.get('multiplicador', 1))
 
                 nova_linha = {
-                    'origem': 'Calculado', 'Conta': f"CALC_{form.Id}", 'Titulo_Conta': form.Nome,
-                    'Tipo_CC': form.Nome, 'Caminho_Subgrupos': 'Calculado', 
+                    'origem': 'Calculado', 
+                    'Conta': f"CALC_{form.Id}", 
+                    'Titulo_Conta': form.Nome,
+                    'Tipo_CC': form.Nome, 
+                    'Caminho_Subgrupos': 'Calculado', 
                     'ordem_prioridade': form.ordem,
                     'ordem_secundaria': 0,
-                    'Is_Calculado': True, 'Estilo_CSS': form.Estilo_CSS, 'Tipo_Exibicao': form.Tipo_Exibicao,
+                    'Is_Calculado': True, 
+                    'Estilo_CSS': form.Estilo_CSS, # <--- O CSS VEM DAQUI
+                    'Tipo_Exibicao': form.Tipo_Exibicao,
                     'Root_Virtual_Id': form.Id 
                 }
 
@@ -507,7 +520,6 @@ class AnaliseDREReport:
                         chave = f"{tipo_op}:{id_op}"
                         
                         val = memoria.get(chave, {}).get(mes, 0.0)
-                        # Fallback case-insensitive
                         if val == 0.0:
                              for k_mem, v_mem in memoria.items():
                                  if k_mem.lower() == chave.lower():
@@ -523,7 +535,6 @@ class AnaliseDREReport:
                     
                     final_val = res * multiplicador
                     nova_linha[mes] = final_val
-                    # Realimenta a memória (permite fórmulas que usam resultados de outras fórmulas)
                     memoria[f"no_virtual:{form.Id}"][mes] = final_val
                     memoria[f"no_virtual:{form.Nome}"][mes] = final_val
 
@@ -532,8 +543,6 @@ class AnaliseDREReport:
                 RegistrarLog(f"Erro ao calcular fórmula '{form.Nome}' (ID {form.Id})", "ERROR", e)
 
         todos = data_rows + novas_linhas
-        
-        # Ordenação Final mesclando dados reais e calculados
         todos.sort(key=lambda x: (x.get('ordem_prioridade', 999), x.get('ordem_secundaria', 0)))
         
         return todos

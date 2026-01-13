@@ -237,6 +237,13 @@
                 <input type="text" id="inputVirtualName" class="form-input" placeholder="Ex: RECEITA LÍQUIDA">
             </div>
         </div>
+        <div class="form-group">
+            <label>Cor do Ícone</label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="color" id="inputVirtualColor" class="form-input" style="width: 50px; padding: 2px; height: 35px;" value="#34495e">
+                <small class="text-muted">Selecione a cor de exibição na árvore</small>
+            </div>
+        </div>
         <div class="modal-footer">
             <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
             <button class="btn btn-primary" onclick="submitAddVirtual()">Criar</button>
@@ -265,7 +272,13 @@
                 <input type="text" id="inputCalcNome" class="form-input" 
                        placeholder="Ex: Margem Bruta, EBITDA, Lucro Líquido">
             </div>
-            
+            <div class="form-group">
+                <label>Cor do Ícone</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="color" id="inputCalcColor" class="form-input" style="width: 50px; padding: 2px; height: 35px;" value="#34495e">
+                    <small class="text-muted">Personalize a cor para destaque</small>
+                </div>
+            </div>
             <div class="form-group">
                 <label>Operação</label>
                 <select id="selectCalcOperacao" class="form-select">
