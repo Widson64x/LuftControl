@@ -376,8 +376,8 @@ ul.tree-root ul li::before {
 
 .modal-title { display: flex; align-items: center; gap: var(--spacing-md); }
 .modal-title i { font-size: 1.5rem; color: var(--primary); }
-.modal-title h3 { margin: 0; font-size: 1.1rem; color: var(--text-primary); }
-.modal-title p { margin: 0; font-size: 0.8rem; color: var(--text-secondary); }
+.modal-title h3 { margin: 0; font-size: 1.1rem; color: white; }
+.modal-title p { margin: 0; font-size: 0.8rem; color: white; }
 
 /* BOTÃO DE FECHAR (CORRIGIDO) */
 .modal-close-btn {
