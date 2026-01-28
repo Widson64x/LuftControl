@@ -8,7 +8,7 @@ from Utils.Common import parse_bool
 # Importando o Logger
 from Utils.Logger import RegistrarLog 
 
-class AdjustmentService:
+class AjustesManuaisService:
     def __init__(self, session_db):
         # Guardamos a sessão para usar nos métodos
         self.session = session_db

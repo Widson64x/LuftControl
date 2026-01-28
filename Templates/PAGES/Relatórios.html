@@ -79,12 +79,12 @@
 <script type="text/javascript" src="https://oss.sheetjs.com/sheetjs/xlsx.full.min.js"></script>
 <script>
     const API_ROUTES = {
-        getRazaoData:           "{{ url_for('Reports.RelatorioRazaoDados') }}",
-        getRazaoResumo:         "{{ url_for('Reports.RelatorioRazaoResumo') }}",
-        getRentabilidadeData:   "{{ url_for('Reports.RelatorioRentabilidade') }}",
+        getRazaoData:           "{{ url_for('Relatorios.ObterDadosRazao') }}",
+        getRazaoResumo:         "{{ url_for('Relatorios.ObterResumoRazao') }}",
+        getRentabilidadeData:   "{{ url_for('Relatorios.RelatorioRentabilidade') }}",
         getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}",
-        getRazaoDownload:       "{{ url_for('Reports.DownloadRazaoFull') }}", 
-        getListaCCs:            "{{ url_for('Reports.ListaCentrosCusto') }}"      
+        getRazaoDownload:       "{{ url_for('Relatorios.DownloadRazaoExcel') }}", 
+        getListaCCs:            "{{ url_for('Relatorios.ListarCentrosCusto') }}"      
     };
 </script>
 <script src="{{ url_for('static', filename='JS/Relatorios.js') }}"></script>

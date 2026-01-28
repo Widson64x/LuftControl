@@ -1,12 +1,9 @@
-# Reports/Razao.py
 from sqlalchemy import text
 from Utils.Hash_Utils import gerar_hash
 from Utils.Utils import ReportUtils
-
-# --- Import do Logger ---
 from Utils.Logger import RegistrarLog
 
-class RazaoReport:
+class RelatorioRazaoContabil:
     """
     Classe responsável pelos relatórios detalhados do Razão Contábil.
     Suporta paginação, busca e visualização ajustada (com edições manuais mescladas).
@@ -14,7 +11,7 @@ class RazaoReport:
     def __init__(self, session):
         self.session = session
 
-    def _GetAjustesEdicao(self):
+    def _ObterAjustesEdicao(self):
         """Busca apenas as edições manuais ativas para substituição rápida."""
         try:
             sql = text("""
@@ -35,26 +32,26 @@ class RazaoReport:
             RegistrarLog("Erro ao buscar ajustes de edição", "ERROR", e)
             return {}
 
-    def GetDados(self, page=1, per_page=50, search_term='', view_type='original'):
+    def ObterDados(self, pagina=1, por_pagina=50, termo_busca='', tipo_visualizacao='original'):
         """
         Retorna os lançamentos do Razão com paginação.
-        Se view_type='adjusted', faz um UNION ALL com a tabela de ajustes.
+        Se tipo_visualizacao='adjusted', faz um UNION ALL com a tabela de ajustes.
         """
-        RegistrarLog(f"Consultando Razão (Página {page}). Busca: '{search_term}'. Modo: {view_type}", "REPORT_QUERY")
+        RegistrarLog(f"Consultando Razão (Página {pagina}). Busca: '{termo_busca}'. Modo: {tipo_visualizacao}", "REPORT_QUERY")
         
-        offset = (page - 1) * per_page
-        params = {'limit': per_page, 'offset': offset}
+        offset = (pagina - 1) * por_pagina
+        params = {'limit': por_pagina, 'offset': offset}
         filter_snippet = ""
         filter_snippet_ajuste = ""
         
         # Filtro de Busca Global
-        if search_term:
+        if termo_busca:
             filter_snippet = "AND (\"Conta\"::TEXT ILIKE :termo OR \"Título Conta\" ILIKE :termo OR \"Descricao\" ILIKE :termo OR \"Numero\"::TEXT ILIKE :termo OR \"origem\" ILIKE :termo)"
             filter_snippet_ajuste = "AND (\"Conta\"::TEXT ILIKE :termo OR \"Titulo_Conta\" ILIKE :termo OR \"Descricao\" ILIKE :termo OR \"Numero\"::TEXT ILIKE :termo OR \"Origem\" ILIKE :termo)"
-            params['termo'] = f"%{search_term}%"
+            params['termo'] = f"%{termo_busca}%"
 
-        # Montagem da Query
-        if view_type == 'adjusted':
+        # Montagem da Query (Preservada EXATAMENTE como original)
+        if tipo_visualizacao == 'adjusted':
             sql_query = f"""
                 SELECT * FROM (
                     -- 1. Dados Originais
@@ -76,15 +73,15 @@ class RazaoReport:
         try:
             # Execução
             total_registros = self.session.execute(text(sql_count), params).scalar() or 0
-            total_paginas = (total_registros // per_page) + (1 if total_registros % per_page > 0 else 0)
+            total_paginas = (total_registros // por_pagina) + (1 if total_registros % por_pagina > 0 else 0)
             rows = self.session.execute(text(sql_query), params).fetchall()
             
             result_list = []
             ajustes_edicao = {}
             
             # Se for visão ajustada, carrega as edições para aplicar "em tempo real"
-            if view_type == 'adjusted': 
-                ajustes_edicao = self._GetAjustesEdicao()
+            if tipo_visualizacao == 'adjusted': 
+                ajustes_edicao = self._ObterAjustesEdicao()
 
             for i, r in enumerate(rows, 1):
                 row_dict = {
@@ -101,7 +98,7 @@ class RazaoReport:
                     row_dict['Hash_ID'] = f"NEW_{r.Hash_Ajuste_ID}" 
 
                 # Caso 2: É original mas tem edição
-                elif view_type == 'adjusted':
+                elif tipo_visualizacao == 'adjusted':
                     r_hash = gerar_hash(r)
                     if r_hash in ajustes_edicao:
                         adj = ajustes_edicao[r_hash]
@@ -124,16 +121,16 @@ class RazaoReport:
 
                 result_list.append(row_dict)
                 
-            return {'pagina_atual': page, 'total_paginas': total_paginas, 'total_registros': total_registros, 'dados': result_list}
+            return {'pagina_atual': pagina, 'total_paginas': total_paginas, 'total_registros': total_registros, 'dados': result_list}
 
         except Exception as e:
             RegistrarLog("Erro Crítico ao buscar dados do Razão", "ERROR", e)
             raise e
 
-    def GetResumo(self, view_type='original'):
+    def ObterResumo(self, tipo_visualizacao='original'):
         """Retorna os totais (somatórios) para exibição no rodapé."""
         try:
-            if view_type == 'adjusted':
+            if tipo_visualizacao == 'adjusted':
                 sql = text("""
                     SELECT SUM(cnt), SUM(deb), SUM(cred), SUM(sal) FROM (
                         SELECT COUNT(*) as cnt, SUM("Debito") as deb, SUM("Credito") as cred, SUM("Saldo") as sal 
@@ -154,20 +151,20 @@ class RazaoReport:
             RegistrarLog("Erro ao calcular resumo do rodapé", "ERROR", e)
             return {'total_registros': 0, 'total_debito': 0, 'total_credito': 0, 'saldo_total': 0}
 
-    def ExportFull(self, search_term='', view_type='original'):
+    def ExportarCompleto(self, termo_busca='', tipo_visualizacao='original'):
         """Gera o dataset completo para exportação Excel (sem paginação)."""
-        RegistrarLog(f"Iniciando exportação COMPLETA do Razão. Termo: '{search_term}'", "EXPORT")
+        RegistrarLog(f"Iniciando exportação COMPLETA do Razão. Termo: '{termo_busca}'", "EXPORT")
         
         params = {}
         filter_snippet = ""; filter_snippet_ajuste = ""
         
-        if search_term:
-            params['termo'] = f"%{search_term}%"
+        if termo_busca:
+            params['termo'] = f"%{termo_busca}%"
             filter_snippet = "AND (\"Conta\"::TEXT ILIKE :termo OR \"Título Conta\" ILIKE :termo OR \"Descricao\" ILIKE :termo OR \"Numero\"::TEXT ILIKE :termo OR \"origem\" ILIKE :termo)"
             filter_snippet_ajuste = "AND (\"Conta\"::TEXT ILIKE :termo OR \"Titulo_Conta\" ILIKE :termo OR \"Descricao\" ILIKE :termo OR \"Numero\"::TEXT ILIKE :termo OR \"Origem\" ILIKE :termo)"
 
         try:
-            if view_type == 'adjusted':
+            if tipo_visualizacao == 'adjusted':
                 sql = text(f"""
                     SELECT * FROM (
                         SELECT 'RAZAO' as source_type, "origem", "Conta", "Título Conta", "Data", "Numero", "Descricao", "Contra Partida - Credito" as "Contra Partida", CAST("Filial" AS TEXT) as "Filial", CAST("Centro de Custo" AS TEXT) as "Centro de Custo", "Item", "Cod Cl. Valor", "Debito", "Credito", "Saldo"
@@ -186,8 +183,8 @@ class RazaoReport:
                 
             rows = self.session.execute(sql, params).fetchall()
             ajustes_edicao = {}
-            if view_type == 'adjusted':
-                ajustes_edicao = self._GetAjustesEdicao()
+            if tipo_visualizacao == 'adjusted':
+                ajustes_edicao = self._ObterAjustesEdicao()
 
             final_data = []
 
@@ -200,7 +197,7 @@ class RazaoReport:
                     continue
                 
                 del row_dict['source_type']
-                if view_type == 'adjusted':
+                if tipo_visualizacao == 'adjusted':
                     r_hash = gerar_hash(r)
                     if r_hash in ajustes_edicao:
                         adj = ajustes_edicao[r_hash]
@@ -224,3 +221,39 @@ class RazaoReport:
         except Exception as e:
             RegistrarLog("Erro durante geração de exportação", "ERROR", e)
             raise e
+
+    def ListarCentrosCusto(self):
+        """
+        Retorna lista de centros de custo para preencher o Dropdown de filtros.
+        (Lógica trazida da Rota para a Classe de Relatório)
+        """
+        try:
+            sql = text("""
+                SELECT DISTINCT ccc."Codigo", ccc."Nome" 
+                FROM "Dre_Schema"."Razao_Dados_Consolidado" rdc 
+                JOIN "Dre_Schema"."Classificacao_Centro_Custo" ccc ON rdc."Centro de Custo" = ccc."Codigo" 
+                WHERE ccc."Nome" IS NOT NULL 
+                ORDER BY ccc."Nome"
+            """)
+            rows = self.session.execute(sql).fetchall()
+            
+            # Contagem para identificar duplicatas
+            nome_counts = {}
+            for row in rows:
+                nome_counts[row.Nome] = nome_counts.get(row.Nome, 0) + 1
+
+            lista_ccs = []
+            for row in rows:
+                nome_base = row.Nome
+                codigo = str(row.Codigo)
+
+                nome_exibicao = nome_base
+                if nome_counts[nome_base] > 1:
+                    nome_exibicao = f"{nome_base} ({codigo})"
+                
+                lista_ccs.append({'codigo': codigo, 'nome': nome_exibicao})
+            
+            return lista_ccs
+        except Exception as e:
+            RegistrarLog("Erro ao listar Centros de Custo", "ERROR", e)
+            return []

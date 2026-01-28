@@ -430,7 +430,7 @@
 <div class="map-wrapper fade-in">
 <!-- Botões gerenciais no topo direito (estilo "Visualizar Mapa") -->
 <div class="page-manager" aria-label="Ações da página">
-    <a href="{{ url_for('SecurityConfig.ViewSecurityManager') }}" class="pm-btn pm-link" title="Visualizar Mapa / Home do Security Manager">
+    <a href="{{ url_for('SecurityConfig.VisualizarGerenciadorSeguranca') }}" class="pm-btn pm-link" title="Visualizar Mapa / Home do Security Manager">
         <i class="fas fa-map-marker-alt"></i>
         <span>Central de Segurança</span>
     </a>
@@ -588,12 +588,12 @@
 <script>
     // Configuração de Rotas para o JS externo
     const API = {
-        getData: "{{ url_for('SecurityConfig.GetSecurityGraph') }}",
-        getRoles: "{{ url_for('SecurityConfig.GetRolesAndPermissions') }}",
-        updateUserRole: "{{ url_for('SecurityConfig.UpdateUserRole') }}",
-        toggleDirect: "{{ url_for('SecurityConfig.ToggleDirectPermission') }}",
-        saveRole: "{{ url_for('SecurityConfig.SaveRole') }}",
-        deleteRole: "{{ url_for('SecurityConfig.DeleteRole') }}"
+        getData: "{{ url_for('SecurityConfig.ObterGrafoSeguranca') }}",
+        getRoles: "{{ url_for('SecurityConfig.ObterPapeisEPermissoes') }}",
+        updateUserRole: "{{ url_for('SecurityConfig.AtualizarPapelUsuario') }}",
+        toggleDirect: "{{ url_for('SecurityConfig.AlternarPermissaoDireta') }}",
+        saveRole: "{{ url_for('SecurityConfig.SalvarPapel') }}",
+        deleteRole: "{{ url_for('SecurityConfig.ExcluirPapel') }}"
     };
     
     // Utilitários de Modal globais

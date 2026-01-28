@@ -190,7 +190,7 @@
             <h1 class="page-title m-0"><i class="fas fa-shield-alt text-primary"></i> Central de Segurança</h1>
             <p class="text-secondary m-0 text-sm">Controle de Acesso Baseado em Papéis (RBAC)</p>
         </div>
-        <a href="{{ url_for('SecurityConfig.ViewSecurityMap') }}" class="btn btn-outline-primary">
+        <a href="{{ url_for('SecurityConfig.VisualizarMapaSeguranca') }}" class="btn btn-outline-primary">
             <i class="fas fa-project-diagram me-2"></i> Visualizar Mapa
         </a>
     </div>
@@ -329,13 +329,13 @@
 {% block extra_js %}
 <script>
     const API = {
-        getUsers: "{{ url_for('SecurityConfig.GetActiveUsers') }}",
-        updateUserRole: "{{ url_for('SecurityConfig.UpdateUserRole') }}",
-        getRoles: "{{ url_for('SecurityConfig.GetRolesAndPermissions') }}",
-        saveRole: "{{ url_for('SecurityConfig.SaveRole') }}",
-        deleteRole: "{{ url_for('SecurityConfig.DeleteRole') }}",
-        savePerm: "{{ url_for('SecurityConfig.SavePermission') }}",
-        deletePerm: "{{ url_for('SecurityConfig.DeletePermission') }}"
+        getUsers: "{{ url_for('SecurityConfig.ObterUsuariosAtivos') }}",
+        updateUserRole: "{{ url_for('SecurityConfig.AtualizarPapelUsuario') }}",
+        getRoles: "{{ url_for('SecurityConfig.ObterPapeisEPermissoes') }}",
+        saveRole: "{{ url_for('SecurityConfig.SalvarPapel') }}",
+        deleteRole: "{{ url_for('SecurityConfig.ExcluirPapel') }}",
+        savePerm: "{{ url_for('SecurityConfig.SalvarPermissao') }}",
+        deletePerm: "{{ url_for('SecurityConfig.ExcluirPermissao') }}"
     };
 </script>
 <script src="{{ url_for('static', filename='JS/SecurityManager.js') }}"></script>

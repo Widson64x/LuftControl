@@ -1,15 +1,12 @@
-# Reports/AnaliseDRE.py
 import json
 import math
 from collections import defaultdict, namedtuple
 from sqlalchemy import text
 from Utils.Hash_Utils import gerar_hash
 from Utils.Utils import ReportUtils
-
-# --- Import do Logger ---
 from Utils.Logger import RegistrarLog
 
-class AnaliseDREReport:
+class RelatorioDreGerencial:
     """
     Classe responsável por processar o relatório de DRE (Demonstrativo de Resultado),
     lidando com hierarquia de contas, regras de negócio, nós virtuais e fórmulas.
@@ -19,11 +16,8 @@ class AnaliseDREReport:
         # Colunas de meses para facilitar iterações
         self.meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez','Total_Ano']
 
-    def _GetEstruturaHierarquia(self):
-        """
-        Monta a árvore genealógica das contas (Pai -> Filho -> Neto).
-        Usa uma CTE Recursiva (SQL) para navegar infinitamente nos níveis.
-        """
+    def _ObterEstruturaHierarquia(self):
+        """Monta a árvore genealógica das contas (Pai -> Filho -> Neto)."""
         try:
             # 1. Recursive CTE para montar os caminhos (TreePath)
             sql_tree = text("""
@@ -56,7 +50,7 @@ class AnaliseDREReport:
             tree_rows = self.session.execute(sql_tree).fetchall()
             tree_map = {row.Id: row for row in tree_rows}
 
-            # 2. Busca Vínculos e Personalizações (Onde a conta contábil se encaixa na árvore)
+            # 2. Busca Vínculos e Personalizações
             sql_defs = text("""
                 SELECT v."Conta_Contabil", v."Id_Hierarquia", NULL::int as "Id_No_Virtual", NULL::text as "Nome_Personalizado", 'Vinculo' as "Origem_Regra", NULL::text as "Nome_Virtual_Direto", NULL::int as "Id_Virtual_Direto"
                 FROM "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v
@@ -69,14 +63,12 @@ class AnaliseDREReport:
             """)
             def_rows = self.session.execute(sql_defs).fetchall()
             
-            # NamedTuple para deixar o código mais limpo que dicionários aninhados
             Definition = namedtuple('Definition', ['Conta_Contabil', 'CC_Alvo', 'Id_Hierarquia', 'Id_No_Virtual', 'Nome_Personalizado_Def', 'full_path', 'Tipo_Principal', 'Raiz_Centro_Custo_Nome', 'Raiz_No_Virtual_Id', 'Is_Root_Group'])
             definitions = defaultdict(list)
             
             for row in def_rows:
                 cc_alvo = None; full_path = None; tipo_principal = None; nome_cc_detalhe = None; raiz_virt_id = None; is_root_group = False
                 
-                # Lógica para definir onde a conta "mora" na estrutura
                 if row.Id_Hierarquia and row.Id_Hierarquia in tree_map:
                     node = tree_map[row.Id_Hierarquia]
                     cc_alvo = node.Raiz_Centro_Custo_Codigo
@@ -105,11 +97,8 @@ class AnaliseDREReport:
             RegistrarLog("Erro fatal ao carregar estrutura hierárquica do DRE", "ERROR", e)
             raise e
 
-    def _GetAjustesMap(self):
-        """
-        Retorna dicionários de Ajustes Manuais (Edições e Inclusões).
-        Isso permite alterar o relatório sem mexer no banco contábil oficial.
-        """
+    def _ObterMapaAjustes(self):
+        """Retorna dicionários de Ajustes Manuais (Edições e Inclusões)."""
         sql = text("""
             SELECT * FROM "Dre_Schema"."Ajustes_Razao" 
             WHERE "Status" != 'Reprovado' AND "Invalido" = false
@@ -119,40 +108,26 @@ class AnaliseDREReport:
         edicoes = {}
         inclusoes = []
         
-        # Substituindo Debug Print por Log estruturado
-        # RegistrarLog("Iniciando carga de Ajustes para DRE...", "DEBUG")
-        
         for row in rows:
-            # Tipos que SUBSTITUEM linha existente (Merge)
             if row.Tipo_Operacao in ['EDICAO', 'NO-OPER_AUTO']:
                 if row.Hash_Linha_Original:
                     edicoes[row.Hash_Linha_Original] = row
-            # Tipos que CRIAM NOVA linha (Append)
             elif row.Tipo_Operacao in ['INCLUSAO', 'INTERGRUPO_AUTO']:
                 inclusoes.append(row)
-                # print(f"[DEBUG] Inclusão Carregada do Banco: ID={getattr(row, 'Id', '?')}...") 
-                # Comentado para não poluir o log, vamos logar apenas o total
 
         if edicoes or inclusoes:
             RegistrarLog(f"Ajustes DRE carregados: {len(edicoes)} Edições | {len(inclusoes)} Inclusões", "INFO")
         
         return edicoes, inclusoes
 
-    def _GetOrdenamento(self):
-        """
-        Busca a ordem de exibição configurada pelo usuário (Drag & Drop no frontend).
-        Retorna: { 'tipo:id' : ordem_numerica }
-        """
+    def _ObterOrdenamento(self):
+        """Busca a ordem de exibição configurada."""
         sql = text("SELECT id_referencia, tipo_no, ordem FROM \"Dre_Schema\".\"DRE_Ordenamento\"")
         rows = self.session.execute(sql).fetchall()
         return {f"{r.tipo_no}:{r.id_referencia}": r.ordem for r in rows}
 
-    def _GetOrdemSubgruposPorContexto(self):
-        """
-        CORREÇÃO BUG ORDENAÇÃO:
-        Busca a ordem dos subgrupos considerando o NOME e o TIPO DE CC.
-        Isso impede que a ordem do 'Comercial' afete o 'Operacional' e vice-versa.
-        """
+    def _ObterOrdemSubgruposPorContexto(self):
+        """Busca a ordem dos subgrupos considerando o NOME e o TIPO DE CC."""
         sql = text("""
             SELECT 
                 h."Nome",
@@ -173,7 +148,6 @@ class AnaliseDREReport:
             tipo = str(r.Raiz_Centro_Custo_Tipo).strip() if r.Raiz_Centro_Custo_Tipo else 'Indefinido'
             chave = (nome, tipo)
             
-            # Se duplicar, mantém o menor valor de ordem
             if chave not in ordem_por_contexto:
                 ordem_por_contexto[chave] = r.ordem
             else:
@@ -181,15 +155,11 @@ class AnaliseDREReport:
         
         return ordem_por_contexto
 
-    def DebugStructureAndOrder(self):
-        """
-        Retorna um JSON detalhado com todas as regras de ordenação para auditoria visual.
-        """
-        # 1. Busca TUDO da tabela de ordenamento
+    def DepurarEstruturaEOrdem(self):
+        """Retorna JSON detalhado com regras de ordenação para auditoria."""
         sql_raw = text("SELECT * FROM \"Dre_Schema\".\"DRE_Ordenamento\" ORDER BY ordem ASC")
         rows_ordem = self.session.execute(sql_raw).fetchall()
 
-        # 2. Busca Nomes de Hierarquia e Virtuais para resolver IDs
         sql_h = text("SELECT \"Id\", \"Nome\" FROM \"Dre_Schema\".\"DRE_Estrutura_Hierarquia\"")
         map_hierarquia = {r.Id: r.Nome for r in self.session.execute(sql_h).fetchall()}
 
@@ -197,19 +167,16 @@ class AnaliseDREReport:
         map_virtual = {r.Id: r.Nome for r in self.session.execute(sql_v).fetchall()}
 
         debug_list = []
-
         for row in rows_ordem:
             nome_resolvido = "---"
             tipo_desc = row.tipo_no
             
             if row.tipo_no == 'subgrupo':
-                try:
-                    nome_resolvido = map_hierarquia.get(int(row.id_referencia), f"ID {row.id_referencia} (Não encontrado)")
+                try: nome_resolvido = map_hierarquia.get(int(row.id_referencia), f"ID {row.id_referencia} (Não encontrado)")
                 except: nome_resolvido = f"Erro ID: {row.id_referencia}"
             
             elif row.tipo_no == 'virtual':
-                try:
-                    nome_resolvido = map_virtual.get(int(row.id_referencia), f"ID {row.id_referencia} (Não encontrado)")
+                try: nome_resolvido = map_virtual.get(int(row.id_referencia), f"ID {row.id_referencia} (Não encontrado)")
                 except: nome_resolvido = f"Erro ID: {row.id_referencia}"
 
             elif row.tipo_no == 'tipo_cc':
@@ -227,38 +194,30 @@ class AnaliseDREReport:
         return debug_list
     
     def ProcessarRelatorio(self, filtro_origem='FARMA,FARMADIST,INTEC', agrupar_por_cc=False, filtro_cc=None):
-        """
-        Gera os dados base do relatório (Engine principal).
-        """
+        """Gera os dados base do relatório (Engine principal)."""
         RegistrarLog(f"Gerando DRE. Filtro Origem: {filtro_origem} | Filtro CC: {filtro_cc}", "DRE_GEN")
 
-        # 0. Tratamento dos filtros
         if not filtro_origem: lista_empresas = []
         else: lista_empresas = [x.strip() for x in filtro_origem.split(',') if x.strip()]
         
         if not lista_empresas: return []
 
         try:
-            # Carrega as regras da memória
-            tree_map, definitions = self._GetEstruturaHierarquia()
-            ajustes_edicao, ajustes_inclusao = self._GetAjustesMap()
-            ordem_map = self._GetOrdenamento()
-            ordem_subgrupos_contexto = self._GetOrdemSubgruposPorContexto()
+            tree_map, definitions = self._ObterEstruturaHierarquia()
+            ajustes_edicao, ajustes_inclusao = self._ObterMapaAjustes()
+            ordem_map = self._ObterOrdenamento()
+            ordem_subgrupos_contexto = self._ObterOrdemSubgruposPorContexto()
             
-            # --- ALTERAÇÃO AQUI: Carrega mapa de estilos CSS dos Nós Virtuais ---
             sql_css = text('SELECT "Id", "Estilo_CSS" FROM "Dre_Schema"."DRE_Estrutura_No_Virtual"')
             css_map = {row.Id: row.Estilo_CSS for row in self.session.execute(sql_css).fetchall() if row.Estilo_CSS}
-            # --------------------------------------------------------------------
             
-            # Mapa de Títulos de Conta para labels mais bonitas
             sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Razao_Dados_Consolidado"')
             mapa_titulos = {row[0]: row[1] for row in self.session.execute(sql_nomes).fetchall()}
 
             aggregated_data = {}
 
-            # --- FUNÇÃO INTERNA: PROCESSA CADA LINHA DO RAZÃO ---
+            # --- FUNÇÃO INTERNA PROCESS ROW ---
             def ProcessRow(origem, conta, titulo, data, saldo, cc_original_str, row_hash=None, is_skeleton=False, forced_match=None):
-                # A. Verifica se tem Ajuste de Edição (Manual)
                 if not is_skeleton and row_hash and row_hash in ajustes_edicao:
                     adj = ajustes_edicao[row_hash]
                     if adj.Invalido: return 
@@ -270,18 +229,15 @@ class AnaliseDREReport:
                     if adj.Is_Nao_Operacional:
                         conta = '00000000000'
                         titulo = 'Não Operacionais'
-                    # Lógica de inversão de sinal para ajuste
                     if adj.Exibir_Saldo:
                         saldo = (float(adj.Debito or 0) - float(adj.Credito or 0))
                     else:
                         saldo = 0.0
 
-                # B. Match (Encontrar a regra de hierarquia para essa conta)
                 match = forced_match
                 if not match:
                     rules = definitions.get(conta, [])
                     if not rules: return
-                    # Tenta match específico por Centro de Custo
                     if cc_original_str:
                         cc_int = None
                         try: cc_int = int(''.join(filter(str.isdigit, str(cc_original_str))))
@@ -290,17 +246,14 @@ class AnaliseDREReport:
                             for rule in rules:
                                 if rule.CC_Alvo is not None and cc_int == rule.CC_Alvo:
                                     match = rule; break
-                    # Fallback: Regra genérica
                     if not match: match = rules[0]
                 
-                # C. Agrupamento e Ordenação
                 if not match: return
 
                 tipo_cc = match.Tipo_Principal or 'Outros'
                 root_virtual_id = match.Raiz_No_Virtual_Id
                 caminho = match.full_path or 'Não Classificado'
                 
-                # Define as ordens baseadas no mapa carregado do banco
                 ordem = 999
                 ordem_secundaria = 500
                 
@@ -312,7 +265,6 @@ class AnaliseDREReport:
                 else:
                     ordem = ordem_map.get(f"tipo_cc:{tipo_cc}", 999)
                 
-                # Refinamento de ordem secundária para subgrupos
                 if caminho and caminho not in ['Não Classificado', 'Direto', 'Calculado']:
                     partes = caminho.split('||')
                     if partes:
@@ -326,18 +278,14 @@ class AnaliseDREReport:
                 conta_display = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else conta
                 titulo_para_exibicao = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else titulo
                 
-                # Chave única de agrupamento
                 group_key = (tipo_cc, root_virtual_id, caminho, titulo_para_exibicao, conta_display)
                 if agrupar_por_cc: 
                     group_key = group_key + (match.Raiz_Centro_Custo_Nome,)
 
-                # Inicializa a linha se não existir
                 if group_key not in aggregated_data:
-                    # --- ALTERAÇÃO AQUI: Busca CSS do mapa se houver um Pai Virtual ---
                     css_style = None
                     if root_virtual_id and root_virtual_id in css_map:
                         css_style = css_map[root_virtual_id]
-                    # ------------------------------------------------------------------
 
                     item = {
                         'origem': origem, 'Conta': conta_display, 'Titulo_Conta': titulo_para_exibicao,
@@ -345,29 +293,27 @@ class AnaliseDREReport:
                         'ordem_prioridade': ordem, 
                         'ordem_secundaria': ordem_secundaria,
                         'Total_Ano': 0.0,
-                        'Estilo_CSS': css_style # <--- Campo preenchido
+                        'Estilo_CSS': css_style 
                     }
                     for m in self.meses[:-1]: item[m] = 0.0
                     if agrupar_por_cc: item['Nome_CC'] = match.Raiz_Centro_Custo_Nome
                     aggregated_data[group_key] = item
 
-                # Soma os valores nos meses correspondentes
                 if not is_skeleton and data:
                     try:
                         mes_nome = self.meses[data.month - 1]
-                        val_inv = saldo * -1 # Inverte sinal contábil para gerencial
+                        val_inv = saldo * -1 
                         aggregated_data[group_key][mes_nome] += val_inv
                         aggregated_data[group_key]['Total_Ano'] += val_inv
                     except: pass
-            # --- FIM PROCESS_ROW ---
-
-            # 1. Gera Esqueleto (Linhas vazias para contas configuradas)
+            
+            # 1. Esqueleto
             for conta_def, lista_regras in definitions.items():
                 titulo_conta = mapa_titulos.get(conta_def, "Conta Configurada")
                 for regra in lista_regras:
                     ProcessRow("Config", conta_def, titulo_conta, None, 0.0, None, None, is_skeleton=True, forced_match=regra)
 
-            # 2. Monta Query SQL Dinâmica para buscar dados reais
+            # 2. Query Principal
             where_clauses = []
             params = {}
             
@@ -406,14 +352,9 @@ class AnaliseDREReport:
                     getattr(row, 'Centro de Custo'), h, is_skeleton=False
                 )
 
-            # 3. Processa Inclusões Manuais (Lançamentos que só existem no relatório)
-            # RegistrarLog("Processando Inclusões Manuais...", "DEBUG")
+            # 3. Inclusões Manuais
             for adj in ajustes_inclusao:
-                # log_prefix = f"[DEBUG] Inclusão ID {getattr(adj, 'Id', '?')} ({adj.Conta})"
-                
-                if adj.Origem not in lista_empresas: 
-                    continue
-                
+                if adj.Origem not in lista_empresas: continue
                 if cc_list:
                     cc_adj = str(adj.Centro_Custo or '').strip()
                     if cc_adj not in cc_list: continue
@@ -430,7 +371,6 @@ class AnaliseDREReport:
 
             final_list = list(aggregated_data.values())
             
-            # Ordenação Final da Lista
             if agrupar_por_cc: 
                 final_list.sort(key=lambda x: (x.get('ordem_prioridade', 999), x.get('ordem_secundaria', 500), x.get('Tipo_CC', ''), x.get('Nome_CC') or '', x.get('Caminho_Subgrupos') or '', x.get('Conta', '')))
             else: 
@@ -443,14 +383,11 @@ class AnaliseDREReport:
             raise e
         
     def CalcularNosVirtuais(self, data_rows):
-        """
-        Processa as fórmulas (Ex: Margem Bruta, EBITDA) e insere as linhas calculadas.
-        """
+        """Processa as fórmulas (Ex: Margem Bruta, EBITDA)."""
         RegistrarLog("Iniciando Cálculo de Nós Virtuais e Fórmulas...", "DRE_CALC")
         memoria = defaultdict(lambda: {m: 0.0 for m in self.meses})
-        debug_descontos_found = False
 
-        # 1. Popula memória com os dados processados
+        # 1. Popula memória
         for row in data_rows:
             tipo = str(row.get('Tipo_CC', '')).strip()
             virt_id = row.get('Root_Virtual_Id')
@@ -478,8 +415,7 @@ class AnaliseDREReport:
                     for k in keys_to_update:
                         memoria[k][m] += val
         
-        # 2. Busca e Calcula Fórmulas do Banco
-        # --- ALTERAÇÃO: Garantindo que o SELECT pegue o Estilo_CSS ---
+        # 2. Busca e Calcula Fórmulas
         sql_formulas = text("""
             SELECT nv."Id", nv."Nome", nv."Formula_JSON", nv."Estilo_CSS", nv."Tipo_Exibicao", COALESCE(ord.ordem, 999) as ordem
             FROM "Dre_Schema"."DRE_Estrutura_No_Virtual" nv
@@ -506,12 +442,11 @@ class AnaliseDREReport:
                     'ordem_prioridade': form.ordem,
                     'ordem_secundaria': 0,
                     'Is_Calculado': True, 
-                    'Estilo_CSS': form.Estilo_CSS, # <--- O CSS VEM DAQUI
+                    'Estilo_CSS': form.Estilo_CSS, 
                     'Tipo_Exibicao': form.Tipo_Exibicao,
                     'Root_Virtual_Id': form.Id 
                 }
 
-                # Executa o cálculo para cada mês
                 for mes in self.meses:
                     vals = []
                     for op in operandos:

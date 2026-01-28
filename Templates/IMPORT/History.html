@@ -10,7 +10,7 @@
             <h2 style="font-weight: 700;">Auditoria de Importações</h2>
             <p class="text-secondary">Logs de execução e reversão de cargas de dados.</p>
         </div>
-        <a href="{{ url_for('Import.Index') }}" class="btn btn-primary">
+        <a href="{{ url_for('Import.Inicio') }}" class="btn btn-primary">
             <i class="fas fa-plus me-2"></i> Nova Importação
         </a>
     </div>
@@ -69,7 +69,7 @@
         <p>Você está prestes a remover <b>TODOS</b> os dados da competência <span id="modalComp" style="font-weight: bold;"></span> desta origem.</p>
         <p style="font-size: 0.9rem; margin-bottom: 1rem;">Esta ação será auditada.</p>
         
-        <form action="{{ url_for('Import.Rollback') }}" method="POST">
+        <form action="{{ url_for('Import.Reverter') }}" method="POST">
             <input type="hidden" name="log_id" id="modalLogId">
             
             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Motivo (Obrigatório):</label>
