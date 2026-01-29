@@ -3,7 +3,7 @@
 {% endblock %}
 <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
     <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('Main.Dashboard') }}">
+        <a class="navbar-brand" href="{{ url_for('Main.MenuPrincipal') }}">
             <i class="fas fa-chart-line"></i>
             <span>T-Controllership</span>
         </a>
@@ -16,22 +16,22 @@
             
             <ul class="navbar-nav d-flex align-center gap-sm">
                 <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'Main.Dashboard' %}active{% endif %}" 
-                    href="{{ url_for('Main.Dashboard') }}">
+                    <a class="nav-link {% if request.endpoint == 'Main.MenuPrincipal' %}active{% endif %}" 
+                    href="{{ url_for('Main.MenuPrincipal') }}">
                         <i class="fas fa-home"></i> Home
                     </a>
                 </li>
                 
                 <li class="nav-item">
                     <a class="nav-link {% if 'Reports' in request.endpoint %}active{% endif %}" 
-                    href="{{ url_for('Reports.PaginaRelatorios') }}">
+                    href="{{ url_for('Relatorios.PaginaRelatorios') }}">
                         <i class="fas fa-table"></i> Relatórios
                     </a>
                 </li>
 
                 <li class="nav-item">
                     <a class="nav-link {% if 'Settings' in request.endpoint %}active{% endif %}" 
-                    href="{{ url_for('Main.SettingsHub') }}">
+                    href="{{ url_for('Main.MenuConfiguracoes') }}">
                         <i class="fas fa-cog"></i> Sistema
                     </a>
                 </li>

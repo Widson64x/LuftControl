@@ -7,14 +7,14 @@ import os
 
 # --- Imports das Rotas ---
 # Importando a função auxiliar que também foi renomeada
-from Routes.Auth import auth_bp, CarregarUsuarioFlask
-from Routes.Main import main_bp
-from Routes.Reports import reports_bp
-from Routes.DRE_Configs import dre_config_bp
-from Routes.DRE_Ordering import dre_ordem_bp
-from Routes.Security_Configs import security_bp
-from Routes.ManualAdjustments import ajustes_bp
-from Routes.DataImport import import_bp
+from Routes.Autenticacao import auth_bp, CarregarUsuarioFlask
+from Routes.MenuPrincipal import main_bp
+from Routes.Relatorios import reports_bp
+from Routes.ConfiguracaoDre import dre_config_bp
+from Routes.OrdenamentoDre import dre_ordem_bp
+from Routes.ConfiguracaoSeguranca import security_bp
+from Routes.AjustesManuais import ajustes_bp
+from Routes.ImportacaoDados import import_bp
 
 # --- Imports Banco de Dados ---
 from Db.Connections import PG_DATABASE_URL, CheckConnections
@@ -63,7 +63,7 @@ app.register_blueprint(import_bp,      url_prefix=ROUTE_PREFIX + '/Import')
 
 @app.route('/')
 def Index(): # Até o index merece um PascalCase
-    return redirect(url_for('Main.Dashboard'))
+    return redirect(url_for('Main.MenuPrincipal'))
 
 if __name__ == "__main__":
     ConfigurarLogger()

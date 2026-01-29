@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, jsonify
 from flask_login import current_user
 from sqlalchemy.orm import sessionmaker
 from Db.Connections import GetPostgresEngine
-from Services.AdjustmentsService import AdjustmentService
+from Services.AjustesManuaisService import AjustesManuaisService
 from Utils.Logger import RegistrarLog
 
 # Definindo a Blueprint (nossa área vip de rotas)
@@ -39,7 +39,7 @@ def GerarAjusteIntergrupo():
         
         RegistrarLog(f"Rota API: Gerar Intergrupo. Ano: {ano}", "HTTP")
         
-        svc = AdjustmentService(session_db)
+        svc = AjustesManuaisService(session_db)
         
         # Manda bala na geração
         logs = svc.GerarIntergrupo(ano)
@@ -63,7 +63,7 @@ def GetDados():
     session_db = GetSession()
     try:
         RegistrarLog("Rota API: GetDados (Grid)", "HTTP")
-        svc = AdjustmentService(session_db)
+        svc = AjustesManuaisService(session_db)
         dados = svc.ObterDadosGrid()
         return jsonify(dados)
     except Exception as e:
@@ -85,7 +85,7 @@ def Salvar():
         user = current_user.nome if current_user.is_authenticated else 'System'
         RegistrarLog(f"Rota API: Salvar. User: {user}", "HTTP")
         
-        svc = AdjustmentService(session_db)
+        svc = AjustesManuaisService(session_db)
         
         # Chama o serviço pra persistir a alteração
         novo_id = svc.SalvarAjuste(request.json, user)
@@ -112,7 +112,7 @@ def Aprovar():
         user = current_user.nome if current_user.is_authenticated else 'System'
         RegistrarLog(f"Rota API: Aprovar. User: {user}, ID: {dt.get('Ajuste_ID')}", "HTTP")
         
-        svc = AdjustmentService(session_db)
+        svc = AjustesManuaisService(session_db)
         
         svc.AprovarAjuste(dt.get('Ajuste_ID'), dt.get('Acao'), user)
         
@@ -135,7 +135,7 @@ def AlterarStatusInvalido():
         user = current_user.nome if current_user.is_authenticated else 'System'
         RegistrarLog(f"Rota API: Status Invalido. User: {user}, ID: {dt.get('Ajuste_ID')}", "HTTP")
         
-        svc = AdjustmentService(session_db)
+        svc = AjustesManuaisService(session_db)
         
         svc.ToggleInvalido(dt.get('Ajuste_ID'), dt.get('Acao'), user)
         
@@ -156,7 +156,7 @@ def GetHistorico(id_ajuste):
     session_db = GetSession()
     try:
         RegistrarLog(f"Rota API: Historico. ID: {id_ajuste}", "HTTP")
-        svc = AdjustmentService(session_db)
+        svc = AjustesManuaisService(session_db)
         historico = svc.ObterHistorico(id_ajuste)
         return jsonify(historico)
     except Exception as e:

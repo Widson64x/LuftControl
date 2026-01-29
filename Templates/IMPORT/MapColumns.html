@@ -16,7 +16,7 @@
         </div>
     </div>
 
-    <form action="{{ url_for('Import.Confirm') }}" method="POST" id="importForm">
+    <form action="{{ url_for('Import.Confirmar') }}" method="POST" id="importForm">
         <input type="hidden" name="filename" id="filename" value="{{ filename }}">
         <input type="hidden" name="source" value="{{ source }}">
 
@@ -88,7 +88,7 @@
         </div>
 
         <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
-            <a href="{{ url_for('Import.Index') }}" class="btn btn-ghost">Cancelar</a>
+            <a href="{{ url_for('Import.Inicio') }}" class="btn btn-ghost">Cancelar</a>
             <button type="submit" class="btn btn-success" id="btnConfirm">
                 <i class="fas fa-check-circle me-2"></i> Confirmar e Importar
             </button>
@@ -117,7 +117,7 @@
                 if(el.value !== 'none') transforms[el.dataset.col] = el.value;
             });
 
-            fetch("{{ url_for('Import.ApiPreview') }}", {
+            fetch("{{ url_for('Import.ApiPrevia') }}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename, mapping, transforms })

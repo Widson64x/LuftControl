@@ -5,13 +5,13 @@ main_bp = Blueprint('Main', __name__)
 
 @main_bp.route('/')
 @login_required
-def Dashboard():
+def MenuPrincipal():
     return render_template('Main.html', user=current_user)
 
 # --- NOVA ROTA: HUB DE CONFIGURAÇÕES ---
 @main_bp.route('/Settings')
 @login_required
-def SettingsHub():
+def MenuConfiguracoes():
     """
     Página centralizadora de configurações do sistema.
     Aqui o usuário escolhe se quer configurar DRE, Usuários, etc.

@@ -1,867 +1,217 @@
-/* ============================================================================
-   T-CONTROLLERSHIP | AJUSTES RAZÃO (REFACTORED)
-   Design: Modern Admin / Data Grid
-   Base: Themes.css
-   ============================================================================ */
-
-/* --- 1. LAYOUT & CONTAINER --- */
-.page-header {
-    margin-bottom: var(--spacing-lg);
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: var(--spacing-md);
-    animation: fade-in var(--transition-normal);
+:root {
+    --excel-green: #217346;
+    --excel-header-bg: #f3f2f1;
+    --excel-border: #d0d7de;
+    --bg-hover: #e1dfdd;
+    --text-primary: #333;
+    --border-color: #c8c8c8;
 }
 
-.page-title {
-    font-size: var(--font-2xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-primary);
-    margin: 0 0 var(--spacing-xs) 0;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.page-subtitle {
-    color: var(--text-tertiary);
-    font-size: var(--font-sm);
+body {
     margin: 0;
-}
-
-.header-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.content-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
+    padding: 0;
     overflow: hidden;
-    position: relative;
-    height: calc(100vh - 200px); /* Ajuste dinâmico */
-}
-
-/* --- 2. BOTÕES (Padronizados) --- */
-button { font-family: var(--font-primary); }
-
-.btn-primary-custom, 
-.btn-secondary-custom {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    padding: 0.6rem 1.2rem;
-    font-size: var(--font-sm);
-    font-weight: var(--font-weight-medium);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    height: 40px;
-}
-
-.btn-primary-custom {
-    background: var(--primary);
-    color: #FFF;
-    border: 1px solid transparent;
-    box-shadow: var(--shadow-glow-sm);
-}
-
-.btn-primary-custom:hover:not(:disabled) {
-    background: var(--primary-dark);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-glow);
-}
-
-.btn-secondary-custom {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-primary);
-}
-
-.btn-secondary-custom:hover:not(:disabled) {
-    background: var(--bg-tertiary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #fff;
     color: var(--text-primary);
-    border-color: var(--text-muted);
 }
 
-/* --- 3. FORMULÁRIOS & INPUTS --- */
-.form-grid-wrapper {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-md);
-    padding: var(--spacing-sm);
-}
-
-.form-group {
+/* --- LAYOUT --- */
+.excel-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    height: 100vh;
 }
 
-.form-group label {
-    font-size: var(--font-xs);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.form-control {
-    width: 100%;
-    height: 40px;
-    padding: 0 12px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    color: var(--text-primary);
-    font-family: var(--font-primary);
-    font-size: var(--font-sm);
-    transition: var(--transition-fast);
-}
-
-.form-control:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
-    background: var(--bg-secondary);
-}
-
-.form-control::placeholder { color: var(--text-muted); }
-
-/* Estilo para campos bloqueados/técnicos */
-.form-control:disabled,
-.form-control[readonly] {
-    background: var(--bg-primary); /* Fundo mais escuro */
-    color: var(--text-muted);
-    border-color: var(--border-secondary);
-    cursor: not-allowed;
-    opacity: 0.8;
-    font-family: var(--font-mono); /* Fonte mono para códigos/hash */
-    font-size: var(--font-xs);
-}
-
-/* Classes utilitárias de grid */
-.span-2 { grid-column: span 2; }
-.span-3 { grid-column: span 3; }
-.span-4 { grid-column: span 4; }
-
-/* Switch Toggle Customizado */
-.switch-container {
+/* --- RIBBON --- */
+.ribbon-bar {
+    height: 60px;
+    background-color: #f3f2f1;
+    border-bottom: 1px solid #b5b5b5;
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
-    cursor: pointer;
-}
-.switch {
-    position: relative;
-    width: 40px;
-    height: 22px;
-}
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider {
-    position: absolute;
-    cursor: pointer;
-    inset: 0;
-    background-color: var(--bg-hover);
-    transition: .4s;
-    border-radius: var(--radius-full);
-    border: 1px solid var(--border-secondary);
-}
-.slider:before {
-    position: absolute;
-    content: "";
-    height: 16px;
-    width: 16px;
-    left: 2px;
-    bottom: 2px;
-    background-color: var(--text-muted);
-    transition: .4s;
-    border-radius: 50%;
-}
-input:checked + .slider { background-color: var(--primary); border-color: var(--primary); }
-input:checked + .slider:before { transform: translateX(18px); background-color: #FFF; }
-
-/* --- 4. MODAIS (Unificado) --- */
-.modal-overlay, .filter-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: var(--z-modal-backdrop);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: all var(--transition-normal);
+    padding: 0 15px;
+    gap: 15px;
+    flex-shrink: 0;
 }
 
-.modal-overlay.active, .filter-backdrop.active {
-    opacity: 1;
-    visibility: visible;
-}
+.ribbon-group { display: flex; align-items: center; gap: 10px; }
 
-/* Container do Modal (Edição e Filtros compartilham base similar) */
-.custom-modal, .filter-panel-wrapper {
-    background: var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-2xl);
-    border: 1px solid var(--border-primary);
-    display: flex;
-    flex-direction: column;
-    max-height: 90vh;
-    animation: modal-pop var(--transition-normal) cubic-bezier(0.16, 1, 0.3, 1);
-    z-index: var(--z-modal);
-}
+.app-logo { font-size: 28px; color: var(--excel-green); margin-right: 10px; }
 
-.custom-modal { width: 900px; max-width: 95%; }
-/* Filtro é fixo no centro via CSS do JS, mas estilizamos aqui */
-.filter-panel-wrapper { 
-    width: 500px; 
-    max-width: 90%;
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%) scale(0.95);
-    opacity: 0;
-    pointer-events: none;
-    transition: all var(--transition-normal);
+.ribbon-inputs { display: flex; gap: 10px; }
+.input-stack { display: flex; flex-direction: column; }
+.input-stack label { font-size: 10px; color: #666; margin-bottom: 2px; }
+.input-stack input, .input-stack select {
+    border: 1px solid #a6a6a6; height: 26px; font-size: 13px; outline: none;
 }
-.filter-panel-wrapper.active {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-    pointer-events: all;
-}
+.input-stack input:focus, .input-stack select:focus { border-color: var(--excel-green); }
 
-/* Header & Footer do Modal */
-.modal-header, .filter-header {
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-bottom: 1px solid var(--border-secondary);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--bg-tertiary);
-    border-radius: 20px;
-}
+.ribbon-separator { width: 1px; height: 35px; background-color: #ccc; margin: 0 5px; }
 
-.modal-header h2, .filter-header h3 {
-    margin: 0;
-    font-size: var(--font-lg);
-    color: #FFF;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
+.ribbon-btn {
+    background: transparent; border: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 6px 10px; cursor: pointer; border-radius: 2px; color: #444;
 }
+.ribbon-btn:hover { background-color: #c7c7c7; }
+.ribbon-btn i { font-size: 16px; margin-bottom: 4px; color: var(--excel-green); }
+.ribbon-btn span { font-size: 11px; }
 
-.modal-body, .filter-body-grid {
-    padding: var(--spacing-lg);
-    overflow-y: auto;
+.ribbon-status { margin-left: auto; text-align: right; min-width: 150px; }
+#lblStatus { font-size: 11px; font-weight: bold; color: #666; }
+
+/* --- GRID CONTAINER --- */
+.grid-container {
     flex: 1;
+    overflow: auto;
+    position: relative;
+    border-top: 1px solid #ccc;
 }
 
-.modal-footer, .filter-footer {
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-top: 1px solid var(--border-secondary);
-    background: var(--bg-tertiary);
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--spacing-sm);
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    font-size: var(--font-lg);
-    transition: color var(--transition-fast);
-}
-.modal-close:hover { color: var(--danger); }
-
-/* --- 5. TABULATOR OVERRIDES (Clean Dark Theme) --- */
-.tabulator-custom {
-    background: transparent;
-    border: none;
-}
-
-.tabulator {
-    background: transparent !important;
-    font-family: var(--font-primary) !important;
-}
-
-/* Header da Tabela */
-.tabulator .tabulator-header {
-    background: var(--bg-tertiary) !important;
-    border-bottom: 2px solid var(--border-secondary) !important;
-    color: var(--text-secondary) !important;
-    font-weight: var(--font-weight-semibold) !important;
-    text-transform: uppercase;
-    font-size: var(--font-xs) !important;
-}
-
-.tabulator .tabulator-col {
-    background: transparent !important;
-    border-right: 1px solid transparent !important; /* Remove bordas verticais pesadas */
-}
-.tabulator .tabulator-col:hover { background: var(--bg-hover) !important; }
-
-.tabulator .tabulator-col-content { padding: 12px !important; }
-
-/* Inputs de Filtro no Header */
-.tabulator .tabulator-header-filter input {
-    background: var(--bg-primary) !important;
-    border: 1px solid var(--border-secondary) !important;
-    color: var(--text-primary) !important;
-    border-radius: var(--radius-sm) !important;
-    font-size: 11px !important;
-    margin-top: 4px;
-}
-.tabulator .tabulator-header-filter input:focus {
-    border-color: var(--primary) !important;
-}
-
-/* Linhas da Tabela */
-.tabulator .tabulator-tableholder .tabulator-row {
-    background: var(--bg-secondary) !important;
-    border-bottom: 1px solid var(--border-secondary) !important;
-    color: var(--text-primary) !important;
-    transition: background-color var(--transition-fast) !important;
-}
-
-.tabulator .tabulator-row.tabulator-row-even {
-    background: var(--bg-tertiary) !important; /* Zebra sutil */
-}
-
-.tabulator .tabulator-row:hover {
-    background: var(--bg-hover) !important;
-    cursor: pointer;
-}
-
-/* Células */
-.tabulator .tabulator-cell {
-    padding: 10px 12px !important;
-    border-right: none !important;
-    display: inline-flex !important;
-    align-items: center;
-    height: 100%;
-}
-
-
-.tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row {
-  display: inline-block;
-  background: var(--bg-tertiary) !important
-}
-
-/* Status e Cores Específicas na Grid */
-.status-badge {
-    padding: 4px 10px;
-    border-radius: var(--radius-full);
-    font-size: 11px;
-    font-weight: var(--font-weight-bold);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-.status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
-
-/* Variações de Status */
-.status-pendente { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
-.status-pendente::before { background: var(--warning); }
-
-.status-aprovado { background: rgba(16, 185, 129, 0.15); color: var(--success); }
-.status-aprovado::before { background: var(--success); }
-
-.status-reprovado { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-.status-reprovado::before { background: var(--danger); }
-
-.status-original { background: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border-secondary); }
-.status-original::before { background: var(--text-muted); }
-
-/* Linhas Especiais */
-.row-inclusao {
-    border-left: 3px solid var(--info) !important;
-}
-.row-invalida {
-    opacity: 0.5 !important;
-    filter: grayscale(1);
-    background: var(--bg-primary) !important;
-    text-decoration: line-through;
-}
-
-/* Footer / Totais */
-.tabulator .tabulator-footer {
-    background: var(--bg-tertiary) !important;
-    border-top: 1px solid var(--border-primary) !important;
-}
-.tabulator .tabulator-calcs-holder {
-    background: var(--bg-secondary) !important;
-    border-bottom: none !important;
-}
-.tabulator .tabulator-calcs-holder .tabulator-cell {
-    color: var(--primary-light) !important;
-    font-weight: var(--font-weight-bold) !important;
-}
-
-/* --- 6. MENU DE CONTEXTO --- */
-.ar-context-menu {
-    position: absolute;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    box-shadow: var(--shadow-lg);
-    border-radius: var(--radius-md);
-    padding: 6px 0;
-    min-width: 200px;
-    z-index: var(--z-popover);
-    animation: fade-in 0.1s ease-out;
-}
-
-.ar-ctx-list { list-style: none; margin: 0; padding: 0; }
-
-.ar-ctx-item {
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: var(--font-sm);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: background var(--transition-fast);
-}
-
-.ar-ctx-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-}
-
-.ar-ctx-separator {
-    height: 1px;
-    background: var(--border-secondary);
-    margin: 4px 0;
-}
-
-/* --- 7. TOAST NOTIFICATION --- */
-.ar-toast {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    border-left: 4px solid var(--primary);
-    box-shadow: var(--shadow-xl);
-    padding: 16px 20px;
-    border-radius: var(--radius-md);
-    font-size: var(--font-sm);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    z-index: var(--z-tooltip);
-}
-.ar-toast-success { border-color: var(--success); }
-.ar-toast-error { border-color: var(--danger); }
-
-/* --- 8. HISTÓRICO TABLE (Dentro do Modal) --- */
-.history-table {
-    width: 100%;
+/* --- TABLE --- */
+.excel-table {
     border-collapse: collapse;
-    font-size: var(--font-xs);
-}
-.history-table th {
-    background: var(--bg-primary);
-    color: var(--text-secondary);
-    padding: 12px;
-    text-align: left;
-    position: sticky; top: 0;
-}
-.history-table td {
-    border-bottom: 1px solid var(--border-secondary);
-    padding: 10px 12px;
-    color: var(--text-primary);
-}
-.val-old { color: var(--danger); text-decoration: line-through; opacity: 0.7; }
-.val-new { color: var(--success); font-weight: bold; }
-
-/* --- 9. KEYFRAMES & RESPONSIVIDADE --- */
-@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes modal-pop { 
-    from { opacity: 0; transform: translate(-50%, -40%) scale(0.95); } 
-    to { opacity: 1; transform: translate(-50%, -50%) scale(1); } 
+    width: max-content;
+    min-width: 100%;
+    font-size: 12px;
+    table-layout: fixed;
 }
 
-@media (max-width: 1024px) {
-    .form-grid-wrapper { grid-template-columns: repeat(2, 1fr); }
-    .span-3, .span-4 { grid-column: span 2; }
-}
-
-@media (max-width: 640px) {
-    .page-header { flex-direction: column; align-items: flex-start; }
-    .header-actions { width: 100%; }
-    .header-actions button { flex: 1; }
-    .form-grid-wrapper { grid-template-columns: 1fr; }
-    .span-2, .span-3, .span-4 { grid-column: span 1; }
-    .modal-footer { flex-direction: column; }
-}
-
-/* ============================================================================
-   10. PAINEL DE FILTROS AVANÇADOS (FIX)
-   ============================================================================ */
-
-/* Container Principal (Janela Flutuante) */
-.filter-panel-wrapper {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0.95);
-    width: 500px;
-    max-width: 95%;
-    max-height: 85vh;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-2xl);
-    z-index: var(--z-modal);
-    display: flex;
-    flex-direction: column;
-    opacity: 0;
-    pointer-events: none;
-    transition: all var(--transition-normal) cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.filter-panel-wrapper.active {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-    pointer-events: all;
-}
-
-/* Header e Footer */
-.filter-header {
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-bottom: 1px solid var(--border-secondary);
-    background: var(--bg-tertiary);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-}
-
-.filter-header h3 {
-    margin: 0;
-    font-size: var(--font-lg);
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.filter-footer {
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-top: 1px solid var(--border-secondary);
-    background: var(--bg-tertiary);
-    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-}
-
-/* Corpo com Scroll */
-.filter-body-grid {
-    padding: var(--spacing-lg);
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-lg);
-    flex: 1;
-}
-
-/* Seções Internas */
-.filter-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-}
-
-.section-title {
-    font-size: var(--font-xs);
-    font-weight: var(--font-weight-bold);
-    color: var(--primary-light);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    border-bottom: 1px solid var(--border-secondary);
-    padding-bottom: 8px;
-    margin: 0 0 4px 0;
-}
-
-/* Inputs e Labels */
-.input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 100%;
-}
-
-.input-group label {
-    font-size: var(--font-xs);
-    color: var(--text-secondary);
-    font-weight: var(--font-weight-medium);
-    display: flex;
-    justify-content: space-between;
-}
-
-.row-inputs {
-    display: flex;
-    gap: var(--spacing-md);
-    width: 100%;
-}
-
-/* Estilização dos Inputs (Reutilizando visual do form-control) */
-.modern-input {
-    width: 100%;
-    height: 38px;
-    padding: 0 12px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-family: var(--font-primary);
-    font-size: var(--font-sm);
-    transition: var(--transition-fast);
-}
-
-.modern-input:focus {
-    border-color: var(--primary);
-    background: var(--bg-secondary);
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
-}
-
-/* Select Múltiplo (Status) - Correção Visual Importante */
-select[multiple].modern-input {
-    height: auto;
-    min-height: 100px;
-    padding: 4px;
-    overflow-y: auto;
-}
-
-select[multiple].modern-input option {
-    padding: 8px 10px;
-    border-radius: var(--radius-xs);
-    margin-bottom: 2px;
-    cursor: pointer;
-    color: var(--text-primary);
-}
-
-select[multiple].modern-input option:checked {
-    background: var(--primary); /* Fundo roxo quando selecionado */
-    color: white;
-}
-
-select[multiple].modern-input option:hover:not(:checked) {
-    background: var(--bg-hover);
-}
-
-/* Grupo de Datas (Range) */
-.date-range-group {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-.range-separator {
-    color: var(--text-muted);
-    font-size: var(--font-xs);
-}
-
-/* Botões de Ordenação (Tags) */
-.sort-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.btn-sort {
-    background: var(--bg-hover);
-    border: 1px solid var(--border-primary);
-    color: var(--text-secondary);
-    padding: 6px 12px;
-    border-radius: var(--radius-full); /* Formato de pílula */
-    font-size: var(--font-xs);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.btn-sort:hover {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-}
-
-/* Botão de Fechar (X) no Header */
-.btn-text {
-    background: transparent;
-    border: none;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    font-size: var(--font-lg);
-}
-.btn-text:hover { color: var(--danger); }
-
-/* Backdrop (Fundo escuro atrás) */
-.filter-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: var(--z-modal-backdrop); /* Abaixo do modal, acima do resto */
-    opacity: 0;
-    visibility: hidden;
-    transition: all var(--transition-normal);
-}
-.filter-backdrop.active {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* ============================================================================
-   11. HISTÓRICO DE ALTERAÇÕES (REFACTORED)
-   ============================================================================ */
-
-/* Ajuste do Modal de Histórico para garantir altura correta */
-#modalHistorico .custom-modal {
-    height: 80vh; /* Altura fixa confortável */
-    display: flex;
-    flex-direction: column;
-    overflow: hidden; /* Impede scroll duplo */
-}
-
-/* Removemos o roxo sólido e usamos o tema padrão */
-#modalHistorico .modal-header {
-    background: var(--primary);
-    border-bottom: 1px solid var(--border-primary);
-    padding: 20px 25px;
-}
-
-#modalHistorico .modal-body {
-    padding: 0; /* Remove padding para a tabela encostar nas bordas */
-    background: var(--bg-secondary);
-}
-
-/* --- Tabela de Histórico --- */
-.history-table {
-    width: 100%;
-    border-collapse: separate; /* Permite sticky header */
-    border-spacing: 0;
-    font-size: var(--font-sm);
-}
-
-/* Cabeçalho da Tabela (Sticky) */
-.history-table thead th {
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-weight: var(--font-weight-bold);
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border-primary);
+/* Header & Filters */
+.excel-table thead th {
+    background-color: var(--excel-header-bg);
+    border: 1px solid var(--border-color);
+    padding: 0; /* Padding zero para o input ocupar tudo */
+    font-weight: 600;
+    text-align: center;
     position: sticky;
     top: 0;
     z-index: 10;
-    text-align: left;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
-
-/* Linhas do Corpo */
-.history-table tbody tr {
-    transition: background-color 0.2s ease;
-}
-
-.history-table tbody tr:not(:last-child) td {
-    border-bottom: 1px solid var(--border-secondary);
-}
-
-.history-table tbody tr:hover {
-    background-color: var(--bg-hover);
-}
-
-.history-table td {
-    padding: 14px 20px;
-    color: var(--text-primary);
-    vertical-align: middle;
-}
-
-/* --- Colunas Específicas --- */
-
-/* 1. Usuário */
-.history-table td:nth-child(2) {
-    color: var(--text-secondary);
-    font-family: var(--font-mono); /* Fonte mono para user.name */
-    font-size: 0.9em;
-}
-
-/* 2. Badge de Ação (Refatorando o que vem do JS) */
-.history-table .status-badge {
-    background: var(--bg-primary); /* Fundo escuro sutil */
-    border: 1px solid var(--border-secondary);
-    color: var(--text-primary);
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 90px;
-    justify-content: center;
-}
-
-/* 3. Campo Alterado */
-.history-table td strong {
-    color: var(--primary-light);
-    font-weight: 600;
-    background: rgba(var(--primary-rgb), 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.9em;
-    text-transform: uppercase;
-}
-
-/* 4. Valores (Antigo vs Novo) */
-.val-old {
-    color: var(--text-muted);
-    text-decoration: line-through;
-    font-size: 0.9em;
+.header-content {
+    padding: 4px;
+    border-bottom: 1px solid #ddd;
     display: block;
-    opacity: 0.7;
+}
+.filter-container {
+    padding: 2px;
+    background: #fff;
+}
+.filter-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: none;
+    background: #fff;
+    font-size: 11px;
+    padding: 2px 4px;
+    color: #333;
+    font-family: inherit;
+}
+.filter-input:focus { outline: 1px solid var(--excel-green); }
+.filter-input::placeholder { color: #ccc; font-style: italic; }
+
+/* Body */
+.excel-table tbody td {
+    border: 1px solid #e1e1e1;
+    padding: 0 5px;
+    height: 22px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: default;
 }
 
-.val-new {
-    color: var(--success);
-    font-weight: 700;
-    background: rgba(16, 185, 129, 0.1); /* Fundo verde bem suave */
-    padding: 2px 6px;
-    border-radius: 4px;
-    display: inline-block;
-}
+.excel-table tr:hover td { background-color: #e8f0fe; }
+.excel-table tr.selected td { background-color: #d3e3fd; }
 
-/* Estado Vazio (Caso não tenha histórico) */
-.history-empty {
+/* Column Index */
+.col-index {
+    width: 35px;
     text-align: center;
-    padding: 40px;
-    color: var(--text-secondary);
-    font-style: italic;
+    background-color: #f8f9fa;
+    color: #666;
+    border-right: 2px solid #ccc !important;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    user-select: none;
 }
 
-/* Scrollbar personalizada para a tabela */
-#modalHistorico .modal-body::-webkit-scrollbar {
-    width: 8px;
+/* Footer */
+.excel-table tfoot td {
+    background-color: #f3f2f1;
+    font-weight: bold;
+    border-top: 2px solid #999;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    padding: 4px;
 }
-#modalHistorico .modal-body::-webkit-scrollbar-track {
-    background: var(--bg-secondary);
+
+/* Utility Classes */
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+.text-bold { font-weight: bold; }
+.text-money { font-family: 'Consolas', monospace; }
+
+/* Status Colors */
+.status-pendente { color: #d97706; } /* Laranja */
+.status-aprovado { color: #16a34a; } /* Verde */
+.status-reprovado { color: #dc2626; } /* Vermelho */
+.status-invalido { text-decoration: line-through; color: #9ca3af; } 
+.row-invalido td { color: #aaa; font-style: italic; background-color: #f9f9f9; }
+
+/* Editor Inline */
+.cell-editor {
+    width: 100%; height: 100%;
+    border: 2px solid var(--excel-green);
+    outline: none;
+    font-family: inherit; font-size: inherit;
+    padding: 0 4px; margin: 0;
+    position: absolute; top: 0; left: 0;
+    z-index: 20;
 }
-#modalHistorico .modal-body::-webkit-scrollbar-thumb {
-    background: var(--border-primary);
-    border-radius: 4px;
+.td-relative { position: relative; } /* Necessário para o editor absoluto */
+
+/* Context Menu */
+.context-menu {
+    display: none;
+    position: absolute;
+    z-index: 9999;
+    width: 180px;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    border: 1px solid #bababa;
+    font-size: 12px;
 }
-#modalHistorico .modal-body::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+.context-menu ul { list-style: none; padding: 2px 0; margin: 0; }
+.context-menu li {
+    padding: 6px 15px; cursor: pointer; display: flex; align-items: center; gap: 8px;
 }
+.context-menu li:hover { background-color: #edf4fc; }
+.context-menu li.separator { height: 1px; background: #e1dfdd; margin: 3px 0; padding: 0; }
+.ctx-icon { width: 14px; text-align: center; }
+.text-green { color: green; } .text-red { color: red; } .text-blue { color: blue; }
+
+/* Loader */
+.loader-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255,255,255,0.7);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+}
+.spinner {
+    width: 30px; height: 30px; border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--excel-green); border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Modal Histórico */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; }
+.modal.show { display: flex; }
+.modal-content { background: #fff; width: 600px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+.modal-header { padding: 10px; background: var(--excel-green); color: white; display: flex; justify-content: space-between; }
+.modal-body { overflow-y: auto; padding: 0; }
+.history-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.history-table th, .history-table td { padding: 6px; border-bottom: 1px solid #eee; text-align: left; }
