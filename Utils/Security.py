@@ -3,14 +3,14 @@ from functools import wraps
 from flask import abort, jsonify, request, render_template, redirect, url_for
 from flask_login import current_user
 
-def RequiresPermission(permission_slug):
+def RequerPermissao(permission_slug):
     """
     O Guarda-Costas das Rotas:
     Este decorator verifica se o usuário tem o crachá certo (permissão) para entrar.
     
     Como usar:
         @app.route('/area-secreta')
-        @RequiresPermission('area.secreta.acesso')
+        @RequerPermissao('area.secreta.acesso')
         def AreaSecreta():
             ...
     """

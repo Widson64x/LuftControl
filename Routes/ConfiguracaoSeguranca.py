@@ -3,7 +3,7 @@ from flask_login import login_required
 
 # --- Imports dos Serviços e Helpers ---
 from Services.ConfiguracaoSegurancaService import ConfiguracaoSegurancaService
-from Utils.Security import RequiresPermission
+from Utils.Security import RequerPermissao
 
 # Define o Blueprint
 security_bp = Blueprint('SecurityConfig', __name__)
@@ -14,14 +14,14 @@ security_bp = Blueprint('SecurityConfig', __name__)
 
 @security_bp.route('/manager', methods=['GET'])
 @login_required
-@RequiresPermission('security.view')
+@RequerPermissao('security.view')
 def VisualizarGerenciadorSeguranca():
     """Tela Principal de Gestão de Permissões."""
     return render_template('CONFIGS/ConfigsPerms.html')
 
 @security_bp.route('/visualizador', methods=['GET'])
 @login_required
-@RequiresPermission('security.view')
+@RequerPermissao('security.view')
 def VisualizarMapaSeguranca():
     """Tela Visual do Grafo de Segurança."""
     return render_template('COMPONENTS/SecurityMap.html')
@@ -63,7 +63,7 @@ def ObterPapeisEPermissoes():
 
 @security_bp.route('/api/update-user-role', methods=['POST'])
 @login_required
-@RequiresPermission('security.manage')
+@RequerPermissao('security.manage')
 def AtualizarPapelUsuario():
     try:
         data = request.json
@@ -77,7 +77,7 @@ def AtualizarPapelUsuario():
 
 @security_bp.route('/api/save-role', methods=['POST'])
 @login_required
-@RequiresPermission('security.manage')
+@RequerPermissao('security.manage')
 def SalvarPapel():
     try:
         data = request.json
@@ -93,7 +93,7 @@ def SalvarPapel():
 
 @security_bp.route('/api/save-permission', methods=['POST'])
 @login_required
-@RequiresPermission('security.manage')
+@RequerPermissao('security.manage')
 def SalvarPermissao():
     try:
         data = request.json
@@ -109,7 +109,7 @@ def SalvarPermissao():
 
 @security_bp.route('/api/delete-role', methods=['POST'])
 @login_required
-@RequiresPermission('security.manage')
+@RequerPermissao('security.manage')
 def ExcluirPapel():
     try:
         role_id = request.json.get('id')
@@ -122,7 +122,7 @@ def ExcluirPapel():
 
 @security_bp.route('/api/delete-permission', methods=['POST'])
 @login_required
-@RequiresPermission('security.manage')
+@RequerPermissao('security.manage')
 def ExcluirPermissao():
     try:
         perm_id = request.json.get('id')
@@ -135,7 +135,7 @@ def ExcluirPermissao():
 
 @security_bp.route('/api/toggle-direct-permission', methods=['POST'])
 @login_required
-@RequiresPermission('security.manage')
+@RequerPermissao('security.manage')
 def AlternarPermissaoDireta():
     try:
         data = request.json
