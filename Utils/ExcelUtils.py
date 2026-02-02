@@ -1,4 +1,5 @@
 import pandas as pd
+from qvd import qvd_reader
 import os
 import re
 from datetime import datetime, timedelta
@@ -346,3 +347,23 @@ def process_and_save_dynamic(file_path, column_mapping, table_destination, engin
         # Adiciona contexto ao erro para facilitar debug
         RegistrarLog("Erro durante o processamento do Excel (Pandas)", "ERROR", e)
         raise Exception(f"Erro no processamento final: {str(e)}")
+    
+def ler_qvd_para_dataframe(caminho_relativo):
+    """
+    Localiza o arquivo QVD e converte em DataFrame.
+    """
+    # Constrói o caminho absoluto baseado na raiz do projeto (uma pasta acima de Utils)
+    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    full_path = os.path.join(base_path, caminho_relativo)
+
+    if not os.path.exists(full_path):
+        RegistrarLog(f"Arquivo QVD não encontrado em: {full_path}", "ERROR")
+        raise FileNotFoundError(f"Arquivo não encontrado: {full_path}")
+
+    try:
+        RegistrarLog(f"Lendo QVD: {os.path.basename(full_path)}", "QVD_LOAD")
+        df = qvd_reader.read(full_path)
+        return df
+    except Exception as e:
+        RegistrarLog(f"Erro ao processar QVD", "ERROR", e)
+        raise e
