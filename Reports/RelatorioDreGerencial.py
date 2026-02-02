@@ -193,9 +193,9 @@ class RelatorioDreGerencial:
         debug_list.sort(key=lambda x: x['Ordem'])
         return debug_list
     
-    def ProcessarRelatorio(self, filtro_origem='FARMA,FARMADIST,INTEC', agrupar_por_cc=False, filtro_cc=None):
+    def ProcessarRelatorio(self, filtro_origem='FARMA,FARMADIST,INTEC', agrupar_por_cc=False, filtro_cc=None, ano=None):
         """Gera os dados base do relatório (Engine principal)."""
-        RegistrarLog(f"Gerando DRE. Filtro Origem: {filtro_origem} | Filtro CC: {filtro_cc}", "DRE_GEN")
+        RegistrarLog(f"Gerando DRE. Filtro Origem: {filtro_origem} | Filtro CC: {filtro_cc} | Ano: {ano}", "DRE_GEN")
 
         if not filtro_origem: lista_empresas = []
         else: lista_empresas = [x.strip() for x in filtro_origem.split(',') if x.strip()]
@@ -216,7 +216,7 @@ class RelatorioDreGerencial:
 
             aggregated_data = {}
 
-            # --- FUNÇÃO INTERNA PROCESS ROW ---
+            # --- Função Interna ProcessRow (MANTIDA IDÊNTICA) ---
             def ProcessRow(origem, conta, titulo, data, saldo, cc_original_str, row_hash=None, is_skeleton=False, forced_match=None):
                 if not is_skeleton and row_hash and row_hash in ajustes_edicao:
                     adj = ajustes_edicao[row_hash]
@@ -306,7 +306,8 @@ class RelatorioDreGerencial:
                         aggregated_data[group_key][mes_nome] += val_inv
                         aggregated_data[group_key]['Total_Ano'] += val_inv
                     except: pass
-            
+            # --- Fim Função Interna ---
+
             # 1. Esqueleto
             for conta_def, lista_regras in definitions.items():
                 titulo_conta = mapa_titulos.get(conta_def, "Conta Configurada")
@@ -317,6 +318,11 @@ class RelatorioDreGerencial:
             where_clauses = []
             params = {}
             
+            # [NOVO] Lógica do Ano no Banco de Dados
+            if ano:
+                params['ano'] = int(ano)
+                where_clauses.append('EXTRACT(YEAR FROM "Data") = :ano')
+
             orig_params_keys = []
             for i, emp in enumerate(lista_empresas):
                 key = f"orig{i}"; params[key] = emp; orig_params_keys.append(f":{key}")
@@ -355,6 +361,10 @@ class RelatorioDreGerencial:
             # 3. Inclusões Manuais
             for adj in ajustes_inclusao:
                 if adj.Origem not in lista_empresas: continue
+                
+                # [NOVO] Validar Ano nas inclusões
+                if ano and adj.Data and adj.Data.year != int(ano): continue
+
                 if cc_list:
                     cc_adj = str(adj.Centro_Custo or '').strip()
                     if cc_adj not in cc_list: continue

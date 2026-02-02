@@ -71,11 +71,16 @@ def RelatorioRentabilidade():
         modo_escala = request.args.get('scale_mode', 'dre')
         filtro_cc = request.args.get('centro_custo', 'Todos')
         
+        # [NOVO] Captura o ano (Padrão: Ano Atual)
+        ano_atual = datetime.now().year
+        ano = request.args.get('ano', ano_atual)
+        
         usuario_id = current_user.get_id() if current_user else "Anonimo"
-        RegistrarLog(f"Relatório DRE solicitado por {usuario_id}", "WEB_REPORT")
+        RegistrarLog(f"Relatório DRE solicitado por {usuario_id}. Ano: {ano}", "WEB_REPORT")
         
         svc = RelatoriosService()
-        dados = svc.GerarDreRentabilidade(origem, filtro_cc, modo_escala)
+        # [ATUALIZADO] Passando o 4º argumento (ano) que causava o erro
+        dados = svc.GerarDreRentabilidade(origem, filtro_cc, modo_escala, ano)
         
         return jsonify(dados), 200
     except Exception as e:
