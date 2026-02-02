@@ -39,6 +39,9 @@ class BaseConfig:
     LDAP_SERVER = os.getenv("LDAP_SERVER")
     SHOW_DB_LOGS = os.getenv("DB_CONNECT_LOGS", "True").lower() == "true"
 
+    HOST = os.getenv("HOST", "127.0.0.1")
+    PORT = int(os.getenv("PORT", "9009"))
+
     def get_postgres_uri(self):
         pass_encoded = urllib.parse.quote_plus(self.PG_PASS)
         return f"postgresql+{self.PG_DRIVER}://{self.PG_USER}:{pass_encoded}@{self.PG_HOST}:{self.PG_PORT}/{self.PG_DB}"
