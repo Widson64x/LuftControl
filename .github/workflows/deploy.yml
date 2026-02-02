@@ -9,7 +9,7 @@ jobs:
     runs-on: self-hosted
     
     steps:
-    - name: Baixar código atualizado
+    - name: Baixar código (Runner)
       uses: actions/checkout@v4
 
     - name: Atualizar Aplicação no Servidor
@@ -24,15 +24,12 @@ jobs:
         $ServiceName = "LuftControl"
         $AppPath = "C:\ProjetosPython\LuftControl"
         $LogFile = "C:\actions-runner-luftControl\deploy-log.txt"
-        
-        # CAMINHO ABSOLUTO DO NSSM (Ajuste aqui se mudou a pasta)
         $NssmExe = "C:\nssm-2.24\win64\nssm.exe"
         
         # Inicia Log
         Start-Transcript -Path $LogFile -Append
         Write-Host "--- DEPLOY INICIADO: $(Get-Date) por $env:COMMIT_AUTHOR ---"
         Write-Host "Msg: $env:COMMIT_MSG"
-
         $ErrorActionPreference = "Stop"
 
         # -----------------------------------------------------------
@@ -41,34 +38,34 @@ jobs:
         Write-Host "1. Verificando serviço $ServiceName..."
         if (Get-Service $ServiceName -ErrorAction SilentlyContinue) {
             Write-Host "Parando serviço..."
-            # Usamos o caminho completo do NSSM agora
             cmd /c "$NssmExe stop $ServiceName" 2>&1 | Out-Null
             Start-Sleep -Seconds 3
         }
 
         # -----------------------------------------------------------
-        # 2. ATUALIZAR CÓDIGO (GIT PULL)
+        # 2. ATUALIZAR ARQUIVOS (COPIAR DO RUNNER -> PASTA DE DESTINO)
         # -----------------------------------------------------------
-        Write-Host "2. Atualizando repositório em $AppPath..."
+        Write-Host "2. Copiando arquivos para $AppPath..."
         
-        if (Test-Path $AppPath) {
-            Set-Location $AppPath
-            
-            # Garante que o git confie na pasta
-            cmd /c "git config --global --add safe.directory $AppPath"
-            
-            # Limpa e Puxa
-            cmd /c "git reset --hard"
-            cmd /c "git pull origin main"
-        } else {
-            Write-Error "A pasta $AppPath não existe no servidor!"
-            Stop-Transcript; exit 1
+        # Cria a pasta de destino se não existir
+        if (-not (Test-Path $AppPath)) { 
+            New-Item -Path $AppPath -ItemType Directory -Force 
         }
+
+        # Copia os arquivos baixados pelo checkout para a pasta de produção
+        # Excluímos .git (não precisa no servidor) e .venv (para não quebrar o ambiente virtual local)
+        Copy-Item -Path ".\*" -Destination $AppPath -Recurse -Force -Exclude ".git",".venv"
+        
+        Write-Host "Arquivos copiados com sucesso."
 
         # -----------------------------------------------------------
         # 3. ATUALIZAR DEPENDÊNCIAS
         # -----------------------------------------------------------
         Write-Host "3. Verificando dependências..."
+        
+        # Entra na pasta do projeto
+        Set-Location $AppPath
+
         if (Test-Path ".venv") {
             cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
         } else {
@@ -78,10 +75,9 @@ jobs:
         }
 
         # -----------------------------------------------------------
-        # 4. INICIAR SERVIÇO (VAI FUNCIONAR COM NSSM, EU ESPERO...)
+        # 4. INICIAR SERVIÇO
         # -----------------------------------------------------------
         Write-Host "4. Iniciando serviço $ServiceName..."
-        # Usamos o caminho completo do NSSM agora
         cmd /c "$NssmExe start $ServiceName"
         Start-Sleep -Seconds 5
         
