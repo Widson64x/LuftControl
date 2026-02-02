@@ -1,0 +1,92 @@
+name: Deploy LuftControl
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Baixar código atualizado
+      uses: actions/checkout@v4
+
+    - name: Atualizar Aplicação no Servidor
+      shell: powershell
+      env:
+        COMMIT_MSG: ${{ github.event.head_commit.message }}
+        COMMIT_AUTHOR: ${{ github.actor }}
+        PYTHONUTF8: "1"
+        PYTHONIOENCODING: "utf-8"
+      run: |
+        # --- CONFIGURAÇÕES ---
+        $ServiceName = "LuftControl"
+        $AppPath = "C:\ProjetosPython\LuftControl"
+        $LogFile = "C:\actions-runner-luftControl\deploy-log.txt"
+        
+        # Inicia Log
+        Start-Transcript -Path $LogFile -Append
+        Write-Host "--- DEPLOY INICIADO: $(Get-Date) por $env:COMMIT_AUTHOR ---"
+        Write-Host "Msg: $env:COMMIT_MSG"
+
+        $ErrorActionPreference = "Stop"
+
+        # -----------------------------------------------------------
+        # 1. PARAR SERVIÇO
+        # -----------------------------------------------------------
+        Write-Host "1. Verificando serviço $ServiceName..."
+        if (Get-Service $ServiceName -ErrorAction SilentlyContinue) {
+            Write-Host "Parando serviço..."
+            cmd /c "nssm stop $ServiceName" 2>&1 | Out-Null
+            Start-Sleep -Seconds 3
+        }
+
+        # -----------------------------------------------------------
+        # 2. ATUALIZAR CÓDIGO (GIT PULL)
+        # -----------------------------------------------------------
+        Write-Host "2. Atualizando repositório em $AppPath..."
+        
+        if (Test-Path $AppPath) {
+            Set-Location $AppPath
+            
+            # Garante que o git confie na pasta
+            cmd /c "git config --global --add safe.directory $AppPath"
+            
+            # Limpa e Puxa
+            cmd /c "git reset --hard"
+            cmd /c "git pull origin main"
+        } else {
+            Write-Error "A pasta $AppPath não existe no servidor!"
+            Stop-Transcript; exit 1
+        }
+
+        # -----------------------------------------------------------
+        # 3. ATUALIZAR DEPENDÊNCIAS
+        # -----------------------------------------------------------
+        Write-Host "3. Verificando dependências..."
+        if (Test-Path ".venv") {
+            cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
+        } else {
+            Write-Warning "Criando venv..."
+            cmd /c "python -m venv .venv"
+            cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
+        }
+
+        # -----------------------------------------------------------
+        # 4. INICIAR SERVIÇO
+        # -----------------------------------------------------------
+        Write-Host "4. Iniciando serviço $ServiceName..."
+        cmd /c "nssm start $ServiceName"
+        Start-Sleep -Seconds 5
+        
+        $ServiceStatus = Get-Service $ServiceName
+        if ($ServiceStatus.Status -eq 'Running') {
+            Write-Host "SUCESSO: Serviço iniciado!"
+        } else {
+            Write-Error "FALHA: O serviço não subiu. Verifique o log do app."
+            Stop-Transcript; exit 1
+        }
+
+        Write-Host "--- DEPLOY FINALIZADO ---"
+        Stop-Transcript
