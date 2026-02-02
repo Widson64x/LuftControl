@@ -61,7 +61,7 @@ class DreOrdenamentoManager {
             if (typeof API_ROUTES !== 'undefined' && API_ROUTES.getFilhosOrdenados) {
                 url = API_ROUTES.getFilhosOrdenados;
             } else {
-                url = '/T-controllership/DreOrdenamento/Ordenamento/GetFilhosOrdenados'; 
+                url = '/Luft Control/DreOrdenamento/Ordenamento/GetFilhosOrdenados'; 
             }
 
             const r = await fetch(url, {
@@ -529,7 +529,7 @@ class DreOrdenamentoManager {
             if (typeof API_ROUTES !== 'undefined' && API_ROUTES.reordenarLote) {
                 url = API_ROUTES.reordenarLote;
             } else {
-                url = '/T-controllership/DreOrdenamento/Ordenamento/ReordenarLote';
+                url = '/Luft Control/DreOrdenamento/Ordenamento/ReordenarLote';
             }
             
             const r = await fetch(url, {

@@ -99,6 +99,6 @@ def importar_intec(caminho_arquivo):
 
 if __name__ == "__main__":
     # Caminho absoluto conforme solicitado, usando 'r' para raw string (evita erro com barras invertidas)
-    arquivo = r'C:\Programs\T-Controllership\Data\RAZAO_INTEC.xlsx'
+    arquivo = r'C:\Programs\Luft Control\Data\RAZAO_INTEC.xlsx'
     
     importar_intec(arquivo)

@@ -1,5 +1,5 @@
 // ==========================================================================
-// T-CONTROLLERSHIP - TREE VIEW MANAGER
+// Luft Control - TREE VIEW MANAGER
 // Arquivo: Static/JS/DreTreeView.js
 // Descrição: Gerencia a árvore, modais, menu de contexto e sincronização.
 // ==========================================================================
@@ -12,8 +12,8 @@ let ordenamentoAtivo = false;
 let tipoDestinoIntegral = null; // Controle para replicação de Tipos
 
 // DEFINIÇÃO DE PREFIXOS (Baseado nos seus logs)
-const PREFIX_ORDEM = '/T-controllership/DreOrdenamento';
-const PREFIX_CONFIG = '/T-controllership/DreConfig';
+const PREFIX_ORDEM = '/Luft Control/DreOrdenamento';
+const PREFIX_CONFIG = '/Luft Control/DreConfig';
 
 // MAPA VISUAL (Somente Visualização)
 const MAPA_TIPOS_CC = {

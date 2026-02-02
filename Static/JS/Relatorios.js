@@ -1,5 +1,5 @@
 // ============================================================================
-// T-Controllership - SISTEMA DE RELATÓRIOS FINANCEIROS & BI NATIVO
+// Luft Control - SISTEMA DE RELATÓRIOS FINANCEIROS & BI NATIVO
 // Arquivo: Static/JS/Relatorios.js
 // ============================================================================
 

@@ -25,7 +25,7 @@ if __name__ == "__main__":
     # Porta interna do serviço (O NGINX vai redirecionar a porta 80 para cá)
     port = BaseConfig.PORT
 
-    print(f"--> INICIANDO SERVIDOR WSGI (WAITRESS) PARA O T-CONTROLLERSHIP")
+    print(f"--> INICIANDO SERVIDOR WSGI (WAITRESS) PARA O Luft Control")
     print(f"--> Endereço: http://{host}:{port}")
     print(f"--> Modo: Produção (Serviço Windows)")
     
