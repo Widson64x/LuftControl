@@ -26,7 +26,10 @@ load_dotenv()
 
 ROUTE_PREFIX = os.getenv("ROUTE_PREFIX", "")
 
-app = Flask(__name__)
+app = Flask(__name__,
+            static_url_path=f'{ROUTE_PREFIX}/Static', 
+            static_folder='Static')
+
 app.secret_key = os.getenv("SECRET_PASSPHRASE", "40028922") # Chave secreta padrão para desenvolvimento
 
 # --- Configuração SQLAlchemy ---

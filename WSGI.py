@@ -30,5 +30,4 @@ if __name__ == "__main__":
     print(f"--> Modo: Produção (Serviço Windows)")
     
     # Inicia o servidor Waitress
-    # threads=6 é um bom padrão para aplicações médias, ajuste conforme a carga
-    serve(app, host=host, port=port, threads=6)
+    serve(app, host=host, port=port)
