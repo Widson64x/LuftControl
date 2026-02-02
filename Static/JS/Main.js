@@ -1,10 +1,10 @@
 // ============================================
-// T-Controllership - MAIN JAVASCRIPT
+// Luft Control - MAIN JAVASCRIPT
 // Arquivo: Static/js/main.js
 // ============================================
 
 /**
- * Sistema Principal do T-Controllership
+ * Sistema Principal do Luft Control
  * Gerencia funcionalidades globais do sistema
  */
 class DRESystem {
@@ -16,7 +16,7 @@ class DRESystem {
         this.setupEventListeners();
         this.setupAnimations();
         this.setupKeyboardShortcuts();
-        console.log('✅ T-Controllership inicializado');
+        console.log('✅ Luft Control inicializado');
     }
 
     /**

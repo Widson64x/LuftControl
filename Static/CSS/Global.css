@@ -158,7 +158,7 @@ p { color: var(--text-secondary); margin-bottom: var(--spacing-md); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ==========================================================================
-   T-CONTROLLERSHIP | SYSTEM FOOTER
+   Luft Control | SYSTEM FOOTER
    Design: Enterprise Systemic UI
    ========================================================================== */
 
