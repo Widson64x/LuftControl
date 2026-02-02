@@ -1,63 +1,100 @@
 import datetime
 import calendar
+from dateutil import parser
 import hashlib
+import os
+import pandas as pd
 from sqlalchemy import text
-from Models.POSTGRESS.Ajustes import AjustesRazao, AjustesLog, AjustesIntergrupoLog
+from Models.POSTGRESS.Ajustes import AjustesRazao, AjustesLog
+from Settings import BaseConfig
+from Utils.ExcelUtils import ler_qvd_para_dataframe
 from Utils.Hash_Utils import gerar_hash
 from Utils.Common import parse_bool
-# Importando o Logger
 from Utils.Logger import RegistrarLog 
+from Db.Connections import GetPostgresEngine
 
 class AjustesManuaisService:
     def __init__(self, session_db):
-        # Guardamos a sessão para usar nos métodos
         self.session = session_db
+        self.engine = GetPostgresEngine()
+        self.schema = "Dre_Schema"
 
-    # --- HELPERS INTERNOS (Métodos auxiliares) ---
+    # --- HELPERS INTERNOS ---
 
     def _RegistrarLog(self, ajuste_antigo, dados_novos, usuario):
         """
-        Registra logs de edição comparando valor antigo vs novo.
-        Se nada mudou, vida que segue. Se mudou, dedura no banco.
+        Gera logs comparando o objeto do banco (ajuste_antigo) com o JSON (dados_novos)
         """
+        # Mapeamento: Chave no JSON do Front -> Atributo na Model do Banco
         campos_mapeados = {
-            'origem': 'Origem', 'Conta': 'Conta', 'Titulo_Conta': 'Titulo_Conta',
-            'Numero': 'Numero', 'Descricao': 'Descricao', 'Contra_Partida': 'Contra_Partida',
-            'Filial': 'Filial', 'Centro de Custo': 'Centro_Custo', 'Item': 'Item',
-            'Cod_Cl_Valor': 'Cod_Cl_Valor', 'Debito': 'Debito', 'Credito': 'Credito',
-            'NaoOperacional': 'Is_Nao_Operacional', 'Exibir_Saldo': 'Exibir_Saldo',
-            'Data': 'Data', 'Invalido': 'Invalido'
+            'origem': 'Origem', 
+            'Conta': 'Conta', 
+            'Titulo_Conta': 'Titulo_Conta', # Verifica se no JS está Titulo_Conta ou Título Conta
+            'Numero': 'Numero', 
+            'Descricao': 'Descricao', 
+            'Contra_Partida': 'Contra_Partida',
+            'Filial': 'Filial', 
+            'Centro_Custo': 'Centro_Custo', # No JS deve ser 'Centro_Custo' ou 'Centro de Custo'
+            'Item': 'Item',
+            'Cod_Cl_Valor': 'Cod_Cl_Valor', 
+            'Debito': 'Debito', 
+            'Credito': 'Credito',
+            'NaoOperacional': 'Is_Nao_Operacional', 
+            'Exibir_Saldo': 'Exibir_Saldo',
+            'Data': 'Data', 
+            'Invalido': 'Invalido'
         }
         
+        # Normalização de chaves flexíveis (caso o front mande com espaço ou acento)
+        keys_front = dados_novos.keys()
+        
         for json_key, model_attr in campos_mapeados.items():
-            # Pegando os valores crus pra não ter erro de interpretação
+            # Tenta pegar valor exato, se não achar, tenta buscar chaves alternativas comuns
             valor_novo_raw = dados_novos.get(json_key)
+            
+            # Fallbacks para chaves que costumam dar problema
+            if valor_novo_raw is None:
+                if json_key == 'Titulo_Conta': 
+                    valor_novo_raw = dados_novos.get('Título Conta')
+                elif json_key == 'Centro_Custo': 
+                    valor_novo_raw = dados_novos.get('Centro de Custo')
+                elif json_key == 'Contra_Partida': 
+                    valor_novo_raw = dados_novos.get('Contra Partida - Credito')
+
             valor_antigo_raw = getattr(ajuste_antigo, model_attr)
 
-            val_antigo = str(valor_antigo_raw) if valor_antigo_raw is not None else ''
-            val_novo = str(valor_novo_raw) if valor_novo_raw is not None else ''
+            # Tratamento para comparação justa
+            val_antigo = str(valor_antigo_raw).strip() if valor_antigo_raw is not None else ''
+            val_novo = str(valor_novo_raw).strip() if valor_novo_raw is not None else ''
             
-            # Formata Data pra ficar bonitinho na comparação
+            # Tratamento especial de Data
             if model_attr == 'Data' and valor_antigo_raw:
                 val_antigo = valor_antigo_raw.strftime('%Y-%m-%d')
                 if val_novo and 'T' in val_novo: val_novo = val_novo.split('T')[0]
+                # Tenta converter o novo para formato YYYY-MM-DD se vier 'Mon, 15 Sep...'
+                try:
+                    if 'GMT' in val_novo or ',' in val_novo:
+                        from dateutil import parser
+                        dt_temp = parser.parse(val_novo)
+                        val_novo = dt_temp.strftime('%Y-%m-%d')
+                except: pass
             
-            # Compara floats com tolerância (pra evitar aquele 0.00000001 de diferença)
+            # Tratamento especial de Float (Dinheiro)
             if model_attr in ['Debito', 'Credito']:
                 try:
                     f_antigo = float(valor_antigo_raw or 0)
                     f_novo = float(valor_novo_raw or 0)
                     if abs(f_antigo - f_novo) < 0.001: continue
-                    val_antigo, val_novo = str(f_antigo), str(f_novo)
+                    val_antigo, val_novo = f"{f_antigo:.2f}", f"{f_novo:.2f}"
                 except: pass
             
-            # Normaliza booleanos para Sim/Não
+            # Tratamento Booleano
             if model_attr in ['Is_Nao_Operacional', 'Exibir_Saldo', 'Invalido']:
                 val_antigo = 'Sim' if parse_bool(valor_antigo_raw) else 'Não'
                 val_novo = 'Sim' if parse_bool(valor_novo_raw) else 'Não'
 
-            # Se for diferente, anota no caderninho (Log)
             if val_antigo != val_novo:
+                RegistrarLog(f"Alteração detectada em {model_attr}: '{val_antigo}' -> '{val_novo}'", "DEBUG")
                 novo_log = AjustesLog(
                     Id_Ajuste=ajuste_antigo.Id, Campo_Alterado=model_attr, 
                     Valor_Antigo=val_antigo, Valor_Novo=val_novo, 
@@ -65,14 +102,9 @@ class AjustesManuaisService:
                     Tipo_Acao='EDICAO'
                 )
                 self.session.add(novo_log)
-
+                
     def _GerarHashIntergrupo(self, row):
-        """
-        Gera um ID único (MD5) para linhas de intergrupo.
-        Usa valores de débito/crédito na chave pra garantir unicidade.
-        """
         def Clean(val):
-            # Limpa o valor pra string, lidando com Nones
             if val is None: return 'None'
             s = str(val).strip()
             return 'None' if s == '' or s.lower() == 'none' else s
@@ -84,76 +116,45 @@ class AjustesManuaisService:
             row.get('Origem') 
         ]
         
-        lista_limpa = []
-        for item in campos:
-            val = item
-            if isinstance(item, (datetime.date, datetime.datetime)):
-                val = item.strftime('%Y-%m-%d')
-            lista_limpa.append(Clean(val))
-
-        raw_str = "".join(lista_limpa)
+        raw_str = "".join([Clean(x) for x in campos])
         return hashlib.md5(raw_str.encode('utf-8')).hexdigest()
 
-    # --- MÉTODOS PRINCIPAIS (Ação real) ---
-
+    # --- MÉTODOS DE GRID/CRUD ---
     def ObterDadosGrid(self):
-        """
-        O Grande Chefão.
-        1. Pega tudo do ERP (View).
-        2. Pega todos os ajustes do banco.
-        3. Cria ajustes automáticos pro item 10190 se precisarem existir.
-        4. Mistura tudo numa lista só pro front-end ser feliz.
-        """
-        RegistrarLog("Iniciando ObterDadosGrid (Carga do Razão + Ajustes)", "SERVICE")
+        RegistrarLog("Iniciando ObterDadosGrid", "SERVICE")
         
-        # 1. Carrega dados da View (Razão Original)
-        # Nota: Mantido o LIMIT 10M, que é praticamente 'tudo', mas previne travar o servidor se tiver infinito.
         q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 10000000') 
         res_view = self.session.execute(q_view)
         rows_view = [dict(row._mapping) for row in res_view]
         
-        RegistrarLog(f"Dados da View Carregados. Linhas: {len(rows_view)}", "DEBUG")
-
-        # [REMOVIDO] Bloco de Debug que contava linhas (Farma, Intec, etc). 
-        # Era código morto gastando CPU à toa. Tchau, brigado.
-
-        # 2. Carrega TODOS os Ajustes Existentes
         ajustes = self.session.query(AjustesRazao).all()
-        # Mapeia por Hash pra busca ficar O(1) e voar baixo
         mapa_existentes = {aj.Hash_Linha_Original: aj for aj in ajustes}
-        
-        # 3. Regra Automática: Item 10190
-        # Se achar esse item na view e não tiver ajuste, cria um automático
+        # Registra ajustes automáticos para itens 10190, se não existirem
         novos_ajustes_auto = []
         for row in rows_view:
             if str(row.get('Item')).strip() == '10190':
                 h = gerar_hash(row)
-                
                 if h not in mapa_existentes:
                     now = datetime.datetime.now()
-                    novo_ajuste = AjustesRazao(
+                    novo = AjustesRazao(
                         Hash_Linha_Original=h, Tipo_Operacao='NO-OPER_AUTO', Status='Aprovado',
                         Origem=row.get('origem'), Conta=row.get('Conta'), Titulo_Conta=row.get('Título Conta'),
                         Data=row.get('Data'), Numero=row.get('Numero'), Descricao=row.get('Descricao'),
                         Contra_Partida=row.get('Contra Partida - Credito'), 
-                        Filial=str(row.get('Filial')) if row.get('Filial') else None,
-                        Centro_Custo=str(row.get('Centro de Custo')) if row.get('Centro de Custo') else None,
-                        Item=str(row.get('Item')), Cod_Cl_Valor=str(row.get('Cod Cl. Valor')) if row.get('Cod Cl. Valor') else None,
+                        Filial=str(row.get('Filial') or ''), Centro_Custo=str(row.get('Centro de Custo') or ''),
+                        Item=str(row.get('Item')), Cod_Cl_Valor=str(row.get('Cod Cl. Valor') or ''),
                         Debito=float(row.get('Debito') or 0), Credito=float(row.get('Credito') or 0),
                         Is_Nao_Operacional=True, Exibir_Saldo=True, Invalido=False,
-                        Criado_Por='SISTEMA_AUTO', Data_Criacao=now, Aprovado_Por='Sistema (Auto 10190)', Data_Aprovacao=now
+                        Criado_Por='SISTEMA_AUTO', Data_Criacao=now, Aprovado_Por='Sistema', Data_Aprovacao=now
                     )
-                    novos_ajustes_auto.append(novo_ajuste)
-                    mapa_existentes[h] = novo_ajuste
-
-        # Salva em lote pra não matar o banco de requisições
+                    novos_ajustes_auto.append(novo)
+                    mapa_existentes[h] = novo
+        
         if novos_ajustes_auto:
             self.session.bulk_save_objects(novos_ajustes_auto)
             self.session.commit()
-            ajustes = self.session.query(AjustesRazao).all() # Reload para garantir IDs frescos
-            RegistrarLog(f"Gerados {len(novos_ajustes_auto)} ajustes automáticos para Item 10190.", "INFO")
-        
-        # 4. Segregação: Quem é edição e quem é inclusão pura?
+            ajustes = self.session.query(AjustesRazao).all()
+
         mapa_edicao = {}
         lista_adicionais = []
         for aj in ajustes:
@@ -162,125 +163,221 @@ class AjustesManuaisService:
             elif aj.Tipo_Operacao in ['INCLUSAO', 'INTERGRUPO_AUTO']:
                 lista_adicionais.append(aj)
 
-        # 5. Construção Final do Retorno
         dados_finais = []
-
+        
+        # Dentro de ObterDadosGrid -> MontarLinha
         def MontarLinha(base, ajuste=None, is_inclusao=False):
-            # Função interna pra padronizar o dicionário de saída
             row = base.copy()
             row['Exibir_Saldo'] = True 
-            if ajuste:  # Se tiver ajuste (edição ou inclusão), sobrescreve os campos abaixo
+            if ajuste:
                 row.update({
-                    'origem': ajuste.Origem, 'Conta': ajuste.Conta, 'Título Conta': ajuste.Titulo_Conta,
+                    'origem': ajuste.Origem, 
+                    'Conta': ajuste.Conta, 
+                    'Título Conta': ajuste.Titulo_Conta,  # Alinhado com o JS
                     'Data': ajuste.Data.strftime('%Y-%m-%d') if ajuste.Data else None,
-                    'Numero': ajuste.Numero, 'Descricao': ajuste.Descricao, 'Contra Partida - Credito': ajuste.Contra_Partida, 
-                    'Filial': ajuste.Filial, 'Centro de Custo': ajuste.Centro_Custo, 'Item': ajuste.Item,
-                    'Cod Cl. Valor': ajuste.Cod_Cl_Valor, 'Debito': ajuste.Debito, 'Credito': ajuste.Credito, 
-                    'NaoOperacional': ajuste.Is_Nao_Operacional, 'Exibir_Saldo': ajuste.Exibir_Saldo, 
-                    'Invalido': ajuste.Invalido, 'Status_Ajuste': ajuste.Status, 
-                    'Ajuste_ID': ajuste.Id, 'Criado_Por': ajuste.Criado_Por 
+                    'Numero': ajuste.Numero, 
+                    'Descricao': ajuste.Descricao, 
+                    'Contra Partida - Credito': ajuste.Contra_Partida, # Alinhado com o JS
+                    'Filial': ajuste.Filial, 
+                    'Centro de Custo': ajuste.Centro_Custo, # Alinhado com o JS
+                    'Item': ajuste.Item,
+                    'Cod Cl. Valor': ajuste.Cod_Cl_Valor, 
+                    'Debito': ajuste.Debito, 
+                    'Credito': ajuste.Credito, 
+                    'NaoOperacional': ajuste.Is_Nao_Operacional, 
+                    'Status_Ajuste': ajuste.Status, 
+                    'Ajuste_ID': ajuste.Id
                 })
                 if is_inclusao:
-                    prefixo = "AUTO_" if ajuste.Tipo_Operacao == 'INTERGRUPO_AUTO' else "NEW_"
+                    prefixo = "AUTO_" if 'INTERGRUPO' in str(ajuste.Tipo_Operacao) else "NEW_"
                     row['Hash_ID'] = f"{prefixo}{ajuste.Id}"
                     row['Tipo_Linha'] = 'Inclusao'
-                
-            if row.get('Exibir_Saldo'):
-                row['Saldo'] = (float(row.get('Debito') or 0) - float(row.get('Credito') or 0))
-            else:
-                row['Saldo'] = 0.0
+            
+            row['Saldo'] = (float(row.get('Debito') or 0) - float(row.get('Credito') or 0)) if row.get('Exibir_Saldo') else 0.0
             return row
 
-        # Processa linhas originais (com ou sem edição)
-        for row in rows_view:
+        for row in rows_view: # Percorre os dados da view, e adiciona ajustes de edição se existirem
             h = gerar_hash(row)
-            ajuste = mapa_edicao.get(h)
-            linha = MontarLinha(row, ajuste, is_inclusao=False)
+            aj = mapa_edicao.get(h)
+            linha = MontarLinha(row, aj, is_inclusao=False)
             linha['Hash_ID'] = h
             linha['Tipo_Linha'] = 'Original'
-            if not ajuste: linha['Status_Ajuste'] = 'Original'
+            if not aj: linha['Status_Ajuste'] = 'Original'
             dados_finais.append(linha)
 
-        # Adiciona as linhas puramente novas (inclusões manuais ou intergrupo)
-        for adic in lista_adicionais:
+        for adic in lista_adicionais: # Adiciona ajustes automáticos como linhas adicionais
             dados_finais.append(MontarLinha({}, adic, is_inclusao=True))
         
-        RegistrarLog(f"Grid montado com sucesso. Total de linhas enviadas: {len(dados_finais)}", "SERVICE")
         return dados_finais
 
-    def SalvarAjuste(self, payload, usuario):
+    def CriarAjusteManual(self, payload, usuario):
         """
-        Recebe o payload do front e salva.
-        Se já existe, atualiza. Se não, cria. Simples assim.
+        Cria um novo ajuste do zero (INCLUSAO).
+        Gera um Hash novo baseado no conteúdo para garantir unicidade no banco.
         """
-        RegistrarLog(f"Iniciando SalvarAjuste. Usuario: {usuario}", "SERVICE")
+        RegistrarLog(f"Iniciando CriarAjusteManual. Usuario: {usuario}", "SERVICE")
         
         d = payload['Dados']
-        hash_id = payload.get('Hash_ID')
-        ajuste_id = payload.get('Ajuste_ID')
+        now = datetime.datetime.now()
+
+        # Mapeamento e Tratamento de Data
+        data_ajuste = now
+        data_raw = d.get('Data')
+        if data_raw:
+            try:
+                if 'T' in str(data_raw): 
+                    data_ajuste = datetime.datetime.strptime(data_raw.split('T')[0], '%Y-%m-%d')
+                else:
+                    data_ajuste = parser.parse(str(data_raw))
+            except:
+                pass # Mantém o now se falhar
+
+        # Prepara o objeto
+        ajuste = AjustesRazao()
+        ajuste.Criado_Por = usuario
+        ajuste.Data_Criacao = now
+        ajuste.Tipo_Operacao = 'INCLUSAO' # Forçado
+        ajuste.Status = 'Pendente'
+        
+        # Gera um Hash único para este registro novo (Timestamp + Usuario + Descricao)
+        # Isso é necessário pois o banco ou o Grid esperam um Hash único
+        raw_hash = f"{now.timestamp()}-{usuario}-{d.get('Descricao')}"
+        ajuste.Hash_Linha_Original = hashlib.md5(raw_hash.encode('utf-8')).hexdigest()
+
+        # Mapeamento de Campos
+        ajuste.Origem = 'MANUAL' # Inclusões manuais geralmente têm essa origem
+        ajuste.Data = data_ajuste
+        
+        if d.get('Conta'): ajuste.Conta = str(d.get('Conta')).strip()
+        ajuste.Titulo_Conta = d.get('Titulo_Conta') or d.get('Título Conta')
+        ajuste.Centro_Custo = d.get('Centro de Custo') or d.get('Centro_Custo')
+        ajuste.Numero = d.get('Numero')
+        ajuste.Descricao = d.get('Descricao')
+        ajuste.Contra_Partida = d.get('Contra_Partida') or d.get('Contra Partida - Credito')
+        ajuste.Filial = d.get('Filial')
+        ajuste.Item = d.get('Item')
+        ajuste.Cod_Cl_Valor = d.get('Cod_Cl_Valor') or d.get('Cod Cl. Valor')
+        
+        ajuste.Debito = float(d.get('Debito') or 0)
+        ajuste.Credito = float(d.get('Credito') or 0)
+        
+        ajuste.Invalido = False
+        ajuste.Is_Nao_Operacional = parse_bool(d.get('NaoOperacional'))
+        ajuste.Exibir_Saldo = True
+
+        self.session.add(ajuste)
+        self.session.flush() # Gera o ID
+        
+        # Log de Criação
+        log = AjustesLog(
+            Id_Ajuste=ajuste.Id, 
+            Campo_Alterado='TODOS', 
+            Valor_Antigo='-', 
+            Valor_Novo='CRIADO_MANUALMENTE', 
+            Usuario_Acao=usuario, 
+            Data_Acao=now, 
+            Tipo_Acao='INCLUSAO'
+        )
+        self.session.add(log)
+        
+        self.session.commit()
+        return ajuste.Id
+    
+    def SalvarAjuste(self, payload, usuario):
+        RegistrarLog(f"Iniciando SalvarAjuste. Usuario: {usuario}", "SERVICE")
+        
+        d = payload.get('Dados', {})
+        
+        # Identificadores vindos do Front-end
+        hash_id = d.get('Hash_ID') or payload.get('Hash_ID')
+        ajuste_id = d.get('Ajuste_ID') or payload.get('Ajuste_ID')
         
         ajuste = None
         is_novo = False
+
+        RegistrarLog(f"Payload ID: {ajuste_id} | Hash: {hash_id}", "DEBUG")
         
-        # Tenta achar pelo ID direto
+        # 1. TENTA LOCALIZAR O REGISTRO
         if ajuste_id:
             ajuste = self.session.query(AjustesRazao).get(ajuste_id)
         
-        # Se não achou e é edição, tenta pelo Hash da linha original
-        if not ajuste and payload['Tipo_Operacao'] == 'EDICAO':
+        # Só busca por Hash se não for uma inclusão manual nova (Inclusões manuais usam ID)
+        if not ajuste and hash_id and not str(hash_id).startswith('NEW_'):
             ajuste = self.session.query(AjustesRazao).filter_by(Hash_Linha_Original=hash_id).first()
         
-        # Se ainda não achou, é novo mesmo
+        # 2. CRIAÇÃO DE NOVO OBJETO (Se não existir no banco)
         if not ajuste:
             ajuste = AjustesRazao()
             is_novo = True
             ajuste.Criado_Por = usuario
             ajuste.Data_Criacao = datetime.datetime.now()
+            
+            # Trava de Hash: Só grava Hash_Linha_Original se não for uma INCLUSAO manual
+            if payload.get('Tipo_Operacao') != 'INCLUSAO':
+                ajuste.Hash_Linha_Original = hash_id
+            
             self.session.add(ajuste)
         else:
-            # Se já existe, loga o que mudou antes de sobrescrever
+            # Se o ajuste já existia, registra o log de alteração antes de atualizar
             self._RegistrarLog(ajuste, d, usuario)
 
-        # Atualiza os campos
-        ajuste.Tipo_Operacao = payload['Tipo_Operacao']
-        ajuste.Hash_Linha_Original = hash_id
-        ajuste.Status = 'Pendente' # Toda alteração volta pra pendente
+        # 3. TRAVA LÓGICA DO TIPO DE OPERAÇÃO
+        tipo_solicitado = payload.get('Tipo_Operacao', 'EDICAO')
         
-        ajuste.Origem = d.get('origem')
-        ajuste.Conta = d.get('Conta')
-        ajuste.Titulo_Conta = d.get('Titulo_Conta')
-        if d.get('Data'): ajuste.Data = datetime.datetime.strptime(d['Data'], '%Y-%m-%d')
+        # Se já é INCLUSAO, ou se está sendo criado como tal, mantém. 
+        # Não permite que uma INCLUSAO vire EDICAO.
+        if ajuste.Tipo_Operacao == 'INCLUSAO' or tipo_solicitado == 'INCLUSAO':
+            ajuste.Tipo_Operacao = 'INCLUSAO'
+        else:
+            ajuste.Tipo_Operacao = 'EDICAO'
+
+        # 4. ATUALIZAÇÃO DOS CAMPOS
+        ajuste.Status = 'Pendente'
+        ajuste.Origem = d.get('origem', ajuste.Origem)
+        
+        # Dados da Conta
+        if d.get('Conta'): ajuste.Conta = str(d.get('Conta')).strip()
+        ajuste.Titulo_Conta = d.get('Titulo_Conta') or d.get('Título Conta')
+        ajuste.Centro_Custo = d.get('Centro de Custo') or d.get('Centro_Custo')
+        
+        # Tratamento de Data
+        data_raw = d.get('Data')
+        if data_raw:
+            try:
+                ajuste.Data = parser.parse(str(data_raw))
+            except:
+                if 'T' in str(data_raw): 
+                    ajuste.Data = datetime.datetime.strptime(data_raw.split('T')[0], '%Y-%m-%d')
+
+        # Campos Financeiros e Descritivos
         ajuste.Numero = d.get('Numero')
         ajuste.Descricao = d.get('Descricao')
-        ajuste.Contra_Partida = d.get('Contra_Partida')
+        ajuste.Contra_Partida = d.get('Contra_Partida') or d.get('Contra Partida - Credito')
         ajuste.Filial = d.get('Filial')
-        ajuste.Centro_Custo = d.get('Centro de Custo')
         ajuste.Item = d.get('Item')
-        ajuste.Cod_Cl_Valor = d.get('Cod_Cl_Valor')
+        ajuste.Cod_Cl_Valor = d.get('Cod_Cl_Valor') or d.get('Cod Cl. Valor')
         ajuste.Debito = float(d.get('Debito') or 0)
         ajuste.Credito = float(d.get('Credito') or 0)
         
+        # Booleans de Controle
         ajuste.Invalido = parse_bool(d.get('Invalido'))
         ajuste.Is_Nao_Operacional = parse_bool(d.get('NaoOperacional'))
-        ajuste.Exibir_Saldo = parse_bool(d.get('Exibir_Saldo'))
+        ajuste.Exibir_Saldo = parse_bool(d.get('Exibir_Saldo', True))
         
-        self.session.flush() # Garante que o ID foi gerado se for novo
-
+        self.session.flush()
+        
         if is_novo:
-            log = AjustesLog(Id_Ajuste=ajuste.Id, Campo_Alterado='TODOS', Valor_Antigo='-', 
-                             Valor_Novo='CRIADO', Usuario_Acao=usuario, Data_Acao=datetime.datetime.now(), Tipo_Acao='CRIACAO')
+            log = AjustesLog(
+                Id_Ajuste=ajuste.Id, Campo_Alterado='TODOS', Valor_Antigo='-', 
+                Valor_Novo='CRIADO_VIA_SALVAR', Usuario_Acao=usuario, 
+                Data_Acao=datetime.datetime.now(), Tipo_Acao='CRIACAO'
+            )
             self.session.add(log)
         
         self.session.commit()
-        RegistrarLog(f"Ajuste salvo com sucesso. ID: {ajuste.Id}, Operacao: {payload['Tipo_Operacao']}", "INFO")
         return ajuste.Id
-
+    
     def AprovarAjuste(self, ajuste_id, acao, usuario):
-        """
-        Carimba o passaporte do ajuste: Aprovado ou Reprovado.
-        """
-        RegistrarLog(f"Processando Aprovação. ID: {ajuste_id}, Acao: {acao}, User: {usuario}", "SERVICE")
-        
         ajuste = self.session.query(AjustesRazao).get(ajuste_id)
         if ajuste:
             novo_status = 'Aprovado' if acao == 'Aprovar' else 'Reprovado'
@@ -291,21 +388,10 @@ class AjustesManuaisService:
             ajuste.Aprovado_Por = usuario
             ajuste.Data_Aprovacao = datetime.datetime.now()
             self.session.commit()
-            RegistrarLog(f"Ajuste {ajuste_id} marcado como {novo_status}", "INFO")
-        else:
-            RegistrarLog(f"Falha ao aprovar: Ajuste {ajuste_id} não encontrado.", "WARNING")
 
     def ToggleInvalido(self, ajuste_id, acao, usuario):
-        """
-        Marca como inválido (esconde) ou restaura.
-        """
-        RegistrarLog(f"Toggle Invalido. ID: {ajuste_id}, Acao: {acao}", "SERVICE")
-        
         ajuste = self.session.query(AjustesRazao).get(ajuste_id)
-        if not ajuste: 
-            RegistrarLog(f"Toggle Invalido falhou: Ajuste {ajuste_id} não existe", "ERROR")
-            raise Exception('Ajuste não encontrado')
-
+        if not ajuste: raise Exception('Ajuste não encontrado')
         novo_estado_invalido = (acao == 'INVALIDAR')
         log = AjustesLog(
             Id_Ajuste=ajuste.Id, Campo_Alterado='Invalido', 
@@ -314,219 +400,245 @@ class AjustesManuaisService:
             Tipo_Acao='INVALIDACAO' if novo_estado_invalido else 'RESTAURACAO'
         )
         self.session.add(log)
-
         ajuste.Invalido = novo_estado_invalido
-        if novo_estado_invalido:
-            ajuste.Status = 'Invalido'
-        else:
-            ajuste.Status = 'Pendente'
+        ajuste.Status = 'Invalido' if novo_estado_invalido else 'Pendente'
         self.session.commit()
-        RegistrarLog(f"Status Invalido atualizado para: {novo_estado_invalido}", "INFO")
 
     def ObterHistorico(self, ajuste_id):
-        """
-        Retorna a capivara completa do ajuste.
-        """
-        # Apenas debug leve
-        RegistrarLog(f"Buscando histórico para ajuste ID: {ajuste_id}", "DEBUG")
         logs = self.session.query(AjustesLog).filter(AjustesLog.Id_Ajuste == ajuste_id).order_by(AjustesLog.Data_Acao.desc()).all()
         return [{
             'Id_Log': l.Id_Log, 'Campo': l.Campo_Alterado, 'De': l.Valor_Antigo, 'Para': l.Valor_Novo,
             'Usuario': l.Usuario_Acao, 'Data': l.Data_Acao.strftime('%d/%m/%Y %H:%M:%S'), 'Tipo': l.Tipo_Acao
         } for l in logs]
 
-    def GerarIntergrupo(self, ano):
-        """
-        Executa a lógica complexa de geração de ajustes intergrupo.
-        Cruza contas, datas e filiais pra gerar os pares de D/C.
-        """
-        RegistrarLog(f"Iniciando Rotina GerarIntergrupo. Ano: {ano}", "SYSTEM")
+    # --- PROCESSAMENTO INTERGRUPO ---
+    def ProcessarIntergrupoIntec(self, ano, mes, data_gravacao):
+        try:
+            meses_map = {
+                1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 
+                7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'
+            }
+            competencia_anomes = f"{ano}-{meses_map[mes]}"
+            
+            caminho_qvd = os.path.join(BaseConfig().DataQVDPath(), "ValorFinanceiro.qvd")
+            df_qvd = ler_qvd_para_dataframe(caminho_qvd)
+
+            if 'ValorFinanceiro' in df_qvd.columns:
+                df_qvd['ValorFinanceiro'] = pd.to_numeric(df_qvd['ValorFinanceiro'], errors='coerce').fillna(0.0)
+            
+            # --- NOVO FILTRO ESPECÍFICO (CONTA 60101010201 - AEREO INTEC) ---
+            # Filtra Modal AEREO, Empresa INTEC, Intergroup S e N, no Anomes atual
+            df_novo_filtro = df_qvd[
+                (df_qvd['Modal'] == 'AEREO') & 
+                (df_qvd['Empresa'] == 'INTEC') & 
+                (df_qvd['INTERGROUP'].isin(['S', 'N'])) & 
+                (df_qvd['Anomes'] == competencia_anomes)
+            ]
+            v_aereo_intec_especifico = df_novo_filtro['ValorFinanceiro'].sum()
+
+            # --- FILTROS ANTERIORES (INTERGROUP = 'S') ---
+            df_filtrado_s = df_qvd[(df_qvd['INTERGROUP'] == 'S') & (df_qvd['Empresa'] == 'INTEC') & (df_qvd['Anomes'] == competencia_anomes)]
+            
+            v_rodoviario = df_filtrado_s[df_filtrado_s['Modal'] == 'RODOVIARIO']['ValorFinanceiro'].sum()
+            v_aereo = df_filtrado_s[df_filtrado_s['Modal'] == 'AEREO']['ValorFinanceiro'].sum()
+
+            RegistrarLog(f"QVD Intec. Mes: {competencia_anomes}, Novo Aereo Intec: {v_aereo_intec_especifico}, Rodo: {v_rodoviario}, Aereo: {v_aereo}", "DEBUG")
+
+            if v_rodoviario == 0 and v_aereo == 0 and v_aereo_intec_especifico == 0:
+                return []
+
+            with self.engine.connect() as conn:
+                query = text(f"""
+                    SELECT * FROM "{self.schema}"."Razao_Dados_Consolidado"
+                    WHERE "origem" = 'INTEC' AND "Conta" = '60101010201'
+                    ORDER BY "Data" DESC LIMIT 1
+                """)
+                res = conn.execute(query).fetchone()
+                if not res: return ["Template INTEC não encontrado"]
+                template = dict(res._mapping)
+
+            logs_intec = []
+            
+            # LISTA DE LANÇAMENTOS (O novo lançamento entra primeiro)
+            lancamentos = [
+                # NOVO LANÇAMENTO (AEREO INTEC S/N)
+                {'modal': 'AEREO', 'valor': v_aereo_intec_especifico, 'conta': '60101010201', 'tipo': 'D', 'sufixo': 'DEBITO'},
+                {'modal': 'AEREO', 'valor': v_aereo_intec_especifico, 'conta': '60101010201A', 'tipo': 'C', 'sufixo': 'CREDITO'},
+
+                # DÉBITOS ORIGINAIS (INTERGROUP S)
+                {'modal': 'RODOVIARIO', 'valor': v_rodoviario, 'conta': '60101010201', 'tipo': 'D', 'sufixo': 'D'},
+                {'modal': 'AEREO', 'valor': v_aereo, 'conta': '60101010201A', 'tipo': 'D', 'sufixo': 'D'},
+                
+                # CRÉDITOS ORIGINAIS (CONTRA-PARTIDA)
+                {'modal': 'RODOVIARIO', 'valor': v_rodoviario, 'conta': '60101010201B', 'tipo': 'C', 'sufixo': 'C'},
+                {'modal': 'AEREO', 'valor': v_aereo, 'conta': '60101010201C', 'tipo': 'C', 'sufixo': 'C'}
+            ]
+
+            for lanc in lancamentos:
+                if lanc['valor'] > 0:
+                    v_abs = round(abs(lanc['valor']), 2)
+                    
+                    val_debito = v_abs if lanc['tipo'] == 'D' else 0.0
+                    val_credito = v_abs if lanc['tipo'] == 'C' else 0.0
+                    
+                    # A descrição agora carrega o sufixo para garantir unicidade no banco
+                    desc_final = f"INTERGRUPO INTEC - {lanc['modal']} - {competencia_anomes} ({lanc['sufixo']})"
+
+                    params_hash = {
+                        'Conta': lanc['conta'], 'Data': data_gravacao,
+                        'Descricao': desc_final,
+                        'Debito': val_debito, 'Credito': val_credito,
+                        'Filial': template.get('Filial'),
+                        'Centro_Custo': template.get('Centro de Custo') or template.get('Centro_Custo'),
+                        'Origem': 'INTEC'
+                    }
+                    hash_val = self._GerarHashIntergrupo(params_hash)
+
+                    # Busca o ajuste específico para esta linha (Débito ou Crédito)
+                    ajuste_existente = self.session.query(AjustesRazao).filter(
+                        AjustesRazao.Origem == 'INTEC',
+                        AjustesRazao.Conta == lanc['conta'],
+                        AjustesRazao.Descricao == desc_final, # Filtro exato pela nova descrição
+                        AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO'
+                    ).first()
+
+                    if ajuste_existente:
+                        # Atualiza o valor se houver diferença
+                        valor_atual = ajuste_existente.Debito if lanc['tipo'] == 'D' else ajuste_existente.Credito
+                        if abs(valor_atual - v_abs) > 0.01:
+                            if lanc['tipo'] == 'D':
+                                ajuste_existente.Debito = v_abs
+                            else:
+                                ajuste_existente.Credito = v_abs
+                                
+                            ajuste_existente.Hash_Linha_Original = hash_val 
+                            logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Atualizado")
+                    else:
+                        # Cria a nova linha (Seja Débito ou Crédito)
+                        ajuste = AjustesRazao(
+                            Conta=lanc['conta'],
+                            Titulo_Conta=template.get('Titulo_Conta', 'VENDA DE FRETES'),
+                            Data=data_gravacao,
+                            Descricao=desc_final,
+                            Debito=val_debito, Credito=val_credito,
+                            Filial=template.get('Filial'),
+                            Centro_Custo=template.get('Centro de Custo') or template.get('Centro_Custo'),
+                            Item='INTERGRUPO',
+                            Origem='INTEC',
+                            Hash_Linha_Original=hash_val, 
+                            Tipo_Operacao='INTERGRUPO_AUTO',
+                            Status='Aprovado', Invalido=False,
+                            Criado_Por='SISTEMA_QVD', Data_Aprovacao=datetime.datetime.now(),
+                            Exibir_Saldo=True
+                        )
+                        self.session.add(ajuste)
+                        logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Criado")
+            
+            return logs_intec
+
+        except Exception as e:
+            RegistrarLog(f"Falha INTEC QVD", "ERROR", e)
+            return [f"ERRO INTEC: {str(e)}"]
+
+    def GerarIntergrupo(self, ano, mes):
+        RegistrarLog(f"Iniciando GerarIntergrupo MENSAL. {mes}/{ano}", "SYSTEM")
         
-        # Configuração hardcoded das contas (regra de negócio)
         config_contas = {
             '60301020290': {'destino': '60301020290B', 'descricao': 'ajuste intergrupo ( fretes Dist.)', 'titulo_origem': 'FRETE DISTRIBUIÇÃO', 'titulo_destino': 'FRETE DISTRIBUIÇÃO'},
             '60301020288': {'destino': '60301020288C', 'descricao': 'ajuste intergrupo ( fretes Aéreo)', 'titulo_origem': 'FRETES AEREO', 'titulo_destino': 'FRETES AEREO'},
             '60101010201': {'destino': '60101010201A', 'descricao': 'VLR. CFE DIARIO AUXILIAR N/ DATA (aéreo)', 'titulo_origem': 'VENDA DE FRETES', 'titulo_destino': 'VENDA DE FRETES'}
         }
         
-        logs_retorno = []
+        logs_totais = []
+        ultimo_dia = calendar.monthrange(ano, mes)[1]
+        data_inicio = datetime.datetime(ano, mes, 1)
+        data_fim = datetime.datetime(ano, mes, ultimo_dia, 23, 59, 59)
+        data_gravacao = datetime.datetime(ano, mes, ultimo_dia)
 
-        def SalvarLogInterno(mes, conta, origem_erp, valor, tipo, acao, id_orig=None, id_dest=None, hash_val=None):
-            # Log técnico específico dessa rotina
-            novo_log = AjustesIntergrupoLog(
-                Ano=ano, Mes=mes, Conta_Origem=conta, Origem_ERP=origem_erp, 
-                Valor_Encontrado_ERP=valor, Tipo_Fluxo=tipo, Id_Ajuste_Origem=id_orig, 
-                Id_Ajuste_Destino=id_dest, Acao_Realizada=acao, Hash_Gerado=hash_val, 
-                Data_Processamento=datetime.datetime.now()
-            )
-            self.session.add(novo_log)
+        try:
+            logs_intec = self.ProcessarIntergrupoIntec(ano, mes, data_gravacao)
+            logs_totais.extend(logs_intec)
 
-        for conta_origem, config in config_contas.items():
-            conta_destino = config['destino']
-            desc_regra = config['descricao']
-            titulo_origem = config['titulo_origem']
-            titulo_destino = config['titulo_destino']
-
-            for mes in range(1, 13):
-                ultimo_dia = calendar.monthrange(ano, mes)[1]
-                data_inicio = datetime.datetime(ano, mes, 1)
-                data_fim_busca = datetime.datetime(ano, mes, ultimo_dia, 23, 59, 59)
-                data_gravacao = datetime.datetime(ano, mes, ultimo_dia, 0, 0, 0)
-
-                # A. VERIFICAÇÃO RIGOROSA NO ERP
-                # Se já tem dado na conta destino no ERP, a gente não mexe.
-                qtd_erp = self.session.execute(text("""
-                    SELECT COUNT(*) FROM "Dre_Schema"."Razao_Dados_Consolidado"
+            for conta_origem, config in config_contas.items():
+                sql = text(f"""
+                    SELECT "origem", SUM("Debito") as deb, SUM("Credito") as cred, 
+                        MAX("Item") as item, MAX("Filial") as filial, MAX("Centro de Custo") as cc
+                    FROM "{self.schema}"."Razao_Dados_Consolidado"
                     WHERE "Conta" = :conta AND "Data" >= :d_ini AND "Data" <= :d_fim
-                """), {'conta': conta_destino, 'd_ini': data_inicio, 'd_fim': data_fim_busca}).scalar()
+                    AND "origem" NOT IN ('INTEC')
+                    GROUP BY "origem"
+                """)
+                
+                rows = self.session.execute(sql, {'conta': conta_origem, 'd_ini': data_inicio, 'd_fim': data_fim}).fetchall()
 
-                if qtd_erp > 0:
-                    logs_retorno.append(f"[{conta_origem} | {mes:02d}/{ano}] PULADO: Já consolidado no ERP.")
-                    continue
-
-                # B. BUSCA DADOS BRUTOS (Origem)
-                rows = self.session.execute(text("""
-                    SELECT "origem", "Debito", "Credito", "Item", "Filial", "Centro de Custo"
-                    FROM "Dre_Schema"."Razao_Dados_Consolidado"
-                    WHERE "Conta" = :conta AND "Data" >= :d_ini AND "Data" <= :d_fim
-                    ORDER BY "Data" ASC
-                """), {'conta': conta_origem, 'd_ini': data_inicio, 'd_fim': data_fim_busca}).fetchall()
-
-                # C. AGRUPAMENTO (Soma tudo por origem)
-                dados_agrupados = {}
                 for row in rows:
-                    org = str(row.origem) if row.origem else 'SEM_ORIGEM'
-                    if org not in dados_agrupados:
-                        dados_agrupados[org] = {'deb': 0.0, 'cred': 0.0, 'last_item': 'INTERGRUPO', 'last_filial': '99', 'last_cc': 'SEM_CC'}
-                    dados_agrupados[org]['deb'] += float(row.Debito or 0.0)
-                    dados_agrupados[org]['cred'] += float(row.Credito or 0.0)
-                    if row.Item: dados_agrupados[org]['last_item'] = str(row.Item)
-                    if row.Filial: dados_agrupados[org]['last_filial'] = str(row.Filial)
-                    cc = getattr(row, 'Centro de Custo', None) or getattr(row, 'Centro_Custo', None)
-                    if cc: dados_agrupados[org]['last_cc'] = str(cc)
+                    if not row.deb and not row.cred: continue
+                    valor_ajuste = round(abs(float(row.deb or 0.0) - float(row.cred or 0.0)), 2)
+                    if valor_ajuste <= 0: continue
+                    
+                    # Preparar dados para Hash Origem
+                    p_orig = {
+                        'Conta': conta_origem, 'Data': data_gravacao, 'Descricao': config['descricao'],
+                        'Debito': 0.0, 'Credito': valor_ajuste, 'Filial': row.filial, 'Centro_Custo': row.cc, 'Origem': row.origem
+                    }
+                    h_orig = self._GerarHashIntergrupo(p_orig)
 
-                if not dados_agrupados: continue
+                    # Preparar dados para Hash Destino
+                    p_dest = {
+                        'Conta': config['destino'], 'Data': data_gravacao, 'Descricao': config['descricao'],
+                        'Debito': valor_ajuste, 'Credito': 0.0, 'Filial': row.filial, 'Centro_Custo': row.cc, 'Origem': row.origem
+                    }
+                    h_dest = self._GerarHashIntergrupo(p_dest)
 
-                # D. PROCESSAMENTO (Gera os ajustes)
-                for org_atual, valores in dados_agrupados.items():
-                    prefixo_log = f"[{conta_origem} | {org_atual} | {mes:02d}/{ano}]"
-                    soma_debito_real = round(abs(valores['deb']), 2)
-                    soma_credito_real = round(abs(valores['cred']), 2)
-                    item_real = valores['last_item']
-                    filial_ref = valores['last_filial']
-                    cc_ref = valores['last_cc']
+                    # Verifica Existência
+                    ajuste_existente = self.session.query(AjustesRazao).filter(
+                        AjustesRazao.Origem == row.origem,
+                        AjustesRazao.Conta == config['destino'], 
+                        AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
+                        AjustesRazao.Data == data_gravacao
+                    ).first()
 
-                    # --- FLUXO DE DÉBITOS ---
-                    if soma_debito_real > 0.00:
-                        # Busca se já criamos esse ajuste antes
-                        ajuste_deb_origem = self.session.query(AjustesRazao).filter(
-                            AjustesRazao.Conta == conta_origem, AjustesRazao.Data == data_gravacao,
-                            AjustesRazao.Origem == org_atual, AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
-                            AjustesRazao.Credito > 0, AjustesRazao.Invalido == False
-                        ).first()
+                    if ajuste_existente:
+                        if abs(ajuste_existente.Debito - valor_ajuste) > 0.01:
+                             ajuste_existente.Debito = valor_ajuste
+                             ajuste_existente.Hash_Linha_Original = h_dest # Atualiza Hash Destino
 
-                        # Parâmetros pra gerar o hash e garantir unicidade
-                        row_origem_params = {'Conta': conta_origem, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': 0.0, 'Credito': soma_debito_real, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
-                        hash_novo_origem = self._GerarHashIntergrupo(row_origem_params)
+                             par_origem = self.session.query(AjustesRazao).filter(
+                                 AjustesRazao.Origem == row.origem,
+                                 AjustesRazao.Conta == conta_origem,
+                                 AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
+                                 AjustesRazao.Data == data_gravacao
+                             ).first()
+                             if par_origem: 
+                                 par_origem.Credito = valor_ajuste
+                                 par_origem.Hash_Linha_Original = h_orig # Atualiza Hash Origem
+                             
+                             logs_totais.append(f"[{mes:02d}/{ano}] {row.origem}: Atualizado {config['destino']} v:{valor_ajuste}")
+                    else:
+                        aj_origem = AjustesRazao(
+                            Conta=conta_origem, Titulo_Conta=config['titulo_origem'], Data=data_gravacao,
+                            Descricao=config['descricao'], Debito=0.0, Credito=valor_ajuste,
+                            Filial=row.filial, Centro_Custo=row.cc, Item=row.item, Origem=row.origem,
+                            Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO',
+                            Hash_Linha_Original=h_orig, # Hash Origem
+                            Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
+                        )
+                        
+                        aj_destino = AjustesRazao(
+                            Conta=config['destino'], Titulo_Conta=config['titulo_destino'], Data=data_gravacao,
+                            Descricao=config['descricao'], Debito=valor_ajuste, Credito=0.0,
+                            Filial=row.filial, Centro_Custo=row.cc, Item=row.item, Origem=row.origem,
+                            Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO',
+                            Hash_Linha_Original=h_dest, # Hash Destino
+                            Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
+                        )
+                        
+                        self.session.add(aj_origem)
+                        self.session.add(aj_destino)
+                        logs_totais.append(f"[{mes:02d}/{ano}] {row.origem}: Criado {conta_origem} -> {config['destino']} v:{valor_ajuste}")
 
-                        row_destino_params = {'Conta': conta_destino, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': soma_debito_real, 'Credito': 0.0, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
-                        hash_novo_destino = self._GerarHashIntergrupo(row_destino_params)
+            return logs_totais
 
-                        if ajuste_deb_origem:
-                            # Se já existe e mudou valor ou item, atualiza
-                            if abs(ajuste_deb_origem.Credito - soma_debito_real) > 0.01 or ajuste_deb_origem.Item != item_real:
-                                ajuste_deb_origem.Credito = soma_debito_real
-                                ajuste_deb_origem.Item = item_real
-                                ajuste_deb_origem.Hash_Linha_Original = hash_novo_origem
-                                
-                                # Busca o par dele (destino)
-                                ajuste_deb_destino = self.session.query(AjustesRazao).filter(
-                                    AjustesRazao.Conta == conta_destino, AjustesRazao.Data == data_gravacao,
-                                    AjustesRazao.Origem == org_atual, AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
-                                    AjustesRazao.Debito > 0, AjustesRazao.Invalido == False
-                                ).first()
-                                
-                                if ajuste_deb_destino:
-                                    ajuste_deb_destino.Debito = soma_debito_real
-                                    ajuste_deb_destino.Item = item_real
-                                    ajuste_deb_destino.Hash_Linha_Original = hash_novo_destino
-                                
-                                SalvarLogInterno(mes, conta_origem, org_atual, soma_debito_real, 'DEBITO', 'ATUALIZACAO', id_orig=ajuste_deb_origem.Id, id_dest=ajuste_deb_destino.Id if ajuste_deb_destino else None, hash_val=hash_novo_origem)
-                                logs_retorno.append(f"{prefixo_log} [DEBITO] ATUALIZADO: {soma_debito_real}")
-                        else:
-                            # Se não existe, cria o par (Origem e Destino)
-                            l1 = AjustesRazao(
-                                Conta=conta_origem, Titulo_Conta=titulo_origem, Data=data_gravacao, Descricao=desc_regra,
-                                Debito=0.0, Credito=soma_debito_real, Filial=filial_ref, Centro_Custo=cc_ref, Item=item_real, 
-                                Hash_Linha_Original=hash_novo_origem, Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
-                                Status='Aprovado', Invalido=False, Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', 
-                                Data_Aprovacao=datetime.datetime.now(), Is_Nao_Operacional=False, Exibir_Saldo=True
-                            )
-                            l2 = AjustesRazao(
-                                Conta=conta_destino, Titulo_Conta=titulo_destino, Data=data_gravacao, Descricao=desc_regra,
-                                Debito=soma_debito_real, Credito=0.0, Filial=filial_ref, Centro_Custo=cc_ref, Item=item_real, 
-                                Hash_Linha_Original=hash_novo_destino, Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
-                                Status='Aprovado', Invalido=False, Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', 
-                                Data_Aprovacao=datetime.datetime.now(), Is_Nao_Operacional=False, Exibir_Saldo=True
-                            )
-                            self.session.add(l1); self.session.add(l2)
-                            self.session.flush()
-                            SalvarLogInterno(mes, conta_origem, org_atual, soma_debito_real, 'DEBITO', 'CRIACAO', id_orig=l1.Id, id_dest=l2.Id, hash_val=hash_novo_origem)
-                            logs_retorno.append(f"{prefixo_log} [DEBITO] CRIADO: {soma_debito_real}")
-
-                    # --- FLUXO DE CRÉDITOS ---
-                    if soma_credito_real > 0.00:
-                        ajuste_cred_origem = self.session.query(AjustesRazao).filter(
-                            AjustesRazao.Conta == conta_origem, AjustesRazao.Data == data_gravacao,
-                            AjustesRazao.Origem == org_atual, AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
-                            AjustesRazao.Debito > 0, AjustesRazao.Invalido == False
-                        ).first()
-
-                        row_origem_cred_params = {'Conta': conta_origem, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': soma_credito_real, 'Credito': 0.0, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
-                        hash_novo_origem_cred = self._GerarHashIntergrupo(row_origem_cred_params)
-
-                        row_destino_cred_params = {'Conta': conta_destino, 'Data': data_gravacao, 'Descricao': desc_regra, 'Debito': 0.0, 'Credito': soma_credito_real, 'Filial': filial_ref, 'Centro_Custo': cc_ref, 'Origem': org_atual}
-                        hash_novo_destino_cred = self._GerarHashIntergrupo(row_destino_cred_params)
-
-                        if ajuste_cred_origem:
-                            if abs(ajuste_cred_origem.Debito - soma_credito_real) > 0.01 or ajuste_cred_origem.Item != item_real:
-                                ajuste_cred_origem.Debito = soma_credito_real
-                                ajuste_cred_origem.Item = item_real
-                                ajuste_cred_origem.Hash_Linha_Original = hash_novo_origem_cred
-                                
-                                ajuste_cred_destino = self.session.query(AjustesRazao).filter(
-                                    AjustesRazao.Conta == conta_destino, AjustesRazao.Data == data_gravacao,
-                                    AjustesRazao.Origem == org_atual, AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
-                                    AjustesRazao.Credito > 0, AjustesRazao.Invalido == False
-                                ).first()
-                                
-                                if ajuste_cred_destino:
-                                    ajuste_cred_destino.Credito = soma_credito_real
-                                    ajuste_cred_destino.Item = item_real
-                                    ajuste_cred_destino.Hash_Linha_Original = hash_novo_destino_cred
-                                
-                                SalvarLogInterno(mes, conta_origem, org_atual, soma_credito_real, 'CREDITO', 'ATUALIZACAO', id_orig=ajuste_cred_origem.Id, id_dest=ajuste_cred_destino.Id if ajuste_cred_destino else None, hash_val=hash_novo_origem_cred)
-                                logs_retorno.append(f"{prefixo_log} [CREDITO] ATUALIZADO: {soma_credito_real}")
-                        else:
-                            l3 = AjustesRazao(
-                                Conta=conta_origem, Titulo_Conta=titulo_origem, Data=data_gravacao, Descricao=desc_regra,
-                                Debito=soma_credito_real, Credito=0.0, Filial=filial_ref, Centro_Custo=cc_ref, Item=item_real, 
-                                Hash_Linha_Original=hash_novo_origem_cred, Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
-                                Status='Aprovado', Invalido=False, Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', 
-                                Data_Aprovacao=datetime.datetime.now(), Is_Nao_Operacional=False, Exibir_Saldo=True
-                            )
-                            l4 = AjustesRazao(
-                                Conta=conta_destino, Titulo_Conta=titulo_destino, Data=data_gravacao, Descricao=desc_regra,
-                                Debito=0.0, Credito=soma_credito_real, Filial=filial_ref, Centro_Custo=cc_ref, Item=item_real, 
-                                Hash_Linha_Original=hash_novo_destino_cred, Tipo_Operacao='INTERGRUPO_AUTO', Origem=org_atual, 
-                                Status='Aprovado', Invalido=False, Criado_Por='SISTEMA_AUTO', Aprovado_Por='SISTEMA_AUTO', 
-                                Data_Aprovacao=datetime.datetime.now(), Is_Nao_Operacional=False, Exibir_Saldo=True
-                            )
-                            self.session.add(l3); self.session.add(l4)
-                            self.session.flush()
-                            SalvarLogInterno(mes, conta_origem, org_atual, soma_credito_real, 'CREDITO', 'CRIACAO', id_orig=l3.Id, id_dest=l4.Id, hash_val=hash_novo_origem_cred)
-                            logs_retorno.append(f"{prefixo_log} [CREDITO] CRIADO: {soma_credito_real}")
-
-        self.session.commit()
-        RegistrarLog(f"Rotina Intergrupo finalizada com sucesso. Logs gerados: {len(logs_retorno)}", "SYSTEM")
-        return logs_retorno
+        except Exception as e:
+            RegistrarLog("Erro ao persistir ajustes intergrupo", "ERROR", e)
+            raise e

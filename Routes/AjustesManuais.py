@@ -29,29 +29,29 @@ def Index():
 @ajustes_bp.route('/api/gerar-intergrupo', methods=['POST'])
 def GerarAjusteIntergrupo():
     """
-    Essa aqui faz a mágica dos ajustes intergrupo.
-    Pega o ano, chama o serviço e reza pra dar tudo certo.
+    Gera ajustes apenas para o Mês e Ano selecionados na tela.
     """
     session_db = GetSession()
     try:
         data = request.get_json()
         ano = int(data.get('ano'))
+        mes = int(data.get('mes')) # Captura o mês enviado pelo JS
         
-        RegistrarLog(f"Rota API: Gerar Intergrupo. Ano: {ano}", "HTTP")
+        RegistrarLog(f"Rota API: Gerar Intergrupo. Comp: {mes}/{ano}", "HTTP")
         
         svc = AjustesManuaisService(session_db)
         
-        # Manda bala na geração
-        logs = svc.GerarIntergrupo(ano)
+        # Passa ano E mês para o serviço
+        logs = svc.GerarIntergrupo(ano, mes)
         
+        session_db.commit() # Commit final garantido pela rota
         return jsonify({'status': 'completed', 'logs': logs})
+
     except Exception as e:
         RegistrarLog("Erro API Gerar Intergrupo", "ERROR", e)
-        # Deu ruim? Desfaz tudo!
         session_db.rollback()
         return jsonify({'error': str(e)}), 500
     finally:
-        # Fecha a porta ao sair
         session_db.close()
 
 @ajustes_bp.route('/api/ajustes-razao/dados', methods=['GET'])
@@ -74,6 +74,29 @@ def GetDados():
     finally:
         session_db.close()
 
+@ajustes_bp.route('/api/ajustes-razao/criar', methods=['POST'])
+def Criar():
+    """
+    Rota exclusiva para CRIAÇÃO de novos lançamentos manuais.
+    """
+    session_db = GetSession()
+    try:
+        user = current_user.nome if current_user.is_authenticated else 'System'
+        RegistrarLog(f"Rota API: Criar Ajuste. User: {user}", "HTTP")
+        
+        svc = AjustesManuaisService(session_db)
+        
+        # Chama o novo método específico
+        novo_id = svc.CriarAjusteManual(request.json, user)
+        
+        return jsonify({'msg': 'Criado com sucesso', 'id': novo_id})
+    except Exception as e:
+        RegistrarLog("Erro API Criar", "ERROR", e)
+        session_db.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session_db.close()
+        
 @ajustes_bp.route('/api/ajustes-razao/salvar', methods=['POST'])
 def Salvar():
     """

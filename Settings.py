@@ -50,6 +50,11 @@ class BaseConfig:
             "?driver=ODBC+Driver+17+for+SQL+Server&TrustServerCertificate=yes"
         )
 
+    def DataQVDPath(self):
+        """Retorna o caminho base para os arquivos QVD"""
+        BASEDIR = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(BASEDIR, "Data", "Fat_QVD")
+    
 # --- Ambientes (Herdam BaseConfig E LogConfig) ---
 
 class DevelopmentConfig(BaseConfig, LogConfig):
