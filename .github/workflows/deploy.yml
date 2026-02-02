@@ -33,13 +33,23 @@ jobs:
         $ErrorActionPreference = "Stop"
 
         # -----------------------------------------------------------
-        # 1. PARAR SERVIÇO
+        # 1. PARAR SERVIÇO (COM SEGURANÇA)
         # -----------------------------------------------------------
-        Write-Host "1. Verificando serviço $ServiceName..."
-        if (Get-Service $ServiceName -ErrorAction SilentlyContinue) {
-            Write-Host "Parando serviço..."
-            cmd /c "$NssmExe stop $ServiceName" 2>&1 | Out-Null
-            Start-Sleep -Seconds 3
+        Write-Host "1. Verificando estado do serviço $ServiceName..."
+        
+        $ServiceObj = Get-Service $ServiceName -ErrorAction SilentlyContinue
+        
+        if ($ServiceObj -and $ServiceObj.Status -eq 'Running') {
+            Write-Host "Status atual: RODANDO. Tentando parar..."
+            try {
+                # Executa o stop e ignora erros caso ele pare muito rápido
+                cmd /c "$NssmExe stop $ServiceName" 2>&1 | Out-Null
+                Start-Sleep -Seconds 5
+            } catch {
+                Write-Warning "Aviso ao tentar parar: $_"
+            }
+        } else {
+            Write-Host "O serviço já está PARADO ou não existe. Seguindo..."
         }
 
         # -----------------------------------------------------------
@@ -53,7 +63,7 @@ jobs:
         }
 
         # Copia os arquivos baixados pelo checkout para a pasta de produção
-        # Excluímos .git (não precisa no servidor) e .venv (para não quebrar o ambiente virtual local)
+        # Excluímos .git e .venv para não quebrar configurações locais
         Copy-Item -Path ".\*" -Destination $AppPath -Recurse -Force -Exclude ".git",".venv"
         
         Write-Host "Arquivos copiados com sucesso."
@@ -78,14 +88,21 @@ jobs:
         # 4. INICIAR SERVIÇO
         # -----------------------------------------------------------
         Write-Host "4. Iniciando serviço $ServiceName..."
-        cmd /c "$NssmExe start $ServiceName"
+        
+        # Tenta iniciar
+        try {
+             cmd /c "$NssmExe start $ServiceName" 2>&1 | Out-Null
+        } catch {
+             Write-Warning "Tentativa de start retornou erro (pode já estar rodando)."
+        }
+        
         Start-Sleep -Seconds 5
         
         $ServiceStatus = Get-Service $ServiceName
         if ($ServiceStatus.Status -eq 'Running') {
-            Write-Host "SUCESSO: Serviço iniciado!"
+            Write-Host "SUCESSO: Serviço iniciado e rodando!"
         } else {
-            Write-Error "FALHA: O serviço não subiu. Verifique o log do app."
+            Write-Error "FALHA CRÍTICA: O serviço não subiu. Verifique o log em C:\ProjetosPython\LuftControl (logs do app)."
             Stop-Transcript; exit 1
         }
 
