@@ -98,7 +98,7 @@ class RelatoriosService:
     # MÉTODOS DO DRE GERENCIAL
     # ============================================================
 
-    def GerarDreRentabilidade(self, origem, filtro_cc, modo_escala):
+    def GerarDreRentabilidade(self, origem, filtro_cc, modo_escala, ano=None):
         """
         Serviço para calcular e formatar o DRE Gerencial.
         Executa: Processamento -> Cálculo Fórmulas -> Formatação Escala.
@@ -108,10 +108,12 @@ class RelatoriosService:
             relatorio = RelatorioDreGerencial(session)
             
             # 1. Busca Dados Base e Aplica Hierarquia
+            # [ATUALIZADO] Repassando o ano para o motor
             dados = relatorio.ProcessarRelatorio(
                 filtro_origem=origem, 
                 agrupar_por_cc=False, 
-                filtro_cc=filtro_cc
+                filtro_cc=filtro_cc,
+                ano=ano
             )
             
             # 2. Executa Fórmulas (Margens, EBITDA, etc)

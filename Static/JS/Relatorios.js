@@ -28,7 +28,8 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     filters: {},                 
                     globalSearch: '',
                     searchMatches: [],      
-                    searchCurrentIndex: -1,             
+                    searchCurrentIndex: -1, 
+                    selectedYear: new Date().getFullYear(),            
                     sort: { col: null, dir: 'asc' }, 
                     columnsOrder: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Total_Ano'],            
                     
@@ -66,7 +67,14 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.renderBiInterface();
             this.renderBiTable();
         }
-        
+
+        // Adicionar dentro da classe RelatorioSystem
+        handleYearChange(year) {
+            if (this.biIsLoading) return;
+            this.biState.selectedYear = year;
+            this.loadRentabilidadeReport(); // Recarrega o relatório
+        }
+
         setupSystem() {
             const modalElement = document.getElementById('modalRelatorio');
             if (modalElement) {
@@ -335,52 +343,34 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             if (this.biIsLoading) return;
             this.biIsLoading = true;
             
-            // Monta string separada por vírgula para enviar ao backend
-            const origemParam = encodeURIComponent(this.biState.selectedOrigins.join(','));
-            
             const container = document.getElementById('biGridContainer');
             if (container) container.innerHTML = `<div class="loading-container" style="height: 100%;"><div class="loading-spinner"></div></div>`;
 
-            // Renderiza a toolbar novamente para refletir os botões ativos/inativos
-            // (Isso é opcional se quiser atualizar só as classes, mas renderizar tudo garante consistência)
-            const toolbarDiv = document.querySelector('.bi-toolbar');
-            if (toolbarDiv) {
-                // Atualiza apenas a parte dos botões se possível, ou redesenha toolbar na próxima etapa
-                // Para simplificar, vamos deixar o renderBiInterface atualizar tudo no final ou manipular classes aqui:
-                document.querySelectorAll('.origem-toggle-group button').forEach(btn => {
-                    const txt = btn.textContent.trim();
-                    // Lógica simples de atualização visual
-                });
-            }
-
             try {
-                let urlBase = (this.biState.viewMode === 'CC') 
-                    ? (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeDataCC ? API_ROUTES.getRentabilidadeDataCC : '/Reports/RelatorioRazao/RentabilidadePorCC')
-                    : (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData ? API_ROUTES.getRentabilidadeData : '/Reports/RelatorioRazao/Rentabilidade');
-                
-                // Usa a rota única se o backend suportar o parametro viewMode na mesma rota, mas mantendo a lógica original:
-                // O código original usava rotas diferentes ou lógica interna.
-                // Vamos focar na chamada principal:
-                
-                urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData) 
+                let urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData) 
                         ? API_ROUTES.getRentabilidadeData 
                         : '/Reports/RelatorioRazao/Rentabilidade';
 
+                // Prepara os parâmetros
+                const origemParam = encodeURIComponent(this.biState.selectedOrigins.join(','));
                 const scaleParam = this.biState.scaleMode;
-                const ccParam = encodeURIComponent(this.biState.ccFilter);
+                const ccParam = encodeURIComponent(this.biState.selectedCCs.join(','));
+                
+                // [CORREÇÃO] Adicionando o Ano aqui também
+                const anoParam = this.biState.selectedYear;
 
-                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}&centro_custo=${ccParam}`);
+                // Faz a chamada incluindo o ano
+                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}&centro_custo=${ccParam}&ano=${anoParam}`);
                 
                 if (!rawData || rawData.length === 0) {
                     this.biRawData = [];
                     this.biTreeData = [];
-                    if (container) container.innerHTML = '<div class="p-4 text-center text-muted">Vazio (Nenhuma empresa selecionada ou sem dados)</div>';
+                    if (container) container.innerHTML = '<div class="p-4 text-center text-muted">Vazio (Nenhuma empresa selecionada ou sem dados para este ano)</div>';
                 } else {
                     this.biRawData = rawData;
                     await this.processBiTreeWithCalculated();
                     this.renderBiTable();
                 }
-                // Re-renderiza a interface completa para atualizar os botões corretamente
                 this.renderBiInterface();
                 
             } catch (error) {
@@ -1067,16 +1057,14 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     ? API_ROUTES.getRentabilidadeData 
                     : '/Reports/RelatorioRazao/Rentabilidade';
 
-                // ENVIA O ARRAY JOINADO de origens (empresas)
                 const origemParam = encodeURIComponent(this.biState.selectedOrigins.join(','));
-                
-                // ENVIA O ARRAY JOINADO de centros de custo (múltiplos filtros)
                 const ccParam = encodeURIComponent(this.biState.selectedCCs.join(','));
-
                 const scaleParam = this.biState.scaleMode; 
-
-                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}&centro_custo=${ccParam}`);
                 
+                // [NOVO] Parâmetro de Ano
+                const anoParam = this.biState.selectedYear;
+
+                const rawData = await APIUtils.get(`${urlBase}?origem=${origemParam}&scale_mode=${scaleParam}&centro_custo=${ccParam}&ano=${anoParam}`);
                 if (!rawData || rawData.length === 0) {
                     this.biRawData = [];
                     this.biTreeData = [];
@@ -1136,6 +1124,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                             <span id="ccFilterDisplay" class="selector-label">Todos os Centros</span>
                             <i class="fas fa-chevron-down ms-3 text-xs text-muted"></i>
                         </button>
+                        <select class="form-select form-select-sm" style="width: auto; font-weight: 600; color: var(--primary);" 
+                            onchange="relatorioSystem.handleYearChange(this.value)">
+                            <option value="2024" ${this.biState.selectedYear == 2024 ? 'selected' : ''}>2024</option>
+                            <option value="2025" ${this.biState.selectedYear == 2025 ? 'selected' : ''}>2025</option>
+                            <option value="2026" ${this.biState.selectedYear == 2026 ? 'selected' : ''}>2026</option>
+                        </select>
                         <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
 
                         <button class="btn btn-sm ${btnScaleClass}" onclick="relatorioSystem.toggleScaleMode()" title="Alternar Escala de Valores">
