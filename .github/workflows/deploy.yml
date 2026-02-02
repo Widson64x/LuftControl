@@ -78,7 +78,7 @@ jobs:
         }
 
         # -----------------------------------------------------------
-        # 4. INICIAR SERVIÇO
+        # 4. INICIAR SERVIÇO (VAI FUNCIONAR COM NSSM, EU ESPERO...)
         # -----------------------------------------------------------
         Write-Host "4. Iniciando serviço $ServiceName..."
         # Usamos o caminho completo do NSSM agora
