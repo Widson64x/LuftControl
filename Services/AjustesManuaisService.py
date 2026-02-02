@@ -7,7 +7,9 @@ import pandas as pd
 from sqlalchemy import text
 from Models.POSTGRESS.Ajustes import AjustesRazao, AjustesLog
 from Settings import BaseConfig
-from Utils.ExcelUtils import ler_qvd_para_dataframe
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Utils.Hash_Utils import gerar_hash
 from Utils.Common import parse_bool
 from Utils.Logger import RegistrarLog 
@@ -420,31 +422,85 @@ class AjustesManuaisService:
             }
             competencia_anomes = f"{ano}-{meses_map[mes]}"
             
-            caminho_qvd = os.path.join(BaseConfig().DataQVDPath(), "ValorFinanceiro.qvd")
-            df_qvd = ler_qvd_para_dataframe(caminho_qvd)
-
-            if 'ValorFinanceiro' in df_qvd.columns:
-                df_qvd['ValorFinanceiro'] = pd.to_numeric(df_qvd['ValorFinanceiro'], errors='coerce').fillna(0.0)
+            caminho_csv = os.path.join(BaseConfig().DataQVDPath(), "ValorFinanceiro.csv")
             
-            # --- NOVO FILTRO ESPECÍFICO (CONTA 60101010201 - AEREO INTEC) ---
-            # Filtra Modal AEREO, Empresa INTEC, Intergroup S e N, no Anomes atual
+            if not os.path.exists(caminho_csv):
+                 RegistrarLog(f"Arquivo CSV não encontrado: {caminho_csv}", "ERROR")
+                 return ["Erro: Arquivo ValorFinanceiro.csv não encontrado."]
+
+            # --- LEITURA ROBUSTA DE CSV (BOM FIX) ---
+            df_qvd = None
+            erros_leitura = []
+            
+            # Tentativa 1: UTF-8-SIG (Remove o BOM automaticamente) com ponto e vírgula
+            try:
+                df_qvd = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
+                if len(df_qvd.columns) <= 1: # Se falhar o separador
+                    df_qvd = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
+            except Exception as e:
+                erros_leitura.append(f"UTF-8-SIG: {e}")
+
+            # Tentativa 2: Latin1 (Caso não seja UTF-8) se a anterior falhou ou não carregou colunas
+            if df_qvd is None or len(df_qvd.columns) <= 1:
+                try:
+                    df_qvd = pd.read_csv(caminho_csv, sep=';', encoding='latin1', low_memory=False)
+                    if len(df_qvd.columns) <= 1:
+                         df_qvd = pd.read_csv(caminho_csv, sep=',', encoding='latin1', low_memory=False)
+                except Exception as e:
+                    erros_leitura.append(f"Latin1: {e}")
+                    RegistrarLog(f"Falha leitura CSV: {erros_leitura}", "ERROR")
+                    return [f"Erro leitura CSV. Detalhes no log."]
+
+            # --- LIMPEZA DE COLUNAS (CRÍTICO) ---
+            # Remove espaços e caracteres de BOM (Ï»¿ ou \ufeff) que possam ter sobrado
+            def limpar_coluna(col):
+                c = col.strip()
+                c = c.replace('Ï»¿', '') # BOM visto como Latin1
+                c = c.replace('\ufeff', '') # BOM Unicode
+                return c.upper()
+
+            df_qvd.columns = [limpar_coluna(c) for c in df_qvd.columns]
+            
+            # Validação Final das Colunas
+            if 'INTERGROUP' not in df_qvd.columns:
+                colunas_encontradas = ", ".join(df_qvd.columns)
+                RegistrarLog(f"Coluna 'INTERGROUP' não encontrada após limpeza. Cols: [{colunas_encontradas}]", "ERROR")
+                return [f"Erro: Coluna INTERGROUP inexistente. Verifique o CSV."]
+
+            if 'VALORFINANCEIRO' in df_qvd.columns:
+                if df_qvd['VALORFINANCEIRO'].dtype == object:
+                     df_qvd['VALORFINANCEIRO'] = df_qvd['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
+                df_qvd['VALORFINANCEIRO'] = pd.to_numeric(df_qvd['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
+            
+            # --- FILTROS ---
+            cols_req = ['MODAL', 'EMPRESA', 'INTERGROUP', 'ANOMES']
+            for c in cols_req:
+                if c not in df_qvd.columns:
+                    return [f"Coluna obrigatória não encontrada: {c}"]
+
+            # Filtro 1: Aereo Intec Específico
             df_novo_filtro = df_qvd[
-                (df_qvd['Modal'] == 'AEREO') & 
-                (df_qvd['Empresa'] == 'INTEC') & 
-                (df_qvd['INTERGROUP'].isin(['S', 'N'])) & 
-                (df_qvd['Anomes'] == competencia_anomes)
+                (df_qvd['MODAL'].str.upper() == 'AEREO') & 
+                (df_qvd['EMPRESA'].str.upper() == 'INTEC') & 
+                (df_qvd['INTERGROUP'].str.upper().isin(['S', 'N'])) & 
+                (df_qvd['ANOMES'] == competencia_anomes)
             ]
-            v_aereo_intec_especifico = df_novo_filtro['ValorFinanceiro'].sum()
+            v_aereo_intec_especifico = df_novo_filtro['VALORFINANCEIRO'].sum()
 
-            # --- FILTROS ANTERIORES (INTERGROUP = 'S') ---
-            df_filtrado_s = df_qvd[(df_qvd['INTERGROUP'] == 'S') & (df_qvd['Empresa'] == 'INTEC') & (df_qvd['Anomes'] == competencia_anomes)]
+            # Filtro 2: Padrão (Intergroup = S)
+            df_filtrado_s = df_qvd[
+                (df_qvd['INTERGROUP'].str.upper() == 'S') & 
+                (df_qvd['EMPRESA'].str.upper() == 'INTEC') & 
+                (df_qvd['ANOMES'] == competencia_anomes)
+            ]
             
-            v_rodoviario = df_filtrado_s[df_filtrado_s['Modal'] == 'RODOVIARIO']['ValorFinanceiro'].sum()
-            v_aereo = df_filtrado_s[df_filtrado_s['Modal'] == 'AEREO']['ValorFinanceiro'].sum()
+            v_rodoviario = df_filtrado_s[df_filtrado_s['MODAL'].str.upper() == 'RODOVIARIO']['VALORFINANCEIRO'].sum()
+            v_aereo = df_filtrado_s[df_filtrado_s['MODAL'].str.upper() == 'AEREO']['VALORFINANCEIRO'].sum()
 
-            RegistrarLog(f"QVD Intec. Mes: {competencia_anomes}, Novo Aereo Intec: {v_aereo_intec_especifico}, Rodo: {v_rodoviario}, Aereo: {v_aereo}", "DEBUG")
+            RegistrarLog(f"CSV Intec OK. Mês: {competencia_anomes} | Aereo(S/N): {v_aereo_intec_especifico} | Rodo(S): {v_rodoviario} | Aereo(S): {v_aereo}", "DEBUG")
 
             if v_rodoviario == 0 and v_aereo == 0 and v_aereo_intec_especifico == 0:
+                RegistrarLog(f"Nenhum valor encontrado no CSV para {competencia_anomes}. Abortando Intec.", "WARNING")
                 return []
 
             with self.engine.connect() as conn:
@@ -459,17 +515,11 @@ class AjustesManuaisService:
 
             logs_intec = []
             
-            # LISTA DE LANÇAMENTOS (O novo lançamento entra primeiro)
             lancamentos = [
-                # NOVO LANÇAMENTO (AEREO INTEC S/N)
                 {'modal': 'AEREO', 'valor': v_aereo_intec_especifico, 'conta': '60101010201', 'tipo': 'D', 'sufixo': 'DEBITO'},
                 {'modal': 'AEREO', 'valor': v_aereo_intec_especifico, 'conta': '60101010201A', 'tipo': 'C', 'sufixo': 'CREDITO'},
-
-                # DÉBITOS ORIGINAIS (INTERGROUP S)
                 {'modal': 'RODOVIARIO', 'valor': v_rodoviario, 'conta': '60101010201', 'tipo': 'D', 'sufixo': 'D'},
                 {'modal': 'AEREO', 'valor': v_aereo, 'conta': '60101010201A', 'tipo': 'D', 'sufixo': 'D'},
-                
-                # CRÉDITOS ORIGINAIS (CONTRA-PARTIDA)
                 {'modal': 'RODOVIARIO', 'valor': v_rodoviario, 'conta': '60101010201B', 'tipo': 'C', 'sufixo': 'C'},
                 {'modal': 'AEREO', 'valor': v_aereo, 'conta': '60101010201C', 'tipo': 'C', 'sufixo': 'C'}
             ]
@@ -481,7 +531,6 @@ class AjustesManuaisService:
                     val_debito = v_abs if lanc['tipo'] == 'D' else 0.0
                     val_credito = v_abs if lanc['tipo'] == 'C' else 0.0
                     
-                    # A descrição agora carrega o sufixo para garantir unicidade no banco
                     desc_final = f"INTERGRUPO INTEC - {lanc['modal']} - {competencia_anomes} ({lanc['sufixo']})"
 
                     params_hash = {
@@ -494,16 +543,14 @@ class AjustesManuaisService:
                     }
                     hash_val = self._GerarHashIntergrupo(params_hash)
 
-                    # Busca o ajuste específico para esta linha (Débito ou Crédito)
                     ajuste_existente = self.session.query(AjustesRazao).filter(
                         AjustesRazao.Origem == 'INTEC',
                         AjustesRazao.Conta == lanc['conta'],
-                        AjustesRazao.Descricao == desc_final, # Filtro exato pela nova descrição
+                        AjustesRazao.Descricao == desc_final,
                         AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO'
                     ).first()
 
                     if ajuste_existente:
-                        # Atualiza o valor se houver diferença
                         valor_atual = ajuste_existente.Debito if lanc['tipo'] == 'D' else ajuste_existente.Credito
                         if abs(valor_atual - v_abs) > 0.01:
                             if lanc['tipo'] == 'D':
@@ -512,9 +559,8 @@ class AjustesManuaisService:
                                 ajuste_existente.Credito = v_abs
                                 
                             ajuste_existente.Hash_Linha_Original = hash_val 
-                            logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Atualizado")
+                            logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Atualizado para {v_abs}")
                     else:
-                        # Cria a nova linha (Seja Débito ou Crédito)
                         ajuste = AjustesRazao(
                             Conta=lanc['conta'],
                             Titulo_Conta=template.get('Titulo_Conta', 'VENDA DE FRETES'),
@@ -528,18 +574,18 @@ class AjustesManuaisService:
                             Hash_Linha_Original=hash_val, 
                             Tipo_Operacao='INTERGRUPO_AUTO',
                             Status='Aprovado', Invalido=False,
-                            Criado_Por='SISTEMA_QVD', Data_Aprovacao=datetime.datetime.now(),
+                            Criado_Por='SISTEMA_CSV', Data_Aprovacao=datetime.datetime.now(),
                             Exibir_Saldo=True
                         )
                         self.session.add(ajuste)
-                        logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Criado")
+                        logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Criado {v_abs}")
             
             return logs_intec
 
         except Exception as e:
-            RegistrarLog(f"Falha INTEC QVD", "ERROR", e)
-            return [f"ERRO INTEC: {str(e)}"]
-
+            RegistrarLog(f"Falha Crítica no INTEC CSV", "ERROR", e)
+            return [f"ERRO CRÍTICO INTEC: {str(e)}"]
+        
     def GerarIntergrupo(self, ano, mes):
         RegistrarLog(f"Iniciando GerarIntergrupo MENSAL. {mes}/{ano}", "SYSTEM")
         
@@ -576,21 +622,18 @@ class AjustesManuaisService:
                     valor_ajuste = round(abs(float(row.deb or 0.0) - float(row.cred or 0.0)), 2)
                     if valor_ajuste <= 0: continue
                     
-                    # Preparar dados para Hash Origem
                     p_orig = {
                         'Conta': conta_origem, 'Data': data_gravacao, 'Descricao': config['descricao'],
                         'Debito': 0.0, 'Credito': valor_ajuste, 'Filial': row.filial, 'Centro_Custo': row.cc, 'Origem': row.origem
                     }
                     h_orig = self._GerarHashIntergrupo(p_orig)
 
-                    # Preparar dados para Hash Destino
                     p_dest = {
                         'Conta': config['destino'], 'Data': data_gravacao, 'Descricao': config['descricao'],
                         'Debito': valor_ajuste, 'Credito': 0.0, 'Filial': row.filial, 'Centro_Custo': row.cc, 'Origem': row.origem
                     }
                     h_dest = self._GerarHashIntergrupo(p_dest)
 
-                    # Verifica Existência
                     ajuste_existente = self.session.query(AjustesRazao).filter(
                         AjustesRazao.Origem == row.origem,
                         AjustesRazao.Conta == config['destino'], 
@@ -601,7 +644,7 @@ class AjustesManuaisService:
                     if ajuste_existente:
                         if abs(ajuste_existente.Debito - valor_ajuste) > 0.01:
                              ajuste_existente.Debito = valor_ajuste
-                             ajuste_existente.Hash_Linha_Original = h_dest # Atualiza Hash Destino
+                             ajuste_existente.Hash_Linha_Original = h_dest
 
                              par_origem = self.session.query(AjustesRazao).filter(
                                  AjustesRazao.Origem == row.origem,
@@ -611,7 +654,7 @@ class AjustesManuaisService:
                              ).first()
                              if par_origem: 
                                  par_origem.Credito = valor_ajuste
-                                 par_origem.Hash_Linha_Original = h_orig # Atualiza Hash Origem
+                                 par_origem.Hash_Linha_Original = h_orig
                              
                              logs_totais.append(f"[{mes:02d}/{ano}] {row.origem}: Atualizado {config['destino']} v:{valor_ajuste}")
                     else:
@@ -620,7 +663,7 @@ class AjustesManuaisService:
                             Descricao=config['descricao'], Debito=0.0, Credito=valor_ajuste,
                             Filial=row.filial, Centro_Custo=row.cc, Item=row.item, Origem=row.origem,
                             Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO',
-                            Hash_Linha_Original=h_orig, # Hash Origem
+                            Hash_Linha_Original=h_orig, 
                             Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
                         )
                         
@@ -629,16 +672,36 @@ class AjustesManuaisService:
                             Descricao=config['descricao'], Debito=valor_ajuste, Credito=0.0,
                             Filial=row.filial, Centro_Custo=row.cc, Item=row.item, Origem=row.origem,
                             Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO',
-                            Hash_Linha_Original=h_dest, # Hash Destino
+                            Hash_Linha_Original=h_dest, 
                             Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
                         )
                         
                         self.session.add(aj_origem)
                         self.session.add(aj_destino)
                         logs_totais.append(f"[{mes:02d}/{ano}] {row.origem}: Criado {conta_origem} -> {config['destino']} v:{valor_ajuste}")
+            
+            self.session.commit()
+            
+            # --- VERIFICAÇÃO DE INTEGRIDADE (Mínimo 12 Registros) ---
+            # Conta registros gerados para este mês/ano com Tipo_Operacao INTERGRUPO_AUTO
+            # Usa SQL direto no count para garantir que estamos contando o que está no banco
+            qtd_registros = self.session.query(AjustesRazao).filter(
+                AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
+                text(f"EXTRACT(MONTH FROM \"Data\") = {mes}"),
+                text(f"EXTRACT(YEAR FROM \"Data\") = {ano}")
+            ).count()
+
+            RegistrarLog(f"GerarIntergrupo Finalizado. Total de Registros no Banco (Mês {mes}/{ano}): {qtd_registros}", "SYSTEM")
+            
+            if qtd_registros < 12:
+                aviso = f"ATENÇÃO CRÍTICA: Processo gerou apenas {qtd_registros} registros. Esperado no mínimo 12. Verifique os dados de origem (CSV ou Banco)."
+                RegistrarLog(aviso, "ERROR")
+                logs_totais.append(aviso)
+            else:
+                logs_totais.append(f"Sucesso: {qtd_registros} registros intergrupo validados (Mínimo 12 OK).")
 
             return logs_totais
 
         except Exception as e:
-            RegistrarLog("Erro ao persistir ajustes intergrupo", "ERROR", e)
+            RegistrarLog("Erro Fatal ao persistir ajustes intergrupo", "ERROR", e)
             raise e

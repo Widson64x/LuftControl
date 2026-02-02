@@ -12,8 +12,8 @@ let ordenamentoAtivo = false;
 let tipoDestinoIntegral = null; // Controle para replicação de Tipos
 
 // DEFINIÇÃO DE PREFIXOS (Baseado nos seus logs)
-const PREFIX_ORDEM = '/Luft Control/DreOrdenamento';
-const PREFIX_CONFIG = '/Luft Control/DreConfig';
+const PREFIX_ORDEM = '/LuftControl/DreOrdenamento';
+const PREFIX_CONFIG = '/LuftControl/DreConfig';
 
 // MAPA VISUAL (Somente Visualização)
 const MAPA_TIPOS_CC = {

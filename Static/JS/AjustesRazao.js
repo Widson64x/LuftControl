@@ -707,7 +707,7 @@ saveRow: async function(row) {
 
         this.toggleLoader(true);
         try {
-            const res = await fetch('/Luft Control/Adjustments/api/gerar-intergrupo', {
+            const res = await fetch('/LuftControl/Adjustments/api/gerar-intergrupo', {
                 method: 'POST',
                 headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({ ano: parseInt(ano), mes: parseInt(mes) })

@@ -2,6 +2,9 @@ import json
 import math
 from collections import defaultdict, namedtuple
 from sqlalchemy import text
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Utils.Hash_Utils import gerar_hash
 from Utils.Utils import ReportUtils
 from Utils.Logger import RegistrarLog
