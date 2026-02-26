@@ -22,15 +22,16 @@ class RelatorioDreGerencial:
     def _ObterEstruturaHierarquia(self):
         """Monta a árvore genealógica das contas (Pai -> Filho -> Neto)."""
         try:
-            # 1. Recursive CTE para montar os caminhos (TreePath)
+            # 1. Recursive CTE usando Subqueries exatas para prevenir duplicação de JOIN
             sql_tree = text("""
                 WITH RECURSIVE TreePath AS (
-                    -- Caso Base: As raízes (quem não tem pai)
+                    -- Caso Base: As raízes
                     SELECT 
                         h."Id", h."Nome", h."Id_Pai", 
                         h."Raiz_Centro_Custo_Codigo", h."Raiz_No_Virtual_Id", 
                         h."Raiz_Centro_Custo_Tipo", h."Raiz_No_Virtual_Nome", h."Raiz_Centro_Custo_Nome",
-                        CAST(h."Nome" AS TEXT) as full_path
+                        CAST(h."Nome" AS TEXT) as full_path,
+                        CAST(COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."DRE_Ordenamento" WHERE tipo_no = 'subgrupo' AND id_referencia = CAST(h."Id" AS TEXT)), 999) AS TEXT) as full_ordem_path
                     FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" h
                     WHERE h."Id_Pai" IS NULL
                     
@@ -44,7 +45,8 @@ class RelatorioDreGerencial:
                         COALESCE(child."Raiz_Centro_Custo_Tipo", tp."Raiz_Centro_Custo_Tipo"),
                         COALESCE(child."Raiz_No_Virtual_Nome", tp."Raiz_No_Virtual_Nome"),
                         COALESCE(child."Raiz_Centro_Custo_Nome", tp."Raiz_Centro_Custo_Nome"),
-                        CAST(tp.full_path || '||' || child."Nome" AS TEXT)
+                        CAST(tp.full_path || '||' || child."Nome" AS TEXT),
+                        CAST(tp.full_ordem_path || '||' || COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."DRE_Ordenamento" WHERE tipo_no = 'subgrupo' AND id_referencia = CAST(child."Id" AS TEXT) AND contexto_pai = 'sg_' || CAST(tp."Id" AS TEXT)), 999) AS TEXT)
                     FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" child
                     JOIN TreePath tp ON child."Id_Pai" = tp."Id"
                 )
@@ -53,29 +55,38 @@ class RelatorioDreGerencial:
             tree_rows = self.session.execute(sql_tree).fetchall()
             tree_map = {row.Id: row for row in tree_rows}
 
-            # 2. Busca Vínculos e Personalizações
+            # 2. Busca Vínculos e Personalizações com Ordem Específica da Conta
             sql_defs = text("""
-                SELECT v."Conta_Contabil", v."Id_Hierarquia", NULL::int as "Id_No_Virtual", NULL::text as "Nome_Personalizado", 'Vinculo' as "Origem_Regra", NULL::text as "Nome_Virtual_Direto", NULL::int as "Id_Virtual_Direto"
+                SELECT v."Conta_Contabil", v."Id_Hierarquia", NULL::int as "Id_No_Virtual", NULL::text as "Nome_Personalizado", 'Vinculo' as "Origem_Regra", NULL::text as "Nome_Virtual_Direto", NULL::int as "Id_Virtual_Direto",
+                COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."DRE_Ordenamento" WHERE tipo_no = 'conta' AND id_referencia = v."Conta_Contabil"), 999999) as "Ordem_Conta"
                 FROM "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v
+                
                 UNION ALL
-                SELECT p."Conta_Contabil", p."Id_Hierarquia", NULL::int, p."Nome_Personalizado", 'Personalizado_Hierarquia', NULL::text, NULL::int
+                
+                SELECT p."Conta_Contabil", p."Id_Hierarquia", NULL::int, p."Nome_Personalizado", 'Personalizado_Hierarquia', NULL::text, NULL::int,
+                COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."DRE_Ordenamento" WHERE tipo_no = 'conta_detalhe' AND id_referencia = CAST(p."Id" AS TEXT)), 999999) as "Ordem_Conta"
                 FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p WHERE p."Id_Hierarquia" IS NOT NULL
+                
                 UNION ALL
-                SELECT p."Conta_Contabil", NULL::int, p."Id_No_Virtual", p."Nome_Personalizado", 'Personalizado_Virtual', nv."Nome", nv."Id"
+                
+                SELECT p."Conta_Contabil", NULL::int, p."Id_No_Virtual", p."Nome_Personalizado", 'Personalizado_Virtual', nv."Nome", nv."Id",
+                COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."DRE_Ordenamento" WHERE tipo_no = 'conta_detalhe' AND id_referencia = CAST(p."Id" AS TEXT)), 999999) as "Ordem_Conta"
                 FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv ON p."Id_No_Virtual" = nv."Id" WHERE p."Id_No_Virtual" IS NOT NULL
             """)
             def_rows = self.session.execute(sql_defs).fetchall()
             
-            Definition = namedtuple('Definition', ['Conta_Contabil', 'CC_Alvo', 'Id_Hierarquia', 'Id_No_Virtual', 'Nome_Personalizado_Def', 'full_path', 'Tipo_Principal', 'Raiz_Centro_Custo_Nome', 'Raiz_No_Virtual_Id', 'Is_Root_Group'])
+            Definition = namedtuple('Definition', ['Conta_Contabil', 'CC_Alvo', 'Id_Hierarquia', 'Id_No_Virtual', 'Nome_Personalizado_Def', 'full_path', 'full_ordem_path', 'Tipo_Principal', 'Raiz_Centro_Custo_Nome', 'Raiz_No_Virtual_Id', 'Is_Root_Group', 'Ordem_Conta'])
             definitions = defaultdict(list)
             
             for row in def_rows:
-                cc_alvo = None; full_path = None; tipo_principal = None; nome_cc_detalhe = None; raiz_virt_id = None; is_root_group = False
+                cc_alvo = None; full_path = None; full_ordem_path = None; tipo_principal = None; nome_cc_detalhe = None; raiz_virt_id = None; is_root_group = False
+                ordem_conta = row.Ordem_Conta
                 
                 if row.Id_Hierarquia and row.Id_Hierarquia in tree_map:
                     node = tree_map[row.Id_Hierarquia]
                     cc_alvo = node.Raiz_Centro_Custo_Codigo
                     full_path = node.full_path
+                    full_ordem_path = node.full_ordem_path
                     nome_cc_detalhe = node.Raiz_Centro_Custo_Nome
                     raiz_virt_id = node.Raiz_No_Virtual_Id
                     
@@ -89,10 +100,11 @@ class RelatorioDreGerencial:
                         is_root_group = True
                 elif row.Id_No_Virtual:
                     full_path = 'Direto'
+                    full_ordem_path = '999'
                     tipo_principal = row.Nome_Virtual_Direto
                     raiz_virt_id = row.Id_Virtual_Direto
                 
-                obj_def = Definition(Conta_Contabil=row.Conta_Contabil, CC_Alvo=cc_alvo, Id_Hierarquia=row.Id_Hierarquia, Id_No_Virtual=row.Id_No_Virtual, Nome_Personalizado_Def=row.Nome_Personalizado, full_path=full_path, Tipo_Principal=tipo_principal, Raiz_Centro_Custo_Nome=nome_cc_detalhe, Raiz_No_Virtual_Id=raiz_virt_id, Is_Root_Group=is_root_group)
+                obj_def = Definition(Conta_Contabil=row.Conta_Contabil, CC_Alvo=cc_alvo, Id_Hierarquia=row.Id_Hierarquia, Id_No_Virtual=row.Id_No_Virtual, Nome_Personalizado_Def=row.Nome_Personalizado, full_path=full_path, full_ordem_path=full_ordem_path, Tipo_Principal=tipo_principal, Raiz_Centro_Custo_Nome=nome_cc_detalhe, Raiz_No_Virtual_Id=raiz_virt_id, Is_Root_Group=is_root_group, Ordem_Conta=ordem_conta)
                 definitions[row.Conta_Contabil].append(obj_def)
                 
             return tree_map, definitions
@@ -219,7 +231,7 @@ class RelatorioDreGerencial:
 
             aggregated_data = {}
 
-            # --- Função Interna ProcessRow (MANTIDA IDÊNTICA) ---
+            # --- Função Interna ProcessRow ---
             def ProcessRow(origem, conta, titulo, data, saldo, cc_original_str, row_hash=None, is_skeleton=False, forced_match=None):
                 if not is_skeleton and row_hash and row_hash in ajustes_edicao:
                     adj = ajustes_edicao[row_hash]
@@ -281,7 +293,7 @@ class RelatorioDreGerencial:
                 conta_display = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else conta
                 titulo_para_exibicao = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else titulo
                 
-                group_key = (tipo_cc, root_virtual_id, caminho, titulo_para_exibicao, conta_display)
+                group_key = (tipo_cc, root_virtual_id, caminho, match.full_ordem_path, match.Ordem_Conta, titulo_para_exibicao, conta_display)
                 if agrupar_por_cc: 
                     group_key = group_key + (match.Raiz_Centro_Custo_Nome,)
 
@@ -292,7 +304,10 @@ class RelatorioDreGerencial:
 
                     item = {
                         'origem': origem, 'Conta': conta_display, 'Titulo_Conta': titulo_para_exibicao,
-                        'Tipo_CC': tipo_cc, 'Root_Virtual_Id': root_virtual_id, 'Caminho_Subgrupos': caminho, 
+                        'Tipo_CC': tipo_cc, 'Root_Virtual_Id': root_virtual_id, 
+                        'Caminho_Subgrupos': caminho,
+                        'Caminho_Ordem': match.full_ordem_path,
+                        'Ordem_Conta': match.Ordem_Conta,
                         'ordem_prioridade': ordem, 
                         'ordem_secundaria': ordem_secundaria,
                         'Total_Ano': 0.0,
@@ -321,7 +336,6 @@ class RelatorioDreGerencial:
             where_clauses = []
             params = {}
             
-            # [NOVO] Lógica do Ano no Banco de Dados
             if ano:
                 params['ano'] = int(ano)
                 where_clauses.append('EXTRACT(YEAR FROM "Data") = :ano')
@@ -350,9 +364,7 @@ class RelatorioDreGerencial:
                 FROM "Dre_Schema"."Razao_Dados_Consolidado" {where_final}
             """)
             
-            RegistrarLog("Executando Query Principal do Razão...", "DB_QUERY")
             raw_rows = self.session.execute(sql_raw, params).fetchall()
-            RegistrarLog(f"Query retornou {len(raw_rows)} linhas cruas.", "DB_QUERY")
 
             for row in raw_rows:
                 h = gerar_hash(row)
@@ -364,8 +376,6 @@ class RelatorioDreGerencial:
             # 3. Inclusões Manuais
             for adj in ajustes_inclusao:
                 if adj.Origem not in lista_empresas: continue
-                
-                # [NOVO] Validar Ano nas inclusões
                 if ano and adj.Data and adj.Data.year != int(ano): continue
 
                 if cc_list:
