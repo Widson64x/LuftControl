@@ -55,8 +55,8 @@ class BaseConfig:
 
     def DataQVDPath(self):
         """Retorna o caminho base para os arquivos QVD"""
-        BASEDIR = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(BASEDIR, "Data", "Fat_QVD")
+        SYS_BASE = "L:\TECNOLOGIA DA INFORMACAO\SISTEMAS" or "\\\\172.16.200.206\TECNOLOGIA DA INFORMACAO\SISTEMAS"
+        return os.path.join(SYS_BASE, "Dados")
     
 # --- Ambientes (Herdam BaseConfig E LogConfig) ---
 
