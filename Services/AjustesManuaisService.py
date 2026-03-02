@@ -681,7 +681,7 @@ class AjustesManuaisService:
                             Hash_Linha_Original=hash_val, 
                             Tipo_Operacao='INTERGRUPO_AUTO',
                             Status='Aprovado', Invalido=False,
-                            Criado_Por='SISTEMA_CSV', Data_Aprovacao=datetime.datetime.now(),
+                            Criado_Por='SISTEMA_AUTO', Data_Aprovacao=datetime.datetime.now(),
                             Exibir_Saldo=True
                         )
                         self.session.add(ajuste)
@@ -693,68 +693,100 @@ class AjustesManuaisService:
             RegistrarLog(f"Falha Crítica no INTEC CSV", "ERROR", e)
             return [f"ERRO CRÍTICO INTEC: {str(e)}"]
         
-    def GerarIntergrupo(self, ano, mes):
+    def ProcessarIntergrupoFarma(self, ano, mes, data_inicio, data_fim, data_gravacao):
         """
-        Gera todos os movimentos e fluxos intergrupo do mês, tanto provenientes do CSV INTEC 
-        (invocando a respetiva função) quanto realizando a transferência de saldos de contas
-        específicas para as suas contas espelho / de destino, neutralizando valores entre empresas do grupo.
+        Processa as regras de intergrupo para a divisão Farma (tudo exceto INTEC).
+        Faz o cruzamento de saldos de contas específicas.
+        REGRA DE FILTRO: 
+        - Contas gerais: Soma apenas lançamentos onde a coluna 'Descricao' contenha 'INTEC'.
+        - Exceção: Para a conta '60101010201', o filtro de descrição é ignorado e tudo é somado.
         
         Args:
             ano (int): Ano para cálculo.
             mes (int): Mês para cálculo.
+            data_inicio (datetime): Data de início do período (1º dia do mês).
+            data_fim (datetime): Data de fim do período (Último dia do mês às 23:59:59).
+            data_gravacao (datetime): Data em que o lançamento deve ser registado na DRE.
             
         Returns:
             list[str]: Logs contendo o resumo dos registos verificados, criados ou ajustados.
         """
-        RegistrarLog(f"Iniciando GerarIntergrupo MENSAL. {mes}/{ano}", "SYSTEM")
-        
         config_contas = {
             '60301020290': {'destino': '60301020290B', 'descricao': 'ajuste intergrupo ( fretes Dist.)', 'titulo_origem': 'FRETE DISTRIBUIÇÃO', 'titulo_destino': 'FRETE DISTRIBUIÇÃO'},
             '60301020288': {'destino': '60301020288C', 'descricao': 'ajuste intergrupo ( fretes Aéreo)', 'titulo_origem': 'FRETES AEREO', 'titulo_destino': 'FRETES AEREO'},
             '60101010201': {'destino': '60101010201A', 'descricao': 'VLR. CFE DIARIO AUXILIAR N/ DATA (aéreo)', 'titulo_origem': 'VENDA DE FRETES', 'titulo_destino': 'VENDA DE FRETES'}
         }
         
-        logs_totais = []
-        ultimo_dia = calendar.monthrange(ano, mes)[1]
-        data_inicio = datetime.datetime(ano, mes, 1)
-        data_fim = datetime.datetime(ano, mes, ultimo_dia, 23, 59, 59)
-        data_gravacao = datetime.datetime(ano, mes, ultimo_dia)
-
+        logs_farma = []
+        
         try:
-            logs_intec = self.ProcessarIntergrupoIntec(ano, mes, data_gravacao)
-            logs_totais.extend(logs_intec)
-
             for conta_origem, config in config_contas.items():
+                # Trazemos os dados sem agrupamento (SUM/GROUP BY) para garantir que
+                # a verificação da descrição seja feita linha a linha no Python.
                 sql = text(f"""
-                    SELECT "origem", SUM("Debito") as deb, SUM("Credito") as cred, 
-                        MAX("Item") as item, MAX("Filial") as filial, MAX("Centro de Custo") as cc
+                    SELECT "origem", "Descricao", "Debito", "Credito", "Item", "Filial", "Centro de Custo" as cc
                     FROM "{self.schema}"."Razao_Dados_Consolidado"
                     WHERE "Conta" = :conta AND "Data" >= :d_ini AND "Data" <= :d_fim
                     AND "origem" NOT IN ('INTEC')
-                    GROUP BY "origem"
                 """)
                 
                 rows = self.session.execute(sql, {'conta': conta_origem, 'd_ini': data_inicio, 'd_fim': data_fim}).fetchall()
 
+                # Dicionário para agrupar e somar os valores apenas das linhas válidas
+                agrupado_por_origem = {}
+
                 for row in rows:
-                    if not row.deb and not row.cred: continue
-                    valor_ajuste = round(abs(float(row.deb or 0.0) - float(row.cred or 0.0)), 2)
+                    r_dict = dict(row._mapping)
+                    descricao_texto = str(r_dict.get('Descricao') or '').upper()
+                    
+                    # FILTRO DE PRECISÃO NO CÓDIGO PYTHON
+                    # Se a conta for 60101010201 OU a descrição contiver 'INTEC', a linha é processada
+                    if conta_origem == '60101010201' or "INTEC" in descricao_texto:
+                        orig = r_dict.get('origem')
+                        
+                        if orig not in agrupado_por_origem:
+                            agrupado_por_origem[orig] = {
+                                'deb': 0.0,
+                                'cred': 0.0,
+                                'item': r_dict.get('Item'),
+                                'filial': r_dict.get('Filial'),
+                                'cc': r_dict.get('cc'),
+                                'origem': orig
+                            }
+                        
+                        # Soma os valores para essa origem
+                        agrupado_por_origem[orig]['deb'] += float(r_dict.get('Debito') or 0.0)
+                        agrupado_por_origem[orig]['cred'] += float(r_dict.get('Credito') or 0.0)
+                        
+                        # Preenche os dados mestre se por acaso o primeiro registro vier vazio
+                        if not agrupado_por_origem[orig]['filial'] and r_dict.get('Filial'): 
+                            agrupado_por_origem[orig]['filial'] = r_dict.get('Filial')
+                        if not agrupado_por_origem[orig]['cc'] and r_dict.get('cc'): 
+                            agrupado_por_origem[orig]['cc'] = r_dict.get('cc')
+                        if not agrupado_por_origem[orig]['item'] and r_dict.get('Item'): 
+                            agrupado_por_origem[orig]['item'] = r_dict.get('Item')
+
+                # Geração dos lançamentos intergrupo baseada nos dados já filtrados e somados
+                for orig, dados in agrupado_por_origem.items():
+                    if not dados['deb'] and not dados['cred']: continue
+                    
+                    valor_ajuste = round(abs(dados['deb'] - dados['cred']), 2)
                     if valor_ajuste <= 0: continue
                     
                     p_orig = {
                         'Conta': conta_origem, 'Data': data_gravacao, 'Descricao': config['descricao'],
-                        'Debito': 0.0, 'Credito': valor_ajuste, 'Filial': row.filial, 'Centro_Custo': row.cc, 'Origem': row.origem
+                        'Debito': 0.0, 'Credito': valor_ajuste, 'Filial': dados['filial'], 'Centro_Custo': dados['cc'], 'Origem': dados['origem']
                     }
                     h_orig = self._GerarHashIntergrupo(p_orig)
 
                     p_dest = {
                         'Conta': config['destino'], 'Data': data_gravacao, 'Descricao': config['descricao'],
-                        'Debito': valor_ajuste, 'Credito': 0.0, 'Filial': row.filial, 'Centro_Custo': row.cc, 'Origem': row.origem
+                        'Debito': valor_ajuste, 'Credito': 0.0, 'Filial': dados['filial'], 'Centro_Custo': dados['cc'], 'Origem': dados['origem']
                     }
                     h_dest = self._GerarHashIntergrupo(p_dest)
 
                     ajuste_existente = self.session.query(AjustesRazao).filter(
-                        AjustesRazao.Origem == row.origem,
+                        AjustesRazao.Origem == dados['origem'],
                         AjustesRazao.Conta == config['destino'], 
                         AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
                         AjustesRazao.Data == data_gravacao
@@ -766,7 +798,7 @@ class AjustesManuaisService:
                              ajuste_existente.Hash_Linha_Original = h_dest
 
                              par_origem = self.session.query(AjustesRazao).filter(
-                                 AjustesRazao.Origem == row.origem,
+                                 AjustesRazao.Origem == dados['origem'],
                                  AjustesRazao.Conta == conta_origem,
                                  AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
                                  AjustesRazao.Data == data_gravacao
@@ -775,12 +807,12 @@ class AjustesManuaisService:
                                  par_origem.Credito = valor_ajuste
                                  par_origem.Hash_Linha_Original = h_orig
                              
-                             logs_totais.append(f"[{mes:02d}/{ano}] {row.origem}: Atualizado {config['destino']} v:{valor_ajuste}")
+                             logs_farma.append(f"[{mes:02d}/{ano}] {dados['origem']}: Atualizado {config['destino']} v:{valor_ajuste}")
                     else:
                         aj_origem = AjustesRazao(
                             Conta=conta_origem, Titulo_Conta=config['titulo_origem'], Data=data_gravacao,
                             Descricao=config['descricao'], Debito=0.0, Credito=valor_ajuste,
-                            Filial=row.filial, Centro_Custo=row.cc, Item=row.item, Origem=row.origem,
+                            Filial=dados['filial'], Centro_Custo=dados['cc'], Item=dados['item'], Origem=dados['origem'],
                             Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO',
                             Hash_Linha_Original=h_orig, 
                             Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
@@ -789,7 +821,7 @@ class AjustesManuaisService:
                         aj_destino = AjustesRazao(
                             Conta=config['destino'], Titulo_Conta=config['titulo_destino'], Data=data_gravacao,
                             Descricao=config['descricao'], Debito=valor_ajuste, Credito=0.0,
-                            Filial=row.filial, Centro_Custo=row.cc, Item=row.item, Origem=row.origem,
+                            Filial=dados['filial'], Centro_Custo=dados['cc'], Item=dados['item'], Origem=dados['origem'],
                             Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO',
                             Hash_Linha_Original=h_dest, 
                             Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
@@ -797,13 +829,48 @@ class AjustesManuaisService:
                         
                         self.session.add(aj_origem)
                         self.session.add(aj_destino)
-                        logs_totais.append(f"[{mes:02d}/{ano}] {row.origem}: Criado {conta_origem} -> {config['destino']} v:{valor_ajuste}")
+                        logs_farma.append(f"[{mes:02d}/{ano}] {dados['origem']}: Criado {conta_origem} -> {config['destino']} v:{valor_ajuste}")
             
+            return logs_farma
+            
+        except Exception as e:
+            RegistrarLog(f"Erro no ProcessarIntergrupoFarma", "ERROR", e)
+            raise e
+
+    def GerarIntergrupo(self, ano, mes):
+        """
+        Orquestra a geração de movimentos e fluxos intergrupo do mês.
+        Atua apenas como um controlador, invocando os processadores específicos (INTEC e Farma),
+        salvando as transações na base de dados e validando a integridade final.
+        
+        Args:
+            ano (int): Ano para cálculo.
+            mes (int): Mês para cálculo.
+            
+        Returns:
+            list[str]: Logs contendo o resumo consolidado de todas as operações intergrupo.
+        """
+        RegistrarLog(f"Iniciando GerarIntergrupo MENSAL. {mes}/{ano}", "SYSTEM")
+        
+        logs_totais = []
+        ultimo_dia = calendar.monthrange(ano, mes)[1]
+        data_inicio = datetime.datetime(ano, mes, 1)
+        data_fim = datetime.datetime(ano, mes, ultimo_dia, 23, 59, 59)
+        data_gravacao = datetime.datetime(ano, mes, ultimo_dia)
+
+        try:
+            # 1. Processa as Regras da INTEC (CSV)
+            logs_intec = self.ProcessarIntergrupoIntec(ano, mes, data_gravacao)
+            logs_totais.extend(logs_intec)
+
+            # 2. Processa as Regras da Farma (Consulta a Banco / Demais Origens)
+            logs_farma = self.ProcessarIntergrupoFarma(ano, mes, data_inicio, data_fim, data_gravacao)
+            logs_totais.extend(logs_farma)
+            
+            # Efetiva as inserções e atualizações de ambos os processos no banco de dados
             self.session.commit()
             
             # --- VERIFICAÇÃO DE INTEGRIDADE (Mínimo 12 Registros) ---
-            # Conta registros gerados para este mês/ano com Tipo_Operacao INTERGRUPO_AUTO
-            # Usa SQL direto no count para garantir que estamos contando o que está no banco
             qtd_registros = self.session.query(AjustesRazao).filter(
                 AjustesRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
                 text(f"EXTRACT(MONTH FROM \"Data\") = {mes}"),
@@ -822,5 +889,6 @@ class AjustesManuaisService:
             return logs_totais
 
         except Exception as e:
+            self.session.rollback() # Previne sujeira na base caso uma das etapas falhe catastroficamente
             RegistrarLog("Erro Fatal ao persistir ajustes intergrupo", "ERROR", e)
             raise e
