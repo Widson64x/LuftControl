@@ -1,6 +1,6 @@
 from sqlalchemy.orm import sessionmaker
 from Db.Connections import GetPostgresEngine
-from Models.POSTGRESS.Seguranca import SecUserExtension, SecRole, SecPermission
+from Models.POSTGRESS.CTL_Seguranca import CtlSegUsuario, CtlSegPerfil, CtlSegPermissao
 
 class ConfiguracaoSegurancaService:
     """
@@ -26,7 +26,7 @@ class ConfiguracaoSegurancaService:
             edges = []
 
             # 1. Processa Papéis (Roles)
-            roles = session.query(SecRole).all()
+            roles = session.query(CtlSegPerfil).all()
             for r in roles:
                 role_node_id = f"role_{r.Id}"
                 nodes.append({
@@ -49,7 +49,7 @@ class ConfiguracaoSegurancaService:
                     })
 
             # 2. Processa Usuários
-            users = session.query(SecUserExtension).all()
+            users = session.query(CtlSegUsuario).all()
             for u in users:
                 user_node_id = f"user_{u.Id}"
                 nodes.append({
@@ -60,10 +60,10 @@ class ConfiguracaoSegurancaService:
                 })
 
                 # Conecta Usuário -> Grupo
-                if u.RoleId:
+                if u.PerfilId:
                     edges.append({
                         "from": user_node_id,
-                        "to": f"role_{u.RoleId}",
+                        "to": f"role_{u.PerfilId}",
                         "length": 100,
                         "color": {"color": "#00B894"},
                         "width": 2
@@ -126,15 +126,15 @@ class ConfiguracaoSegurancaService:
         """Lista usuários cadastrados na tabela de extensão de segurança."""
         session = ConfiguracaoSegurancaService._ObterSessao()
         try:
-            users = session.query(SecUserExtension).all()
+            users = session.query(CtlSegUsuario).all()
             resultado = []
             for u in users:
                 perms_diretas = [p.Id for p in u.direct_permissions]
                 resultado.append({
                     "id": u.Id,
                     "login": u.Login_Usuario,
-                    "role_id": u.RoleId,
-                    "role_name": u.role.Nome if u.role else "Sem Grupo",
+                    "role_id": u.PerfilId, # <-- ALTERADO
+                    "role_name": u.perfil.Nome if u.perfil else "Sem Grupo", # <-- ALTERADO
                     "direct_permissions": perms_diretas
                 })
             return resultado
@@ -146,13 +146,13 @@ class ConfiguracaoSegurancaService:
         """Define ou altera o Papel (Role) de um usuário."""
         session = ConfiguracaoSegurancaService._ObterSessao()
         try:
-            user_ext = session.query(SecUserExtension).filter_by(Login_Usuario=login).first()
+            user_ext = session.query(CtlSegUsuario).filter_by(Login_Usuario=login).first()
 
             if not user_ext:
-                user_ext = SecUserExtension(Login_Usuario=login)
+                user_ext = CtlSegUsuario(Login_Usuario=login)
                 session.add(user_ext)
 
-            user_ext.RoleId = int(role_id) if role_id else None
+            user_ext.PerfilId = int(role_id) if role_id else None # <-- ALTERADO
             session.commit()
             return True
         except Exception as e:
@@ -166,10 +166,10 @@ class ConfiguracaoSegurancaService:
         """Retorna todos os Grupos e todas as Permissões para o frontend."""
         session = ConfiguracaoSegurancaService._ObterSessao()
         try:
-            all_perms = session.query(SecPermission).all()
+            all_perms = session.query(CtlSegPermissao).all()
             perms_list = [{"id": p.Id, "slug": p.Slug, "desc": p.Descricao} for p in all_perms]
 
-            roles = session.query(SecRole).all()
+            roles = session.query(CtlSegPerfil).all()
             roles_data = []
             for r in roles:
                 roles_data.append({
@@ -189,9 +189,9 @@ class ConfiguracaoSegurancaService:
         session = ConfiguracaoSegurancaService._ObterSessao()
         try:
             if role_id:
-                role = session.query(SecRole).get(role_id)
+                role = session.query(CtlSegPerfil).get(role_id)
             else:
-                role = SecRole()
+                role = CtlSegPerfil()
                 session.add(role)
 
             role.Nome = nome
@@ -200,7 +200,7 @@ class ConfiguracaoSegurancaService:
             # Atualiza permissões
             role.permissions = []
             if ids_permissoes:
-                perms = session.query(SecPermission).filter(SecPermission.Id.in_(ids_permissoes)).all()
+                perms = session.query(CtlSegPermissao).filter(CtlSegPermissao.Id.in_(ids_permissoes)).all()
                 role.permissions = perms
 
             session.commit()
@@ -216,11 +216,11 @@ class ConfiguracaoSegurancaService:
         """Cria uma nova Permissão no sistema."""
         session = ConfiguracaoSegurancaService._ObterSessao()
         try:
-            exists = session.query(SecPermission).filter_by(Slug=slug).first()
+            exists = session.query(CtlSegPermissao).filter_by(Slug=slug).first()
             if exists:
                 raise ValueError("Ops! Já existe uma permissão com este Slug.")
 
-            new_perm = SecPermission(Slug=slug, Descricao=descricao)
+            new_perm = CtlSegPermissao(Slug=slug, Descricao=descricao)
             session.add(new_perm)
             session.commit()
             return True
@@ -235,13 +235,13 @@ class ConfiguracaoSegurancaService:
         """Exclui um Grupo e remove a associação dos usuários."""
         session = ConfiguracaoSegurancaService._ObterSessao()
         try:
-            role = session.query(SecRole).get(role_id)
+            role = session.query(CtlSegPerfil).get(role_id)
             if not role:
                 raise ValueError("Grupo não encontrado.")
 
-            users = session.query(SecUserExtension).filter_by(RoleId=role_id).all()
+            users = session.query(CtlSegUsuario).filter_by(PerfilId=role_id).all() # <-- ALTERADO
             for u in users:
-                u.RoleId = None
+                u.PerfilId = None
 
             session.delete(role)
             session.commit()
@@ -257,7 +257,7 @@ class ConfiguracaoSegurancaService:
         """Exclui uma Permissão do sistema."""
         session = ConfiguracaoSegurancaService._ObterSessao()
         try:
-            perm = session.query(SecPermission).get(perm_id)
+            perm = session.query(CtlSegPermissao).get(perm_id)
             if not perm:
                 raise ValueError("Permissão não encontrada.")
 
@@ -275,8 +275,8 @@ class ConfiguracaoSegurancaService:
         """Adiciona ou remove permissão direta de um usuário."""
         session = ConfiguracaoSegurancaService._ObterSessao()
         try:
-            user = session.query(SecUserExtension).filter_by(Login_Usuario=login).first()
-            perm = session.query(SecPermission).get(perm_id)
+            user = session.query(CtlSegUsuario).filter_by(Login_Usuario=login).first()
+            perm = session.query(CtlSegPermissao).get(perm_id)
 
             if not user or not perm:
                 raise ValueError("Usuário ou Permissão não encontrados.")

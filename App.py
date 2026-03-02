@@ -18,7 +18,7 @@ from Routes.ImportacaoDados import import_bp
 
 # --- Imports Banco de Dados ---
 from Db.Connections import PG_DATABASE_URL, CheckConnections
-from Models.POSTGRESS.DreEstrutura import Base as DreBase
+from Models.POSTGRESS.CTL_Dre_Estrutura import Base as DreBase
 
 from Utils.Logger import ConfigurarLogger, RegistrarLog
 

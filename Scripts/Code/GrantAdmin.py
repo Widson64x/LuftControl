@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Db.Connections import GetPostgresEngine
 from sqlalchemy.orm import sessionmaker
-from Models.POSTGRESS.Seguranca import SecPermission, SecRole, SecUserExtension
+from Models.POSTGRESS.CTL_Seguranca import SecPermission, SecRole, SecUserExtension
 
 def grant_admin():
     # SEU USUÁRIO DE LOGIN (Conforme visto no log)
