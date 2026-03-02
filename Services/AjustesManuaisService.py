@@ -17,6 +17,12 @@ from Db.Connections import GetPostgresEngine
 
 class AjustesManuaisService:
     def __init__(self, session_db):
+        """
+        Inicializa o serviço de Ajustes Manuais.
+        
+        Args:
+            session_db: Sessão ativa da base de dados PostgreSQL.
+        """
         self.session = session_db
         self.engine = GetPostgresEngine()
         self.schema = "Dre_Schema"
@@ -25,7 +31,13 @@ class AjustesManuaisService:
 
     def _RegistrarLog(self, ajuste_antigo, dados_novos, usuario):
         """
-        Gera logs comparando o objeto do banco (ajuste_antigo) com o JSON (dados_novos)
+        Gera e regista logs de auditoria detalhados comparando o objeto atual da base de dados 
+        (ajuste_antigo) com os novos dados recebidos (dados_novos).
+        
+        Args:
+            ajuste_antigo (AjustesRazao): O objeto de ajuste como se encontra atualmente na base de dados.
+            dados_novos (dict): Dicionário contendo os novos dados vindos do frontend.
+            usuario (str): Identificação do utilizador que está a realizar a alteração.
         """
         # Mapeamento: Chave no JSON do Front -> Atributo na Model do Banco
         campos_mapeados = {
@@ -106,6 +118,16 @@ class AjustesManuaisService:
                 self.session.add(novo_log)
                 
     def _GerarHashIntergrupo(self, row):
+        """
+        Gera um hash MD5 único para uma linha de intergrupo baseando-se nos campos chave.
+        Garante a correta identificação da linha e previne duplicações na base de dados.
+        
+        Args:
+            row (dict): Dicionário com os dados da linha.
+            
+        Returns:
+            str: Hash MD5 gerado a partir dos valores concatenados.
+        """
         def Clean(val):
             if val is None: return 'None'
             s = str(val).strip()
@@ -123,6 +145,14 @@ class AjustesManuaisService:
 
     # --- MÉTODOS DE GRID/CRUD ---
     def ObterDadosGrid(self):
+        """
+        Obtém e consolida os dados necessários para exibir na grelha (grid) principal.
+        Cruza os dados da vista (view) consolidada com os ajustes manuais e automáticos registados,
+        gerando linhas adicionais para novas inclusões e modificando as linhas originais conforme editadas.
+        
+        Returns:
+            list[dict]: Lista de dicionários correspondentes a cada linha da grelha.
+        """
         RegistrarLog("Iniciando ObterDadosGrid", "SERVICE")
         
         q_view = text('SELECT * FROM "Dre_Schema"."Razao_Dados_Consolidado" LIMIT 10000000') 
@@ -214,8 +244,15 @@ class AjustesManuaisService:
 
     def CriarAjusteManual(self, payload, usuario):
         """
-        Cria um novo ajuste do zero (INCLUSAO).
-        Gera um Hash novo baseado no conteúdo para garantir unicidade no banco.
+        Cria um novo ajuste manual a partir do zero (INCLUSÃO pura).
+        Gera um Hash novo baseado no conteúdo para garantir a unicidade.
+        
+        Args:
+            payload (dict): Os dados enviados pela interface.
+            usuario (str): Identificação do utilizador que realizou a ação.
+            
+        Returns:
+            int: O ID do ajuste gerado na base de dados.
         """
         RegistrarLog(f"Iniciando CriarAjusteManual. Usuario: {usuario}", "SERVICE")
         
@@ -286,6 +323,18 @@ class AjustesManuaisService:
         return ajuste.Id
     
     def SalvarAjuste(self, payload, usuario):
+        """
+        Guarda as alterações realizadas num ajuste existente (EDIÇÃO) ou salva uma inclusão 
+        proveniente de outro fluxo. Atualiza os dados se a linha já existir ou cria uma nova 
+        se for referenciada pela primeira vez.
+        
+        Args:
+            payload (dict): Os dados enviados pela interface.
+            usuario (str): Identificação do utilizador que realizou a ação.
+            
+        Returns:
+            int: O ID do ajuste manipulado.
+        """
         RegistrarLog(f"Iniciando SalvarAjuste. Usuario: {usuario}", "SERVICE")
         
         d = payload.get('Dados', {})
@@ -380,6 +429,14 @@ class AjustesManuaisService:
         return ajuste.Id
     
     def AprovarAjuste(self, ajuste_id, acao, usuario):
+        """
+        Altera o estado de um ajuste para 'Aprovado' ou 'Reprovado'.
+        
+        Args:
+            ajuste_id (int): ID do ajuste a ser processado.
+            acao (str): Ação executada ('Aprovar' ou outra que resulta em 'Reprovado').
+            usuario (str): Identificação do utilizador que aprovou.
+        """
         ajuste = self.session.query(AjustesRazao).get(ajuste_id)
         if ajuste:
             novo_status = 'Aprovado' if acao == 'Aprovar' else 'Reprovado'
@@ -392,6 +449,14 @@ class AjustesManuaisService:
             self.session.commit()
 
     def ToggleInvalido(self, ajuste_id, acao, usuario):
+        """
+        Alterna a flag 'Invalido' num ajuste, desativando ou reativando o mesmo.
+        
+        Args:
+            ajuste_id (int): ID do ajuste.
+            acao (str): Ação ('INVALIDAR' para definir como inválido).
+            usuario (str): Identificação do utilizador.
+        """
         ajuste = self.session.query(AjustesRazao).get(ajuste_id)
         if not ajuste: raise Exception('Ajuste não encontrado')
         novo_estado_invalido = (acao == 'INVALIDAR')
@@ -407,6 +472,15 @@ class AjustesManuaisService:
         self.session.commit()
 
     def ObterHistorico(self, ajuste_id):
+        """
+        Devolve o histórico de logs/alterações efetuadas sobre um determinado ajuste.
+        
+        Args:
+            ajuste_id (int): ID do ajuste.
+            
+        Returns:
+            list[dict]: Lista cronológica (mais recente primeiro) contendo os logs formatados.
+        """
         logs = self.session.query(AjustesLog).filter(AjustesLog.Id_Ajuste == ajuste_id).order_by(AjustesLog.Data_Acao.desc()).all()
         return [{
             'Id_Log': l.Id_Log, 'Campo': l.Campo_Alterado, 'De': l.Valor_Antigo, 'Para': l.Valor_Novo,
@@ -415,6 +489,19 @@ class AjustesManuaisService:
 
     # --- PROCESSAMENTO INTERGRUPO ---
     def ProcessarIntergrupoIntec(self, ano, mes, data_gravacao):
+        """
+        Realiza a leitura e processamento do ficheiro ValorFinanceiro.csv da empresa INTEC.
+        Filtra os modais (Aéreo e Rodoviário) e gera as rubricas (Débito e Crédito) necessárias
+        para regularização financeira intergrupo de forma automática.
+        
+        Args:
+            ano (int): Ano de processamento.
+            mes (int): Mês de processamento.
+            data_gravacao (datetime): Data em que o lançamento deve ser registado na DRE.
+            
+        Returns:
+            list[str]: Lista de mensagens de log descrevendo o que foi gerado/atualizado.
+        """
         try:
             meses_map = {
                 1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 
@@ -479,6 +566,7 @@ class AjustesManuaisService:
                     return [f"Coluna obrigatória não encontrada: {c}"]
 
             # Filtro 1: Aereo Intec Específico
+            # Condições: Apenas o modal AEREO, Empresa INTEC, marcadores de intergroup específicos 'S' ou 'N', dentro da competência (Mês/Ano).
             df_novo_filtro = df_qvd[
                 (df_qvd['MODAL'].str.upper() == 'AEREO') & 
                 (df_qvd['EMPRESA'].str.upper() == 'INTEC') & 
@@ -488,12 +576,14 @@ class AjustesManuaisService:
             v_aereo_intec_especifico = df_novo_filtro['VALORFINANCEIRO'].sum()
 
             # Filtro 2: Padrão (Intergroup = S)
+            # Condições: Filtro genérico que apenas olha para o INTERGROUP marcado com 'S' na Empresa INTEC para a dada competência.
             df_filtrado_s = df_qvd[
                 (df_qvd['INTERGROUP'].str.upper() == 'S') & 
                 (df_qvd['EMPRESA'].str.upper() == 'INTEC') & 
                 (df_qvd['ANOMES'] == competencia_anomes)
             ]
             
+            # Sub-agrupamentos do Filtro 2 (por tipo de MODAL):
             v_rodoviario = df_filtrado_s[df_filtrado_s['MODAL'].str.upper() == 'RODOVIARIO']['VALORFINANCEIRO'].sum()
             v_aereo = df_filtrado_s[df_filtrado_s['MODAL'].str.upper() == 'AEREO']['VALORFINANCEIRO'].sum()
 
@@ -515,12 +605,29 @@ class AjustesManuaisService:
 
             logs_intec = []
             
+            # --- COMENTÁRIO SOBRE AS REGRAS DOS LANÇAMENTOS INTERGRUPO ---
+            # Aqui é onde ocorre o balanceamento financeiro intergrupo (débito/crédito).
+            # Para cada cálculo extraído acima, é preciso realizar a "Perna a Débito" e a "Contra-partida a Crédito",
+            # garantindo que o fecho contábil esteja equilibrado para o Modal / Filtro correspondente.
             lancamentos = [
+                # >> FILTRO 1 (Aéreo Intec Específico: INTERGROUP in ('S', 'N'))
+                # Lança o total de Aéreo Específico (v_aereo_intec_especifico) a Débito na conta '60101010201'
                 {'modal': 'AEREO', 'valor': v_aereo_intec_especifico, 'conta': '60101010201', 'tipo': 'D', 'sufixo': 'DEBITO'},
+                # Lança a contra-partida (Crédito) do Aéreo Específico na conta destino '60101010201A'
                 {'modal': 'AEREO', 'valor': v_aereo_intec_especifico, 'conta': '60101010201A', 'tipo': 'C', 'sufixo': 'CREDITO'},
+                
+                # >> FILTRO 2 - Sub-agrupamento Rodoviário (INTERGROUP == 'S')
+                # Lança o total Rodoviário (v_rodoviario) a Débito na conta principal '60101010201'
                 {'modal': 'RODOVIARIO', 'valor': v_rodoviario, 'conta': '60101010201', 'tipo': 'D', 'sufixo': 'D'},
+                
+                # >> FILTRO 2 - Sub-agrupamento Aéreo (INTERGROUP == 'S')
+                # Lança o total de Aéreo (v_aereo) a Débito na conta paralela '60101010201A'
                 {'modal': 'AEREO', 'valor': v_aereo, 'conta': '60101010201A', 'tipo': 'D', 'sufixo': 'D'},
+                
+                # >> FILTRO 2 - CONTRA-PARTIDAS DE CRÉDITO (INTERGROUP == 'S')
+                # Lança a contra-partida (Crédito) do Rodoviário na conta destino '60101010201B'
                 {'modal': 'RODOVIARIO', 'valor': v_rodoviario, 'conta': '60101010201B', 'tipo': 'C', 'sufixo': 'C'},
+                # Lança a contra-partida (Crédito) do Aéreo Padrão na conta destino '60101010201C'
                 {'modal': 'AEREO', 'valor': v_aereo, 'conta': '60101010201C', 'tipo': 'C', 'sufixo': 'C'}
             ]
 
@@ -587,6 +694,18 @@ class AjustesManuaisService:
             return [f"ERRO CRÍTICO INTEC: {str(e)}"]
         
     def GerarIntergrupo(self, ano, mes):
+        """
+        Gera todos os movimentos e fluxos intergrupo do mês, tanto provenientes do CSV INTEC 
+        (invocando a respetiva função) quanto realizando a transferência de saldos de contas
+        específicas para as suas contas espelho / de destino, neutralizando valores entre empresas do grupo.
+        
+        Args:
+            ano (int): Ano para cálculo.
+            mes (int): Mês para cálculo.
+            
+        Returns:
+            list[str]: Logs contendo o resumo dos registos verificados, criados ou ajustados.
+        """
         RegistrarLog(f"Iniciando GerarIntergrupo MENSAL. {mes}/{ano}", "SYSTEM")
         
         config_contas = {
