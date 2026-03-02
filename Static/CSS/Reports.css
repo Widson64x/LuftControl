@@ -493,3 +493,47 @@
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5); /* Sombra profunda estilo "elevation" */
     border-radius: var(--radius-lg);
 }
+
+/* --------------------------------------------------------------------------
+   SELETOR DE ANO (BI TOOLBAR) - Sobrescrevendo o Bootstrap
+   -------------------------------------------------------------------------- */
+.bi-toolbar select.form-select.form-select-sm {
+    /* Base - fundo translúcido e borda do tema */
+    background-color: rgba(255, 255, 255, 0.03); 
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    
+    /* Força a altura exata de 38px para alinhar perfeitamente com os botões */
+    height: 38px;
+    min-height: 38px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    
+    /* Cursor e transição suave */
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: none; /* Remove a sombra chata do Bootstrap */
+}
+
+/* Efeito ao passar o mouse (Hover) - Mesmo do botão de CC */
+.bi-toolbar select.form-select.form-select-sm:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: var(--text-secondary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Efeito ao clicar/focar (Focus) */
+.bi-toolbar select.form-select.form-select-sm:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+    outline: none;
+}
+
+/* Estilização da lista de anos (Dropdown aberto) */
+.bi-toolbar select.form-select.form-select-sm option {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    font-weight: 500;
+    padding: 8px;
+}

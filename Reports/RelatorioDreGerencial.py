@@ -16,27 +16,25 @@ class RelatorioDreGerencial:
     """
     def __init__(self, session):
         self.session = session
-        # Colunas de meses para facilitar iterações
         self.meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez','Total_Ano']
 
     def _ObterEstruturaHierarquia(self):
         """Monta a árvore genealógica das contas (Pai -> Filho -> Neto)."""
         try:
-            # 1. Recursive CTE para montar os caminhos (TreePath)
+            # --- ATUALIZADO ---
             sql_tree = text("""
                 WITH RECURSIVE TreePath AS (
-                    -- Caso Base: As raízes (quem não tem pai)
                     SELECT 
                         h."Id", h."Nome", h."Id_Pai", 
                         h."Raiz_Centro_Custo_Codigo", h."Raiz_No_Virtual_Id", 
                         h."Raiz_Centro_Custo_Tipo", h."Raiz_No_Virtual_Nome", h."Raiz_Centro_Custo_Nome",
-                        CAST(h."Nome" AS TEXT) as full_path
-                    FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" h
+                        CAST(h."Nome" AS TEXT) as full_path,
+                        CAST(COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."Tb_CTL_Dre_Ordenamento" WHERE tipo_no = 'subgrupo' AND id_referencia = CAST(h."Id" AS TEXT)), 999) AS TEXT) as full_ordem_path
+                    FROM "Dre_Schema"."Tb_CTL_Dre_Hierarquia" h
                     WHERE h."Id_Pai" IS NULL
                     
                     UNION ALL
                     
-                    -- Parte Recursiva: Filhos se juntando aos pais
                     SELECT 
                         child."Id", child."Nome", child."Id_Pai", 
                         COALESCE(child."Raiz_Centro_Custo_Codigo", tp."Raiz_Centro_Custo_Codigo"),
@@ -44,8 +42,9 @@ class RelatorioDreGerencial:
                         COALESCE(child."Raiz_Centro_Custo_Tipo", tp."Raiz_Centro_Custo_Tipo"),
                         COALESCE(child."Raiz_No_Virtual_Nome", tp."Raiz_No_Virtual_Nome"),
                         COALESCE(child."Raiz_Centro_Custo_Nome", tp."Raiz_Centro_Custo_Nome"),
-                        CAST(tp.full_path || '||' || child."Nome" AS TEXT)
-                    FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" child
+                        CAST(tp.full_path || '||' || child."Nome" AS TEXT),
+                        CAST(tp.full_ordem_path || '||' || COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."Tb_CTL_Dre_Ordenamento" WHERE tipo_no = 'subgrupo' AND id_referencia = CAST(child."Id" AS TEXT) AND contexto_pai = 'sg_' || CAST(tp."Id" AS TEXT)), 999) AS TEXT)
+                    FROM "Dre_Schema"."Tb_CTL_Dre_Hierarquia" child
                     JOIN TreePath tp ON child."Id_Pai" = tp."Id"
                 )
                 SELECT * FROM TreePath
@@ -53,29 +52,38 @@ class RelatorioDreGerencial:
             tree_rows = self.session.execute(sql_tree).fetchall()
             tree_map = {row.Id: row for row in tree_rows}
 
-            # 2. Busca Vínculos e Personalizações
+            # --- ATUALIZADO ---
             sql_defs = text("""
-                SELECT v."Conta_Contabil", v."Id_Hierarquia", NULL::int as "Id_No_Virtual", NULL::text as "Nome_Personalizado", 'Vinculo' as "Origem_Regra", NULL::text as "Nome_Virtual_Direto", NULL::int as "Id_Virtual_Direto"
-                FROM "Dre_Schema"."DRE_Estrutura_Conta_Vinculo" v
+                SELECT v."Conta_Contabil", v."Id_Hierarquia", NULL::int as "Id_No_Virtual", NULL::text as "Nome_Personalizado", 'Vinculo' as "Origem_Regra", NULL::text as "Nome_Virtual_Direto", NULL::int as "Id_Virtual_Direto",
+                COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."Tb_CTL_Dre_Ordenamento" WHERE tipo_no = 'conta' AND id_referencia = v."Conta_Contabil"), 999999) as "Ordem_Conta"
+                FROM "Dre_Schema"."Tb_CTL_Dre_Conta_Vinculo" v
+                
                 UNION ALL
-                SELECT p."Conta_Contabil", p."Id_Hierarquia", NULL::int, p."Nome_Personalizado", 'Personalizado_Hierarquia', NULL::text, NULL::int
-                FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p WHERE p."Id_Hierarquia" IS NOT NULL
+                
+                SELECT p."Conta_Contabil", p."Id_Hierarquia", NULL::int, p."Nome_Personalizado", 'Personalizado_Hierarquia', NULL::text, NULL::int,
+                COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."Tb_CTL_Dre_Ordenamento" WHERE tipo_no = 'conta_detalhe' AND id_referencia = CAST(p."Id" AS TEXT)), 999999) as "Ordem_Conta"
+                FROM "Dre_Schema"."Tb_CTL_Dre_Conta_Personalizada" p WHERE p."Id_Hierarquia" IS NOT NULL
+                
                 UNION ALL
-                SELECT p."Conta_Contabil", NULL::int, p."Id_No_Virtual", p."Nome_Personalizado", 'Personalizado_Virtual', nv."Nome", nv."Id"
-                FROM "Dre_Schema"."DRE_Estrutura_Conta_Personalizada" p JOIN "Dre_Schema"."DRE_Estrutura_No_Virtual" nv ON p."Id_No_Virtual" = nv."Id" WHERE p."Id_No_Virtual" IS NOT NULL
+                
+                SELECT p."Conta_Contabil", NULL::int, p."Id_No_Virtual", p."Nome_Personalizado", 'Personalizado_Virtual', nv."Nome", nv."Id",
+                COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."Tb_CTL_Dre_Ordenamento" WHERE tipo_no = 'conta_detalhe' AND id_referencia = CAST(p."Id" AS TEXT)), 999999) as "Ordem_Conta"
+                FROM "Dre_Schema"."Tb_CTL_Dre_Conta_Personalizada" p JOIN "Dre_Schema"."Tb_CTL_Dre_No_Virtual" nv ON p."Id_No_Virtual" = nv."Id" WHERE p."Id_No_Virtual" IS NOT NULL
             """)
             def_rows = self.session.execute(sql_defs).fetchall()
             
-            Definition = namedtuple('Definition', ['Conta_Contabil', 'CC_Alvo', 'Id_Hierarquia', 'Id_No_Virtual', 'Nome_Personalizado_Def', 'full_path', 'Tipo_Principal', 'Raiz_Centro_Custo_Nome', 'Raiz_No_Virtual_Id', 'Is_Root_Group'])
+            Definition = namedtuple('Definition', ['Conta_Contabil', 'CC_Alvo', 'Id_Hierarquia', 'Id_No_Virtual', 'Nome_Personalizado_Def', 'full_path', 'full_ordem_path', 'Tipo_Principal', 'Raiz_Centro_Custo_Nome', 'Raiz_No_Virtual_Id', 'Is_Root_Group', 'Ordem_Conta'])
             definitions = defaultdict(list)
             
             for row in def_rows:
-                cc_alvo = None; full_path = None; tipo_principal = None; nome_cc_detalhe = None; raiz_virt_id = None; is_root_group = False
+                cc_alvo = None; full_path = None; full_ordem_path = None; tipo_principal = None; nome_cc_detalhe = None; raiz_virt_id = None; is_root_group = False
+                ordem_conta = row.Ordem_Conta
                 
                 if row.Id_Hierarquia and row.Id_Hierarquia in tree_map:
                     node = tree_map[row.Id_Hierarquia]
                     cc_alvo = node.Raiz_Centro_Custo_Codigo
                     full_path = node.full_path
+                    full_ordem_path = node.full_ordem_path
                     nome_cc_detalhe = node.Raiz_Centro_Custo_Nome
                     raiz_virt_id = node.Raiz_No_Virtual_Id
                     
@@ -89,10 +97,11 @@ class RelatorioDreGerencial:
                         is_root_group = True
                 elif row.Id_No_Virtual:
                     full_path = 'Direto'
+                    full_ordem_path = '999'
                     tipo_principal = row.Nome_Virtual_Direto
                     raiz_virt_id = row.Id_Virtual_Direto
                 
-                obj_def = Definition(Conta_Contabil=row.Conta_Contabil, CC_Alvo=cc_alvo, Id_Hierarquia=row.Id_Hierarquia, Id_No_Virtual=row.Id_No_Virtual, Nome_Personalizado_Def=row.Nome_Personalizado, full_path=full_path, Tipo_Principal=tipo_principal, Raiz_Centro_Custo_Nome=nome_cc_detalhe, Raiz_No_Virtual_Id=raiz_virt_id, Is_Root_Group=is_root_group)
+                obj_def = Definition(Conta_Contabil=row.Conta_Contabil, CC_Alvo=cc_alvo, Id_Hierarquia=row.Id_Hierarquia, Id_No_Virtual=row.Id_No_Virtual, Nome_Personalizado_Def=row.Nome_Personalizado, full_path=full_path, full_ordem_path=full_ordem_path, Tipo_Principal=tipo_principal, Raiz_Centro_Custo_Nome=nome_cc_detalhe, Raiz_No_Virtual_Id=raiz_virt_id, Is_Root_Group=is_root_group, Ordem_Conta=ordem_conta)
                 definitions[row.Conta_Contabil].append(obj_def)
                 
             return tree_map, definitions
@@ -101,9 +110,9 @@ class RelatorioDreGerencial:
             raise e
 
     def _ObterMapaAjustes(self):
-        """Retorna dicionários de Ajustes Manuais (Edições e Inclusões)."""
+        # --- ATUALIZADO ---
         sql = text("""
-            SELECT * FROM "Dre_Schema"."Ajustes_Razao" 
+            SELECT * FROM "Dre_Schema"."Tb_CTL_Ajuste_Razao" 
             WHERE "Status" != 'Reprovado' AND "Invalido" = false
         """)
         rows = self.session.execute(sql).fetchall()
@@ -117,27 +126,24 @@ class RelatorioDreGerencial:
                     edicoes[row.Hash_Linha_Original] = row
             elif row.Tipo_Operacao in ['INCLUSAO', 'INTERGRUPO_AUTO']:
                 inclusoes.append(row)
-
-        if edicoes or inclusoes:
-            RegistrarLog(f"Ajustes DRE carregados: {len(edicoes)} Edições | {len(inclusoes)} Inclusões", "INFO")
         
         return edicoes, inclusoes
 
     def _ObterOrdenamento(self):
-        """Busca a ordem de exibição configurada."""
-        sql = text("SELECT id_referencia, tipo_no, ordem FROM \"Dre_Schema\".\"DRE_Ordenamento\"")
+        # --- ATUALIZADO ---
+        sql = text('SELECT id_referencia, tipo_no, ordem FROM "Dre_Schema"."Tb_CTL_Dre_Ordenamento"')
         rows = self.session.execute(sql).fetchall()
         return {f"{r.tipo_no}:{r.id_referencia}": r.ordem for r in rows}
 
     def _ObterOrdemSubgruposPorContexto(self):
-        """Busca a ordem dos subgrupos considerando o NOME e o TIPO DE CC."""
+        # --- ATUALIZADO ---
         sql = text("""
             SELECT 
                 h."Nome",
                 h."Raiz_Centro_Custo_Tipo",
                 COALESCE(o.ordem, 999) as ordem
-            FROM "Dre_Schema"."DRE_Estrutura_Hierarquia" h
-            LEFT JOIN "Dre_Schema"."DRE_Ordenamento" o 
+            FROM "Dre_Schema"."Tb_CTL_Dre_Hierarquia" h
+            LEFT JOIN "Dre_Schema"."Tb_CTL_Dre_Ordenamento" o 
                 ON CAST(h."Id" AS TEXT) = o.id_referencia 
                 AND o.tipo_no = 'subgrupo'
             WHERE h."Id_Pai" IS NULL
@@ -159,14 +165,14 @@ class RelatorioDreGerencial:
         return ordem_por_contexto
 
     def DepurarEstruturaEOrdem(self):
-        """Retorna JSON detalhado com regras de ordenação para auditoria."""
-        sql_raw = text("SELECT * FROM \"Dre_Schema\".\"DRE_Ordenamento\" ORDER BY ordem ASC")
+        # --- ATUALIZADO ---
+        sql_raw = text('SELECT * FROM "Dre_Schema"."Tb_CTL_Dre_Ordenamento" ORDER BY ordem ASC')
         rows_ordem = self.session.execute(sql_raw).fetchall()
 
-        sql_h = text("SELECT \"Id\", \"Nome\" FROM \"Dre_Schema\".\"DRE_Estrutura_Hierarquia\"")
+        sql_h = text('SELECT "Id", "Nome" FROM "Dre_Schema"."Tb_CTL_Dre_Hierarquia"')
         map_hierarquia = {r.Id: r.Nome for r in self.session.execute(sql_h).fetchall()}
 
-        sql_v = text("SELECT \"Id\", \"Nome\" FROM \"Dre_Schema\".\"DRE_Estrutura_No_Virtual\"")
+        sql_v = text('SELECT "Id", "Nome" FROM "Dre_Schema"."Tb_CTL_Dre_No_Virtual"')
         map_virtual = {r.Id: r.Nome for r in self.session.execute(sql_v).fetchall()}
 
         debug_list = []
@@ -186,20 +192,14 @@ class RelatorioDreGerencial:
                 nome_resolvido = row.id_referencia
 
             debug_list.append({
-                'Ordem': row.ordem,
-                'Tipo': tipo_desc,
-                'ID_Ref': row.id_referencia,
-                'Nome_Visual': nome_resolvido,
-                'Contexto_Pai': row.contexto_pai
+                'Ordem': row.ordem, 'Tipo': tipo_desc, 'ID_Ref': row.id_referencia,
+                'Nome_Visual': nome_resolvido, 'Contexto_Pai': row.contexto_pai
             })
 
         debug_list.sort(key=lambda x: x['Ordem'])
         return debug_list
     
     def ProcessarRelatorio(self, filtro_origem='FARMA,FARMADIST,INTEC', agrupar_por_cc=False, filtro_cc=None, ano=None):
-        """Gera os dados base do relatório (Engine principal)."""
-        RegistrarLog(f"Gerando DRE. Filtro Origem: {filtro_origem} | Filtro CC: {filtro_cc} | Ano: {ano}", "DRE_GEN")
-
         if not filtro_origem: lista_empresas = []
         else: lista_empresas = [x.strip() for x in filtro_origem.split(',') if x.strip()]
         
@@ -211,15 +211,15 @@ class RelatorioDreGerencial:
             ordem_map = self._ObterOrdenamento()
             ordem_subgrupos_contexto = self._ObterOrdemSubgruposPorContexto()
             
-            sql_css = text('SELECT "Id", "Estilo_CSS" FROM "Dre_Schema"."DRE_Estrutura_No_Virtual"')
+            # --- ATUALIZADO ---
+            sql_css = text('SELECT "Id", "Estilo_CSS" FROM "Dre_Schema"."Tb_CTL_Dre_No_Virtual"')
             css_map = {row.Id: row.Estilo_CSS for row in self.session.execute(sql_css).fetchall() if row.Estilo_CSS}
             
-            sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Razao_Dados_Consolidado"')
+            sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Vw_CTL_Razao_Consolidado"')
             mapa_titulos = {row[0]: row[1] for row in self.session.execute(sql_nomes).fetchall()}
 
             aggregated_data = {}
 
-            # --- Função Interna ProcessRow (MANTIDA IDÊNTICA) ---
             def ProcessRow(origem, conta, titulo, data, saldo, cc_original_str, row_hash=None, is_skeleton=False, forced_match=None):
                 if not is_skeleton and row_hash and row_hash in ajustes_edicao:
                     adj = ajustes_edicao[row_hash]
@@ -281,7 +281,7 @@ class RelatorioDreGerencial:
                 conta_display = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else conta
                 titulo_para_exibicao = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else titulo
                 
-                group_key = (tipo_cc, root_virtual_id, caminho, titulo_para_exibicao, conta_display)
+                group_key = (tipo_cc, root_virtual_id, caminho, match.full_ordem_path, match.Ordem_Conta, titulo_para_exibicao, conta_display)
                 if agrupar_por_cc: 
                     group_key = group_key + (match.Raiz_Centro_Custo_Nome,)
 
@@ -292,11 +292,10 @@ class RelatorioDreGerencial:
 
                     item = {
                         'origem': origem, 'Conta': conta_display, 'Titulo_Conta': titulo_para_exibicao,
-                        'Tipo_CC': tipo_cc, 'Root_Virtual_Id': root_virtual_id, 'Caminho_Subgrupos': caminho, 
-                        'ordem_prioridade': ordem, 
-                        'ordem_secundaria': ordem_secundaria,
-                        'Total_Ano': 0.0,
-                        'Estilo_CSS': css_style 
+                        'Tipo_CC': tipo_cc, 'Root_Virtual_Id': root_virtual_id, 
+                        'Caminho_Subgrupos': caminho, 'Caminho_Ordem': match.full_ordem_path,
+                        'Ordem_Conta': match.Ordem_Conta, 'ordem_prioridade': ordem, 
+                        'ordem_secundaria': ordem_secundaria, 'Total_Ano': 0.0, 'Estilo_CSS': css_style 
                     }
                     for m in self.meses[:-1]: item[m] = 0.0
                     if agrupar_por_cc: item['Nome_CC'] = match.Raiz_Centro_Custo_Nome
@@ -309,19 +308,15 @@ class RelatorioDreGerencial:
                         aggregated_data[group_key][mes_nome] += val_inv
                         aggregated_data[group_key]['Total_Ano'] += val_inv
                     except: pass
-            # --- Fim Função Interna ---
 
-            # 1. Esqueleto
             for conta_def, lista_regras in definitions.items():
                 titulo_conta = mapa_titulos.get(conta_def, "Conta Configurada")
                 for regra in lista_regras:
                     ProcessRow("Config", conta_def, titulo_conta, None, 0.0, None, None, is_skeleton=True, forced_match=regra)
 
-            # 2. Query Principal
             where_clauses = []
             params = {}
             
-            # [NOVO] Lógica do Ano no Banco de Dados
             if ano:
                 params['ano'] = int(ano)
                 where_clauses.append('EXTRACT(YEAR FROM "Data") = :ano')
@@ -345,14 +340,13 @@ class RelatorioDreGerencial:
 
             where_final = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
             
+            # --- ATUALIZADO ---
             sql_raw = text(f"""
                 SELECT "origem", "Conta", "Título Conta", "Data", "Numero", "Centro de Custo", "Saldo", "Filial", "Item", "Debito", "Credito"
-                FROM "Dre_Schema"."Razao_Dados_Consolidado" {where_final}
+                FROM "Dre_Schema"."Vw_CTL_Razao_Consolidado" {where_final}
             """)
             
-            RegistrarLog("Executando Query Principal do Razão...", "DB_QUERY")
             raw_rows = self.session.execute(sql_raw, params).fetchall()
-            RegistrarLog(f"Query retornou {len(raw_rows)} linhas cruas.", "DB_QUERY")
 
             for row in raw_rows:
                 h = gerar_hash(row)
@@ -361,11 +355,8 @@ class RelatorioDreGerencial:
                     getattr(row, 'Centro de Custo'), h, is_skeleton=False
                 )
 
-            # 3. Inclusões Manuais
             for adj in ajustes_inclusao:
                 if adj.Origem not in lista_empresas: continue
-                
-                # [NOVO] Validar Ano nas inclusões
                 if ano and adj.Data and adj.Data.year != int(ano): continue
 
                 if cc_list:
@@ -377,10 +368,7 @@ class RelatorioDreGerencial:
                     c = '00000000000' if adj.Is_Nao_Operacional else adj.Conta
                     t = 'Não Operacionais' if adj.Is_Nao_Operacional else adj.Titulo_Conta
                     
-                    ProcessRow(
-                        adj.Origem, c, t, adj.Data, saldo_adj, str(adj.Centro_Custo), 
-                        None, is_skeleton=False
-                    )
+                    ProcessRow(adj.Origem, c, t, adj.Data, saldo_adj, str(adj.Centro_Custo), None, is_skeleton=False)
 
             final_list = list(aggregated_data.values())
             
@@ -396,11 +384,8 @@ class RelatorioDreGerencial:
             raise e
         
     def CalcularNosVirtuais(self, data_rows):
-        """Processa as fórmulas (Ex: Margem Bruta, EBITDA)."""
-        RegistrarLog("Iniciando Cálculo de Nós Virtuais e Fórmulas...", "DRE_CALC")
         memoria = defaultdict(lambda: {m: 0.0 for m in self.meses})
 
-        # 1. Popula memória
         for row in data_rows:
             tipo = str(row.get('Tipo_CC', '')).strip()
             virt_id = row.get('Root_Virtual_Id')
@@ -412,8 +397,7 @@ class RelatorioDreGerencial:
                 partes = caminho.split('||')
                 for p in partes:
                     p_limpa = p.strip()
-                    if p_limpa:
-                        keys_to_update.append(f"subgrupo:{p_limpa}")
+                    if p_limpa: keys_to_update.append(f"subgrupo:{p_limpa}")
 
             titulo = str(row.get('Titulo_Conta', '')).strip()
             if titulo: keys_to_update.append(f"subgrupo:{titulo}")
@@ -428,11 +412,11 @@ class RelatorioDreGerencial:
                     for k in keys_to_update:
                         memoria[k][m] += val
         
-        # 2. Busca e Calcula Fórmulas
+        # --- ATUALIZADO ---
         sql_formulas = text("""
             SELECT nv."Id", nv."Nome", nv."Formula_JSON", nv."Estilo_CSS", nv."Tipo_Exibicao", COALESCE(ord.ordem, 999) as ordem
-            FROM "Dre_Schema"."DRE_Estrutura_No_Virtual" nv
-            LEFT JOIN "Dre_Schema"."DRE_Ordenamento" ord ON ord.id_referencia = CAST(nv."Id" AS TEXT) AND ord.contexto_pai = 'root'
+            FROM "Dre_Schema"."Tb_CTL_Dre_No_Virtual" nv
+            LEFT JOIN "Dre_Schema"."Tb_CTL_Dre_Ordenamento" ord ON ord.id_referencia = CAST(nv."Id" AS TEXT) AND ord.contexto_pai = 'root'
             WHERE nv."Is_Calculado" = true ORDER BY ordem ASC
         """)
         formulas = self.session.execute(sql_formulas).fetchall()
@@ -447,17 +431,10 @@ class RelatorioDreGerencial:
                 multiplicador = float(f_data.get('multiplicador', 1))
 
                 nova_linha = {
-                    'origem': 'Calculado', 
-                    'Conta': f"CALC_{form.Id}", 
-                    'Titulo_Conta': form.Nome,
-                    'Tipo_CC': form.Nome, 
-                    'Caminho_Subgrupos': 'Calculado', 
-                    'ordem_prioridade': form.ordem,
-                    'ordem_secundaria': 0,
-                    'Is_Calculado': True, 
-                    'Estilo_CSS': form.Estilo_CSS, 
-                    'Tipo_Exibicao': form.Tipo_Exibicao,
-                    'Root_Virtual_Id': form.Id 
+                    'origem': 'Calculado', 'Conta': f"CALC_{form.Id}", 'Titulo_Conta': form.Nome,
+                    'Tipo_CC': form.Nome, 'Caminho_Subgrupos': 'Calculado', 'ordem_prioridade': form.ordem,
+                    'ordem_secundaria': 0, 'Is_Calculado': True, 'Estilo_CSS': form.Estilo_CSS, 
+                    'Tipo_Exibicao': form.Tipo_Exibicao, 'Root_Virtual_Id': form.Id 
                 }
 
                 for mes in self.meses:
@@ -496,5 +473,4 @@ class RelatorioDreGerencial:
         return todos
 
     def AplicarMilhares(self, data):
-        """Formata os números para escala de milhares (dividir por 1000)."""
         return ReportUtils.aplicar_escala_milhares(data, self.meses)

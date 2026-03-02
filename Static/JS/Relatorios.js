@@ -466,7 +466,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         isVisible: true,
                         isExpanded: this.biState.expanded.has(id),
                         ordem: 999999,
-                        estiloCss: null // <--- Inicializa o campo de CSS
+                        estiloCss: null 
                     };
                     meses.forEach(m => node.values[m] = 0);
                     map[id] = node;
@@ -479,35 +479,8 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 meses.forEach(m => node.values[m] += (parseFloat(row[m]) || 0));
             };
 
-            // === CONTADOR DE DEBUG ===
-            let debugCounter = 0; 
-            const contaAlvoDebug = '60301020102'; // ID da conta "HORAS EXTRAS" do seu print
-            // =========================
-
             this.biRawData.forEach((row, index) => {
                 
-                // ==========================================================================================
-                // [DEBUGGER] - INSERIDO PARA RASTREAR O VALOR -33MM
-                // ==========================================================================================
-                // Verifica se é a conta problemática (ou similar)
-                if ((String(row.Conta) === contaAlvoDebug) && debugCounter < 5) {
-                    console.group(`%c[DEBUG ERRO -33MM] Exemplo ${debugCounter + 1}`, 'color: yellow; background: #333; padding: 4px;');
-                    console.log(`📂 Conta:`, row.Conta, row.Titulo_Conta);
-                    console.log(`🏷️ Tipo_CC (Vindo do Backend):`, `%c"${row.Tipo_CC}"`, 'color: cyan; font-weight: bold;');
-                    console.log(`💰 Valor Jan:`, row.Jan);
-                    console.log(`🏭 Centro de Custo Original:`, row.Nome_CC || row['Centro de Custo']); 
-                    
-                    // AQUI ESTÁ O PULO DO GATO:
-                    // Se o Tipo_CC for 'Oper' (ou vazio que vira Oper), o JS vai somar no Custo Operacional.
-                    // Se o Backend mandou 'Adm', ele deveria ir para Administrativo.
-                    console.log(`👉 Para onde o JS vai mandar:`, labelMap[row.Tipo_CC] || row.Tipo_CC);
-                    
-                    console.log(`📄 Linha completa:`, row);
-                    console.groupEnd();
-                    debugCounter++;
-                }
-                // ==========================================================================================
-
                 let rawOrdem = null;
                 if (row.ordem_prioridade !== null && row.ordem_prioridade !== undefined) {
                     rawOrdem = parseInt(row.ordem_prioridade);
@@ -524,11 +497,9 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 const tipoNode = getOrCreateNode(tipoId, labelExibicao, 'root', root);
                 if (row.Root_Virtual_Id) tipoNode.virtualId = row.Root_Virtual_Id;
                 
-                // === ALTERAÇÃO AQUI: Aplica o CSS vindo do backend se o nó ainda não tiver ===
                 if (row.Estilo_CSS && !tipoNode.estiloCss) {
                     tipoNode.estiloCss = row.Estilo_CSS;
                 }
-                // ============================================================================
                 
                 if (rawOrdem !== null && rawOrdem > 0 && rawOrdem < 1000) {
                     if (tipoNode.ordem === 999999 || rawOrdem < tipoNode.ordem) {
@@ -553,6 +524,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 // --- 3. SUBGRUPOS ---
                 if (row.Caminho_Subgrupos && row.Caminho_Subgrupos !== 'Não Classificado' && row.Caminho_Subgrupos !== 'Direto' && row.Caminho_Subgrupos !== 'Calculado') {
                     const groups = row.Caminho_Subgrupos.split('||');
+                    const orders = row.Caminho_Ordem ? String(row.Caminho_Ordem).split('||') : [];
                     
                     groups.forEach((gName, idx) => {
                         const safeGName = gName.replace(/[^a-zA-Z0-9]/g, '');
@@ -560,10 +532,14 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         
                         const groupNode = getOrCreateNode(currentId, gName, 'group', currentNode.children);
                         
-                        const isLastGroup = idx === groups.length - 1;
-                        if (isLastGroup && rawOrdem !== null && rawOrdem > 0) {
-                            if (groupNode.ordem === 999999 || rawOrdem < groupNode.ordem) {
-                                groupNode.ordem = rawOrdem;
+                        let specificOrder = 999999;
+                        if (orders[idx]) {
+                            specificOrder = parseInt(orders[idx], 10);
+                        }
+                        
+                        if (!isNaN(specificOrder) && specificOrder > 0) {
+                            if (groupNode.ordem === 999999 || specificOrder < groupNode.ordem) {
+                                groupNode.ordem = specificOrder;
                             }
                         }
                         
@@ -574,6 +550,15 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
                 // --- 4. CONTA (Folha) ---
                 const contaId = `C_${row.Conta}_${currentId}`; 
+                
+                // Extrai a ordem específica da conta retornada pelo banco, caso contrário default 999999
+                let ordemContaLeaf = 999999;
+                if (row.Ordem_Conta !== undefined && row.Ordem_Conta !== null) {
+                    ordemContaLeaf = parseInt(row.Ordem_Conta, 10);
+                } else if (row.Conta && !isNaN(parseInt(row.Conta))) {
+                    ordemContaLeaf = parseInt(row.Conta, 10); // Somente se não houver configuração
+                }
+
                 const contaNode = {
                     id: contaId,
                     label: `📄 ${row.Conta} - ${row.Titulo_Conta}`,
@@ -586,7 +571,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     children: [],
                     values: {},
                     isVisible: true,
-                    ordem: parseInt(row.Conta) || 999999
+                    ordem: ordemContaLeaf
                 };
                 meses.forEach(m => contaNode.values[m] = parseFloat(row[m]) || 0);
                 currentNode.children.push(contaNode);
@@ -607,7 +592,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 nosCalc.forEach(noCalc => {
                     if (!noCalc.formula) return;
                     
-                    // Lógica de Contexto (Operacional, Adm, Coml)
                     let contextoSuffix = null;
                     const nomeUpper = (noCalc.nome || '').toUpperCase();
                     if (nomeUpper.includes('CUSTO') || nomeUpper.includes('OPERACIONAL')) contextoSuffix = 'Oper';
@@ -619,12 +603,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         valores[mes] = this.calcularValorNo(noCalc.formula, mes, valoresAgregados, contextoSuffix);
                     });
 
-                    // Salva memória
                     const chaveMemoria = `no_virtual_${noCalc.id}`;
                     if (!valoresAgregados[chaveMemoria]) valoresAgregados[chaveMemoria] = {};
                     meses.forEach(mes => valoresAgregados[chaveMemoria][mes] = valores[mes]);
 
-                    // Tooltip
                     let textoTooltip = noCalc.formula_descricao;
                     if (!textoTooltip && noCalc.formula) {
                         const ops = noCalc.formula.operandos || [];
@@ -632,8 +614,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         textoTooltip = `Fórmula Calculada: ${nomesOps}`;
                     }
 
-                    // Tenta encontrar a linha "física" que veio do Backend (Python)
-                    // O Python manda 'Root_Virtual_Id' igual ao ID do nó
                     const rowBackend = this.biRawData.find(r => 
                         (String(r.Root_Virtual_Id) === String(noCalc.id)) || 
                         (r.Titulo_Conta === noCalc.nome && r.Is_Calculado)
@@ -643,21 +623,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                     if (rowBackend && rowBackend.ordem_prioridade !== null) ordemCorreta = rowBackend.ordem_prioridade;
                     else if (noCalc.ordem !== null && noCalc.ordem !== undefined) ordemCorreta = noCalc.ordem;
                     
-                    // === DEBUG CORRIGIDO ===
-                    let cssFinal = noCalc.estilo_css; // Tenta pegar da configuração
+                    let cssFinal = noCalc.estilo_css; 
                     
                     if (!cssFinal && rowBackend && rowBackend.Estilo_CSS) {
-                        cssFinal = rowBackend.Estilo_CSS; // Se falhar, pega do dado bruto do Python
+                        cssFinal = rowBackend.Estilo_CSS; 
                     }
-
-                    // Log de Debug para ver no F12
-                    if (noCalc.nome.toUpperCase().includes('EBITDA')) {
-                        console.log('--- DEBUG EBITDA ---');
-                        console.log('Dados Config (noCalc):', noCalc);
-                        console.log('Dados Backend (rowBackend):', rowBackend);
-                        console.log('CSS Final Aplicado:', cssFinal);
-                    }
-                    // =======================
 
                     const nodeCalc = {
                         id: `calc_${noCalc.id}`,
@@ -669,7 +639,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                         isVisible: true,
                         isExpanded: false,
                         formulaDescricao: textoTooltip,
-                        estiloCss: cssFinal, // <--- Aplica aqui
+                        estiloCss: cssFinal,
                         tipoExibicao: noCalc.tipo_exibicao,
                         ordem: ordemCorreta
                     };
@@ -677,7 +647,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 });
             }
 
-            // Filtros de duplicatas e ordenação
             const nomesCalculados = new Set(this.biTreeData.filter(n => n.type === 'calculated').map(n => (n.rawLabel || n.label.replace('📊 ', '')).toUpperCase().trim()));
             this.biTreeData = this.biTreeData.filter(node => {
                 if (node.type === 'root') {
@@ -687,12 +656,18 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 return true;
             });
 
+            // Ordenação com Desempate Alfabético Garantido
             const sortRecursive = (nodes) => {
                 if (!nodes || nodes.length === 0) return;
                 nodes.sort((a, b) => {
-                    const ordA = (a.ordem !== undefined && a.ordem !== null) ? a.ordem : 99999;
-                    const ordB = (b.ordem !== undefined && b.ordem !== null) ? b.ordem : 99999;
-                    return ordA - ordB;
+                    const ordA = (a.ordem !== undefined && a.ordem !== null) ? a.ordem : 999999;
+                    const ordB = (b.ordem !== undefined && b.ordem !== null) ? b.ordem : 999999;
+                    
+                    if (ordA !== ordB) return ordA - ordB;
+
+                    const labelA = (a.rawLabel || a.label || '').replace(/<[^>]*>?/gm, '').trim();
+                    const labelB = (b.rawLabel || b.label || '').replace(/<[^>]*>?/gm, '').trim();
+                    return labelA.localeCompare(labelB);
                 });
                 nodes.forEach(node => {
                     if (node.children && node.children.length > 0) sortRecursive(node.children);
