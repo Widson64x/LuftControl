@@ -151,8 +151,8 @@
     <!-- ========== JAVASCRIPT MODULAR ========== -->
     
     <!-- 1. Sistema Principal (SEMPRE CARREGA) -->
-    <script src="{{ url_for('static', filename='JS/Main.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='JS/Relatorios.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='JS/Core/Main.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='JS/Reports/Relatorios.js') }}" defer></script>
     
     <!-- 2. Scripts Adicionais (POR PÁGINA) -->
     {% block extra_js %}{% endblock %}
