@@ -1,10 +1,10 @@
 /* ==========================================================================
-   Relatório: Análise Gerencial (BI/DRE)
-   Baseado estritamente nas variáveis --bi-* de Themes.css
+   Relatório: Análise Gerencial (DRE)
+   Baseado estritamente nas variáveis do Themes.css
    ========================================================================== */
 
 /* 1. Toolbar Superior */
-.bi-toolbar {
+.dre-toolbar {
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-primary);
     padding: var(--spacing-sm) var(--spacing-md);
@@ -12,7 +12,7 @@
     flex-shrink: 0;
 }
 
-.bi-toolbar .btn {
+.dre-toolbar .btn {
     font-size: var(--font-xs);
     padding: 8px 14px;
     border-radius: var(--radius-sm);
@@ -24,13 +24,13 @@
     transition: all var(--transition-fast);
 }
 
-.bi-toolbar .btn:hover {
+.dre-toolbar .btn:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
     border-color: var(--border-hover);
 }
 
-.bi-toolbar .btn-success {
+.dre-toolbar .btn-success {
     background: rgba(16, 185, 129, var(--opacity-10)); /* Success RGB */
     border-color: rgba(16, 185, 129, var(--opacity-30));
     color: var(--success);
@@ -85,14 +85,14 @@
 .origem-toggle-btn[data-origem="FARMADIST"] i { color: var(--warning); }
 .origem-toggle-btn.active i { color: white !important; }
 
-#biOrigemBadge {
+#dreOrigemBadge {
     background: rgba(var(--primary-rgb), var(--opacity-20));
     color: rgb(0, 0, 0);
     border: 1px solid rgba(var(--primary-rgb), var(--opacity-30));
     font-weight: var(--font-weight-semibold);
 }
 
-/* 3. Tabela BI (Core) - Usando var(--bi-*) */
+/* 3. Tabela DRE (Core) */
 .table-fixed-container {
     border: 1px solid var(--bi-border);
     border-radius: var(--radius-md);
@@ -150,49 +150,37 @@
 }
 
 /* Tipos de Linha */
-.bi-row-root { background: var(--bi-row-root-bg) !important; }
-.bi-row-root td {
+.dre-row-root { background: var(--bi-row-root-bg); }
+.dre-row-root td {
     font-weight: var(--font-weight-extrabold);
     text-transform: uppercase;
     padding-top: 14px; padding-bottom: 14px;
     border-top: 1px solid var(--bi-border);
     color: var(--bi-row-root-text) !important;
 }
-/* Tipos de Linha - VERSÃO CORRIGIDA */
+.dre-row-root td:first-child { background: var(--bi-row-root-bg); }
 
-/* Removemos o !important do background para aceitar o estilo inline do banco */
+.dre-row-group { background: var(--bi-row-group-bg); } 
+.dre-row-group td { font-weight: var(--font-weight-semibold); color: var(--bi-row-group-text); }
+.dre-row-group td:first-child { background: var(--bi-row-group-bg); }
 
-.bi-row-root { background: var(--bi-row-root-bg); } /* !important removido */
-.bi-row-root td {
-    font-weight: var(--font-weight-extrabold);
-    text-transform: uppercase;
-    padding-top: 14px; padding-bottom: 14px;
-    border-top: 1px solid var(--bi-border);
-    color: var(--bi-row-root-text) !important;
-}
-.bi-row-root td:first-child { background: var(--bi-row-root-bg); } /* !important removido */
+.dre-row-account { background: var(--bi-row-acct-bg); }
+.dre-row-account td { font-size: 0.8rem; color: var(--bi-row-acct-text); }
+.dre-row-account td:first-child { background: var(--bi-row-acct-bg); }
 
-.bi-row-group { background: var(--bi-row-group-bg); } /* !important removido */
-.bi-row-group td { font-weight: var(--font-weight-semibold); color: var(--bi-row-group-text); }
-.bi-row-group td:first-child { background: var(--bi-row-group-bg); } /* !important removido */
-
-.bi-row-account { background: var(--bi-row-acct-bg); } /* !important removido */
-.bi-row-account td { font-size: 0.8rem; color: var(--bi-row-acct-text); }
-.bi-row-account td:first-child { background: var(--bi-row-acct-bg); } /* !important removido */
-
-/* AQUI ERA O SEU PROBLEMA PRINCIPAL (EBITDA é Calculated) */
-.bi-row-calculated { 
-    background: var(--bi-row-calc-bg); /* !important removido */
+/* Linhas Calculadas */
+.dre-row-calculated { 
+    background: var(--bi-row-calc-bg);
     border-top: 1px solid var(--bi-border); 
     border-bottom: 1px solid var(--bi-border); 
 }
-.bi-row-calculated td { 
+.dre-row-calculated td { 
     font-weight: var(--font-weight-bold); 
     font-size: 0.9rem; 
     color: var(--bi-row-calc-text) !important; 
 }
-.bi-row-calculated td:first-child { 
-    background: var(--bi-row-calc-bg); /* !important removido */
+.dre-row-calculated td:first-child { 
+    background: var(--bi-row-calc-bg);
     opacity: 1 !important; 
 }
 
@@ -210,11 +198,11 @@
 }
 .toggle-icon:hover { background: rgba(var(--primary-rgb), var(--opacity-20)); color: var(--primary); }
 
-.search-match { background-color: rgba(245, 158, 11, var(--opacity-20)) !important; } /* Warning color opacity */
+.search-match { background-color: rgba(245, 158, 11, var(--opacity-20)) !important; } 
 .search-current-match { background-color: rgba(245, 158, 11, var(--opacity-40)) !important; box-shadow: inset 3px 0 0 var(--warning); }
 
 /* Footer */
-.bi-footer {
+.dre-footer {
     background: linear-gradient(90deg, var(--bg-tertiary), var(--bg-secondary));
     padding: 8px 16px;
     border-top: 1px solid var(--border-primary);
@@ -222,11 +210,10 @@
     font-size: var(--font-xs);
     color: var(--text-muted);
 }
-.bi-footer strong { color: var(--primary-light); }
+.dre-footer strong { color: var(--primary-light); }
 
 /* ==========================================================================
    4. Modal do Gerenciador de Colunas (Ad-hoc)
-   Necessário pois o Relatorios.js cria elementos .modal-backdrop manualmente
    ========================================================================== */
 
 .modal-backdrop {
@@ -237,7 +224,7 @@
     height: 100vh;
     background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(2px);
-    z-index: 9999; /* Precisa ser maior que o header sticky da tabela */
+    z-index: 9999; 
     display: none;
     align-items: center;
     justify-content: center;
@@ -263,8 +250,6 @@
     overflow: hidden;
     animation: slideInDown 0.2s ease-out;
 }
-
-
 
 @keyframes slideInDown {
     from { transform: translateY(-20px); opacity: 0; }
@@ -352,4 +337,60 @@
 .column-manager-container .btn-primary-custom:hover {
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);
+}
+
+/* ==========================================================================
+   Estilos para Seletores (Form Select)
+   ========================================================================== */
+
+.form-select {
+    display: block;
+    width: 100%;
+    padding: 8px 32px 8px 12px;
+    font-size: var(--font-sm);
+    font-family: var(--font-primary);
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    /* Seta customizada SVG para combinar com o tema */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238b9bb4' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px 10px;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    appearance: none;
+    -webkit-appearance: none;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+}
+
+.form-select:focus {
+    border-color: var(--primary);
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15); /* Brilho suave no foco */
+}
+
+.form-select:disabled {
+    background-color: var(--bg-secondary);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Tamanho Pequeno (Small) - Alinhado com os btn-sm da Toolbar */
+.form-select-sm {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    padding-left: 10px;
+    font-size: var(--font-xs);
+    height: 32px; 
+}
+
+/* Ajuste específico para quando o select está escuro/tema dark */
+[data-theme="dark"] .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23a1a1aa' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+}
+
+/* Remove a formatação padrão do select no IE/Edge antigo */
+.form-select::-ms-expand {
+    display: none;
 }
