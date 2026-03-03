@@ -86,7 +86,26 @@ def RelatorioRentabilidade():
     except Exception as e:
         RegistrarLog("Erro Crítico no Relatório DRE", "ERROR", e)
         return jsonify({"error": str(e)}), 500
-    
+
+@reports_bp.route('/relatoriorazao/dreconsolidado', methods=['GET'])
+@login_required
+def RelatorioDreConsolidadoRota():
+    """API: Gera o relatório DRE Consolidado (Visão por Unidade)."""
+    try:
+        modo_escala = request.args.get('scale_mode', 'dre')
+        ano = request.args.get('ano', datetime.now().year)
+        
+        usuario_id = current_user.get_id() if current_user else "Anonimo"
+        RegistrarLog(f"Relatório DRE Consolidado solicitado por {usuario_id}. Ano: {ano}", "WEB_REPORT")
+        
+        svc = RelatoriosService()
+        dados = svc.GerarDreConsolidado(modo_escala, ano)
+        
+        return jsonify(dados), 200
+    except Exception as e:
+        RegistrarLog("Erro Crítico no Relatório DRE Consolidado", "ERROR", e)
+        return jsonify({"error": str(e)}), 500
+        
 @reports_bp.route('/relatoriorazao/downloadfull', methods=['GET'])
 @login_required
 def DownloadRazaoExcel():

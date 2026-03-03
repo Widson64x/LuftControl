@@ -53,6 +53,17 @@
             <i class="fas fa-cubes"></i> Abrir Análise Gerencial
         </button>
     </div>
+    <div class="relatorio-card">
+        <div class="relatorio-icon">🗺️</div>
+        <h3>DRE Consolidado (Unidades)</h3>
+        <p>Visão de Resultado estruturada em colunas por Unidades de Negócio (INTEC, FARMA, POLO, etc).</p>
+        <div class="mb-3">
+            <span class="status-badge status-active" style="background: rgba(var(--warning-rgb), 0.1); border-color: var(--warning);">Estratégico</span>
+        </div>
+        <button class="btn-primary-custom" onclick="relatorioSystem.loadDreConsolidadoReport()">
+            <i class="fas fa-sitemap"></i> Abrir DRE Consolidado
+        </button>
+    </div>
 </div>
 
 <div id="modalRelatorio" class="modal-overlay">
@@ -82,6 +93,7 @@
         getRazaoData:           "{{ url_for('Relatorios.ObterDadosRazao') }}",
         getRazaoResumo:         "{{ url_for('Relatorios.ObterResumoRazao') }}",
         getRentabilidadeData:   "{{ url_for('Relatorios.RelatorioRentabilidade') }}",
+        getDreConsolidadoData:  "{{ url_for('Relatorios.RelatorioDreConsolidadoRota') }}",
         getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}",
         getRazaoDownload:       "{{ url_for('Relatorios.DownloadRazaoExcel') }}", 
         getListaCCs:            "{{ url_for('Relatorios.ListarCentrosCusto') }}"      
@@ -90,4 +102,5 @@
 <script src="{{ url_for('static', filename='JS/Reports/Relatorios.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/Reports/RelatorioRazao.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/Reports/RelatorioDRE.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/Reports/RelatorioDreConsolidado.js') }}"></script>
 {% endblock %}
