@@ -278,10 +278,14 @@ class RelatorioDreGerencial:
                         else:
                             ordem_secundaria = 999 
 
-                conta_display = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else conta
+                # Mantém o número numérico intacto para o frontend saber quem é quem
+                conta_display = conta 
+                
+                # O título será o nome personalizado (ou o nome padrão)
                 titulo_para_exibicao = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else titulo
                 
-                group_key = (tipo_cc, root_virtual_id, caminho, match.full_ordem_path, match.Ordem_Conta, titulo_para_exibicao, conta_display)
+                group_key = (tipo_cc, root_virtual_id, caminho, match.full_ordem_path, titulo_para_exibicao, conta_display)
+                
                 if agrupar_por_cc: 
                     group_key = group_key + (match.Raiz_Centro_Custo_Nome,)
 
@@ -300,6 +304,10 @@ class RelatorioDreGerencial:
                     for m in self.meses[:-1]: item[m] = 0.0
                     if agrupar_por_cc: item['Nome_CC'] = match.Raiz_Centro_Custo_Nome
                     aggregated_data[group_key] = item
+                else:
+                    # Se já existe no grupo, preservamos a menor ordem de conta encontrada
+                    if match.Ordem_Conta < aggregated_data[group_key]['Ordem_Conta']:
+                        aggregated_data[group_key]['Ordem_Conta'] = match.Ordem_Conta
 
                 if not is_skeleton and data:
                     try:
