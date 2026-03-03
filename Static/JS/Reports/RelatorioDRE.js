@@ -242,23 +242,46 @@ class RelatorioDRE {
             }
 
             const contaId = `C_${row.Conta}_${currentId}`; 
-            let ordemContaLeaf = 999999;
-            if (row.Ordem_Conta !== undefined && row.Ordem_Conta !== null) {
-                ordemContaLeaf = parseInt(row.Ordem_Conta, 10);
-            } else if (row.Conta && !isNaN(parseInt(row.Conta))) {
-                ordemContaLeaf = parseInt(row.Conta, 10); 
+            
+            // 1. Verifica se essa conta personalizada já foi inserida neste grupo/nó atual
+            let contaNode = currentNode.children.find(c => c.id === contaId);
+
+            // 2. Se a conta ainda não existe neste grupo, nós a criamos
+            if (!contaNode) {
+                let ordemContaLeaf = 999999;
+                if (row.Ordem_Conta !== undefined && row.Ordem_Conta !== null) {
+                    ordemContaLeaf = parseInt(row.Ordem_Conta, 10);
+                } else if (row.Conta && !isNaN(parseInt(row.Conta))) {
+                    ordemContaLeaf = parseInt(row.Conta, 10); 
+                }
+
+                // Resolve o problema visual de repetir o nome (ex: "SALARIOS - SALARIOS")
+                let displayLabel = `📄 ${row.Conta}`;
+                if (String(row.Conta).trim() !== String(row.Titulo_Conta).trim()) {
+                    displayLabel += ` - ${row.Titulo_Conta}`;
+                }
+
+                contaNode = {
+                    id: contaId,
+                    label: displayLabel,
+                    rawTitle: row.Titulo_Conta,
+                    contaCodigo: row.Conta,   
+                    tipoCC: row.Tipo_CC,      
+                    type: 'account', children: [], values: {}, isVisible: true, ordem: ordemContaLeaf
+                };
+                
+                // Inicializa os meses zerados
+                meses.forEach(m => contaNode.values[m] = 0);
+                
+                // Adiciona o nó filho recém-criado na árvore
+                currentNode.children.push(contaNode);
             }
 
-            const contaNode = {
-                id: contaId,
-                label: `📄 ${row.Conta} - ${row.Titulo_Conta}`,
-                rawTitle: row.Titulo_Conta,
-                contaCodigo: row.Conta,   
-                tipoCC: row.Tipo_CC,      
-                type: 'account', children: [], values: {}, isVisible: true, ordem: ordemContaLeaf
-            };
-            meses.forEach(m => contaNode.values[m] = parseFloat(row[m]) || 0);
-            currentNode.children.push(contaNode);
+            // 3. Independentemente de ser nova ou já existir, nós ACUMULAMOS (+=) os valores
+            meses.forEach(m => {
+                contaNode.values[m] += (parseFloat(row[m]) || 0);
+            });
+            // ==========================================
         });
 
         this.treeData = root;
