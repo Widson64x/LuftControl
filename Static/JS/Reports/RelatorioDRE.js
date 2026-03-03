@@ -24,7 +24,7 @@ class RelatorioDRE {
             selectedCCs: ['Todos'], 
             ccFilter: 'Todos',      
             listaCCs: [], 
-            showAccounts: true,
+            showAccounts: false,
             origemFilter: null
         };
         this.debounceTimer = null;
@@ -241,43 +241,51 @@ class RelatorioDRE {
                 });
             }
 
-            const contaId = `C_${row.Conta}_${currentId}`; 
+            // ==========================================
+            // NOVO PADRÃO: PASTA (TÍTULO) -> ARQUIVO (NÚMERO DA CONTA)
+            // ==========================================
             
-            // 1. Verifica se essa conta personalizada já foi inserida neste grupo/nó atual
-            let contaNode = currentNode.children.find(c => c.id === contaId);
+            // 1. Cria (ou pega) a PASTA com o nome da conta (ex: "📁 SALARIOS")
+            const safeTitleName = String(row.Titulo_Conta || '').replace(/[^a-zA-Z0-9]/g, '');
+            const tituloId = `TIT_${safeTitleName}_${currentId}`;
+            
+            // Usa 'group' para a linha ganhar o ícone de pasta e a setinha de expandir/recolher
+            const tituloNode = getOrCreateNode(tituloId, row.Titulo_Conta, 'account-group', currentNode.children);
+            
+            let ordemContaLeaf = 999999;
+            if (row.Ordem_Conta !== undefined && row.Ordem_Conta !== null) {
+                ordemContaLeaf = parseInt(row.Ordem_Conta, 10);
+            } else if (row.Conta && !isNaN(parseInt(row.Conta))) {
+                ordemContaLeaf = parseInt(row.Conta, 10); 
+            }
 
-            // 2. Se a conta ainda não existe neste grupo, nós a criamos
+            // Atualiza a ordem da pasta para ser a menor ordem das contas dentro dela
+            if (ordemContaLeaf < tituloNode.ordem) {
+                tituloNode.ordem = ordemContaLeaf;
+            }
+            
+            // Soma os valores do lançamento na pasta
+            sumValues(tituloNode, row);
+
+            // 2. Cria a CONTA ESPECÍFICA dentro da pasta (ex: "📄 31101")
+            const contaId = `C_${row.Conta}_${tituloId}`; 
+            let contaNode = tituloNode.children.find(c => c.id === contaId);
+
             if (!contaNode) {
-                let ordemContaLeaf = 999999;
-                if (row.Ordem_Conta !== undefined && row.Ordem_Conta !== null) {
-                    ordemContaLeaf = parseInt(row.Ordem_Conta, 10);
-                } else if (row.Conta && !isNaN(parseInt(row.Conta))) {
-                    ordemContaLeaf = parseInt(row.Conta, 10); 
-                }
-
-                // Resolve o problema visual de repetir o nome (ex: "SALARIOS - SALARIOS")
-                let displayLabel = `📄 ${row.Conta}`;
-                if (String(row.Conta).trim() !== String(row.Titulo_Conta).trim()) {
-                    displayLabel += ` - ${row.Titulo_Conta}`;
-                }
-
                 contaNode = {
                     id: contaId,
-                    label: displayLabel,
+                    label: `${row.Conta}`, // Mostra apenas o número, pois o nome já está na pasta pai!
                     rawTitle: row.Titulo_Conta,
                     contaCodigo: row.Conta,   
                     tipoCC: row.Tipo_CC,      
                     type: 'account', children: [], values: {}, isVisible: true, ordem: ordemContaLeaf
                 };
                 
-                // Inicializa os meses zerados
                 meses.forEach(m => contaNode.values[m] = 0);
-                
-                // Adiciona o nó filho recém-criado na árvore
-                currentNode.children.push(contaNode);
+                tituloNode.children.push(contaNode);
             }
 
-            // 3. Independentemente de ser nova ou já existir, nós ACUMULAMOS (+=) os valores
+            // Acumula os valores na conta específica
             meses.forEach(m => {
                 contaNode.values[m] += (parseFloat(row[m]) || 0);
             });
@@ -405,8 +413,10 @@ class RelatorioDRE {
             if (node.type === 'account' && !showAccounts) return;
             if (!node.isVisible) return;
             const padding = level * 20 + 10;
-            const isGroup = node.children && node.children.length > 0;
-            const isExpanded = this.dreState.expanded.has(node.id);
+            const isGroup = node.children && node.children.length > 0 && 
+                            (showAccounts || node.children.some(child => child.type !== 'account'));
+
+            const isExpanded = this.dreState.expanded.has(node.id);             
             
             let iconClass = '';
             let iconStyle = '';
@@ -420,6 +430,10 @@ class RelatorioDRE {
                 }
             }
             else if (node.type === 'group') { iconClass = 'fa-folder'; iconStyle = COLOR_FOLDER; }
+            
+            // --- ADICIONE ESTA LINHA AQUI ---
+            else if (node.type === 'account-group') { iconClass = 'fa-file-alt'; iconStyle = COLOR_LIGHT; }
+            
             else if (node.type === 'account') { iconClass = 'fa-file-alt'; iconStyle = COLOR_LIGHT; }
 
             let iconHtml = '';

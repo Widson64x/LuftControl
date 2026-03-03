@@ -278,7 +278,10 @@ class RelatorioDreGerencial:
                         else:
                             ordem_secundaria = 999 
 
-                conta_display = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else conta
+                # Mantém o número numérico intacto para o frontend saber quem é quem
+                conta_display = conta 
+                
+                # O título será o nome personalizado (ou o nome padrão)
                 titulo_para_exibicao = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else titulo
                 
                 group_key = (tipo_cc, root_virtual_id, caminho, match.full_ordem_path, titulo_para_exibicao, conta_display)
