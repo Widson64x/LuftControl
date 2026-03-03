@@ -32,6 +32,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             // Instancia os submódulos e passa o modal global para eles
             this.razao = new RelatorioRazao(this.modal);
             this.dre = new RelatorioDRE(this.modal);
+
+            if (typeof RelatorioDreConsolidado !== 'undefined') {
+                this.dreConsolidado = new RelatorioDreConsolidado(this.modal);
+            }
         }
 
         // ====================================================================
@@ -48,6 +52,10 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
         loadRentabilidadeReport(origem = null) {
             if (this.dre) this.dre.loadReport(origem);
+        }
+
+        loadDreConsolidadoReport() {
+            if (this.dreConsolidado) this.dreConsolidado.loadReport();
         }
     }
 

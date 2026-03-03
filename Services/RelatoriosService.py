@@ -10,6 +10,7 @@ from Db.Connections import GetPostgresEngine
 # --- Imports dos Relatórios (Novos Nomes) ---
 from Reports.RelatorioRazaoContabil import RelatorioRazaoContabil
 from Reports.RelatorioDreGerencial import RelatorioDreGerencial
+from Reports.RelatorioDreConsolidado import RelatorioDreConsolidado
 
 # --- Import do Logger ---
 from Utils.Logger import RegistrarLog
@@ -117,6 +118,28 @@ class RelatoriosService:
             )
             
             # 2. Executa Fórmulas (Margens, EBITDA, etc)
+            dados_calculados = relatorio.CalcularNosVirtuais(dados)
+            
+            # 3. Formatação
+            if modo_escala == 'dre':
+                return relatorio.AplicarMilhares(dados_calculados)
+                
+            return dados_calculados
+        finally:
+            session.close()
+
+    def GerarDreConsolidado(self, modo_escala, ano=None):
+        """
+        Serviço para calcular o DRE com colunas por unidade de negócio.
+        """
+        session = self._ObterSessao()
+        try:
+            relatorio = RelatorioDreConsolidado(session)
+            
+            # 1. Busca e mapeia nas colunas novas
+            dados = relatorio.ProcessarRelatorio(ano=ano)
+            
+            # 2. Executa Fórmulas
             dados_calculados = relatorio.CalcularNosVirtuais(dados)
             
             # 3. Formatação
