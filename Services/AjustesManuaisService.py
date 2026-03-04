@@ -1,18 +1,16 @@
 import datetime
 import calendar
 from dateutil import parser
-import hashlib
-import os
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import text, func
 
-# --- NOVOS IMPORTS ---
-from Models.POSTGRESS.CTL_Ajustes import CtlAjusteRazao, CtlAjusteLog
+# --- NOVOS IMPORTS ALINHADOS COM A NOVA ARQUITETURA ---
+from Models.POSTGRESS.CTL_Razao import CtlRazaoConsolidado
+from Models.POSTGRESS.CTL_Ajustes import CtlAjusteLog
 from Settings import BaseConfig
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Utils.Hash_Utils import gerar_hash
 from Utils.Common import parse_bool
 from Utils.Logger import RegistrarLog 
 from Db.Connections import GetPostgresEngine
@@ -23,40 +21,47 @@ class AjustesManuaisService:
         self.engine = GetPostgresEngine()
         self.schema = "Dre_Schema"
 
-    def _RegistrarLog(self, ajuste_antigo, dados_novos, usuario):
+    # =========================================================================
+    # LOG E AUDITORIA
+    # =========================================================================
+    def _RegistrarLog(self, registro_antigo, dados_novos, usuario, tipo_acao='EDICAO'):
+        """
+        Compara o objeto antigo com os dados que vieram da tela e salva as diferenças no Log.
+        """
         campos_mapeados = {
-            'origem': 'Origem', 'Conta': 'Conta', 'Titulo_Conta': 'Titulo_Conta', 
-            'Numero': 'Numero', 'Descricao': 'Descricao', 'Contra_Partida': 'Contra_Partida',
+            'origem': 'origem', 'Conta': 'Conta', 'Titulo_Conta': 'Titulo_Conta', 
+            'Numero': 'Numero', 'Descricao': 'Descricao', 'Contra_Partida': 'Contra_Partida_Credito',
             'Filial': 'Filial', 'Centro_Custo': 'Centro_Custo', 'Item': 'Item',
             'Cod_Cl_Valor': 'Cod_Cl_Valor', 'Debito': 'Debito', 'Credito': 'Credito',
             'NaoOperacional': 'Is_Nao_Operacional', 'Exibir_Saldo': 'Exibir_Saldo',
-            'Data': 'Data', 'Invalido': 'Invalido'
+            'Data': 'Data', 'Invalido': 'Invalido', 'Status': 'Status'
         }
         
-        keys_front = dados_novos.keys()
-        
         for json_key, model_attr in campos_mapeados.items():
+            # Recupera o valor novo que veio da tela
             valor_novo_raw = dados_novos.get(json_key)
             if valor_novo_raw is None:
                 if json_key == 'Titulo_Conta': valor_novo_raw = dados_novos.get('Título Conta')
                 elif json_key == 'Centro_Custo': valor_novo_raw = dados_novos.get('Centro de Custo')
                 elif json_key == 'Contra_Partida': valor_novo_raw = dados_novos.get('Contra Partida - Credito')
 
-            valor_antigo_raw = getattr(ajuste_antigo, model_attr)
+            # Recupera o valor antigo que está no banco
+            valor_antigo_raw = getattr(registro_antigo, model_attr, None)
 
             val_antigo = str(valor_antigo_raw).strip() if valor_antigo_raw is not None else ''
             val_novo = str(valor_novo_raw).strip() if valor_novo_raw is not None else ''
             
+            # Tratamento de Data
             if model_attr == 'Data' and valor_antigo_raw:
                 val_antigo = valor_antigo_raw.strftime('%Y-%m-%d')
                 if val_novo and 'T' in val_novo: val_novo = val_novo.split('T')[0]
                 try:
                     if 'GMT' in val_novo or ',' in val_novo:
-                        from dateutil import parser
                         dt_temp = parser.parse(val_novo)
                         val_novo = dt_temp.strftime('%Y-%m-%d')
                 except: pass
             
+            # Tratamento de Números
             if model_attr in ['Debito', 'Credito']:
                 try:
                     f_antigo = float(valor_antigo_raw or 0)
@@ -65,116 +70,90 @@ class AjustesManuaisService:
                     val_antigo, val_novo = f"{f_antigo:.2f}", f"{f_novo:.2f}"
                 except: pass
             
+            # Tratamento de Booleanos
             if model_attr in ['Is_Nao_Operacional', 'Exibir_Saldo', 'Invalido']:
-                val_antigo = 'Sim' if parse_bool(valor_antigo_raw) else 'Não'
-                val_novo = 'Sim' if parse_bool(valor_novo_raw) else 'Não'
+                if valor_novo_raw is not None: # Só testa se enviaram algo
+                    val_antigo = 'Sim' if parse_bool(valor_antigo_raw) else 'Não'
+                    val_novo = 'Sim' if parse_bool(valor_novo_raw) else 'Não'
 
-            if val_antigo != val_novo:
-                RegistrarLog(f"Alteração detectada em {model_attr}: '{val_antigo}' -> '{val_novo}'", "DEBUG")
+            # Se mudou, regista!
+            if val_antigo != val_novo and valor_novo_raw is not None:
+                RegistrarLog(f"Alteração {model_attr}: '{val_antigo}' -> '{val_novo}'", "DEBUG")
                 novo_log = CtlAjusteLog(
-                    Id_Ajuste=ajuste_antigo.Id, Campo_Alterado=model_attr, 
-                    Valor_Antigo=val_antigo, Valor_Novo=val_novo, 
-                    Usuario_Acao=usuario, Data_Acao=datetime.datetime.now(), 
-                    Tipo_Acao='EDICAO'
+                    Id_Registro=registro_antigo.Id,
+                    Fonte_Registro=registro_antigo.Fonte,
+                    Campo_Alterado=model_attr, 
+                    Valor_Antigo=val_antigo, 
+                    Valor_Novo=val_novo, 
+                    Usuario_Acao=usuario, 
+                    Data_Acao=datetime.datetime.now(), 
+                    Tipo_Acao=tipo_acao
                 )
                 self.session.add(novo_log)
-                
-    def _GerarHashIntergrupo(self, row):
-        def Clean(val):
-            if val is None: return 'None'
-            s = str(val).strip()
-            return 'None' if s == '' or s.lower() == 'none' else s
 
-        campos = [
-            row.get('Conta'), row.get('Data'), row.get('Descricao'),
-            str(row.get('Debito') or 0.0), str(row.get('Credito') or 0.0),
-            row.get('Filial'), row.get('Centro_Custo') or row.get('Centro de Custo'),
-            row.get('Origem') 
-        ]
-        raw_str = "".join([Clean(x) for x in campos])
-        return hashlib.md5(raw_str.encode('utf-8')).hexdigest()
-
-    def ObterDadosGrid(self):
-        RegistrarLog("Iniciando ObterDadosGrid", "SERVICE")
+    # =========================================================================
+    # GRID E OPERAÇÕES BÁSICAS
+    # =========================================================================
+    def ObterDadosGrid(self, ano=None, mes=None):
+        """
+        Lê diretamente da Tabela Consolidada usando RAW SQL para ultra-performance.
+        Aplica filtro de Ano e Mês vindos da tela.
+        """
+        RegistrarLog(f"Iniciando ObterDadosGrid: Ano {ano} / Mes {mes}", "SERVICE")
         
-        # --- ATUALIZAÇÃO DA VIEW ---
-        q_view = text('SELECT * FROM "Dre_Schema"."Vw_CTL_Razao_Consolidado" LIMIT 10000000') 
-        res_view = self.session.execute(q_view)
-        rows_view = [dict(row._mapping) for row in res_view]
+        filtro_sql = ""
+        parametros = {}
         
-        ajustes = self.session.query(CtlAjusteRazao).all()
-        mapa_existentes = {aj.Hash_Linha_Original: aj for aj in ajustes}
+        # Se o utilizador enviou Ano e Mês da tela, montamos a cláusula WHERE
+        if ano and mes:
+            filtro_sql = """
+                WHERE EXTRACT(YEAR FROM "Data") = :ano 
+                  AND EXTRACT(MONTH FROM "Data") = :mes
+            """
+            parametros = {"ano": int(ano), "mes": int(mes)}
         
-        novos_ajustes_auto = []
-        for row in rows_view:
-            if str(row.get('Item')).strip() == '10190':
-                h = gerar_hash(row)
-                if h not in mapa_existentes:
-                    now = datetime.datetime.now()
-                    novo = CtlAjusteRazao(
-                        Hash_Linha_Original=h, Tipo_Operacao='NO-OPER_AUTO', Status='Aprovado',
-                        Origem=row.get('origem'), Conta=row.get('Conta'), Titulo_Conta=row.get('Título Conta'),
-                        Data=row.get('Data'), Numero=row.get('Numero'), Descricao=row.get('Descricao'),
-                        Contra_Partida=row.get('Contra Partida - Credito'), 
-                        Filial=str(row.get('Filial') or ''), Centro_Custo=str(row.get('Centro de Custo') or ''),
-                        Item=str(row.get('Item')), Cod_Cl_Valor=str(row.get('Cod Cl. Valor') or ''),
-                        Debito=float(row.get('Debito') or 0), Credito=float(row.get('Credito') or 0),
-                        Is_Nao_Operacional=True, Exibir_Saldo=True, Invalido=False,
-                        Criado_Por='SISTEMA_AUTO', Data_Criacao=now, Aprovado_Por='Sistema', Data_Aprovacao=now
-                    )
-                    novos_ajustes_auto.append(novo)
-                    mapa_existentes[h] = novo
+        # Adicionamos o filtro_sql na query
+        # O LIMIT agora é só por segurança extrema (100.000), 
+        # mas com o filtro de mês dificilmente chegará perto disso.
+        query = text(f"""
+            SELECT * FROM "{self.schema}"."Tb_CTL_Razao_Consolidado"
+            {filtro_sql}
+            ORDER BY "Data" DESC 
+            LIMIT 100000 
+        """)
         
-        if novos_ajustes_auto:
-            self.session.bulk_save_objects(novos_ajustes_auto)
-            self.session.commit()
-            ajustes = self.session.query(CtlAjusteRazao).all()
-
-        mapa_edicao = {}
-        lista_adicionais = []
-        for aj in ajustes:
-            if aj.Tipo_Operacao in ['EDICAO', 'NO-OPER_AUTO']:
-                if aj.Hash_Linha_Original: mapa_edicao[aj.Hash_Linha_Original] = aj
-            elif aj.Tipo_Operacao in ['INCLUSAO', 'INTERGRUPO_AUTO']:
-                lista_adicionais.append(aj)
-
+        res = self.session.execute(query, parametros)
         dados_finais = []
         
-        def MontarLinha(base, ajuste=None, is_inclusao=False):
-            row = base.copy()
-            row['Exibir_Saldo'] = True 
-            if ajuste:
-                row.update({
-                    'origem': ajuste.Origem, 'Conta': ajuste.Conta, 'Título Conta': ajuste.Titulo_Conta,
-                    'Data': ajuste.Data.strftime('%Y-%m-%d') if ajuste.Data else None,
-                    'Numero': ajuste.Numero, 'Descricao': ajuste.Descricao, 
-                    'Contra Partida - Credito': ajuste.Contra_Partida,
-                    'Filial': ajuste.Filial, 'Centro de Custo': ajuste.Centro_Custo,
-                    'Item': ajuste.Item, 'Cod Cl. Valor': ajuste.Cod_Cl_Valor, 
-                    'Debito': ajuste.Debito, 'Credito': ajuste.Credito, 
-                    'NaoOperacional': ajuste.Is_Nao_Operacional, 'Status_Ajuste': ajuste.Status, 
-                    'Ajuste_ID': ajuste.Id
-                })
-                if is_inclusao:
-                    prefixo = "AUTO_" if 'INTERGRUPO' in str(ajuste.Tipo_Operacao) else "NEW_"
-                    row['Hash_ID'] = f"{prefixo}{ajuste.Id}"
-                    row['Tipo_Linha'] = 'Inclusao'
+        for row in res.mappings(): 
+            saldo = (float(row.get('Debito') or 0) - float(row.get('Credito') or 0)) if row.get('Exibir_Saldo') else 0.0
             
-            row['Saldo'] = (float(row.get('Debito') or 0) - float(row.get('Credito') or 0)) if row.get('Exibir_Saldo') else 0.0
-            return row
-
-        for row in rows_view: 
-            h = gerar_hash(row)
-            aj = mapa_edicao.get(h)
-            linha = MontarLinha(row, aj, is_inclusao=False)
-            linha['Hash_ID'] = h
-            linha['Tipo_Linha'] = 'Original'
-            if not aj: linha['Status_Ajuste'] = 'Original'
+            linha = {
+                'Id': row.get('Id'),
+                'Fonte': row.get('Fonte'),
+                'origem': row.get('origem'),
+                'Conta': row.get('Conta'),
+                'Título Conta': row.get('Título Conta'),
+                'Data': row.get('Data').strftime('%Y-%m-%d') if row.get('Data') else None,
+                'Numero': row.get('Numero'),
+                'Descricao': row.get('Descricao'),
+                'Contra Partida - Credito': row.get('Contra Partida - Credito'),
+                'Filial': row.get('Filial'),
+                'Centro de Custo': row.get('Centro de Custo'),
+                'Item': row.get('Item'),
+                'Cod Cl. Valor': row.get('Cod Cl. Valor'),
+                'Debito': row.get('Debito'),
+                'Credito': row.get('Credito'),
+                'NaoOperacional': row.get('Is_Nao_Operacional'),
+                'Exibir_Saldo': row.get('Exibir_Saldo'),
+                'Status_Ajuste': row.get('Status') or '',
+                'Invalido': row.get('Invalido'),
+                'Tipo_Operacao': row.get('Tipo_Operacao'),
+                'Criado_Por': row.get('Criado_Por'),
+                'Saldo': saldo
+            }
             dados_finais.append(linha)
-
-        for adic in lista_adicionais: 
-            dados_finais.append(MontarLinha({}, adic, is_inclusao=True))
-        
+            
         return dados_finais
 
     def CriarAjusteManual(self, payload, usuario):
@@ -191,148 +170,250 @@ class AjustesManuaisService:
                 else: data_ajuste = parser.parse(str(data_raw))
             except: pass
 
-        ajuste = CtlAjusteRazao()
-        ajuste.Criado_Por = usuario
-        ajuste.Data_Criacao = now
-        ajuste.Tipo_Operacao = 'INCLUSAO'
-        ajuste.Status = 'Pendente'
-        
-        raw_hash = f"{now.timestamp()}-{usuario}-{d.get('Descricao')}"
-        ajuste.Hash_Linha_Original = hashlib.md5(raw_hash.encode('utf-8')).hexdigest()
+        # Função de proteção contra strings vazias em colunas numéricas
+        def limpar_int(val):
+            return int(val) if val and str(val).strip() else None
 
-        ajuste.Origem = 'MANUAL'
-        ajuste.Data = data_ajuste
-        if d.get('Conta'): ajuste.Conta = str(d.get('Conta')).strip()
-        ajuste.Titulo_Conta = d.get('Titulo_Conta') or d.get('Título Conta')
-        ajuste.Centro_Custo = d.get('Centro de Custo') or d.get('Centro_Custo')
-        ajuste.Numero = d.get('Numero')
-        ajuste.Descricao = d.get('Descricao')
-        ajuste.Contra_Partida = d.get('Contra_Partida') or d.get('Contra Partida - Credito')
-        ajuste.Filial = d.get('Filial')
-        ajuste.Item = d.get('Item')
-        ajuste.Cod_Cl_Valor = d.get('Cod_Cl_Valor') or d.get('Cod Cl. Valor')
-        ajuste.Debito = float(d.get('Debito') or 0)
-        ajuste.Credito = float(d.get('Credito') or 0)
-        ajuste.Invalido = False
-        ajuste.Is_Nao_Operacional = parse_bool(d.get('NaoOperacional'))
-        ajuste.Exibir_Saldo = True
+        # Descobrir o próximo ID para a fonte MANUAL
+        max_id = self.session.query(func.max(CtlRazaoConsolidado.Id)).filter(CtlRazaoConsolidado.Fonte == 'MANUAL').scalar() or 0
+        novo_id = max_id + 1
 
-        self.session.add(ajuste)
+        novo_registro = CtlRazaoConsolidado(
+            Id=novo_id,
+            Fonte='MANUAL',
+            Criado_Por=usuario,
+            Data_Criacao=now,
+            Tipo_Operacao='INCLUSAO',
+            Status='Pendente',
+            origem='MANUAL',
+            Data=data_ajuste,
+            Conta=str(d.get('Conta')).strip() if d.get('Conta') else None,
+            Titulo_Conta=d.get('Titulo_Conta') or d.get('Título Conta'),
+            Centro_Custo=limpar_int(d.get('Centro de Custo') or d.get('Centro_Custo')),
+            Numero=d.get('Numero'),
+            Descricao=d.get('Descricao'),
+            Contra_Partida_Credito=d.get('Contra_Partida') or d.get('Contra Partida - Credito'),
+            Filial=limpar_int(d.get('Filial')),
+            Item=d.get('Item'),
+            Cod_Cl_Valor=d.get('Cod_Cl_Valor') or d.get('Cod Cl. Valor'),
+            Debito=float(d.get('Debito') or 0),
+            Credito=float(d.get('Credito') or 0),
+            Invalido=False,
+            Is_Nao_Operacional=parse_bool(d.get('NaoOperacional')),
+            Exibir_Saldo=True
+        )
+
+        self.session.add(novo_registro)
         self.session.flush() 
         
         log = CtlAjusteLog(
-            Id_Ajuste=ajuste.Id, Campo_Alterado='TODOS', Valor_Antigo='-', 
-            Valor_Novo='CRIADO_MANUALMENTE', Usuario_Acao=usuario, 
-            Data_Acao=now, Tipo_Acao='INCLUSAO'
+            Id_Registro=novo_registro.Id, Fonte_Registro=novo_registro.Fonte,
+            Campo_Alterado='TODOS', Valor_Antigo='-', Valor_Novo='CRIADO_MANUALMENTE', 
+            Usuario_Acao=usuario, Data_Acao=now, Tipo_Acao='INCLUSAO'
         )
         self.session.add(log)
         self.session.commit()
-        return ajuste.Id
+        return novo_registro.Id
     
     def SalvarAjuste(self, payload, usuario):
         RegistrarLog(f"Iniciando SalvarAjuste. Usuario: {usuario}", "SERVICE")
         
         d = payload.get('Dados', {})
-        hash_id = d.get('Hash_ID') or payload.get('Hash_ID')
-        ajuste_id = d.get('Ajuste_ID') or payload.get('Ajuste_ID')
-        ajuste = None
-        is_novo = False
+        reg_id = d.get('Id') or payload.get('Id')
+        reg_fonte = d.get('Fonte') or payload.get('Fonte')
 
-        if ajuste_id:
-            ajuste = self.session.query(CtlAjusteRazao).get(ajuste_id)
+        if not reg_id or not reg_fonte:
+            raise Exception("Id e Fonte são obrigatórios para atualizar um registo.")
+
+        registro = self.session.query(CtlRazaoConsolidado).filter_by(Id=reg_id, Fonte=reg_fonte).first()
         
-        if not ajuste and hash_id and not str(hash_id).startswith('NEW_'):
-            ajuste = self.session.query(CtlAjusteRazao).filter_by(Hash_Linha_Original=hash_id).first()
+        if not registro:
+            raise Exception("Registo não encontrado na base de dados.")
+
+        # Regista o log antes de alterar
+        self._RegistrarLog(registro, d, usuario)
+
+        if registro.Tipo_Operacao != 'INCLUSAO':
+            registro.Tipo_Operacao = 'EDICAO'
+
+        registro.Status = 'Pendente'
         
-        if not ajuste:
-            ajuste = CtlAjusteRazao()
-            is_novo = True
-            ajuste.Criado_Por = usuario
-            ajuste.Data_Criacao = datetime.datetime.now()
-            if payload.get('Tipo_Operacao') != 'INCLUSAO':
-                ajuste.Hash_Linha_Original = hash_id
-            self.session.add(ajuste)
-        else:
-            self._RegistrarLog(ajuste, d, usuario)
+        # Função para limpar colunas numéricas sem sobrescrever com nulo se não enviado
+        def limpar_int(val, default):
+            if val is None: return default
+            return int(val) if str(val).strip() else None
 
-        tipo_solicitado = payload.get('Tipo_Operacao', 'EDICAO')
-        if ajuste.Tipo_Operacao == 'INCLUSAO' or tipo_solicitado == 'INCLUSAO':
-            ajuste.Tipo_Operacao = 'INCLUSAO'
-        else:
-            ajuste.Tipo_Operacao = 'EDICAO'
-
-        ajuste.Status = 'Pendente'
-        ajuste.Origem = d.get('origem', ajuste.Origem)
-        if d.get('Conta'): ajuste.Conta = str(d.get('Conta')).strip()
-        ajuste.Titulo_Conta = d.get('Titulo_Conta') or d.get('Título Conta')
-        ajuste.Centro_Custo = d.get('Centro de Custo') or d.get('Centro_Custo')
+        if 'origem' in d: registro.origem = d.get('origem')
+        if d.get('Conta') is not None: registro.Conta = str(d.get('Conta')).strip()
+        
+        if 'Titulo_Conta' in d or 'Título Conta' in d:
+            registro.Titulo_Conta = d.get('Titulo_Conta') or d.get('Título Conta')
+            
+        cc_input = d.get('Centro de Custo') if 'Centro de Custo' in d else d.get('Centro_Custo')
+        registro.Centro_Custo = limpar_int(cc_input, registro.Centro_Custo)
         
         data_raw = d.get('Data')
         if data_raw:
-            try: ajuste.Data = parser.parse(str(data_raw))
+            try: registro.Data = parser.parse(str(data_raw))
             except:
-                if 'T' in str(data_raw): ajuste.Data = datetime.datetime.strptime(data_raw.split('T')[0], '%Y-%m-%d')
+                if 'T' in str(data_raw): registro.Data = datetime.datetime.strptime(data_raw.split('T')[0], '%Y-%m-%d')
 
-        ajuste.Numero = d.get('Numero')
-        ajuste.Descricao = d.get('Descricao')
-        ajuste.Contra_Partida = d.get('Contra_Partida') or d.get('Contra Partida - Credito')
-        ajuste.Filial = d.get('Filial')
-        ajuste.Item = d.get('Item')
-        ajuste.Cod_Cl_Valor = d.get('Cod_Cl_Valor') or d.get('Cod Cl. Valor')
-        ajuste.Debito = float(d.get('Debito') or 0)
-        ajuste.Credito = float(d.get('Credito') or 0)
-        ajuste.Invalido = parse_bool(d.get('Invalido'))
-        ajuste.Is_Nao_Operacional = parse_bool(d.get('NaoOperacional'))
-        ajuste.Exibir_Saldo = parse_bool(d.get('Exibir_Saldo', True))
+        if 'Numero' in d: registro.Numero = d.get('Numero')
+        if 'Descricao' in d: registro.Descricao = d.get('Descricao')
         
-        self.session.flush()
+        cp_input = d.get('Contra_Partida') if 'Contra_Partida' in d else d.get('Contra Partida - Credito')
+        if cp_input is not None: registro.Contra_Partida_Credito = cp_input
         
-        if is_novo:
-            log = CtlAjusteLog(
-                Id_Ajuste=ajuste.Id, Campo_Alterado='TODOS', Valor_Antigo='-', 
-                Valor_Novo='CRIADO_VIA_SALVAR', Usuario_Acao=usuario, 
-                Data_Acao=datetime.datetime.now(), Tipo_Acao='CRIACAO'
-            )
-            self.session.add(log)
+        if 'Filial' in d: registro.Filial = limpar_int(d.get('Filial'), registro.Filial)
+        if 'Item' in d: registro.Item = d.get('Item')
+        
+        cl_input = d.get('Cod_Cl_Valor') if 'Cod_Cl_Valor' in d else d.get('Cod Cl. Valor')
+        if cl_input is not None: registro.Cod_Cl_Valor = cl_input
+        
+        if 'Debito' in d: registro.Debito = float(d.get('Debito') or 0)
+        if 'Credito' in d: registro.Credito = float(d.get('Credito') or 0)
+        
+        if 'Invalido' in d: registro.Invalido = parse_bool(d.get('Invalido'))
+        if 'NaoOperacional' in d: registro.Is_Nao_Operacional = parse_bool(d.get('NaoOperacional'))
+        if 'Exibir_Saldo' in d: registro.Exibir_Saldo = parse_bool(d.get('Exibir_Saldo', True))
         
         self.session.commit()
-        return ajuste.Id
+        return registro.Id
     
-    def AprovarAjuste(self, ajuste_id, acao, usuario):
-        ajuste = self.session.query(CtlAjusteRazao).get(ajuste_id)
-        if ajuste:
-            novo_status = 'Aprovado' if acao == 'Aprovar' else 'Reprovado'
-            log = CtlAjusteLog(Id_Ajuste=ajuste.Id, Campo_Alterado='Status', Valor_Antigo=ajuste.Status, 
-                             Valor_Novo=novo_status, Usuario_Acao=usuario, Data_Acao=datetime.datetime.now(), Tipo_Acao='APROVACAO')
-            self.session.add(log)
-            ajuste.Status = novo_status
-            ajuste.Aprovado_Por = usuario
-            ajuste.Data_Aprovacao = datetime.datetime.now()
-            self.session.commit()
+    def _ReverterEdicoesPendentes(self, registro):
+        """
+        Lê o histórico de logs em ordem decrescente (do mais novo para o mais velho)
+        e desfaz todas as edições feitas desde a última vez que o registo esteve fechado.
+        """
+        # 1. Encontra o momento do último "Fechamento" (Aprovação, Reprovação, Inclusão, etc.)
+        ultimo_fechamento = self.session.query(CtlAjusteLog).filter_by(
+            Id_Registro=registro.Id, Fonte_Registro=registro.Fonte
+        ).filter(
+            CtlAjusteLog.Tipo_Acao.in_(['APROVACAO', 'REPROVACAO', 'INCLUSAO'])
+        ).order_by(CtlAjusteLog.Data_Acao.desc()).first()
 
-    def ToggleInvalido(self, ajuste_id, acao, usuario):
-        ajuste = self.session.query(CtlAjusteRazao).get(ajuste_id)
-        if not ajuste: raise Exception('Ajuste não encontrado')
-        novo_estado_invalido = (acao == 'INVALIDAR')
+        data_corte = ultimo_fechamento.Data_Acao if ultimo_fechamento else datetime.datetime.min
+
+        # 2. Pega todas as edições feitas DEPOIS desse momento, do mais recente para o mais antigo (DESC)
+        logs_edicao = self.session.query(CtlAjusteLog).filter_by(
+            Id_Registro=registro.Id, Fonte_Registro=registro.Fonte
+        ).filter(
+            CtlAjusteLog.Tipo_Acao == 'EDICAO',
+            CtlAjusteLog.Data_Acao >= data_corte
+        ).order_by(CtlAjusteLog.Id_Log.desc()).all()
+
+        # 3. Restaura os valores antigos campo a campo, convertendo do texto do Log para o tipo real
+        for log in logs_edicao:
+            campo = log.Campo_Alterado
+            v_antigo = log.Valor_Antigo
+
+            if not hasattr(registro, campo):
+                continue
+
+            if campo in ['Debito', 'Credito']:
+                setattr(registro, campo, float(v_antigo) if v_antigo and v_antigo != '-' else 0.0)
+            elif campo in ['Is_Nao_Operacional', 'Exibir_Saldo', 'Invalido']:
+                setattr(registro, campo, (v_antigo == 'Sim'))
+            elif campo == 'Data':
+                try:
+                    if v_antigo and v_antigo != '-':
+                        from dateutil import parser
+                        setattr(registro, campo, parser.parse(v_antigo))
+                except:
+                    pass
+            else:
+                setattr(registro, campo, v_antigo if v_antigo != '-' else None)
+        
+        # 4. Recalcula o saldo após voltar os valores
+        registro.Saldo = (float(registro.Debito or 0) - float(registro.Credito or 0)) if registro.Exibir_Saldo else 0.0
+
+
+    def AprovarAjuste(self, reg_id, reg_fonte, acao, usuario):
+        registro = self.session.query(CtlRazaoConsolidado).filter_by(Id=reg_id, Fonte=reg_fonte).first()
+        if not registro:
+            raise Exception("Registo não encontrado.")
+
+        novo_status = 'Aprovado' if acao == 'Aprovar' else 'Reprovado'
+
+        # --- LÓGICA DE REVERSÃO SE REJEITADO ---
+        if acao == 'Reprovar':
+            if registro.Tipo_Operacao == 'INCLUSAO':
+                # Se era uma inclusão manual e foi rejeitada, ela morre aqui.
+                registro.Invalido = True
+                novo_status = 'Invalido'
+            else:
+                # Se era uma edição, revertemos os dados na máquina do tempo!
+                self._ReverterEdicoesPendentes(registro)
+                
+                # Como os dados voltaram a ser os corretos (antigos), o status volta a Aprovado
+                novo_status = 'Aprovado'
+                registro.Criado_Por = 'Sistema'
+                registro.Aprovado_Por = 'Sistema'
+                
+                # Se for do ERP, garante que a operação é tida como ORIGINAL novamente
+                if registro.Fonte in ['FARMA', 'FARMADIST', 'INTEC']:
+                    registro.Tipo_Operacao = 'ORIGINAL'
+        
+        # Regista a ação de aprovação/rejeição no Log
         log = CtlAjusteLog(
-            Id_Ajuste=ajuste.Id, Campo_Alterado='Invalido', 
-            Valor_Antigo=str(ajuste.Invalido), Valor_Novo=str(novo_estado_invalido),
+            Id_Registro=registro.Id, Fonte_Registro=registro.Fonte,
+            Campo_Alterado='Status', Valor_Antigo=registro.Status or '', Valor_Novo=novo_status, 
+            Usuario_Acao=usuario, Data_Acao=datetime.datetime.now(), Tipo_Acao='APROVACAO' if acao == 'Aprovar' else 'REPROVACAO'
+        )
+        self.session.add(log)
+        
+        registro.Status = novo_status
+        if acao == 'Aprovar':
+            registro.Aprovado_Por = usuario
+        
+        registro.Data_Aprovacao = datetime.datetime.now()
+        self.session.commit()
+
+    def ToggleInvalido(self, reg_id, reg_fonte, acao, usuario):
+        registro = self.session.query(CtlRazaoConsolidado).filter_by(Id=reg_id, Fonte=reg_fonte).first()
+        if not registro: raise Exception('Registo não encontrado')
+        
+        novo_estado_invalido = (acao == 'INVALIDAR')
+        
+        # Inteligência de Restauração: 
+        # Se eu invalidar -> Fica 'Invalido'
+        # Se eu restaurar algo 'ORIGINAL' -> Volta a ser 'Aprovado'
+        # Se eu restaurar um ajuste/inclusão -> Volta a ser 'Pendente' (precisa ser reavaliado)
+        if novo_estado_invalido:
+            novo_status = 'Invalido'
+        else:
+            novo_status = 'Aprovado' if registro.Tipo_Operacao == 'ORIGINAL' else 'Pendente'
+
+        log = CtlAjusteLog(
+            Id_Registro=registro.Id, Fonte_Registro=registro.Fonte,
+            Campo_Alterado='Invalido', Valor_Antigo=str(registro.Invalido), Valor_Novo=str(novo_estado_invalido),
             Usuario_Acao=usuario, Data_Acao=datetime.datetime.now(),
             Tipo_Acao='INVALIDACAO' if novo_estado_invalido else 'RESTAURACAO'
         )
         self.session.add(log)
-        ajuste.Invalido = novo_estado_invalido
-        ajuste.Status = 'Invalido' if novo_estado_invalido else 'Pendente'
+        
+        # Aplica as mudanças
+        registro.Invalido = novo_estado_invalido
+        registro.Status = novo_status
+        
+        # Se restaurou um dado Original do ERP, diz que quem aprovou foi o sistema
+        if not novo_estado_invalido and registro.Tipo_Operacao == 'ORIGINAL':
+            registro.Aprovado_Por = 'Sistema'
+            
         self.session.commit()
 
-    def ObterHistorico(self, ajuste_id):
-        logs = self.session.query(CtlAjusteLog).filter(CtlAjusteLog.Id_Ajuste == ajuste_id).order_by(CtlAjusteLog.Data_Acao.desc()).all()
+    def ObterHistorico(self, reg_id, reg_fonte):
+        logs = self.session.query(CtlAjusteLog).filter_by(Id_Registro=reg_id, Fonte_Registro=reg_fonte).order_by(CtlAjusteLog.Data_Acao.desc()).all()
         return [{
             'Id_Log': l.Id_Log, 'Campo': l.Campo_Alterado, 'De': l.Valor_Antigo, 'Para': l.Valor_Novo,
             'Usuario': l.Usuario_Acao, 'Data': l.Data_Acao.strftime('%d/%m/%Y %H:%M:%S'), 'Tipo': l.Tipo_Acao
         } for l in logs]
 
+    # =========================================================================
+    # PROCESSAMENTO DE INTERGRUPOS (Lançam direto na Consolidada)
+    # =========================================================================
     def ProcessarIntergrupoIntec(self, ano, mes, data_gravacao):
+        # A lógica de leitura do CSV mantém-se igual
         try:
             meses_map = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
             competencia_anomes = f"{ano}-{meses_map[mes]}"
@@ -341,19 +422,9 @@ class AjustesManuaisService:
             if not os.path.exists(caminho_csv):
                  return ["Erro: Arquivo ValorFinanceiro.csv não encontrado."]
 
-            df_qvd = None
-            erros_leitura = []
-            try:
-                df_qvd = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
-                if len(df_qvd.columns) <= 1: 
-                    df_qvd = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
-            except Exception as e: erros_leitura.append(f"UTF-8-SIG: {e}")
-
-            if df_qvd is None or len(df_qvd.columns) <= 1:
-                try:
-                    df_qvd = pd.read_csv(caminho_csv, sep=';', encoding='latin1', low_memory=False)
-                    if len(df_qvd.columns) <= 1: df_qvd = pd.read_csv(caminho_csv, sep=',', encoding='latin1', low_memory=False)
-                except Exception as e: return [f"Erro leitura CSV. Detalhes no log."]
+            df_qvd = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
+            if len(df_qvd.columns) <= 1: 
+                df_qvd = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
 
             def limpar_coluna(col): return col.strip().replace('Ï»¿', '').replace('\ufeff', '').upper()
             df_qvd.columns = [limpar_coluna(c) for c in df_qvd.columns]
@@ -364,10 +435,6 @@ class AjustesManuaisService:
                 if df_qvd['VALORFINANCEIRO'].dtype == object: df_qvd['VALORFINANCEIRO'] = df_qvd['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
                 df_qvd['VALORFINANCEIRO'] = pd.to_numeric(df_qvd['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
             
-            cols_req = ['MODAL', 'EMPRESA', 'INTERGROUP', 'ANOMES']
-            for c in cols_req:
-                if c not in df_qvd.columns: return [f"Coluna obrigatória não encontrada: {c}"]
-
             df_novo_filtro = df_qvd[(df_qvd['MODAL'].str.upper() == 'AEREO') & (df_qvd['EMPRESA'].str.upper() == 'INTEC') & (df_qvd['INTERGROUP'].str.upper().isin(['S', 'N'])) & (df_qvd['ANOMES'] == competencia_anomes)]
             v_aereo_intec_especifico = df_novo_filtro['VALORFINANCEIRO'].sum()
 
@@ -377,16 +444,9 @@ class AjustesManuaisService:
 
             if v_rodoviario == 0 and v_aereo == 0 and v_aereo_intec_especifico == 0: return []
 
-            with self.engine.connect() as conn:
-                # --- ATUALIZAÇÃO DA VIEW AQUI TAMBÉM ---
-                query = text(f"""
-                    SELECT * FROM "{self.schema}"."Vw_CTL_Razao_Consolidado"
-                    WHERE "origem" = 'INTEC' AND "Conta" = '60101010201'
-                    ORDER BY "Data" DESC LIMIT 1
-                """)
-                res = conn.execute(query).fetchone()
-                if not res: return ["Template INTEC não encontrado"]
-                template = dict(res._mapping)
+            # Busca template na própria base consolidada
+            template = self.session.query(CtlRazaoConsolidado).filter_by(origem='INTEC', Conta='60101010201').order_by(CtlRazaoConsolidado.Data.desc()).first()
+            if not template: return ["Template INTEC não encontrado"]
 
             logs_intec = []
             lancamentos = [
@@ -398,6 +458,8 @@ class AjustesManuaisService:
                 {'modal': 'AEREO', 'valor': v_aereo, 'conta': '60101010201C', 'tipo': 'C', 'sufixo': 'C'}
             ]
 
+            max_id = self.session.query(func.max(CtlRazaoConsolidado.Id)).filter(CtlRazaoConsolidado.Fonte == 'INTERGRUPO_INTEC').scalar() or 0
+
             for lanc in lancamentos:
                 if lanc['valor'] > 0:
                     v_abs = round(abs(lanc['valor']), 2)
@@ -405,35 +467,28 @@ class AjustesManuaisService:
                     val_credito = v_abs if lanc['tipo'] == 'C' else 0.0
                     desc_final = f"INTERGRUPO INTEC - {lanc['modal']} - {competencia_anomes} ({lanc['sufixo']})"
 
-                    params_hash = {
-                        'Conta': lanc['conta'], 'Data': data_gravacao, 'Descricao': desc_final,
-                        'Debito': val_debito, 'Credito': val_credito, 'Filial': template.get('Filial'),
-                        'Centro_Custo': template.get('Centro de Custo') or template.get('Centro_Custo'), 'Origem': 'INTEC'
-                    }
-                    hash_val = self._GerarHashIntergrupo(params_hash)
-
-                    ajuste_existente = self.session.query(CtlAjusteRazao).filter(
-                        CtlAjusteRazao.Origem == 'INTEC', CtlAjusteRazao.Conta == lanc['conta'],
-                        CtlAjusteRazao.Descricao == desc_final, CtlAjusteRazao.Tipo_Operacao == 'INTERGRUPO_AUTO'
+                    # Procura se o registo já existe na consolidada
+                    reg_existente = self.session.query(CtlRazaoConsolidado).filter_by(
+                        Fonte='INTERGRUPO_INTEC', Conta=lanc['conta'], Descricao=desc_final, Data=data_gravacao
                     ).first()
 
-                    if ajuste_existente:
-                        valor_atual = ajuste_existente.Debito if lanc['tipo'] == 'D' else ajuste_existente.Credito
+                    if reg_existente:
+                        valor_atual = reg_existente.Debito if lanc['tipo'] == 'D' else reg_existente.Credito
                         if abs(valor_atual - v_abs) > 0.01:
-                            if lanc['tipo'] == 'D': ajuste_existente.Debito = v_abs
-                            else: ajuste_existente.Credito = v_abs
-                            ajuste_existente.Hash_Linha_Original = hash_val 
+                            if lanc['tipo'] == 'D': reg_existente.Debito = v_abs
+                            else: reg_existente.Credito = v_abs
                             logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Atualizado para {v_abs}")
                     else:
-                        ajuste = CtlAjusteRazao(
-                            Conta=lanc['conta'], Titulo_Conta=template.get('Titulo_Conta', 'VENDA DE FRETES'),
+                        max_id += 1
+                        novo_reg = CtlRazaoConsolidado(
+                            Id=max_id, Fonte='INTERGRUPO_INTEC', origem='INTEC',
+                            Conta=lanc['conta'], Titulo_Conta=template.Titulo_Conta or 'VENDA DE FRETES',
                             Data=data_gravacao, Descricao=desc_final, Debito=val_debito, Credito=val_credito,
-                            Filial=template.get('Filial'), Centro_Custo=template.get('Centro de Custo') or template.get('Centro_Custo'),
-                            Item='INTERGRUPO', Origem='INTEC', Hash_Linha_Original=hash_val, 
+                            Filial=template.Filial, Centro_Custo=template.Centro_Custo, Item='INTERGRUPO',
                             Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Invalido=False,
                             Criado_Por='SISTEMA_AUTO', Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
                         )
-                        self.session.add(ajuste)
+                        self.session.add(novo_reg)
                         logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Criado {v_abs}")
             
             return logs_intec
@@ -442,67 +497,38 @@ class AjustesManuaisService:
             return [f"ERRO CRÍTICO INTEC: {str(e)}"]
         
     def ProcessarIntergrupoFarma(self, ano, mes, data_inicio, data_fim, data_gravacao):
-        """
-        Processa as regras de intergrupo para a divisão Farma.
-        REGRA 1 (Banco de Dados): Para contas gerais, soma apenas lançamentos onde a coluna 'Descricao' contenha 'INTEC'.
-        REGRA 2 (CSV): Para a conta '60101010201', acessa o CSV, filtra Modal 'AEREO' e Empresa 'FARMA'.
-        
-        Args:
-            ano (int): Ano para cálculo.
-            mes (int): Mês para cálculo.
-            data_inicio (datetime): Data de início do período (1º dia do mês).
-            data_fim (datetime): Data de fim do período (Último dia do mês às 23:59:59).
-            data_gravacao (datetime): Data em que o lançamento deve ser registado na DRE.
-            
-        Returns:
-            list[str]: Logs contendo o resumo dos registos verificados, criados ou ajustados.
-        """
         logs_farma = []
-        
         try:
-            # =========================================================================
-            # PARTE 1: PROCESSAR CONTAS VIA BANCO DE DADOS (FILTRO 'INTEC' NA DESCRIÇÃO)
-            # =========================================================================
             config_contas_banco = {
                 '60301020290': {'destino': '60301020290B', 'descricao': 'ajuste intergrupo ( fretes Dist.)', 'titulo_origem': 'FRETE DISTRIBUIÇÃO', 'titulo_destino': 'FRETE DISTRIBUIÇÃO'},
                 '60301020288': {'destino': '60301020288C', 'descricao': 'ajuste intergrupo ( fretes Aéreo)', 'titulo_origem': 'FRETES AEREO', 'titulo_destino': 'FRETES AEREO'}
             }
             
+            max_id = self.session.query(func.max(CtlRazaoConsolidado.Id)).filter(CtlRazaoConsolidado.Fonte == 'INTERGRUPO_FARMA').scalar() or 0
+
             for conta_origem, config in config_contas_banco.items():
-                sql = text(f"""
-                    SELECT "origem", "Descricao", "Debito", "Credito", "Item", "Filial", "Centro de Custo" as cc
-                    FROM "{self.schema}"."Vw_CTL_Razao_Consolidado"
-                    WHERE "Conta" = :conta AND "Data" >= :d_ini AND "Data" <= :d_fim
-                    AND "origem" NOT IN ('INTEC')
-                """)
-                
-                rows = self.session.execute(sql, {'conta': conta_origem, 'd_ini': data_inicio, 'd_fim': data_fim}).fetchall()
+                registros = self.session.query(CtlRazaoConsolidado).filter(
+                    CtlRazaoConsolidado.Conta == conta_origem,
+                    CtlRazaoConsolidado.Data >= data_inicio,
+                    CtlRazaoConsolidado.Data <= data_fim,
+                    CtlRazaoConsolidado.origem != 'INTEC'
+                ).all()
 
                 agrupado_por_origem = {}
 
-                for row in rows:
-                    r_dict = dict(row._mapping)
-                    descricao_texto = str(r_dict.get('Descricao') or '').upper()
-                    
-                    # FILTRO DE PRECISÃO: Só processa a linha se tiver 'INTEC' na descrição
+                for r in registros:
+                    descricao_texto = str(r.Descricao or '').upper()
                     if "INTEC" in descricao_texto:
-                        orig = r_dict.get('origem')
-                        
+                        orig = r.origem
                         if orig not in agrupado_por_origem:
-                            agrupado_por_origem[orig] = {
-                                'deb': 0.0, 'cred': 0.0, 'item': r_dict.get('Item'),
-                                'filial': r_dict.get('Filial'), 'cc': r_dict.get('cc'), 'origem': orig
-                            }
+                            agrupado_por_origem[orig] = { 'deb': 0.0, 'cred': 0.0, 'item': r.Item, 'filial': r.Filial, 'cc': r.Centro_Custo, 'origem': orig }
                         
-                        agrupado_por_origem[orig]['deb'] += float(r_dict.get('Debito') or 0.0)
-                        agrupado_por_origem[orig]['cred'] += float(r_dict.get('Credito') or 0.0)
+                        agrupado_por_origem[orig]['deb'] += float(r.Debito or 0.0)
+                        agrupado_por_origem[orig]['cred'] += float(r.Credito or 0.0)
                         
-                        if not agrupado_por_origem[orig]['filial'] and r_dict.get('Filial'): 
-                            agrupado_por_origem[orig]['filial'] = r_dict.get('Filial')
-                        if not agrupado_por_origem[orig]['cc'] and r_dict.get('cc'): 
-                            agrupado_por_origem[orig]['cc'] = r_dict.get('cc')
-                        if not agrupado_por_origem[orig]['item'] and r_dict.get('Item'): 
-                            agrupado_por_origem[orig]['item'] = r_dict.get('Item')
+                        if not agrupado_por_origem[orig]['filial'] and r.Filial: agrupado_por_origem[orig]['filial'] = r.Filial
+                        if not agrupado_por_origem[orig]['cc'] and r.Centro_Custo: agrupado_por_origem[orig]['cc'] = r.Centro_Custo
+                        if not agrupado_por_origem[orig]['item'] and r.Item: agrupado_por_origem[orig]['item'] = r.Item
 
                 for orig, dados in agrupado_por_origem.items():
                     if not dados['deb'] and not dados['cred']: continue
@@ -510,171 +536,97 @@ class AjustesManuaisService:
                     valor_ajuste = round(abs(dados['deb'] - dados['cred']), 2)
                     if valor_ajuste <= 0: continue
                     
-                    p_orig = {
-                        'Conta': conta_origem, 'Data': data_gravacao, 'Descricao': config['descricao'],
-                        'Debito': 0.0, 'Credito': valor_ajuste, 'Filial': dados['filial'], 'Centro_Custo': dados['cc'], 'Origem': dados['origem']
-                    }
-                    h_orig = self._GerarHashIntergrupo(p_orig)
-
-                    p_dest = {
-                        'Conta': config['destino'], 'Data': data_gravacao, 'Descricao': config['descricao'],
-                        'Debito': valor_ajuste, 'Credito': 0.0, 'Filial': dados['filial'], 'Centro_Custo': dados['cc'], 'Origem': dados['origem']
-                    }
-                    h_dest = self._GerarHashIntergrupo(p_dest)
-
-                    ajuste_existente = self.session.query(CtlAjusteRazao).filter(
-                        CtlAjusteRazao.Origem == dados['origem'], CtlAjusteRazao.Conta == config['destino'], 
-                        CtlAjusteRazao.Tipo_Operacao == 'INTERGRUPO_AUTO', CtlAjusteRazao.Data == data_gravacao
+                    # Procura se já existe na Tabela Consolidada o destino
+                    reg_destino_existente = self.session.query(CtlRazaoConsolidado).filter_by(
+                        Fonte='INTERGRUPO_FARMA', origem=dados['origem'], Conta=config['destino'], Data=data_gravacao
                     ).first()
 
-                    if ajuste_existente:
-                        if abs(ajuste_existente.Debito - valor_ajuste) > 0.01:
-                             ajuste_existente.Debito = valor_ajuste
-                             ajuste_existente.Hash_Linha_Original = h_dest
-
-                             par_origem = self.session.query(CtlAjusteRazao).filter(
-                                 CtlAjusteRazao.Origem == dados['origem'], CtlAjusteRazao.Conta == conta_origem,
-                                 CtlAjusteRazao.Tipo_Operacao == 'INTERGRUPO_AUTO', CtlAjusteRazao.Data == data_gravacao
-                             ).first()
-                             if par_origem: 
-                                 par_origem.Credito = valor_ajuste
-                                 par_origem.Hash_Linha_Original = h_orig
+                    if reg_destino_existente:
+                        if abs(reg_destino_existente.Debito - valor_ajuste) > 0.01:
+                             reg_destino_existente.Debito = valor_ajuste
                              
+                             reg_origem_existente = self.session.query(CtlRazaoConsolidado).filter_by(
+                                 Fonte='INTERGRUPO_FARMA', origem=dados['origem'], Conta=conta_origem, Data=data_gravacao
+                             ).first()
+                             if reg_origem_existente: reg_origem_existente.Credito = valor_ajuste
                              logs_farma.append(f"[{mes:02d}/{ano}] {dados['origem']}: Atualizado {config['destino']} v:{valor_ajuste}")
                     else:
-                        aj_origem = CtlAjusteRazao(
+                        max_id += 1
+                        aj_origem = CtlRazaoConsolidado(
+                            Id=max_id, Fonte='INTERGRUPO_FARMA', origem=dados['origem'],
                             Conta=conta_origem, Titulo_Conta=config['titulo_origem'], Data=data_gravacao,
                             Descricao=config['descricao'], Debito=0.0, Credito=valor_ajuste,
-                            Filial=dados['filial'], Centro_Custo=dados['cc'], Item=dados['item'], Origem=dados['origem'],
-                            Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO',
-                            Hash_Linha_Original=h_orig, Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
+                            Filial=dados['filial'], Centro_Custo=dados['cc'], Item=dados['item'],
+                            Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO', Exibir_Saldo=True
                         )
-                        
-                        aj_destino = CtlAjusteRazao(
+                        max_id += 1
+                        aj_destino = CtlRazaoConsolidado(
+                            Id=max_id, Fonte='INTERGRUPO_FARMA', origem=dados['origem'],
                             Conta=config['destino'], Titulo_Conta=config['titulo_destino'], Data=data_gravacao,
                             Descricao=config['descricao'], Debito=valor_ajuste, Credito=0.0,
-                            Filial=dados['filial'], Centro_Custo=dados['cc'], Item=dados['item'], Origem=dados['origem'],
-                            Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO',
-                            Hash_Linha_Original=h_dest, Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
+                            Filial=dados['filial'], Centro_Custo=dados['cc'], Item=dados['item'],
+                            Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO', Exibir_Saldo=True
                         )
-                        
                         self.session.add(aj_origem)
                         self.session.add(aj_destino)
                         logs_farma.append(f"[{mes:02d}/{ano}] {dados['origem']}: Criado {conta_origem} -> {config['destino']} v:{valor_ajuste}")
 
-            # =========================================================================
-            # PARTE 2: PROCESSAR CONTA 60101010201 VIA CSV (FARMA - AEREO)
-            # =========================================================================
+            # PARTE 2: CSV
             meses_map = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
             competencia_anomes = f"{ano}-{meses_map[mes]}"
             caminho_csv = os.path.join(BaseConfig().DataQVDPath(), "ValorFinanceiro.csv")
             
             if os.path.exists(caminho_csv):
-                # Leitura robusta do CSV (Tratamento de BOM / encoding)
-                df_qvd = None
-                try:
-                    df_qvd = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
-                    if len(df_qvd.columns) <= 1:
-                        df_qvd = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
-                except: pass
+                df_qvd = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
+                if len(df_qvd.columns) <= 1: df_qvd = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
 
-                if df_qvd is None or len(df_qvd.columns) <= 1:
-                    try:
-                        df_qvd = pd.read_csv(caminho_csv, sep=';', encoding='latin1', low_memory=False)
-                        if len(df_qvd.columns) <= 1:
-                            df_qvd = pd.read_csv(caminho_csv, sep=',', encoding='latin1', low_memory=False)
-                    except: pass
+                def limpar_coluna(col): return col.strip().replace('Ï»¿', '').replace('\ufeff', '').upper()
+                df_qvd.columns = [limpar_coluna(c) for c in df_qvd.columns]
+                
+                if 'VALORFINANCEIRO' in df_qvd.columns:
+                    if df_qvd['VALORFINANCEIRO'].dtype == object: df_qvd['VALORFINANCEIRO'] = df_qvd['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
+                    df_qvd['VALORFINANCEIRO'] = pd.to_numeric(df_qvd['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
 
-                if df_qvd is not None and len(df_qvd.columns) > 1:
-                    # Limpeza das colunas
-                    def limpar_coluna(col): return col.strip().replace('Ï»¿', '').replace('\ufeff', '').upper()
-                    df_qvd.columns = [limpar_coluna(c) for c in df_qvd.columns]
+                if all(c in df_qvd.columns for c in ['MODAL', 'EMPRESA', 'ANOMES']):
+                    df_farma_aereo = df_qvd[(df_qvd['MODAL'].str.upper() == 'AEREO') & (df_qvd['EMPRESA'].str.upper() == 'FARMA') & (df_qvd['ANOMES'] == competencia_anomes)]
+                    valor_csv_farma = round(df_farma_aereo['VALORFINANCEIRO'].sum(), 2)
                     
-                    if 'VALORFINANCEIRO' in df_qvd.columns:
-                        if df_qvd['VALORFINANCEIRO'].dtype == object:
-                             df_qvd['VALORFINANCEIRO'] = df_qvd['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
-                        df_qvd['VALORFINANCEIRO'] = pd.to_numeric(df_qvd['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
+                    if valor_csv_farma > 0:
+                        template = self.session.query(CtlRazaoConsolidado).filter_by(origem='FARMA', Conta='60101010201').first()
+                        desc_csv = 'VLR. CFE DIARIO AUXILIAR N/ DATA (aéreo)'
 
-                    # Filtro específico para FARMA AEREO
-                    if all(c in df_qvd.columns for c in ['MODAL', 'EMPRESA', 'ANOMES']):
-                        df_farma_aereo = df_qvd[
-                            (df_qvd['MODAL'].str.upper() == 'AEREO') & 
-                            (df_qvd['EMPRESA'].str.upper() == 'FARMA') & 
-                            (df_qvd['ANOMES'] == competencia_anomes)
+                        lancamentos = [
+                            {'valor': valor_csv_farma, 'conta': '60101010201', 'tipo': 'D', 'sufixo': 'DEBITO'},
+                            {'valor': valor_csv_farma, 'conta': '60101010201A', 'tipo': 'C', 'sufixo': 'CREDITO'}
                         ]
-                        
-                        valor_csv_farma = round(df_farma_aereo['VALORFINANCEIRO'].sum(), 2)
-                        
-                        if valor_csv_farma > 0:
-                            # Busca o template no banco apenas para pegar a Filial e CC
-                            with self.engine.connect() as conn:
-                                query = text(f"""
-                                    SELECT * FROM "{self.schema}"."Vw_CTL_Razao_Consolidado"
-                                    WHERE "origem" = 'FARMA' AND "Conta" = '60101010201'
-                                    ORDER BY "Data" DESC LIMIT 1
-                                """)
-                                res = conn.execute(query).fetchone()
-                                template = dict(res._mapping) if res else {}
 
-                            origem_farma = 'FARMA'
-                            desc_csv = 'VLR. CFE DIARIO AUXILIAR N/ DATA (aéreo)'
+                        for lanc in lancamentos:
+                            v_abs = round(abs(lanc['valor']), 2)
+                            val_debito = v_abs if lanc['tipo'] == 'D' else 0.0
+                            val_credito = v_abs if lanc['tipo'] == 'C' else 0.0
 
-                            # ---------------------------------------------------------
-                            # MECÂNICA DE LANÇAMENTOS (DEBITO E CREDITO)
-                            # ---------------------------------------------------------
-                            lancamentos = [
-                                {'modal': 'AEREO', 'valor': valor_csv_farma, 'conta': '60101010201', 'tipo': 'D', 'sufixo': 'DEBITO'},
-                                {'modal': 'AEREO', 'valor': valor_csv_farma, 'conta': '60101010201A', 'tipo': 'C', 'sufixo': 'CREDITO'}
-                            ]
+                            reg_existente = self.session.query(CtlRazaoConsolidado).filter_by(
+                                Fonte='INTERGRUPO_FARMA', Conta=lanc['conta'], Descricao=desc_csv, Data=data_gravacao
+                            ).first()
 
-                            for lanc in lancamentos:
-                                v_abs = round(abs(lanc['valor']), 2)
-                                if v_abs <= 0: continue
-
-                                val_debito = v_abs if lanc['tipo'] == 'D' else 0.0
-                                val_credito = v_abs if lanc['tipo'] == 'C' else 0.0
-
-                                params_hash = {
-                                    'Conta': lanc['conta'], 'Data': data_gravacao, 'Descricao': desc_csv,
-                                    'Debito': val_debito, 'Credito': val_credito, 
-                                    'Filial': template.get('Filial', ''), 
-                                    'Centro_Custo': template.get('Centro de Custo') or template.get('Centro_Custo', ''), 
-                                    'Origem': origem_farma
-                                }
-                                hash_val = self._GerarHashIntergrupo(params_hash)
-
-                                ajuste_existente = self.session.query(CtlAjusteRazao).filter(
-                                    CtlAjusteRazao.Origem == origem_farma, 
-                                    CtlAjusteRazao.Conta == lanc['conta'], 
-                                    CtlAjusteRazao.Tipo_Operacao == 'INTERGRUPO_AUTO', 
-                                    CtlAjusteRazao.Data == data_gravacao
-                                ).first()
-
-                                if ajuste_existente:
-                                    valor_atual = ajuste_existente.Debito if lanc['tipo'] == 'D' else ajuste_existente.Credito
-                                    if abs(valor_atual - v_abs) > 0.01:
-                                        if lanc['tipo'] == 'D':
-                                            ajuste_existente.Debito = v_abs
-                                        else:
-                                            ajuste_existente.Credito = v_abs
-                                            
-                                        ajuste_existente.Hash_Linha_Original = hash_val 
-                                        logs_farma.append(f"[{mes:02d}/{ano}] FARMA (CSV) {lanc['sufixo']}: Atualizado {lanc['conta']} para {v_abs}")
-                                else:
-                                    novo_ajuste = CtlAjusteRazao(
-                                        Conta=lanc['conta'], Titulo_Conta='VENDA DE FRETES', Data=data_gravacao,
-                                        Descricao=desc_csv, Debito=val_debito, Credito=val_credito,
-                                        Filial=template.get('Filial', ''), Centro_Custo=template.get('Centro de Custo') or template.get('Centro_Custo', ''), 
-                                        Item=template.get('Item', ''), Origem=origem_farma,
-                                        Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO_CSV',
-                                        Hash_Linha_Original=hash_val, Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
-                                    )
-                                    self.session.add(novo_ajuste)
-                                    logs_farma.append(f"[{mes:02d}/{ano}] FARMA (CSV) {lanc['sufixo']}: Criado {lanc['conta']} v:{v_abs}")
-            else:
-                RegistrarLog("Aviso FARMA: Arquivo ValorFinanceiro.csv não encontrado.", "WARNING")
-                logs_farma.append("Aviso FARMA: Arquivo CSV não encontrado para a conta 60101010201.")
-
+                            if reg_existente:
+                                valor_atual = reg_existente.Debito if lanc['tipo'] == 'D' else reg_existente.Credito
+                                if abs(valor_atual - v_abs) > 0.01:
+                                    if lanc['tipo'] == 'D': reg_existente.Debito = v_abs
+                                    else: reg_existente.Credito = v_abs
+                                    logs_farma.append(f"[{mes:02d}/{ano}] FARMA (CSV) {lanc['sufixo']}: Atualizado {lanc['conta']} para {v_abs}")
+                            else:
+                                max_id += 1
+                                novo_ajuste = CtlRazaoConsolidado(
+                                    Id=max_id, Fonte='INTERGRUPO_FARMA', origem='FARMA',
+                                    Conta=lanc['conta'], Titulo_Conta='VENDA DE FRETES', Data=data_gravacao,
+                                    Descricao=desc_csv, Debito=val_debito, Credito=val_credito,
+                                    Filial=template.Filial if template else None, 
+                                    Centro_Custo=template.Centro_Custo if template else None, 
+                                    Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO_CSV', Exibir_Saldo=True
+                                )
+                                self.session.add(novo_ajuste)
+                                logs_farma.append(f"[{mes:02d}/{ano}] FARMA (CSV) {lanc['sufixo']}: Criado {lanc['conta']} v:{v_abs}")
             return logs_farma
             
         except Exception as e:
@@ -695,17 +647,18 @@ class AjustesManuaisService:
             logs_totais.extend(logs_farma)
             self.session.commit()
             
-            qtd_registros = self.session.query(CtlAjusteRazao).filter(
-                CtlAjusteRazao.Tipo_Operacao == 'INTERGRUPO_AUTO',
+            # Conta na base de dados quantos intergrupos existem (para validação)
+            qtd_registros = self.session.query(CtlRazaoConsolidado).filter(
+                CtlRazaoConsolidado.Tipo_Operacao == 'INTERGRUPO_AUTO',
                 text(f"EXTRACT(MONTH FROM \"Data\") = {mes}"),
                 text(f"EXTRACT(YEAR FROM \"Data\") = {ano}")
             ).count()
 
             if qtd_registros < 12:
-                aviso = f"ATENÇÃO CRÍTICA: Processo gerou apenas {qtd_registros} registros. Esperado no mínimo 12. Verifique os dados de origem (CSV ou Banco)."
+                aviso = f"ATENÇÃO CRÍTICA: Processo gerou apenas {qtd_registros} registros. Esperado no mínimo 12."
                 logs_totais.append(aviso)
             else:
-                logs_totais.append(f"Sucesso: {qtd_registros} registros intergrupo validados (Mínimo 12 OK).")
+                logs_totais.append(f"Sucesso: {qtd_registros} registros intergrupo processados na Consolidada.")
 
             return logs_totais
 

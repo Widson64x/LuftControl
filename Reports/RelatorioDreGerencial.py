@@ -5,23 +5,16 @@ from sqlalchemy import text
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Utils.Hash_Utils import gerar_hash
 from Utils.Utils import ReportUtils
 from Utils.Logger import RegistrarLog
 
 class RelatorioDreGerencial:
-    """
-    Classe responsável por processar o relatório de DRE (Demonstrativo de Resultado),
-    lidando com hierarquia de contas, regras de negócio, nós virtuais e fórmulas.
-    """
     def __init__(self, session):
         self.session = session
         self.meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez','Total_Ano']
 
     def _ObterEstruturaHierarquia(self):
-        """Monta a árvore genealógica das contas (Pai -> Filho -> Neto)."""
         try:
-            # --- ATUALIZADO ---
             sql_tree = text("""
                 WITH RECURSIVE TreePath AS (
                     SELECT 
@@ -52,7 +45,6 @@ class RelatorioDreGerencial:
             tree_rows = self.session.execute(sql_tree).fetchall()
             tree_map = {row.Id: row for row in tree_rows}
 
-            # --- ATUALIZADO ---
             sql_defs = text("""
                 SELECT v."Conta_Contabil", v."Id_Hierarquia", NULL::int as "Id_No_Virtual", NULL::text as "Nome_Personalizado", 'Vinculo' as "Origem_Regra", NULL::text as "Nome_Virtual_Direto", NULL::int as "Id_Virtual_Direto",
                 COALESCE((SELECT MIN(ordem) FROM "Dre_Schema"."Tb_CTL_Dre_Ordenamento" WHERE tipo_no = 'conta' AND id_referencia = v."Conta_Contabil"), 999999) as "Ordem_Conta"
@@ -87,19 +79,14 @@ class RelatorioDreGerencial:
                     nome_cc_detalhe = node.Raiz_Centro_Custo_Nome
                     raiz_virt_id = node.Raiz_No_Virtual_Id
                     
-                    if node.Raiz_Centro_Custo_Tipo: 
-                        tipo_principal = node.Raiz_Centro_Custo_Tipo
-                    elif node.Raiz_No_Virtual_Nome: 
-                        tipo_principal = node.Raiz_No_Virtual_Nome
+                    if node.Raiz_Centro_Custo_Tipo: tipo_principal = node.Raiz_Centro_Custo_Tipo
+                    elif node.Raiz_No_Virtual_Nome: tipo_principal = node.Raiz_No_Virtual_Nome
                     else:
                         root_name = full_path.split('||')[0]
                         tipo_principal = root_name
                         is_root_group = True
                 elif row.Id_No_Virtual:
-                    full_path = 'Direto'
-                    full_ordem_path = '999'
-                    tipo_principal = row.Nome_Virtual_Direto
-                    raiz_virt_id = row.Id_Virtual_Direto
+                    full_path = 'Direto'; full_ordem_path = '999'; tipo_principal = row.Nome_Virtual_Direto; raiz_virt_id = row.Id_Virtual_Direto
                 
                 obj_def = Definition(Conta_Contabil=row.Conta_Contabil, CC_Alvo=cc_alvo, Id_Hierarquia=row.Id_Hierarquia, Id_No_Virtual=row.Id_No_Virtual, Nome_Personalizado_Def=row.Nome_Personalizado, full_path=full_path, full_ordem_path=full_ordem_path, Tipo_Principal=tipo_principal, Raiz_Centro_Custo_Nome=nome_cc_detalhe, Raiz_No_Virtual_Id=raiz_virt_id, Is_Root_Group=is_root_group, Ordem_Conta=ordem_conta)
                 definitions[row.Conta_Contabil].append(obj_def)
@@ -109,34 +96,12 @@ class RelatorioDreGerencial:
             RegistrarLog("Erro fatal ao carregar estrutura hierárquica do DRE", "ERROR", e)
             raise e
 
-    def _ObterMapaAjustes(self):
-        # --- ATUALIZADO ---
-        sql = text("""
-            SELECT * FROM "Dre_Schema"."Tb_CTL_Ajuste_Razao" 
-            WHERE "Status" != 'Reprovado' AND "Invalido" = false
-        """)
-        rows = self.session.execute(sql).fetchall()
-        
-        edicoes = {}
-        inclusoes = []
-        
-        for row in rows:
-            if row.Tipo_Operacao in ['EDICAO', 'NO-OPER_AUTO']:
-                if row.Hash_Linha_Original:
-                    edicoes[row.Hash_Linha_Original] = row
-            elif row.Tipo_Operacao in ['INCLUSAO', 'INTERGRUPO_AUTO']:
-                inclusoes.append(row)
-        
-        return edicoes, inclusoes
-
     def _ObterOrdenamento(self):
-        # --- ATUALIZADO ---
         sql = text('SELECT id_referencia, tipo_no, ordem FROM "Dre_Schema"."Tb_CTL_Dre_Ordenamento"')
         rows = self.session.execute(sql).fetchall()
         return {f"{r.tipo_no}:{r.id_referencia}": r.ordem for r in rows}
 
     def _ObterOrdemSubgruposPorContexto(self):
-        # --- ATUALIZADO ---
         sql = text("""
             SELECT 
                 h."Nome",
@@ -144,60 +109,38 @@ class RelatorioDreGerencial:
                 COALESCE(o.ordem, 999) as ordem
             FROM "Dre_Schema"."Tb_CTL_Dre_Hierarquia" h
             LEFT JOIN "Dre_Schema"."Tb_CTL_Dre_Ordenamento" o 
-                ON CAST(h."Id" AS TEXT) = o.id_referencia 
-                AND o.tipo_no = 'subgrupo'
-            WHERE h."Id_Pai" IS NULL
-            ORDER BY o.ordem ASC
+                ON CAST(h."Id" AS TEXT) = o.id_referencia AND o.tipo_no = 'subgrupo'
+            WHERE h."Id_Pai" IS NULL ORDER BY o.ordem ASC
         """)
         rows = self.session.execute(sql).fetchall()
         
         ordem_por_contexto = {}
         for r in rows:
-            nome = str(r.Nome).strip()
-            tipo = str(r.Raiz_Centro_Custo_Tipo).strip() if r.Raiz_Centro_Custo_Tipo else 'Indefinido'
-            chave = (nome, tipo)
-            
-            if chave not in ordem_por_contexto:
-                ordem_por_contexto[chave] = r.ordem
-            else:
-                ordem_por_contexto[chave] = min(ordem_por_contexto[chave], r.ordem)
-        
+            chave = (str(r.Nome).strip(), str(r.Raiz_Centro_Custo_Tipo).strip() if r.Raiz_Centro_Custo_Tipo else 'Indefinido')
+            if chave not in ordem_por_contexto: ordem_por_contexto[chave] = r.ordem
+            else: ordem_por_contexto[chave] = min(ordem_por_contexto[chave], r.ordem)
         return ordem_por_contexto
 
     def DepurarEstruturaEOrdem(self):
-        # --- ATUALIZADO ---
         sql_raw = text('SELECT * FROM "Dre_Schema"."Tb_CTL_Dre_Ordenamento" ORDER BY ordem ASC')
         rows_ordem = self.session.execute(sql_raw).fetchall()
-
         sql_h = text('SELECT "Id", "Nome" FROM "Dre_Schema"."Tb_CTL_Dre_Hierarquia"')
         map_hierarquia = {r.Id: r.Nome for r in self.session.execute(sql_h).fetchall()}
-
         sql_v = text('SELECT "Id", "Nome" FROM "Dre_Schema"."Tb_CTL_Dre_No_Virtual"')
         map_virtual = {r.Id: r.Nome for r in self.session.execute(sql_v).fetchall()}
 
         debug_list = []
         for row in rows_ordem:
             nome_resolvido = "---"
-            tipo_desc = row.tipo_no
-            
-            if row.tipo_no == 'subgrupo':
-                try: nome_resolvido = map_hierarquia.get(int(row.id_referencia), f"ID {row.id_referencia} (Não encontrado)")
-                except: nome_resolvido = f"Erro ID: {row.id_referencia}"
-            
-            elif row.tipo_no == 'virtual':
-                try: nome_resolvido = map_virtual.get(int(row.id_referencia), f"ID {row.id_referencia} (Não encontrado)")
-                except: nome_resolvido = f"Erro ID: {row.id_referencia}"
-
-            elif row.tipo_no == 'tipo_cc':
-                nome_resolvido = row.id_referencia
+            if row.tipo_no == 'subgrupo': nome_resolvido = map_hierarquia.get(int(row.id_referencia), f"ID {row.id_referencia} (Não encontrado)")
+            elif row.tipo_no == 'virtual': nome_resolvido = map_virtual.get(int(row.id_referencia), f"ID {row.id_referencia} (Não encontrado)")
+            elif row.tipo_no == 'tipo_cc': nome_resolvido = row.id_referencia
 
             debug_list.append({
-                'Ordem': row.ordem, 'Tipo': tipo_desc, 'ID_Ref': row.id_referencia,
+                'Ordem': row.ordem, 'Tipo': row.tipo_no, 'ID_Ref': row.id_referencia,
                 'Nome_Visual': nome_resolvido, 'Contexto_Pai': row.contexto_pai
             })
-
-        debug_list.sort(key=lambda x: x['Ordem'])
-        return debug_list
+        return sorted(debug_list, key=lambda x: x['Ordem'])
     
     def ProcessarRelatorio(self, filtro_origem='FARMA,FARMADIST,INTEC', agrupar_por_cc=False, filtro_cc=None, ano=None):
         if not filtro_origem: lista_empresas = []
@@ -207,35 +150,21 @@ class RelatorioDreGerencial:
 
         try:
             tree_map, definitions = self._ObterEstruturaHierarquia()
-            ajustes_edicao, ajustes_inclusao = self._ObterMapaAjustes()
             ordem_map = self._ObterOrdenamento()
             ordem_subgrupos_contexto = self._ObterOrdemSubgruposPorContexto()
             
-            # --- ATUALIZADO ---
             sql_css = text('SELECT "Id", "Estilo_CSS" FROM "Dre_Schema"."Tb_CTL_Dre_No_Virtual"')
             css_map = {row.Id: row.Estilo_CSS for row in self.session.execute(sql_css).fetchall() if row.Estilo_CSS}
             
-            sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Vw_CTL_Razao_Consolidado"')
+            sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Tb_CTL_Razao_Consolidado"')
             mapa_titulos = {row[0]: row[1] for row in self.session.execute(sql_nomes).fetchall()}
 
             aggregated_data = {}
 
-            def ProcessRow(origem, conta, titulo, data, saldo, cc_original_str, row_hash=None, is_skeleton=False, forced_match=None):
-                if not is_skeleton and row_hash and row_hash in ajustes_edicao:
-                    adj = ajustes_edicao[row_hash]
-                    if adj.Invalido: return 
-                    origem = adj.Origem or origem
-                    conta = adj.Conta or conta
-                    titulo = adj.Titulo_Conta or titulo
-                    cc_original_str = str(adj.Centro_Custo) if adj.Centro_Custo else cc_original_str
-                    data = adj.Data or data
-                    if adj.Is_Nao_Operacional:
-                        conta = '00000000000'
-                        titulo = 'Não Operacionais'
-                    if adj.Exibir_Saldo:
-                        saldo = (float(adj.Debito or 0) - float(adj.Credito or 0))
-                    else:
-                        saldo = 0.0
+            def ProcessRow(origem, conta, titulo, data, saldo, cc_original_str, is_nao_operacional=False, is_skeleton=False, forced_match=None):
+                if not is_skeleton and is_nao_operacional:
+                    conta = '00000000000'
+                    titulo = 'Não Operacionais'
 
                 match = forced_match
                 if not match:
@@ -260,40 +189,25 @@ class RelatorioDreGerencial:
                 ordem = 999
                 ordem_secundaria = 500
                 
-                if root_virtual_id:
-                    ordem = ordem_map.get(f"virtual:{root_virtual_id}", 999)
+                if root_virtual_id: ordem = ordem_map.get(f"virtual:{root_virtual_id}", 999)
                 elif match.Is_Root_Group:
-                    if match.Id_Hierarquia:
-                        ordem = ordem_map.get(f"subgrupo:{match.Id_Hierarquia}", 0)
-                else:
-                    ordem = ordem_map.get(f"tipo_cc:{tipo_cc}", 999)
+                    if match.Id_Hierarquia: ordem = ordem_map.get(f"subgrupo:{match.Id_Hierarquia}", 0)
+                else: ordem = ordem_map.get(f"tipo_cc:{tipo_cc}", 999)
                 
                 if caminho and caminho not in ['Não Classificado', 'Direto', 'Calculado']:
                     partes = caminho.split('||')
                     if partes:
-                        primeiro_grupo = partes[0].strip()
-                        chave_busca = (primeiro_grupo, str(tipo_cc).strip())
-                        if chave_busca in ordem_subgrupos_contexto:
-                            ordem_secundaria = ordem_subgrupos_contexto[chave_busca]
-                        else:
-                            ordem_secundaria = 999 
+                        chave_busca = (partes[0].strip(), str(tipo_cc).strip())
+                        ordem_secundaria = ordem_subgrupos_contexto.get(chave_busca, 999) 
 
-                # Mantém o número numérico intacto para o frontend saber quem é quem
                 conta_display = conta 
-                
-                # O título será o nome personalizado (ou o nome padrão)
                 titulo_para_exibicao = match.Nome_Personalizado_Def if match.Nome_Personalizado_Def else titulo
                 
                 group_key = (tipo_cc, root_virtual_id, caminho, match.full_ordem_path, titulo_para_exibicao, conta_display)
-                
-                if agrupar_por_cc: 
-                    group_key = group_key + (match.Raiz_Centro_Custo_Nome,)
+                if agrupar_por_cc: group_key = group_key + (match.Raiz_Centro_Custo_Nome,)
 
                 if group_key not in aggregated_data:
-                    css_style = None
-                    if root_virtual_id and root_virtual_id in css_map:
-                        css_style = css_map[root_virtual_id]
-
+                    css_style = css_map.get(root_virtual_id, None)
                     item = {
                         'origem': origem, 'Conta': conta_display, 'Titulo_Conta': titulo_para_exibicao,
                         'Tipo_CC': tipo_cc, 'Root_Virtual_Id': root_virtual_id, 
@@ -305,7 +219,6 @@ class RelatorioDreGerencial:
                     if agrupar_por_cc: item['Nome_CC'] = match.Raiz_Centro_Custo_Nome
                     aggregated_data[group_key] = item
                 else:
-                    # Se já existe no grupo, preservamos a menor ordem de conta encontrada
                     if match.Ordem_Conta < aggregated_data[group_key]['Ordem_Conta']:
                         aggregated_data[group_key]['Ordem_Conta'] = match.Ordem_Conta
 
@@ -320,9 +233,9 @@ class RelatorioDreGerencial:
             for conta_def, lista_regras in definitions.items():
                 titulo_conta = mapa_titulos.get(conta_def, "Conta Configurada")
                 for regra in lista_regras:
-                    ProcessRow("Config", conta_def, titulo_conta, None, 0.0, None, None, is_skeleton=True, forced_match=regra)
+                    ProcessRow("Config", conta_def, titulo_conta, None, 0.0, None, is_skeleton=True, forced_match=regra)
 
-            where_clauses = []
+            where_clauses = ['"Invalido" = false', '"Status" = \'Aprovado\'']
             params = {}
             
             if ano:
@@ -334,7 +247,6 @@ class RelatorioDreGerencial:
                 key = f"orig{i}"; params[key] = emp; orig_params_keys.append(f":{key}")
             
             if orig_params_keys: where_clauses.append(f"\"origem\" IN ({', '.join(orig_params_keys)})")
-            else: where_clauses.append("1=0")
 
             cc_list = []
             if filtro_cc and filtro_cc.lower() != 'todos':
@@ -346,37 +258,20 @@ class RelatorioDreGerencial:
                     key = f"cc_{i}"; params[key] = cc_val; cc_params_keys.append(f":{key}")
                 where_clauses.append(f"\"Centro de Custo\" IN ({', '.join(cc_params_keys)})")
 
-            where_final = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+            where_final = "WHERE " + " AND ".join(where_clauses)
             
-            # --- ATUALIZADO ---
             sql_raw = text(f"""
-                SELECT "origem", "Conta", "Título Conta", "Data", "Numero", "Centro de Custo", "Saldo", "Filial", "Item", "Debito", "Credito"
-                FROM "Dre_Schema"."Vw_CTL_Razao_Consolidado" {where_final}
+                SELECT "origem", "Conta", "Título Conta", "Data", "Numero", "Centro de Custo", "Saldo", "Is_Nao_Operacional"
+                FROM "Dre_Schema"."Tb_CTL_Razao_Consolidado" {where_final}
             """)
             
             raw_rows = self.session.execute(sql_raw, params).fetchall()
 
             for row in raw_rows:
-                h = gerar_hash(row)
                 ProcessRow(
                     row.origem, row.Conta, getattr(row, 'Título Conta'), row.Data, row.Saldo, 
-                    getattr(row, 'Centro de Custo'), h, is_skeleton=False
+                    getattr(row, 'Centro de Custo'), row.Is_Nao_Operacional, is_skeleton=False
                 )
-
-            for adj in ajustes_inclusao:
-                if adj.Origem not in lista_empresas: continue
-                if ano and adj.Data and adj.Data.year != int(ano): continue
-
-                if cc_list:
-                    cc_adj = str(adj.Centro_Custo or '').strip()
-                    if cc_adj not in cc_list: continue
-                
-                if not adj.Invalido:
-                    saldo_adj = (float(adj.Debito or 0) - float(adj.Credito or 0)) if adj.Exibir_Saldo else 0.0
-                    c = '00000000000' if adj.Is_Nao_Operacional else adj.Conta
-                    t = 'Não Operacionais' if adj.Is_Nao_Operacional else adj.Titulo_Conta
-                    
-                    ProcessRow(adj.Origem, c, t, adj.Data, saldo_adj, str(adj.Centro_Custo), None, is_skeleton=False)
 
             final_list = list(aggregated_data.values())
             
@@ -402,8 +297,7 @@ class RelatorioDreGerencial:
             keys_to_update = [f"tipo_cc:{tipo}"]
             
             if caminho and caminho != 'None':
-                partes = caminho.split('||')
-                for p in partes:
+                for p in caminho.split('||'):
                     p_limpa = p.strip()
                     if p_limpa: keys_to_update.append(f"subgrupo:{p_limpa}")
 
@@ -420,7 +314,6 @@ class RelatorioDreGerencial:
                     for k in keys_to_update:
                         memoria[k][m] += val
         
-        # --- ATUALIZADO ---
         sql_formulas = text("""
             SELECT nv."Id", nv."Nome", nv."Formula_JSON", nv."Estilo_CSS", nv."Tipo_Exibicao", COALESCE(ord.ordem, 999) as ordem
             FROM "Dre_Schema"."Tb_CTL_Dre_No_Virtual" nv
@@ -473,11 +366,10 @@ class RelatorioDreGerencial:
 
                 novas_linhas.append(nova_linha)
             except Exception as e:
-                RegistrarLog(f"Erro ao calcular fórmula '{form.Nome}' (ID {form.Id})", "ERROR", e)
+                RegistrarLog(f"Erro ao calcular fórmula '{form.Nome}'", "ERROR", e)
 
         todos = data_rows + novas_linhas
         todos.sort(key=lambda x: (x.get('ordem_prioridade', 999), x.get('ordem_secundaria', 0)))
-        
         return todos
 
     def AplicarMilhares(self, data):
