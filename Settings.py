@@ -53,8 +53,8 @@ class BaseConfig:
             "?driver=ODBC+Driver+17+for+SQL+Server&TrustServerCertificate=yes"
         )
 
-    def DataQVDPath(self):
-        """Retorna o caminho base para os arquivos QVD"""
+    def DataCSVPath(self):
+        """Retorna o caminho base para os arquivos CSV"""
         SYS_BASE = "L:\TECNOLOGIA DA INFORMACAO\SISTEMAS" or "\\\\172.16.200.206\TECNOLOGIA DA INFORMACAO\SISTEMAS"
         return os.path.join(SYS_BASE, "Dados")
     

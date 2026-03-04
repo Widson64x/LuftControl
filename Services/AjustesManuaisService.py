@@ -417,28 +417,28 @@ class AjustesManuaisService:
         try:
             meses_map = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
             competencia_anomes = f"{ano}-{meses_map[mes]}"
-            caminho_csv = os.path.join(BaseConfig().DataQVDPath(), "ValorFinanceiro.csv")
+            caminho_csv = os.path.join(BaseConfig().DataCSVPath(), "ValorFinanceiro.csv")
             
             if not os.path.exists(caminho_csv):
                  return ["Erro: Arquivo ValorFinanceiro.csv não encontrado."]
 
-            df_qvd = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
-            if len(df_qvd.columns) <= 1: 
-                df_qvd = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
+            df_csv = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
+            if len(df_csv.columns) <= 1: 
+                df_csv = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
 
             def limpar_coluna(col): return col.strip().replace('Ï»¿', '').replace('\ufeff', '').upper()
-            df_qvd.columns = [limpar_coluna(c) for c in df_qvd.columns]
+            df_csv.columns = [limpar_coluna(c) for c in df_csv.columns]
             
-            if 'INTERGROUP' not in df_qvd.columns: return [f"Erro: Coluna INTERGROUP inexistente. Verifique o CSV."]
+            if 'INTERGROUP' not in df_csv.columns: return [f"Erro: Coluna INTERGROUP inexistente. Verifique o CSV."]
 
-            if 'VALORFINANCEIRO' in df_qvd.columns:
-                if df_qvd['VALORFINANCEIRO'].dtype == object: df_qvd['VALORFINANCEIRO'] = df_qvd['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
-                df_qvd['VALORFINANCEIRO'] = pd.to_numeric(df_qvd['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
+            if 'VALORFINANCEIRO' in df_csv.columns:
+                if df_csv['VALORFINANCEIRO'].dtype == object: df_csv['VALORFINANCEIRO'] = df_csv['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
+                df_csv['VALORFINANCEIRO'] = pd.to_numeric(df_csv['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
             
-            df_novo_filtro = df_qvd[(df_qvd['MODAL'].str.upper() == 'AEREO') & (df_qvd['EMPRESA'].str.upper() == 'INTEC') & (df_qvd['INTERGROUP'].str.upper().isin(['S', 'N'])) & (df_qvd['ANOMES'] == competencia_anomes)]
+            df_novo_filtro = df_csv[(df_csv['MODAL'].str.upper() == 'AEREO') & (df_csv['EMPRESA'].str.upper() == 'INTEC') & (df_csv['INTERGROUP'].str.upper().isin(['S', 'N'])) & (df_csv['ANOMES'] == competencia_anomes)]
             v_aereo_intec_especifico = df_novo_filtro['VALORFINANCEIRO'].sum()
 
-            df_filtrado_s = df_qvd[(df_qvd['INTERGROUP'].str.upper() == 'S') & (df_qvd['EMPRESA'].str.upper() == 'INTEC') & (df_qvd['ANOMES'] == competencia_anomes)]
+            df_filtrado_s = df_csv[(df_csv['INTERGROUP'].str.upper() == 'S') & (df_csv['EMPRESA'].str.upper() == 'INTEC') & (df_csv['ANOMES'] == competencia_anomes)]
             v_rodoviario = df_filtrado_s[df_filtrado_s['MODAL'].str.upper() == 'RODOVIARIO']['VALORFINANCEIRO'].sum()
             v_aereo = df_filtrado_s[df_filtrado_s['MODAL'].str.upper() == 'AEREO']['VALORFINANCEIRO'].sum()
 
@@ -574,21 +574,21 @@ class AjustesManuaisService:
             # PARTE 2: CSV
             meses_map = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
             competencia_anomes = f"{ano}-{meses_map[mes]}"
-            caminho_csv = os.path.join(BaseConfig().DataQVDPath(), "ValorFinanceiro.csv")
+            caminho_csv = os.path.join(BaseConfig().DataCSVPath(), "ValorFinanceiro.csv")
             
             if os.path.exists(caminho_csv):
-                df_qvd = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
-                if len(df_qvd.columns) <= 1: df_qvd = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
+                df_csv = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
+                if len(df_csv.columns) <= 1: df_csv = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
 
                 def limpar_coluna(col): return col.strip().replace('Ï»¿', '').replace('\ufeff', '').upper()
-                df_qvd.columns = [limpar_coluna(c) for c in df_qvd.columns]
+                df_csv.columns = [limpar_coluna(c) for c in df_csv.columns]
                 
-                if 'VALORFINANCEIRO' in df_qvd.columns:
-                    if df_qvd['VALORFINANCEIRO'].dtype == object: df_qvd['VALORFINANCEIRO'] = df_qvd['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
-                    df_qvd['VALORFINANCEIRO'] = pd.to_numeric(df_qvd['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
+                if 'VALORFINANCEIRO' in df_csv.columns:
+                    if df_csv['VALORFINANCEIRO'].dtype == object: df_csv['VALORFINANCEIRO'] = df_csv['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
+                    df_csv['VALORFINANCEIRO'] = pd.to_numeric(df_csv['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
 
-                if all(c in df_qvd.columns for c in ['MODAL', 'EMPRESA', 'ANOMES']):
-                    df_farma_aereo = df_qvd[(df_qvd['MODAL'].str.upper() == 'AEREO') & (df_qvd['EMPRESA'].str.upper() == 'FARMA') & (df_qvd['ANOMES'] == competencia_anomes)]
+                if all(c in df_csv.columns for c in ['MODAL', 'EMPRESA', 'ANOMES']):
+                    df_farma_aereo = df_csv[(df_csv['MODAL'].str.upper() == 'AEREO') & (df_csv['EMPRESA'].str.upper() == 'FARMA') & (df_csv['ANOMES'] == competencia_anomes)]
                     valor_csv_farma = round(df_farma_aereo['VALORFINANCEIRO'].sum(), 2)
                     
                     if valor_csv_farma > 0:
