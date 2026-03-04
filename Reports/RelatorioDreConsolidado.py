@@ -4,38 +4,22 @@ from collections import defaultdict, namedtuple
 from sqlalchemy import text
 import os
 import sys
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Utils.Hash_Utils import gerar_hash
 from Utils.Utils import ReportUtils
 from Utils.Logger import RegistrarLog
 
 class RelatorioDreConsolidado:
-    """
-    Motor do DRE Consolidado.
-    Gera a visão baseada em unidades de negócio/regras em vez de meses.
-    """
     def __init__(self, session):
         self.session = session
-        # Definindo as colunas do relatório
         self.colunas = [
             'INTEC', 'FARMA', 'FARMA_DIST', 'POLO', 'JANDIRA', 
             'CABREUVA', 'NAO_OPER_INTEC', 'NAO_OPER_FARMA', 'INTERGRUPO', 'Total_Geral'
         ]
 
-    # Reutiliza a lógica de hierarquia do DRE Gerencial (copiamos o essencial ou instanciamos)
-    # Para manter independente, replicamos as consultas de estrutura
     def _ObterEstruturaHierarquia(self):
-        # ATENÇÃO: Cole aqui o mesmo código exato do _ObterEstruturaHierarquia 
-        # do RelatorioDreGerencial.py para manter o mapeamento de contas idêntico.
         from Reports.RelatorioDreGerencial import RelatorioDreGerencial
         dre_base = RelatorioDreGerencial(self.session)
         return dre_base._ObterEstruturaHierarquia()
-
-    def _ObterMapaAjustes(self):
-        from Reports.RelatorioDreGerencial import RelatorioDreGerencial
-        dre_base = RelatorioDreGerencial(self.session)
-        return dre_base._ObterMapaAjustes()
 
     def _ObterOrdenamento(self):
         from Reports.RelatorioDreGerencial import RelatorioDreGerencial
@@ -48,9 +32,6 @@ class RelatorioDreConsolidado:
         return dre_base._ObterOrdemSubgruposPorContexto()
 
     def _DeterminarColuna(self, origem, centro_custo, conta, is_nao_operacional, is_intergrupo):
-        """
-        MÉTODO CORE: Aqui você define as regras de negócio para alocar o valor na coluna certa.
-        """
         origem = str(origem).upper().strip() if origem else ''
         cc = str(centro_custo).upper().strip() if centro_custo else ''
         
@@ -60,15 +41,13 @@ class RelatorioDreConsolidado:
         if is_nao_operacional:
             if origem == 'INTEC': return 'NAO_OPER_INTEC'
             if origem in ['FARMA', 'FARMADIST']: return 'NAO_OPER_FARMA'
-            return 'NAO_OPER_FARMA' # Padrão fallback
+            return 'NAO_OPER_FARMA'
 
-        # Regras de negócio por Origem / CC
         if origem == 'INTEC':
             return 'INTEC'
         elif origem == 'FARMADIST':
             return 'FARMA_DIST'
         elif origem == 'FARMA':
-            # Exemplo de regra mista combinando CC e Origem
             if 'POLO' in cc: return 'POLO'
             if 'JANDIRA' in cc: return 'JANDIRA'
             if 'CABREUVA' in cc: return 'CABREUVA'
@@ -79,39 +58,21 @@ class RelatorioDreConsolidado:
     def ProcessarRelatorio(self, ano=None):
         try:
             tree_map, definitions = self._ObterEstruturaHierarquia()
-            ajustes_edicao, ajustes_inclusao = self._ObterMapaAjustes()
             ordem_map = self._ObterOrdenamento()
             ordem_subgrupos_contexto = self._ObterOrdemSubgruposPorContexto()
             
             sql_css = text('SELECT "Id", "Estilo_CSS" FROM "Dre_Schema"."Tb_CTL_Dre_No_Virtual"')
             css_map = {row.Id: row.Estilo_CSS for row in self.session.execute(sql_css).fetchall() if row.Estilo_CSS}
             
-            sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Vw_CTL_Razao_Consolidado"')
+            sql_nomes = text('SELECT DISTINCT "Conta", "Título Conta" FROM "Dre_Schema"."Tb_CTL_Razao_Consolidado"')
             mapa_titulos = {row[0]: row[1] for row in self.session.execute(sql_nomes).fetchall()}
 
             aggregated_data = {}
 
-            def ProcessRow(origem, conta, titulo, saldo, cc_original_str, row_hash=None, is_skeleton=False, forced_match=None):
-                is_nao_operacional = False
-                is_intergrupo = False
-
-                if not is_skeleton and row_hash and row_hash in ajustes_edicao:
-                    adj = ajustes_edicao[row_hash]
-                    if adj.Invalido: return 
-                    origem = adj.Origem or origem
-                    conta = adj.Conta or conta
-                    titulo = adj.Titulo_Conta or titulo
-                    cc_original_str = str(adj.Centro_Custo) if adj.Centro_Custo else cc_original_str
-                    is_nao_operacional = adj.Is_Nao_Operacional
-                    is_intergrupo = (adj.Tipo_Operacao == 'INTERGRUPO_AUTO')
-                    
-                    if is_nao_operacional:
-                        conta = '00000000000'
-                        titulo = 'Não Operacionais'
-                    if adj.Exibir_Saldo:
-                        saldo = (float(adj.Debito or 0) - float(adj.Credito or 0))
-                    else:
-                        saldo = 0.0
+            def ProcessRow(origem, conta, titulo, saldo, cc_original_str, is_nao_operacional=False, is_intergrupo=False, is_skeleton=False, forced_match=None):
+                if not is_skeleton and is_nao_operacional:
+                    conta = '00000000000'
+                    titulo = 'Não Operacionais'
 
                 match = forced_match
                 if not match:
@@ -168,45 +129,35 @@ class RelatorioDreConsolidado:
                         aggregated_data[group_key]['Ordem_Conta'] = match.Ordem_Conta
 
                 if not is_skeleton and saldo != 0:
-                    # Roteamento baseado nas regras de negócio!
                     coluna_alvo = self._DeterminarColuna(origem, cc_original_str, conta, is_nao_operacional, is_intergrupo)
-                    
                     if coluna_alvo and coluna_alvo in self.colunas:
                         val_inv = saldo * -1 
                         aggregated_data[group_key][coluna_alvo] += val_inv
                         aggregated_data[group_key]['Total_Geral'] += val_inv
 
-            # Inicializa esqueleto da árvore
             for conta_def, lista_regras in definitions.items():
                 titulo_conta = mapa_titulos.get(conta_def, "Conta Configurada")
                 for regra in lista_regras:
-                    ProcessRow("Config", conta_def, titulo_conta, 0.0, None, None, is_skeleton=True, forced_match=regra)
+                    ProcessRow("Config", conta_def, titulo_conta, 0.0, None, False, False, is_skeleton=True, forced_match=regra)
 
-            # Busca dados do banco
             params = {}
-            where_clause = ""
+            where_clause = 'WHERE "Invalido" = false'
             if ano:
                 params['ano'] = int(ano)
-                where_clause = 'WHERE EXTRACT(YEAR FROM "Data") = :ano'
+                where_clause += ' AND EXTRACT(YEAR FROM "Data") = :ano'
 
             sql_raw = text(f"""
-                SELECT "origem", "Conta", "Título Conta", "Centro de Custo", "Saldo"
-                FROM "Dre_Schema"."Vw_CTL_Razao_Consolidado" {where_clause}
+                SELECT "origem", "Conta", "Título Conta", "Centro de Custo", "Saldo", "Is_Nao_Operacional", "Tipo_Operacao"
+                FROM "Dre_Schema"."Tb_CTL_Razao_Consolidado" {where_clause}
             """)
             raw_rows = self.session.execute(sql_raw, params).fetchall()
 
             for row in raw_rows:
-                h = gerar_hash(row)
-                ProcessRow(row.origem, row.Conta, getattr(row, 'Título Conta'), row.Saldo, getattr(row, 'Centro de Custo'), h, is_skeleton=False)
-
-            # Ajustes manuais e intergrupo
-            for adj in ajustes_inclusao:
-                if ano and adj.Data and adj.Data.year != int(ano): continue
-                if not adj.Invalido:
-                    saldo_adj = (float(adj.Debito or 0) - float(adj.Credito or 0)) if adj.Exibir_Saldo else 0.0
-                    c = '00000000000' if adj.Is_Nao_Operacional else adj.Conta
-                    t = 'Não Operacionais' if adj.Is_Nao_Operacional else adj.Titulo_Conta
-                    ProcessRow(adj.Origem, c, t, saldo_adj, str(adj.Centro_Custo), None, is_skeleton=False)
+                is_intergrupo = (row.Tipo_Operacao == 'INTERGRUPO_AUTO')
+                ProcessRow(
+                    row.origem, row.Conta, getattr(row, 'Título Conta'), row.Saldo, 
+                    getattr(row, 'Centro de Custo'), row.Is_Nao_Operacional, is_intergrupo, is_skeleton=False
+                )
 
             final_list = list(aggregated_data.values())
             final_list.sort(key=lambda x: (x.get('ordem_prioridade', 999), x.get('ordem_secundaria', 500), x.get('Caminho_Subgrupos') or '', x.get('Conta', '')))
@@ -296,7 +247,7 @@ class RelatorioDreConsolidado:
 
                 novas_linhas.append(nova_linha)
             except Exception as e:
-                RegistrarLog(f"Erro ao calcular fórmula '{form.Nome}' (ID {form.Id})", "ERROR", e)
+                RegistrarLog(f"Erro ao calcular fórmula '{form.Nome}'", "ERROR", e)
 
         todos = data_rows + novas_linhas
         todos.sort(key=lambda x: (x.get('ordem_prioridade', 999), x.get('ordem_secundaria', 0)))

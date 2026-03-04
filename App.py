@@ -15,6 +15,7 @@ from Routes.OrdenamentoDre import dre_ordem_bp
 from Routes.ConfiguracaoSeguranca import security_bp
 from Routes.AjustesManuais import ajustes_bp
 from Routes.ImportacaoDados import import_bp
+from Routes.Api import api_bp
 
 # --- Imports Banco de Dados ---
 from Db.Connections import PG_DATABASE_URL, CheckConnections
@@ -57,6 +58,7 @@ def LoadUser(user_id):
 # --- Registro de Blueprints ---
 app.register_blueprint(auth_bp,        url_prefix=ROUTE_PREFIX + '/Auth')
 app.register_blueprint(main_bp,        url_prefix=ROUTE_PREFIX + '/')
+app.register_blueprint(api_bp,         url_prefix=ROUTE_PREFIX + '/Api')
 app.register_blueprint(reports_bp,     url_prefix=ROUTE_PREFIX + '/Reports')
 app.register_blueprint(dre_config_bp,  url_prefix=ROUTE_PREFIX + '/DreConfig')
 app.register_blueprint(dre_ordem_bp,   url_prefix=ROUTE_PREFIX + '/DreOrdenamento')

@@ -231,3 +231,32 @@
         }
     });
 </script>
+<script>
+    // Função para sincronizar dados do RAZÃO
+    function ExecutarSincronizacaoConsolidada() {
+        // O url_for('NomeDoBlueprint.NomeDaFuncao') gera a rota exata dinamicamente
+        fetch("{{ url_for('Api.SyncConsolidado') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status !== 'success') {
+                console.warn("Aviso na Sincronização em Background:", data.msg);
+            } else {
+                // (Opcional) Só para tu veres a funcionar no console durante os testes
+                console.log("Sincronização concluída com sucesso!"); 
+            }
+        })
+        .catch(error => console.error("Erro na chamada de sincronização:", error));
+    }
+
+    // Inicia o "relógio" para rodar a cada 60 segundos (10000 milissegundos)
+    // Assim, enquanto o utilizador tiver a janela aberta, o banco está a atualizar-se!
+    setInterval(ExecutarSincronizacaoConsolidada, 60000);
+    
+    // Roda a primeira vez logo que a página carrega
+    ExecutarSincronizacaoConsolidada();
+</script>

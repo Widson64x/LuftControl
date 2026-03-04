@@ -562,53 +562,6 @@ const ExcelGrid = {
         });
     },
 
-saveRow: async function(row) {
-        try {
-            const payload = { ...row };
-            
-            // Lógica de Decisão: É Criação ou Edição?
-            // É Inclusão SE: Tipo_Linha for 'Inclusao' E ainda não tiver ID gerado pelo banco.
-            const isCriacao = (row.Tipo_Linha === 'Inclusao' && !row.Ajuste_ID);
-            
-            let url = isCriacao ? API.criar : API.salvar;
-            
-            // Se for criação, limpamos o Ajuste_ID do payload para não confundir o back
-            if (isCriacao) {
-                delete payload.Ajuste_ID;
-            }
-
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    Tipo_Operacao: isCriacao ? 'INCLUSAO' : 'EDICAO', 
-                    Dados: payload 
-                })
-            });
-            const json = await res.json();
-
-            if (json.id) {
-                // Atualiza o ID na linha da tabela visualmente
-                row.Ajuste_ID = json.id;
-                
-                // Se era Inclusão, agora deixa de ser "novo" para o sistema, 
-                // para que futuras edições usem a rota de 'Salvar' (UPDATE)
-                if (row.Status_Ajuste === 'Original' || !row.Status_Ajuste) {
-                    row.Status_Ajuste = 'Pendente';
-                }
-                
-                this.updateStatus(isCriacao ? "Criado com sucesso!" : "Salvo com sucesso!");
-            } else {
-                alert("Erro backend: " + (json.error || JSON.stringify(json)));
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Erro de conexão ao salvar.");
-        } finally {
-            this.renderBody();
-        }
-    },
-
     // --- CONTEXT MENU ---
     handleContextMenu: function(e) {
         e.preventDefault();
@@ -636,12 +589,16 @@ saveRow: async function(row) {
         if (this.ctxIndex < 0) return;
         const row = this.viewData[this.ctxIndex];
 
+        // Pegamos o Id e a Fonte diretamente da linha
+        const registro_id = row.Id;
+        const registro_fonte = row.Fonte;
+
         if (action === 'HISTORICO') {
-            this.openHistory(row.Ajuste_ID);
+            this.openHistory(registro_id, registro_fonte);
             return;
         }
 
-        if (!row.Ajuste_ID) {
+        if (!registro_id || !registro_fonte) {
             alert("Salve a linha primeiro!");
             return;
         }
@@ -649,7 +606,8 @@ saveRow: async function(row) {
         this.toggleLoader(true);
         try {
             let url = API.aprovar;
-            let body = { Ajuste_ID: row.Ajuste_ID };
+            // Enviamos o Id e a Fonte no pacote (Body)
+            let body = { Id: registro_id, Fonte: registro_fonte };
 
             if (action === 'APROVAR') body.Acao = 'Aprovar';
             else if (action === 'REPROVAR') body.Acao = 'Reprovar';
@@ -665,14 +623,11 @@ saveRow: async function(row) {
             });
             const json = await res.json();
 
-            if (json.msg === 'OK') {
-                if (action === 'APROVAR') row.Status_Ajuste = 'Aprovado';
-                if (action === 'REPROVAR') row.Status_Ajuste = 'Reprovado';
-                if (action === 'INVALIDAR') { row.Invalido = true; row.Status_Ajuste = 'Invalido'; }
-                if (action === 'RESTAURAR') { row.Invalido = false; row.Status_Ajuste = 'Pendente'; }
-                
-                this.renderBody();
-                this.updateStatus(`Ação ${action} realizada.`);
+            if (json.msg === 'OK' || json.msg.includes('sucesso')) {
+                // Após o sucesso, pedimos ao Grid para recarregar a tela inteira 
+                // para exibir os dados revertidos atualizados diretamente do Banco!
+                this.loadData();
+                this.updateStatus(`Ação ${action} realizada e dados atualizados.`);
             } else {
                 alert("Erro: " + (json.error || "Desconhecido"));
             }
@@ -687,6 +642,7 @@ saveRow: async function(row) {
     addNewRow: function() {
         const newRow = {
             origem: 'MANUAL',
+            Fonte: 'MANUAL', // <-- ADICIONADO: Agora ele sabe a fonte!
             Data: new Date().toISOString().split('T')[0],
             Filial: '', Conta: '', Descricao: 'NOVO LANÇAMENTO',
             Debito: 0, Credito: 0, Saldo: 0,
@@ -697,6 +653,50 @@ saveRow: async function(row) {
         this.rawData.unshift(newRow);
         this.applyFilters();
         document.querySelector('.grid-container').scrollTop = 0;
+    },
+
+    saveRow: async function(row) {
+        try {
+            const payload = { ...row };
+            
+            // ATUALIZADO: Agora verificamos pelo 'Id' e não mais 'Ajuste_ID'
+            const isCriacao = (row.Tipo_Linha === 'Inclusao' && !row.Id);
+            
+            let url = isCriacao ? API.criar : API.salvar;
+            
+            if (isCriacao) {
+                delete payload.Id;
+            }
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    Tipo_Operacao: isCriacao ? 'INCLUSAO' : 'EDICAO', 
+                    Dados: payload,
+                    Id: row.Id,       // Enviamos na raiz por segurança
+                    Fonte: row.Fonte  // Enviamos na raiz por segurança
+                })
+            });
+            const json = await res.json();
+
+            if (json.id) {
+                row.Id = json.id; // Atualiza a linha com o ID do banco
+                
+                if (row.Status_Ajuste === 'Original' || !row.Status_Ajuste) {
+                    row.Status_Ajuste = 'Pendente';
+                }
+                
+                this.updateStatus(isCriacao ? "Criado com sucesso!" : "Salvo com sucesso!");
+            } else {
+                alert("Erro backend: " + (json.error || JSON.stringify(json)));
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Erro de conexão ao salvar.");
+        } finally {
+            this.renderBody();
+        }
     },
 
     gerarIntergrupo: async function() {
@@ -719,10 +719,17 @@ saveRow: async function(row) {
         } catch(e) { alert("Erro: " + e.message); } finally { this.toggleLoader(false); }
     },
 
-    openHistory: async function(id) {
-        if (!id) return;
-        const res = await fetch(API.historico.replace('/0', '/' + id));
+    openHistory: async function(id, fonte) {
+        if (!id || !fonte) return;
+        
+        // Agora passamos o id e a fonte na URL
+        const res = await fetch(`${API.historico}?id=${id}&fonte=${fonte}`);
         const data = await res.json();
+        
+        if (data.error) {
+            alert("Erro ao buscar histórico: " + data.error);
+            return;
+        }
         
         const tbody = document.getElementById('historyBody');
         tbody.innerHTML = data.map(l => `

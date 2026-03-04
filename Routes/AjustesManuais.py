@@ -57,19 +57,27 @@ def GerarAjusteIntergrupo():
 @ajustes_bp.route('/api/ajustes-razao/dados', methods=['GET'])
 def GetDados():
     """
-    Busca os dados para popular o grid.
+    Busca os dados para popular o grid, filtrando por Ano e Mês.
     Mistura o que vem do ERP com os ajustes manuais.
     """
     session_db = GetSession()
     try:
-        RegistrarLog("Rota API: GetDados (Grid)", "HTTP")
+        # Pega os parâmetros da URL enviados pelo JavaScript
+        ano = request.args.get('ano')
+        mes = request.args.get('mes')
+        
+        RegistrarLog(f"Rota API: GetDados (Grid) - Ano: {ano}, Mês: {mes}", "HTTP")
+        
         svc = AjustesManuaisService(session_db)
-        dados = svc.ObterDadosGrid()
+        
+        # Agora passamos o ano e o mês para o Service
+        dados = svc.ObterDadosGrid(ano, mes)
+        
         return jsonify(dados)
     except Exception as e:
         RegistrarLog("Erro API GetDados", "ERROR", e)
         import traceback
-        traceback.print_exc() # Printando pra saber onde o bicho pegou
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
     finally:
         session_db.close()
@@ -125,19 +133,19 @@ def Salvar():
 
 @ajustes_bp.route('/api/ajustes-razao/aprovar', methods=['POST'])
 def Aprovar():
-    """
-    Aprova ou Reprova um ajuste.
-    O destino do lançamento está nestas mãos.
-    """
     session_db = GetSession()
     try:
         dt = request.json
         user = current_user.nome if current_user.is_authenticated else 'System'
-        RegistrarLog(f"Rota API: Aprovar. User: {user}, ID: {dt.get('Ajuste_ID')}", "HTTP")
+        
+        reg_id = dt.get('Id')
+        reg_fonte = dt.get('Fonte')
+        acao = dt.get('Acao')
+
+        RegistrarLog(f"Rota API: Aprovar. User: {user}, ID: {reg_id}, Fonte: {reg_fonte}", "HTTP")
         
         svc = AjustesManuaisService(session_db)
-        
-        svc.AprovarAjuste(dt.get('Ajuste_ID'), dt.get('Acao'), user)
+        svc.AprovarAjuste(reg_id, reg_fonte, acao, user)
         
         return jsonify({'msg': 'OK'})
     except Exception as e:
@@ -148,19 +156,19 @@ def Aprovar():
 
 @ajustes_bp.route('/api/ajustes-razao/status-invalido', methods=['POST'])
 def AlterarStatusInvalido():
-    """
-    Alterna o status de 'Inválido'.
-    Basicamente um soft-delete ou soft-undelete.
-    """
     session_db = GetSession()
     try:
         dt = request.json
         user = current_user.nome if current_user.is_authenticated else 'System'
-        RegistrarLog(f"Rota API: Status Invalido. User: {user}, ID: {dt.get('Ajuste_ID')}", "HTTP")
+        
+        reg_id = dt.get('Id')
+        reg_fonte = dt.get('Fonte')
+        acao = dt.get('Acao')
+
+        RegistrarLog(f"Rota API: Status Invalido. User: {user}, ID: {reg_id}", "HTTP")
         
         svc = AjustesManuaisService(session_db)
-        
-        svc.ToggleInvalido(dt.get('Ajuste_ID'), dt.get('Acao'), user)
+        svc.ToggleInvalido(reg_id, reg_fonte, acao, user)
         
         return jsonify({'msg': 'Status atualizado com sucesso'})
     except Exception as e:
@@ -170,20 +178,26 @@ def AlterarStatusInvalido():
     finally:
         session_db.close()
 
-@ajustes_bp.route('/api/ajustes-razao/historico/<int:id_ajuste>', methods=['GET'])
-def GetHistorico(id_ajuste):
+@ajustes_bp.route('/api/ajustes-razao/historico', methods=['GET'])
+def GetHistorico():
     """
     Fofoca completa: mostra tudo o que aconteceu com aquele ajuste.
-    Quem mudou, quando e o quê.
+    Quem mudou, quando e o quê. Agora suporta Id e Fonte.
     """
     session_db = GetSession()
     try:
-        RegistrarLog(f"Rota API: Historico. ID: {id_ajuste}", "HTTP")
+        reg_id = request.args.get('id')
+        reg_fonte = request.args.get('fonte')
+        user = current_user.nome if current_user.is_authenticated else 'Anonimo'
+        
+        RegistrarLog(f"Visualizando Histórico - Id: {reg_id} Fonte: {reg_fonte} User: {user}", "HTTP")
+        
         svc = AjustesManuaisService(session_db)
-        historico = svc.ObterHistorico(id_ajuste)
+        historico = svc.ObterHistorico(reg_id, reg_fonte)
+        
         return jsonify(historico)
     except Exception as e:
-        RegistrarLog("Erro API Historico", "ERROR", e)
+        RegistrarLog("Erro API GetHistorico", "ERROR", e)
         return jsonify({'error': str(e)}), 500
     finally:
         session_db.close()
