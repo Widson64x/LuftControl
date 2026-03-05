@@ -258,24 +258,25 @@ class DreOrdenamentoManager {
         this.draggedClone.className = 'drag-clone';
         this.draggedClone.innerHTML = wrapper.innerHTML;
         
-        // Estilos do clone
+        // Estilos do clone adaptados para o LuftCore
         Object.assign(this.draggedClone.style, {
             position: 'fixed',
             left: `${e.clientX - this.dragOffset.x}px`,
             top: `${e.clientY - this.dragOffset.y}px`,
             width: `${rect.width}px`,
-            zIndex: '10000',
+            zIndex: 'var(--luft-z-tooltip)',
             pointerEvents: 'none',
-            opacity: '0.9',
+            opacity: '0.95',
             transform: 'rotate(2deg) scale(1.02)',
-            boxShadow: '0 8px 25px rgba(0,0,0,0.3), 0 0 0 2px #3498db',
-            background: '#1e2736',
-            borderRadius: '8px',
+            boxShadow: 'var(--luft-shadow-2xl)',
+            background: 'var(--luft-bg-panel)',
+            border: '2px solid var(--luft-primary-500)',
+            borderRadius: 'var(--luft-radius-md)',
             padding: '8px 12px',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            color: '#fff',
+            color: 'var(--luft-text-main)',
             fontSize: '0.9rem'
         });
         
@@ -395,7 +396,7 @@ class DreOrdenamentoManager {
     }
 
     // ========================================
-    // REGRAS DE HIERARQUIA (CORRIGIDO)
+    // REGRAS DE HIERARQUIA 
     // ========================================
 
     getNodeType(element) {
@@ -421,7 +422,7 @@ class DreOrdenamentoManager {
             'tipo_cc': ['cc'],
             'virtual': ['subgrupo', 'conta_detalhe'], 
             'cc': ['subgrupo'],
-            'subgrupo': ['subgrupo', 'conta', 'conta_detalhe'] // CORREÇÃO: Permite subgrupo dentro de subgrupo
+            'subgrupo': ['subgrupo', 'conta', 'conta_detalhe'] 
         };
         const permitidos = regras[tipoContainer] || [];
         return permitidos.includes(tipoItem);
@@ -436,7 +437,6 @@ class DreOrdenamentoManager {
             'tipo_cc': ['root'],
             'virtual': ['root'],
             'cc': ['tipo_cc'],
-            // CORREÇÃO: Adicionado 'root' para permitir subgrupos na raiz
             'subgrupo': ['cc', 'virtual', 'subgrupo', 'root'],
             'conta': ['subgrupo'],
             'conta_detalhe': ['subgrupo', 'virtual']
@@ -587,7 +587,7 @@ class DreOrdenamentoManager {
     }
 
     // ========================================
-    // ESTILOS CSS
+    // ESTILOS CSS (Ajustados para o LuftCore)
     // ========================================
 
     injetarEstilos() {
@@ -598,39 +598,27 @@ body.dragging-active * { cursor: grabbing !important; }
 .drag-handle {
     display: flex; align-items: center; justify-content: center;
     width: 20px; height: 20px; margin-right: 6px;
-    color: #5a6a7a; cursor: grab; opacity: 0;
-    transition: all 0.2s ease; border-radius: 4px; flex-shrink: 0;
+    color: var(--luft-text-light); cursor: grab; opacity: 0;
+    transition: all 0.2s ease; border-radius: var(--luft-radius-sm); flex-shrink: 0;
 }
 .node-wrapper:hover .drag-handle { opacity: 0.7; }
-.drag-handle:hover { opacity: 1 !important; background: rgba(52, 152, 219, 0.2); color: #3498db; }
+.drag-handle:hover { opacity: 1 !important; background: var(--luft-primary-100); color: var(--luft-primary-600); }
 .drag-handle:active { cursor: grabbing; transform: scale(0.95); }
-.drag-clone {
-    font-family: inherit; position: fixed; z-index: 10000;
-    pointer-events: none; opacity: 0.9;
-    transform: rotate(2deg) scale(1.02);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.3), 0 0 0 2px #3498db;
-    background: #1e2736; border-radius: 8px; padding: 8px 12px;
-    display: flex; align-items: center; gap: 8px; color: #fff; fontSize: 0.9rem;
-}
+
+/* Os estilos do clone agora são definidos via JS para garantir compatibilidade */
+
 .drag-placeholder { margin: 4px 0; list-style: none; }
 .drag-placeholder .placeholder-inner {
     display: flex; align-items: center; gap: 10px; padding: 10px 15px;
-    background: linear-gradient(135deg, rgba(46, 204, 113, 0.15), rgba(52, 152, 219, 0.15));
-    border: 2px dashed #2ecc71; border-radius: 8px; color: #2ecc71;
-    font-size: 0.85rem; font-weight: 500;
+    background: var(--luft-primary-50);
+    border: 2px dashed var(--luft-primary-500); border-radius: var(--luft-radius-md); 
+    color: var(--luft-primary-600);
+    font-size: 0.85rem; font-weight: 600;
 }
-.node-wrapper.drop-highlight.drop-above { border-top: 2px solid #3498db; }
-.node-wrapper.drop-highlight.drop-below { border-bottom: 2px solid #3498db; }
-.node-wrapper.drop-highlight.drop-inside { background: rgba(155, 89, 182, 0.2); border: 2px solid #9b59b6; }
+.node-wrapper.drop-highlight.drop-above { border-top: 2px solid var(--luft-primary-500); }
+.node-wrapper.drop-highlight.drop-below { border-bottom: 2px solid var(--luft-primary-500); }
+.node-wrapper.drop-highlight.drop-inside { background: var(--luft-primary-50); border: 2px solid var(--luft-primary-600); }
 li.dragging-original { opacity: 0.1 !important; height: 0 !important; overflow: hidden !important; margin: 0 !important; }
-.dre-toast {
-    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
-    background: #2ecc71; color: white; padding: 12px 24px; border-radius: 30px;
-    font-weight: 600; box-shadow: 0 5px 20px rgba(46, 204, 113, 0.4);
-    z-index: 10001; transition: transform 0.3s ease, opacity 0.3s ease; opacity: 0;
-}
-.dre-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-.dre-toast.error { background: #e74c3c; }
 </style>`;
         const old = document.getElementById('dre-ordenamento-styles');
         if (old) old.remove();
@@ -638,8 +626,7 @@ li.dragging-original { opacity: 0.1 !important; height: 0 !important; overflow: 
     }
 }
 
-// INICIALIZAÇÃO CORRIGIDA
-// Atribui diretamente ao window no DOMContentLoaded para garantir acesso global
+// INICIALIZAÇÃO 
 document.addEventListener('DOMContentLoaded', () => {
     window.dreOrdenamento = new DreOrdenamentoManager();
     window.dreOrdenamento.init();

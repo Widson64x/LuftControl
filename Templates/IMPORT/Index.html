@@ -1,49 +1,95 @@
 {% extends "Base.html" %}
+{% import 'luftcore/components.html' as ui %}
 
 {% block title %}Importação de Dados | Luft Control{% endblock %}
 
-{% block content %}
-<div class="container fade-in" style="max-width: 800px; margin: 0 auto; padding-top: 2rem;">
+{% block extra_css %}
+<style>
+    .luft-page-wrapper { max-width: 800px; margin: 0 auto; padding: var(--luft-space-10) 0; animation: luftFadeIn 0.4s ease-out; }
+    .luft-page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--luft-space-8); }
     
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    .luft-import-card { background: var(--luft-bg-panel); border: 1px solid var(--luft-border); border-radius: var(--luft-radius-2xl); padding: var(--luft-space-8); box-shadow: var(--luft-shadow-lg); }
+    
+    /* Drop Area Interativa */
+    .luft-drop-area {
+        border: 2px dashed var(--luft-border-dark); border-radius: var(--luft-radius-xl);
+        padding: var(--luft-space-12) var(--luft-space-6); text-align: center;
+        transition: all 0.3s ease; background: var(--luft-bg-app); cursor: pointer;
+        position: relative; overflow: hidden;
+    }
+    .luft-drop-area:hover, .luft-drop-area.dragover { border-color: var(--luft-primary-500); background: var(--luft-primary-50); }
+    .luft-drop-icon { font-size: 4rem; color: var(--luft-primary-300); margin-bottom: var(--luft-space-4); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .luft-drop-area:hover .luft-drop-icon { transform: translateY(-8px) scale(1.05); color: var(--luft-primary-600); }
+    .luft-file-name { margin-top: var(--luft-space-4); font-weight: 800; color: var(--luft-primary-700); font-size: var(--luft-text-lg); }
+    
+    /* Formulários e Botões */
+    .luft-form-label { display: block; font-weight: 700; color: var(--luft-text-main); margin-bottom: var(--luft-space-2); }
+    .luft-form-select {
+        width: 100%; padding: 14px 16px; border-radius: var(--luft-radius-lg);
+        border: 1px solid var(--luft-border-dark); background-color: var(--luft-bg-app);
+        color: var(--luft-text-main); font-size: var(--luft-text-base); font-weight: 600;
+        appearance: none; cursor: pointer; transition: all 0.2s ease;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat; background-position: right 16px center; background-size: 12px;
+    }
+    .luft-form-select:focus { outline: none; border-color: var(--luft-primary-500); box-shadow: 0 0 0 3px var(--luft-primary-100); background-color: var(--luft-bg-panel); }
+    
+    .luft-btn-submit {
+        background: var(--luft-primary-600); color: white; border: none;
+        padding: 14px 24px; border-radius: var(--luft-radius-lg); font-weight: 700; font-size: var(--luft-text-base);
+        cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+    }
+    .luft-btn-submit:hover { background: var(--luft-primary-700); transform: translateY(-2px); box-shadow: var(--luft-shadow-md); }
+    
+    .luft-btn-cancel {
+        background: var(--luft-bg-app); color: var(--luft-text-main); border: 1px solid var(--luft-border-dark);
+        padding: 14px 24px; border-radius: var(--luft-radius-lg); font-weight: 700; font-size: var(--luft-text-base);
+        cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; text-decoration: none;
+    }
+    .luft-btn-cancel:hover { background: var(--luft-border-light); border-color: var(--luft-border); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="luft-page-wrapper">
+    
+    <div class="luft-page-header">
         <div>
-            <h2 style="font-weight: 700;">Nova Importação</h2>
-            <p class="text-secondary">Carregamento de dados para Razão Analítico.</p>
+            <h2 class="m-0 font-bold" style="font-size: var(--luft-text-3xl); color: var(--luft-text-main);">Nova Importação</h2>
+            <p class="text-muted mt-2 mb-0">Carregamento de dados para Razão Analítico.</p>
         </div>
-        <a href="{{ url_for('Import.Historico') }}" class="btn btn-ghost">
-            <i class="fas fa-history me-2"></i> Ver Logs / Reversão
-        </a>
+        {{ ui.btn('Ver Logs / Reversão', tipo='secondary', icone='fas fa-history', href=url_for('Import.Historico')) }}
     </div>
 
-    <div class="card" style="padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-primary); box-shadow: var(--shadow-md);">
-        
+    <div class="luft-import-card">
         <form action="{{ url_for('Import.Analisar') }}" method="POST" enctype="multipart/form-data">
             
-            <div style="margin-bottom: 2rem;">
-                <label for="sourceSelect" style="display: block; font-weight: 600; margin-bottom: 0.5rem;">
-                    Selecione o Razão de Origem <span style="color: red;">*</span>
+            <div style="margin-bottom: var(--luft-space-8);">
+                <label for="sourceSelect" class="luft-form-label">
+                    Selecione o Razão de Origem <span class="text-danger">*</span>
                 </label>
-                <select id="sourceSelect" name="source" class="form-select" required style="width: 100%; padding: 0.8rem; border-radius: var(--radius-md);">
+                <select id="sourceSelect" name="source" class="luft-form-select" required>
                     <option value="" disabled selected>-- Selecione a Tabela de Destino --</option>
                     {% for src in sources %}
                         <option value="{{ src }}">{{ src }}</option>
                     {% endfor %}
                 </select>
-                <small class="text-secondary">Define onde os dados serão gravados. Apenas uma importação por mês é permitida por origem.</small>
+                <small class="text-muted mt-2 d-block">Define onde os dados serão gravados. Apenas uma importação por mês é permitida por origem.</small>
             </div>
 
-            <div style="margin-bottom: 2rem; border: 2px dashed var(--border-primary); border-radius: var(--radius-md); padding: 3rem; text-align: center; transition: all 0.3s;" id="drop-area">
-                <i class="fas fa-file-excel" style="font-size: 3rem; color: var(--text-tertiary); margin-bottom: 1rem;"></i>
-                <br>
-                <label for="fileElem" class="btn btn-secondary" style="cursor: pointer;">Selecionar Ficheiro (.xlsx)</label>
+            <div class="luft-drop-area" id="drop-area" onclick="document.getElementById('fileElem').click()">
+                <i class="fas fa-file-excel luft-drop-icon"></i>
+                <h4 style="color: var(--luft-text-main); font-weight: 700; margin-bottom: 8px;">Selecionar Ficheiro (.xlsx)</h4>
+                <p style="color: var(--luft-text-muted); font-size: var(--luft-text-sm); margin: 0;">Arraste e solte o arquivo aqui ou clique para procurar</p>
+                
                 <input type="file" id="fileElem" name="file" accept=".xlsx, .xls" style="display:none;" onchange="handleFiles(this.files)" required>
-                <p id="fileNameDisplay" style="margin-top: 1rem; font-weight: 500; color: var(--primary);"></p>
+                <div id="fileNameDisplay" class="luft-file-name"></div>
             </div>
 
-            <div style="display: flex; gap: 1rem;">
-                <a href="{{ url_for('DreConfig.ViewConfiguracao') }}" class="btn btn-ghost" style="flex: 1;">Cancelar</a>
-                <button type="submit" class="btn btn-primary" style="flex: 1;">
-                    <i class="fas fa-arrow-right me-2"></i> Continuar para Mapeamento
+            <div class="d-flex gap-4" style="margin-top: var(--luft-space-8);">
+                <a href="{{ url_for('DreConfig.ViewConfiguracao') }}" class="luft-btn-cancel">Cancelar</a>
+                <button type="submit" class="luft-btn-submit">
+                    Continuar para Mapeamento <i class="fas fa-arrow-right ms-2"></i>
                 </button>
             </div>
         </form>
@@ -53,10 +99,29 @@
 <script>
     function handleFiles(files) {
         if(files.length > 0) {
-            document.getElementById('fileNameDisplay').innerText = files[0].name;
-            document.getElementById('drop-area').style.borderColor = 'var(--primary)';
-            document.getElementById('drop-area').style.backgroundColor = 'var(--bg-secondary)';
+            document.getElementById('fileNameDisplay').innerHTML = `<i class="fas fa-check-circle text-success me-2"></i> ${files[0].name}`;
+            document.getElementById('drop-area').style.borderColor = 'var(--luft-success-500)';
+            document.getElementById('drop-area').style.backgroundColor = 'var(--luft-success-50)';
+            document.querySelector('.luft-drop-icon').style.color = 'var(--luft-success-500)';
         }
     }
+
+    // Drag and Drop Logic Extra (Para funcionar fluido)
+    const dropArea = document.getElementById('drop-area');
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
+    });
+    dropArea.addEventListener('drop', (e) => {
+        let dt = e.dataTransfer; let files = dt.files;
+        document.getElementById('fileElem').files = files;
+        handleFiles(files);
+    }, false);
 </script>
 {% endblock %}

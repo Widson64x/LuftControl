@@ -1,539 +1,278 @@
 /* ==========================================================================
-   Luft Control | Reports.css
-   Estilos Globais (Menu, Modal, Layout) baseados em Themes.css
+   Luft Control | Reports.css (Report Hub System)
+   Estrutura de Cards Própria e Layout Polido
    ========================================================================== */
 
-/* --------------------------------------------------------------------------
-   1. ANIMAÇÕES
-   -------------------------------------------------------------------------- */
-@keyframes fadeInScale { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-@keyframes slideInUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes borderFlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-@keyframes floatAnimation { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-@keyframes spinner { to { transform: rotate(360deg); } }
-@keyframes dotPulse { 0%, 80%, 100% { transform: scale(0); opacity: 0; } 40% { transform: scale(1); opacity: 1; } }
+@keyframes luftFadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
 /* --------------------------------------------------------------------------
-   2. PAGE HEADER (HERO)
+   1. HERO SECTION & SEARCH
    -------------------------------------------------------------------------- */
-.page-header {
-    position: relative;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-3xl) var(--spacing-2xl);
-    margin-bottom: var(--spacing-2xl);
-    overflow: hidden;
-    animation: fadeInScale 0.6s ease-out;
+.luft-hub-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--luft-space-6);
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-xl);
+    padding: var(--luft-space-6) var(--luft-space-8);
+    margin-bottom: var(--luft-space-6);
+    box-shadow: var(--luft-shadow-sm);
 }
 
-.page-header::before {
-    content: ''; position: absolute; inset: 0;
-    background: radial-gradient(ellipse 80% 50% at 20% 40%, rgba(var(--primary-rgb), var(--opacity-10)) 0%, transparent 50%);
-    pointer-events: none;
+.luft-hub-hero-text {
+    display: flex;
+    align-items: center;
+    gap: var(--luft-space-4);
 }
 
-.page-header::after {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-    background: linear-gradient(90deg, transparent, var(--primary), var(--accent), var(--primary), transparent);
-    background-size: 200% 100%;
-    animation: borderFlow 4s ease infinite;
-}
-
-.header-decoration { position: absolute; border-radius: 50%; filter: blur(60px); opacity: var(--opacity-30); pointer-events: none; }
-.decoration-1 { width: 200px; height: 200px; background: var(--primary); top: -100px; right: -50px; animation: floatAnimation 6s infinite; }
-.decoration-2 { width: 150px; height: 150px; background: var(--accent); bottom: -80px; left: 10%; animation: floatAnimation 8s infinite 1s; }
-
-.page-title {
-    font-size: clamp(1.75rem, 4vw, var(--font-3xl));
-    font-weight: var(--font-weight-bold);
-    color: var(--text-primary);
-    margin: 0 0 var(--spacing-md) 0;
-    display: flex; align-items: center; gap: var(--spacing-lg);
-    position: relative;
-}
-
-.page-title i {
+.luft-hub-hero-icon {
     display: flex; align-items: center; justify-content: center;
-    width: 56px; height: 56px;
-    background: var(--gradient-primary);
-    border-radius: var(--radius-lg);
-    color: white; /* White generally */
-    font-size: var(--font-2xl);
-    box-shadow: var(--shadow-glow-sm);
+    width: 54px; height: 54px;
+    background: var(--luft-primary-50);
+    color: var(--luft-primary-600);
+    border: 1px solid var(--luft-primary-100);
+    border-radius: var(--luft-radius-lg);
+    font-size: var(--luft-text-2xl);
 }
 
-.page-subtitle {
-    font-size: var(--font-lg);
-    color: var(--text-secondary);
-    padding-left: calc(56px + var(--spacing-lg));
+.luft-hub-title {
+    font-size: var(--luft-text-2xl);
+    font-weight: 800;
+    color: var(--luft-text-main);
+    margin: 0 0 4px 0;
 }
 
-/* --------------------------------------------------------------------------
-   3. MENU DE CARDS
-   -------------------------------------------------------------------------- */
-.relatorios-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: var(--spacing-xl);
-    margin-bottom: var(--spacing-2xl);
+.luft-hub-subtitle {
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-sm);
+    margin: 0;
 }
 
-.relatorio-card {
+.luft-hub-search {
     position: relative;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-2xl);
-    transition: transform var(--transition-normal), box-shadow var(--transition-normal), border-color var(--transition-normal);
-    overflow: hidden;
-    animation: fadeInScale 0.5s ease-out both;
+    flex-grow: 1;
+    max-width: 400px;
 }
 
-.relatorio-card:hover {
-    transform: translateY(-8px);
-    border-color: var(--border-hover);
-    box-shadow: var(--shadow-xl);
+.luft-hub-search-icon {
+    position: absolute; left: 16px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--luft-text-muted);
 }
 
-.relatorio-icon {
-    display: flex; align-items: center; justify-content: center;
-    width: 72px; height: 72px;
-    font-size: var(--font-3xl);
-    margin-bottom: var(--spacing-xl);
-    background: rgba(var(--primary-rgb), var(--opacity-10));
-    border-radius: var(--radius-lg);
-    border: 1px solid rgba(var(--primary-rgb), var(--opacity-20));
-    transition: transform var(--transition-normal);
-}
-
-.relatorio-card:hover .relatorio-icon { transform: scale(1.1) rotate(-5deg); }
-
-.relatorio-card h3 {
-    font-size: var(--font-xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-md);
-}
-
-.relatorio-card p {
-    color: var(--text-secondary);
-    font-size: var(--font-sm);
-    line-height: var(--line-height-relaxed);
-    margin-bottom: var(--spacing-lg);
-    min-height: 60px;
-}
-
-/* Badges e Botões */
-.status-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 14px;
-    border-radius: var(--radius-full);
-    font-size: 11px;
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-}
-
-.status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; animation: dotPulse 2s infinite; }
-
-.status-active {
-    background: rgba(16, 185, 129, var(--opacity-20)); /* Success opacity */
-    color: var(--success);
-    border: 1px solid rgba(16, 185, 129, var(--opacity-30));
-}
-.status-active::before { background: var(--success); box-shadow: 0 0 8px var(--success); }
-
-.btn-primary-custom {
-    background: var(--gradient-primary);
-    color: white;
-    border: none;
-    border-radius: var(--radius-md);
-    padding: 14px;
-    font-weight: var(--font-weight-semibold);
-    cursor: pointer;
+.luft-hub-search-input {
     width: 100%;
-    display: flex; justify-content: center; align-items: center; gap: 10px;
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    padding: 12px 16px 12px 42px;
+    border-radius: var(--luft-radius-lg);
+    border: 1px solid var(--luft-border-dark);
+    background: var(--luft-bg-app);
+    color: var(--luft-text-main);
+    font-size: var(--luft-text-sm);
+    transition: all 0.2s ease;
 }
 
-.btn-primary-custom:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-glow);
+.luft-hub-search-input:focus {
+    outline: none;
+    border-color: var(--luft-primary-500);
+    box-shadow: 0 0 0 3px var(--luft-primary-100);
+    background: var(--luft-bg-panel);
 }
 
 /* --------------------------------------------------------------------------
-   4. MODAL GERAL
+   2. CATEGORY PILLS (Filtros Próprios com Espaçamento Correto)
    -------------------------------------------------------------------------- */
-.modal-overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0, 0, 0, 0.8); /* Hardcoded opacity for backdrop is standard, or use --bg-primary + opacity */
-    backdrop-filter: blur(8px);
-    z-index: var(--z-modal-backdrop);
+.luft-hub-categories {
+    display: flex;
+    gap: var(--luft-space-3);
+    overflow-x: auto;
+    padding-bottom: var(--luft-space-2);
+    margin-bottom: var(--luft-space-6);
 }
 
-.modal-overlay.active {
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px;
-    animation: fadeInScale 0.3s ease-out;
-}
+.luft-hub-categories::-webkit-scrollbar { height: 0px; }
 
-.modal-container {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-2xl);
-    width: 95vw;
-    max-width: var(--max-width-7xl);
-    max-height: 95vh;
-    display: flex; flex-direction: column;
-    box-shadow: var(--shadow-2xl);
-    animation: slideInUp 0.4s ease-out;
-    overflow: hidden;
-    z-index: var(--z-modal);
-}
-
-.modal-header {
-    background: var(--primary); /* Fallback */
-    background: var(--gradient-primary);
-    border-bottom: 1px solid var(--border-primary);
-    color: var(--text-primary);
-    padding: 1.25rem 1.5rem;
-    display: flex; justify-content: space-between; align-items: center;
-    position: relative; flex-shrink: 0;
-}
-
-.modal-title {
-    font-size: var(--font-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    display: flex; gap: 10px; align-items: center;
-}
-
-.modal-close {
-    width: 36px; height: 36px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
+.luft-category-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px; /* Espaço exato entre ícone e texto */
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border);
+    color: var(--luft-text-muted);
+    padding: 8px 16px;
+    border-radius: var(--luft-radius-lg);
+    font-size: var(--luft-text-sm);
+    font-weight: 500;
     cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all var(--transition-fast);
+    white-space: nowrap;
+    transition: all 0.2s ease;
 }
 
-.modal-close:hover {
-    background: var(--danger);
-    border-color: var(--danger);
-    color: var(--text-primary);
-    transform: rotate(90deg);
+.luft-category-pill:hover {
+    background: var(--luft-bg-app);
+    color: var(--luft-text-main);
+    border-color: var(--luft-border-dark);
 }
 
-.modal-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-primary); }
-
-/* Loading */
-.loading-container {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    height: 100%; min-height: 300px;
-    background: var(--bg-primary);
-}
-
-.loading-spinner {
-    width: 50px; height: 50px;
-    border: 3px solid var(--border-primary);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spinner 0.8s linear infinite;
-}
-
-.loading-text { margin-top: var(--spacing-md); color: var(--text-secondary); font-weight: var(--font-weight-medium); }
-
-/* --------------------------------------------------------------------------
-   5. ESTILOS DO MULTI-SELECT DE CENTRO DE CUSTO (BI)
-   -------------------------------------------------------------------------- */
-
-/* Estilo para o Input Group que contém o Select (Ajustes finos de altura) */
-.bi-toolbar .input-group-sm {
-    height: 38px; /* Altura padrão dos elementos de controle */
-}
-
-/* Estilo do Select (Caixa de seleção múltipla) */
-.bi-toolbar select[multiple] {
-    /* Aparência base */
-    background: var(--bg-secondary); /* Usa o fundo do container BI */
-    color: var(--text-primary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    padding: 0; /* Remove padding padrão do select */
-    
-    /* Configurações de exibição (sempre mostrar a opção selecionada) */
-    display: block; 
-    height: 100% !important; /* Força a altura a preencher o input-group */
-    line-height: 1.5;
-    
-    /* Remove a seta padrão do select */
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    
-    /* Configuração para o Menu Dropdown (Quando clicado) */
-    position: relative;
-}
-
-/* Estilo da Option (Os itens individuais da lista) */
-.bi-toolbar select[multiple] option {
-    padding: 8px 12px;
-    background-color: var(--bg-secondary);
-    color: var(--text-secondary);
-    transition: background-color var(--transition-fast);
-    cursor: pointer;
-    font-size: var(--font-sm);
-}
-
-/* Estilo da Option ao passar o mouse */
-.bi-toolbar select[multiple] option:hover {
-    background-color: var(--bg-tertiary); /* Fundo mais escuro no hover */
-    color: var(--text-primary);
-}
-
-/* Estilo da Option SELECIONADA (Importante para visualização) */
-.bi-toolbar select[multiple] option:checked {
-    background-color: var(--primary); /* Cor primária para indicar seleção */
-    color: white; /* Texto branco */
-    /* Cria um pequeno marcador visual */
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 13.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>');
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 14px 14px;
-}
-
-/* Estilo da primeira opção (Todos) para destacá-la */
-.bi-toolbar select[multiple] option:first-child {
-    font-weight: var(--font-weight-bold);
-    color: var(--primary);
-    border-bottom: 1px solid var(--border-primary);
+.luft-category-pill.active {
+    background: var(--luft-primary-50);
+    border-color: var(--luft-primary-300);
+    color: var(--luft-primary-700);
+    font-weight: 600;
 }
 
 /* --------------------------------------------------------------------------
-   5. ESTILOS DO MULTI-SELECT DE CENTRO DE CUSTO (CUSTOM DROPDOWN)
+   3. CUSTOM HUB CARD (Total controle de layout)
    -------------------------------------------------------------------------- */
-
-/* Estilo para o Input Group que contém o Select (Ajustes finos de altura) */
-.bi-toolbar .input-group-sm {
-    height: 38px; /* Altura padrão dos elementos de controle */
+.luft-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--luft-space-6);
+    align-items: stretch; /* Garante mesma altura nas linhas */
 }
 
-/* Estilo do Botão que dispara o Dropdown */
-#ccFilterButton {
-    white-space: nowrap; /* Evita quebra de linha */
-    overflow: hidden;
-    text-overflow: ellipsis; /* Adiciona '...' se o texto for muito longo */
-}
-
-/* Container do Dropdown Customizado (Caixa Pop-up) */
-.custom-dropdown-menu {
-    position: fixed;
-    z-index: 1000; /* Deve estar acima de tudo, mas abaixo do modal-backdrop */
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-xl);
-    width: 350px; /* Largura fixa para o menu */
-    max-height: 400px; /* Altura máxima para a lista rolar */
+.luft-hub-card {
     display: flex;
     flex-direction: column;
-    animation: fadeInScale 0.2s ease-out; /* Reutiliza a animação */
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-xl);
+    padding: var(--luft-space-6);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    box-shadow: var(--luft-shadow-sm);
+    height: 100%; /* Força preenchimento da linha do grid */
 }
 
-/* Barra de Pesquisa dentro do Dropdown */
-.dropdown-search-box {
-    padding: 8px;
-    border-bottom: 1px solid var(--border-secondary);
+.luft-hub-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--luft-shadow-lg);
+    border-color: var(--luft-primary-300);
+}
+
+/* Cabeçalho do Card */
+.luft-hub-card-header {
     display: flex;
-    align-items: center;
-}
-
-.dropdown-search-box i {
-    color: var(--text-tertiary);
-    margin-right: 8px;
-}
-
-.dropdown-search-box input {
-    flex-grow: 1;
-    background: transparent;
-    border: none;
-    color: var(--text-primary);
-    padding: 4px 0;
-    font-size: var(--font-sm);
-}
-
-.dropdown-search-box input:focus {
-    outline: none;
-}
-
-/* Container de Opções (Lista Rolável) */
-.dropdown-options-container {
-    overflow-y: auto;
-    padding: 0px 0 8px 0; /* Padding inferior para visualização */
-}
-
-/* Estilo do Label que contém o Checkbox e o Texto */
-.dropdown-option-label {
-    display: flex;
-    align-items: center;
-    padding: 6px 12px;
-    cursor: pointer;
-    font-size: var(--font-sm);
-    color: var(--text-secondary);
-    transition: background-color var(--transition-fast);
-    line-height: 1.2;
-}
-
-.dropdown-option-label:hover {
-    background-color: var(--bg-tertiary);
-    color: var(--text-primary);
-}
-
-.dropdown-option-label input[type="checkbox"] {
-    margin-right: 10px;
-    /* Estilização básica do checkbox, se necessário */
-    cursor: pointer;
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-}
-
-/* Opção "Selecionar Tudo" (Destacada) */
-.dropdown-all-option {
-    padding: 6px 0;
-    border-bottom: 1px solid var(--border-secondary);
-    margin-bottom: 4px;
-}
-
-.dropdown-select-all {
-    font-weight: var(--font-weight-semibold);
-    color: var(--primary);
-}
-
-/* Estilo para o texto do CC selecionado no Label (Opcional) */
-.dropdown-option-label input[type="checkbox"]:checked + span {
-    color: var(--text-primary);
-    font-weight: var(--font-weight-medium);
-}
-
-/* --------------------------------------------------------------------------
-   SELETOR CLEAN (CENTRO DE CUSTO)
-   -------------------------------------------------------------------------- */
-
-.btn-selector-clean {
-    /* Base */
-    background: rgba(255, 255, 255, 0.03); /* Fundo quase transparente */
-    border: 1px solid var(--border-primary); /* Borda sutil do tema */
-    color: var(--text-primary);
-    border-radius: var(--radius-md); /* Cantos arredondados modernos (6px ou 8px) */
-    
-    /* Layout */
-    display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: 6px 16px;
-    height: 38px;
-    min-width: 200px; /* Largura mínima para não ficar espremido */
-    max-width: 350px;
-    
-    /* Tipografia */
-    font-size: var(--font-sm);
-    font-family: inherit;
-    cursor: pointer;
-    transition: all var(--transition-fast);
+    align-items: flex-start;
+    margin-bottom: var(--luft-space-4);
 }
 
-.btn-selector-clean:hover {
-    background: rgba(255, 255, 255, 0.08); /* Clareia levemente no hover */
-    border-color: var(--text-secondary); /* Borda fica um pouco mais visível */
-    transform: translateY(-1px); /* Feedback tátil sutil */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.luft-hub-card-icon {
+    width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--luft-text-xl);
+    border-radius: var(--luft-radius-md);
+    border-width: 1px;
+    border-style: solid;
 }
 
-.btn-selector-clean:active {
-    transform: translateY(0);
+/* Corpo do Card (Flex: 1 empurra o rodapé pro fundo) */
+.luft-hub-card-body {
+    flex: 1; 
+    display: flex;
+    flex-direction: column;
 }
 
-.btn-selector-clean .selector-label {
-    flex: 1;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: var(--font-weight-medium);
+.luft-hub-card-body h3 {
+    font-size: var(--luft-text-lg);
+    font-weight: 700;
+    color: var(--luft-text-main);
+    margin: 0 0 var(--luft-space-2) 0;
+    line-height: 1.3;
 }
 
-.btn-selector-clean i {
-    transition: color var(--transition-fast);
+.luft-hub-card-body p {
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-sm);
+    line-height: 1.5;
+    margin: 0;
 }
 
-.btn-selector-clean:hover i {
-    color: var(--text-primary) !important; /* Ícones acendem no hover */
-}
-
-/* Estado Ativo (Quando há filtros selecionados) */
-.btn-selector-clean.active-filter {
-    background: rgba(var(--primary-rgb), 0.15); /* Fundo sutil com a cor primária */
-    border-color: var(--primary);
-    color: var(--primary-light);
-}
-
-.btn-selector-clean.active-filter i {
-    color: var(--primary) !important;
-}
-
-/* Ajuste do Dropdown para combinar com o novo botão */
-.custom-dropdown-menu {
-    margin-top: 8px; /* Pequeno espaçamento do botão */
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5); /* Sombra profunda estilo "elevation" */
-    border-radius: var(--radius-lg);
+/* Rodapé do Card */
+.luft-hub-card-footer {
+    margin-top: var(--luft-space-5);
+    padding-top: var(--luft-space-4);
+    border-top: 1px solid var(--luft-border-light);
 }
 
 /* --------------------------------------------------------------------------
-   SELETOR DE ANO (BI TOOLBAR) - Sobrescrevendo o Bootstrap
+   4. BOTÕES E COMPONENTES AUXILIARES
    -------------------------------------------------------------------------- */
-.bi-toolbar select.form-select.form-select-sm {
-    /* Base - fundo translúcido e borda do tema */
-    background-color: rgba(255, 255, 255, 0.03); 
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    
-    /* Força a altura exata de 38px para alinhar perfeitamente com os botões */
-    height: 38px;
-    min-height: 38px;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    
-    /* Cursor e transição suave */
+.luft-hub-btn {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%;
+    padding: 12px 16px;
+    background: transparent;
+    border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-md);
+    color: var(--luft-text-main);
+    font-size: var(--luft-text-sm);
+    font-weight: 600;
     cursor: pointer;
-    transition: all var(--transition-fast);
-    box-shadow: none; /* Remove a sombra chata do Bootstrap */
+    transition: all 0.2s ease;
 }
 
-/* Efeito ao passar o mouse (Hover) - Mesmo do botão de CC */
-.bi-toolbar select.form-select.form-select-sm:hover {
-    background-color: rgba(255, 255, 255, 0.08);
-    border-color: var(--text-secondary);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.luft-hub-btn:hover {
+    background: var(--luft-primary-50);
+    border-color: var(--luft-primary-400);
+    color: var(--luft-primary-700);
 }
 
-/* Efeito ao clicar/focar (Focus) */
-.bi-toolbar select.form-select.form-select-sm:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
-    outline: none;
+.luft-hub-btn i {
+    color: var(--luft-text-muted);
+    transition: transform 0.2s ease, color 0.2s ease;
 }
 
-/* Estilização da lista de anos (Dropdown aberto) */
-.bi-toolbar select.form-select.form-select-sm option {
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    font-weight: 500;
-    padding: 8px;
+.luft-hub-btn:hover i {
+    color: var(--luft-primary-600);
+    transform: translateX(4px);
 }
+
+.luft-hub-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: var(--luft-space-12) 0;
+    text-align: center;
+    background: var(--luft-bg-panel);
+    border: 2px dashed var(--luft-border-dark);
+    border-radius: var(--luft-radius-xl);
+}
+
+.luft-hub-empty h4 {
+    color: var(--luft-text-main);
+    font-weight: 700;
+    margin: 0 0 8px 0;
+}
+
+.luft-hub-empty p {
+    color: var(--luft-text-muted);
+    margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   5. MODAL XL CUSTOM & LOADING
+   -------------------------------------------------------------------------- */
+.luft-modal-xl {
+    width: 98vw !important; max-width: 98vw !important; height: 94vh !important;
+    display: flex; flex-direction: column;
+}
+.luft-modal-content-wrapper {
+    flex: 1; display: flex; flex-direction: column; padding: 0; position: relative; height: 100%;
+}
+.luft-hub-loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 400px; height: 100%; background: var(--luft-bg-app);
+}
+.luft-spinner {
+    width: 40px; height: 40px; border: 3px solid var(--luft-border);
+    border-top-color: var(--luft-primary-500); border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+.luft-loading-text {
+    margin-top: 16px; color: var(--luft-text-muted); font-weight: 500;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

@@ -1,88 +1,129 @@
 {% extends "Base.html" %}
+{% import 'luftcore/components.html' as ui %}
 
-{% block title %}Relatórios - Luft Control{% endblock %}
+{% block title %}Central de Relatórios - Luft Control{% endblock %}
 
 {% block extra_css %}
     <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
     
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports.css') }}">
-    
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports/Report_AnaliseGerencial.css') }}">
-    
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports/Report_RelatorioRazao.css') }}">
-
-
 {% endblock %}
 
 {% block content %}
-<div class="page-header fade-in">
-    <div class="header-decoration decoration-1"></div>
-    <div class="header-decoration decoration-2"></div>
-    
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="page-title">
-                <i class="fas fa-chart-bar"></i> Relatórios Financeiros
-            </h1>
-            <p class="page-subtitle">Central de análises gerenciais e contábeis</p>
-        </div>
-    </div>
-</div>
+<div class="luft-report-hub">
 
-<div class="relatorios-grid">
-    <div class="relatorio-card">
-        <div class="relatorio-icon">📈</div>
-        <h3>Relatório de Razão (Full)</h3>
-        <p>Base analítica completa. Detalhamento por lançamento, histórico e contra-partidas.</p>
-        <div class="mb-3">
-            <span class="status-badge status-active">Operacional</span>
-        </div>
-        <button class="btn-primary-custom" onclick="relatorioSystem.loadRazaoReport()">
-            <i class="fas fa-database"></i> Acessar Razão
-        </button>
-    </div>
-    
-    <div class="relatorio-card">
-        <div class="relatorio-icon">📊</div>
-        <h3>Análise Gerencial</h3>
-        <p>Visão hierárquica dinâmica (DRE). Filtros tipo Excel, ordenação por arraste e drill-down.</p>
-        <div class="mb-3">
-            <span class="status-badge status-active" style="background: rgba(var(--primary-rgb), 0.1); border-color: var(--primary);">Novo Motor</span>
-        </div>
-        <button class="btn-primary-custom" onclick="relatorioSystem.loadRentabilidadeReport()">
-            <i class="fas fa-cubes"></i> Abrir Análise Gerencial
-        </button>
-    </div>
-    <div class="relatorio-card">
-        <div class="relatorio-icon">🗺️</div>
-        <h3>DRE Consolidado (Unidades)</h3>
-        <p>Visão de Resultado estruturada em colunas por Unidades de Negócio (INTEC, FARMA, POLO, etc).</p>
-        <div class="mb-3">
-            <span class="status-badge status-active" style="background: rgba(var(--warning-rgb), 0.1); border-color: var(--warning);">Estratégico</span>
-        </div>
-        <button class="btn-primary-custom" onclick="relatorioSystem.loadDreConsolidadoReport()">
-            <i class="fas fa-sitemap"></i> Abrir DRE Consolidado
-        </button>
-    </div>
-</div>
-
-<div id="modalRelatorio" class="modal-overlay">
-    <div class="modal-container" style="max-width: 98vw; height: 92vh; display: flex; flex-direction: column;">
-        <div class="modal-header">
-            <h2 class="modal-title"><i class="fas fa-table"></i> <span id="modalTitleText">Visualização de Dados</span></h2>
-            <button class="modal-close" onclick="fecharModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        
-        <div class="modal-body" id="modalBodyContent" style="padding: 0; flex: 1; position: relative; display: flex; flex-direction: column;">
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">Aguardando comando...</div>
+    <div class="luft-hub-hero">
+        <div class="luft-hub-hero-text">
+            <div class="luft-hub-hero-icon">
+                <i class="fas fa-chart-pie"></i>
+            </div>
+            <div>
+                <h1 class="luft-hub-title">Central de Relatórios</h1>
+                <p class="luft-hub-subtitle">Explore, filtre e analise os dados gerenciais e contábeis da operação.</p>
             </div>
         </div>
+
+        <div class="luft-hub-search">
+            <i class="fas fa-search luft-hub-search-icon"></i>
+            <input type="text" id="searchInput" class="luft-hub-search-input" placeholder="Buscar relatório (ex: Razão, DRE)...">
+        </div>
+    </div>
+
+    <div class="luft-hub-categories">
+        <button class="luft-category-pill active" data-filter="all">
+            <i class="fas fa-layer-group"></i> Todos os Relatórios
+        </button>
+        <button class="luft-category-pill" data-filter="contabil">
+            <i class="fas fa-book"></i> Contábil
+        </button>
+        <button class="luft-category-pill" data-filter="gerencial">
+            <i class="fas fa-chart-line"></i> Gerencial
+        </button>
+        <button class="luft-category-pill" data-filter="estrategico">
+            <i class="fas fa-chess-knight"></i> Estratégico
+        </button>
+    </div>
+
+    <div id="emptyState" class="luft-hub-empty" style="display: none;">
+        <i class="fas fa-search mb-3" style="font-size: 2.5rem; color: var(--luft-border-dark);"></i>
+        <h4>Nenhum relatório encontrado</h4>
+        <p>Tente ajustar sua busca ou trocar a categoria do filtro acima.</p>
+    </div>
+
+    <div class="luft-hub-grid" id="reportsGrid">
+        
+        <div class="luft-hub-card" data-category="contabil" data-search="relatorio razao full base analitica contabil lancamento">
+            <div class="luft-hub-card-header">
+                <div class="luft-hub-card-icon" style="background: var(--luft-primary-50); color: var(--luft-primary-600); border-color: var(--luft-primary-100);">
+                    <i class="fas fa-database"></i>
+                </div>
+                {{ ui.badge('Contábil', cor='primary') }}
+            </div>
+            <div class="luft-hub-card-body">
+                <h3>Razão Contábil (Full)</h3>
+                <p>Base analítica completa. Detalhamento por lançamento, histórico e contra-partidas contábeis.</p>
+            </div>
+            <div class="luft-hub-card-footer">
+                <button class="luft-hub-btn" onclick="relatorioSystem.loadRazaoReport()">
+                    <span>Acessar Relatório</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="luft-hub-card" data-category="gerencial" data-search="analise gerencial dre visao dinamica excel drill-down">
+            <div class="luft-hub-card-header">
+                <div class="luft-hub-card-icon" style="background: var(--luft-success-50); color: var(--luft-success-600); border-color: var(--luft-success-100);">
+                    <i class="fas fa-cubes"></i>
+                </div>
+                {{ ui.badge('Gerencial', cor='success') }}
+            </div>
+            <div class="luft-hub-card-body">
+                <h3>Análise Gerencial (Motor)</h3>
+                <p>Visão hierárquica dinâmica (DRE). Filtros tipo Excel, ordenação por arraste e drill-down em tempo real.</p>
+            </div>
+            <div class="luft-hub-card-footer">
+                <button class="luft-hub-btn" onclick="relatorioSystem.loadRentabilidadeReport()">
+                    <span>Acessar Relatório</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="luft-hub-card" data-category="estrategico" data-search="dre consolidado unidades negocio intec farma polo estrategico">
+            <div class="luft-hub-card-header">
+                <div class="luft-hub-card-icon" style="background: var(--luft-warning-50); color: var(--luft-warning-700); border-color: var(--luft-warning-100);">
+                    <i class="fas fa-sitemap"></i>
+                </div>
+                {{ ui.badge('Estratégico', cor='warning') }}
+            </div>
+            <div class="luft-hub-card-body">
+                <h3>DRE Consolidado</h3>
+                <p>Visão de Resultado estruturada em colunas por Unidades de Negócio (INTEC, FARMA, POLO, etc).</p>
+            </div>
+            <div class="luft-hub-card-footer">
+                <button class="luft-hub-btn" onclick="relatorioSystem.loadDreConsolidadoReport()">
+                    <span>Acessar Relatório</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
     </div>
 </div>
+
+{# MODAL LUFTCORE XL #}
+{% call ui.modal('modalRelatorio', 'Visualização de Dados', 'xl', 'fas fa-table') %}
+    <div id="modalBodyContent" class="luft-modal-content-wrapper">
+        <div class="luft-hub-loading">
+            <div class="luft-spinner"></div>
+            <div class="luft-loading-text">Aguardando comando do servidor...</div>
+        </div>
+    </div>
+{% endcall %}
+
 {% endblock %}
 
 {% block extra_js %}
@@ -98,6 +139,52 @@
         getRazaoDownload:       "{{ url_for('Relatorios.DownloadRazaoExcel') }}", 
         getListaCCs:            "{{ url_for('Relatorios.ListarCentrosCusto') }}"      
     };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('searchInput');
+        const pills = document.querySelectorAll('.luft-category-pill');
+        const cards = document.querySelectorAll('.luft-hub-card');
+        const emptyState = document.getElementById('emptyState');
+        
+        let currentFilter = 'all';
+        let currentSearch = '';
+
+        function filterReports() {
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const category = card.getAttribute('data-category');
+                const searchData = card.getAttribute('data-search').toLowerCase();
+                
+                const matchesFilter = (currentFilter === 'all' || category === currentFilter);
+                const matchesSearch = searchData.includes(currentSearch);
+                
+                if (matchesFilter && matchesSearch) {
+                    card.style.display = 'flex';
+                    card.style.animation = 'luftFadeIn 0.3s ease-out forwards';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            emptyState.style.display = (visibleCount === 0) ? 'flex' : 'none';
+        }
+
+        searchInput.addEventListener('input', (e) => {
+            currentSearch = e.target.value.toLowerCase().trim();
+            filterReports();
+        });
+
+        pills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                pills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                currentFilter = pill.getAttribute('data-filter');
+                filterReports();
+            });
+        });
+    });
 </script>
 <script src="{{ url_for('static', filename='JS/Reports/Relatorios.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/Reports/RelatorioRazao.js') }}"></script>

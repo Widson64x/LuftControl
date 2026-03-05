@@ -1,6 +1,7 @@
 // ============================================================================
 // Luft Control - MÓDULO: DRE CONSOLIDADO (UNIDADES DE NEGÓCIO)
 // Arquivo: Static/JS/Reports/RelatorioDreConsolidado.js
+// Design System: LuftCore
 // ============================================================================
 
 class RelatorioDreConsolidado {
@@ -76,10 +77,10 @@ class RelatorioDreConsolidado {
 
     renderEmptyState() {
         const emptyHtml = `
-            <div class="p-4 text-center" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                <i class="fas fa-database fa-3x text-muted mb-3"></i>
-                <h4 class="text-secondary">Sem dados</h4>
-                <p class="text-muted">Nenhum registro encontrado para este ano.</p>
+            <div class="luft-hub-empty" style="flex: 1; border-radius: 0; border: none; border-top: 1px solid var(--luft-border);">
+                <i class="fas fa-folder-open mb-3" style="font-size: 3rem; color: var(--luft-border-dark);"></i>
+                <h4 style="color: var(--luft-text-main); font-weight: 700;">Sem dados contábeis</h4>
+                <p style="color: var(--luft-text-muted);">Nenhum registro encontrado para este ano.</p>
             </div>`;
         this.modal.setContent(`<div style="display: flex; flex-direction: column; height: 100%;">${emptyHtml}</div>`);
     }
@@ -89,7 +90,7 @@ class RelatorioDreConsolidado {
         this.isLoading = true;
         
         const container = document.getElementById('dreGridContainer');
-        if (container) container.innerHTML = `<div class="loading-container" style="height: 100%;"><div class="loading-spinner"></div></div>`;
+        if (container) container.innerHTML = `<div class="luft-hub-loading" style="height: 100%;"><div class="luft-spinner"></div></div>`;
 
         try {
             let urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getDreConsolidadoData) 
@@ -115,7 +116,7 @@ class RelatorioDreConsolidado {
             
         } catch (error) {
             console.error(error);
-            if (container) container.innerHTML = `<div class="p-4 text-center text-danger">Erro: ${error.message}</div>`;
+            if (container) container.innerHTML = `<div class="p-4 text-center" style="color: var(--luft-danger-600);">Erro: ${error.message}</div>`;
         } finally {
             this.isLoading = false;
         }
@@ -124,7 +125,7 @@ class RelatorioDreConsolidado {
     processTree() {
         const root = [];
         const map = {}; 
-        const colunas = this.dreState.columnsOrder; // Trocado meses por colunas
+        const colunas = this.dreState.columnsOrder;
         const labelMap = { 'Oper': 'CUSTOS', 'Adm':  'ADMINISTRATIVO', 'Coml': 'COMERCIAL' };
 
         const getOrCreateNode = (id, label, type, parentList) => {
@@ -334,26 +335,20 @@ class RelatorioDreConsolidado {
         const rootHeaderName = this.dreState.viewMode === 'CC' ? 'Estrutura / Centro de Custo' : 'Estrutura DRE Consolidado';
 
         let headerHtml = `
-            <thead style="position: sticky; top: 0; z-index: 20;">
+            <thead>
                 <tr>
-                    <th style="min-width: 350px; left: 0; position: sticky; z-index: 30;">
+                    <th>
                         ${rootHeaderName}
                     </th>
                     ${cols.map(c => `
                         <th class="text-end" style="min-width: 110px;">
-                            <div class="d-flex flex-column">
-                                <span class="mb-1 cursor-pointer text-xs font-bold" onclick="relatorioSystem.dreConsolidado.sortBy('${c}')">${this.getColDisplayName(c)}</span>
-                            </div>
+                            <span class="cursor-pointer" onclick="relatorioSystem.dreConsolidado.sortBy('${c}')">${this.getColDisplayName(c)}</span>
                         </th>
                     `).join('')}
                 </tr>
             </thead>`;
 
         let bodyRows = '';
-        const COLOR_DARK = 'color: var(--icon-structure);'; 
-        const COLOR_GRAY = 'color: var(--icon-secondary);'; 
-        const COLOR_FOLDER = 'color: var(--icon-folder);'; 
-        const COLOR_LIGHT = 'color: var(--icon-account);';
         const showAccounts = this.dreState.showAccounts;
 
         const renderNode = (node, level) => {
@@ -368,24 +363,26 @@ class RelatorioDreConsolidado {
             let iconClass = '';
             let iconStyle = '';
 
-            if (node.type === 'calculated') { iconClass = 'fa-calculator'; iconStyle = COLOR_DARK; } 
+            // Cores baseadas nas variáveis LuftCore
+            if (node.type === 'calculated') { iconClass = 'fa-calculator'; iconStyle = 'color: var(--luft-warning-600);'; } 
             else if (node.type === 'root') {
-                if (node.virtualId) { iconClass = 'fa-cube'; iconStyle = COLOR_DARK; } 
+                if (node.virtualId) { iconClass = 'fa-cube'; iconStyle = 'color: var(--luft-primary-600);'; } 
                 else {
-                    iconClass = 'fa-layer-group'; iconStyle = COLOR_DARK;
-                    if (node.ordem < 1000 && !node.virtualId) { iconClass = 'fa-globe'; iconStyle = COLOR_GRAY; }
+                    iconClass = 'fa-layer-group'; iconStyle = 'color: var(--luft-primary-600);';
+                    if (node.ordem < 1000 && !node.virtualId) { iconClass = 'fa-globe'; iconStyle = 'color: var(--luft-text-muted);'; }
                 }
             }
-            else if (node.type === 'group') { iconClass = 'fa-folder'; iconStyle = COLOR_FOLDER; }
-            else if (node.type === 'account-group') { iconClass = 'fa-file-alt'; iconStyle = COLOR_LIGHT; }
-            else if (node.type === 'account') { iconClass = 'fa-file-alt'; iconStyle = COLOR_LIGHT; }
+            else if (node.type === 'group') { iconClass = 'fa-folder'; iconStyle = 'color: var(--luft-info-500);'; }
+            else if (node.type === 'account-group') { iconClass = 'fa-file-invoice'; iconStyle = 'color: var(--luft-text-light);'; }
+            else if (node.type === 'account') { iconClass = 'fa-file-alt'; iconStyle = 'color: var(--luft-text-light);'; }
 
+            // Configuração dos espaçamentos forçados que criamos
             let iconHtml = '';
             if (isGroup) {
-                iconHtml = `<i class="fas fa-caret-${isExpanded ? 'down' : 'right'} me-2 toggle-icon" onclick="event.stopPropagation(); relatorioSystem.dreConsolidado.toggleNode('${node.id}')" style="width:10px; cursor: pointer; color: var(--text-tertiary);"></i>`;
-                iconHtml += `<i class="fas ${iconClass} me-2" style="${iconStyle}"></i>`;
+                iconHtml = `<div class="luft-toggle-icon" style="margin-right: 8px;" onclick="event.stopPropagation(); relatorioSystem.dreConsolidado.toggleNode('${node.id}')"><i class="fas fa-chevron-${isExpanded ? 'down' : 'right'}"></i></div>`;
+                iconHtml += `<i class="fas ${iconClass}" style="${iconStyle}; margin-right: 12px;"></i>`;
             } else {
-                iconHtml = `<i class="fas ${iconClass} me-2" style="margin-left: 18px; ${iconStyle}"></i>`;
+                iconHtml = `<i class="fas ${iconClass}" style="margin-left: 32px; margin-right: 12px; ${iconStyle}"></i>`;
             }
 
             const cssString = node.estiloCss || '';
@@ -403,17 +400,19 @@ class RelatorioDreConsolidado {
                     else displayVal = FormatUtils.formatNumber(val);
                 }
                 if (node.tipoExibicao === 'percentual' && val !== 0) displayVal = val.toFixed(2) + '%';
-                const weight = (node.type === 'root' || node.type === 'calculated') ? 'font-weight: 600;' : '';
-                return `<td class="text-end font-mono ${colorClass}" style="${weight} ${cssString}">${displayVal}</td>`;
+                
+                return `<td class="text-end ${colorClass}" style="font-family: monospace; ${cssString}">${displayVal}</td>`;
             }).join('');
 
             const isMatch = this.dreState.searchMatches.includes(node.id);
-            const searchClass = isMatch ? 'search-match' : '';
+            const searchClass = isMatch ? 'luft-search-match' : '';
 
-            bodyRows += `<tr id="row_${node.id}" class="dre-row-${node.type} ${searchClass}" ${trStyle}>
+            // Span do texto agora usa o margin-left ajustado
+            bodyRows += `<tr id="row_${node.id}" class="luft-dre-row-${node.type} ${searchClass}" ${trStyle}>
                     <td style="padding-left: ${padding}px; ${cssString}"> 
-                        <div class="d-flex align-items-center cell-label">
-                            ${iconHtml}<span class="text-truncate" title="${node.formulaDescricao || ''}">${node.label}</span>
+                        <div class="d-flex align-items-center" style="gap: 4px;">
+                            ${iconHtml}
+                            <span class="text-truncate" style="margin-left: 6px;" title="${node.formulaDescricao || ''}">${node.label}</span>
                         </div>
                     </td>${cellsHtml}</tr>`;
 
@@ -421,7 +420,7 @@ class RelatorioDreConsolidado {
         };
 
         this.treeData.forEach(node => renderNode(node, 0));
-        container.innerHTML = `<table class="table-modern w-100" style="border-collapse: separate; border-spacing: 0;">${headerHtml}<tbody>${bodyRows}</tbody></table>`;
+        container.innerHTML = `<table class="luft-table-modern"> ${headerHtml}<tbody>${bodyRows}</tbody></table>`;
     }
     
     async loadCCList() {
@@ -449,17 +448,17 @@ class RelatorioDreConsolidado {
 
     openCCFilterDropdown(buttonElement) {
         if (this.isLoading) return;
-        const dropdownId = 'cc-filter-dropdown';
+        const dropdownId = 'luft-cc-dropdown';
         let dropdown = document.getElementById(dropdownId);
         
         if (dropdown) { dropdown.remove(); return; }
 
         dropdown = document.createElement('div');
         dropdown.id = dropdownId;
-        dropdown.className = 'custom-dropdown-menu';
+        dropdown.className = 'luft-dropdown-menu'; 
         
         const searchHtml = `
-            <div class="dropdown-search-box">
+            <div class="luft-dropdown-search">
                 <i class="fas fa-search"></i>
                 <input type="text" placeholder="Pesquisar Centro..." id="ccSearchInput" oninput="relatorioSystem.dreConsolidado.filterCCList(this.value)">
             </div>`;
@@ -467,28 +466,33 @@ class RelatorioDreConsolidado {
         const optionsHtml = this.dreState.listaCCs.map(cc => {
             const isSelected = this.dreState.selectedCCs.includes(String(cc.codigo));
             return `
-                <label class="dropdown-option-label" data-name="${cc.nome.toLowerCase()}" data-code="${cc.codigo}">
-                    <input type="checkbox" value="${cc.codigo}" ${isSelected ? 'checked' : ''} onchange="relatorioSystem.dreConsolidado.handleCCCheckboxChange(this)">
+                <label class="luft-dropdown-option" data-name="${cc.nome.toLowerCase()}" data-code="${cc.codigo}">
+                    <input type="checkbox" class="luft-checkbox" value="${cc.codigo}" ${isSelected ? 'checked' : ''} onchange="relatorioSystem.dreConsolidado.handleCCCheckboxChange(this)">
                     <span>${cc.nome}</span>
                 </label>`;
         }).join('');
         
         const isAllSelected = this.dreState.selectedCCs.includes('Todos') || this.dreState.selectedCCs.length === 0;
         const allOptionHtml = `
-            <div class="dropdown-all-option">
-                <label class="dropdown-option-label dropdown-select-all">
-                    <input type="checkbox" value="Todos" id="chkSelectAllCC" ${isAllSelected ? 'checked' : ''} onchange="relatorioSystem.dreConsolidado.handleSelectAllCC(this.checked)">
-                    <span>[ Selecionar Tudo ]</span>
+            <div class="luft-dropdown-all">
+                <label class="luft-dropdown-option" style="color: var(--luft-primary-700); font-weight: 700;">
+                    <input type="checkbox" class="luft-checkbox" value="Todos" id="chkSelectAllCC" ${isAllSelected ? 'checked' : ''} onchange="relatorioSystem.dreConsolidado.handleSelectAllCC(this.checked)">
+                    <span>[ Selecionar Todos ]</span>
                 </label>
             </div>`;
 
-        dropdown.innerHTML = searchHtml + `<div class="dropdown-options-container">${allOptionHtml}${optionsHtml}</div>`;
+        dropdown.innerHTML = searchHtml + `<div class="luft-dropdown-list">${allOptionHtml}${optionsHtml}</div>`;
         
         const rect = buttonElement.getBoundingClientRect();
-        dropdown.style.top = `${rect.bottom + 5}px`;
-        dropdown.style.right = `${window.innerWidth - rect.right}px`; 
+        dropdown.style.top = `${rect.bottom + 6}px`;
+        dropdown.style.left = `${rect.left}px`; 
 
         document.body.appendChild(dropdown);
+
+        setTimeout(() => {
+            const searchInput = document.getElementById('ccSearchInput');
+            if (searchInput) searchInput.focus();
+        }, 50);
 
         const closeOnOutsideClick = (event) => {
             if (dropdown && !dropdown.contains(event.target) && !buttonElement.contains(event.target)) {
@@ -523,7 +527,7 @@ class RelatorioDreConsolidado {
     }
     
     handleSelectAllCC(isChecked) {
-         const checkboxes = document.querySelectorAll('.dropdown-options-container input[type="checkbox"]');
+         const checkboxes = document.querySelectorAll('.luft-dropdown-list input[type="checkbox"]');
          if (isChecked) {
             checkboxes.forEach(chk => chk.checked = true);
             this.dreState.selectedCCs = ['Todos'];
@@ -538,7 +542,7 @@ class RelatorioDreConsolidado {
 
     filterCCList(searchTerm) {
         const term = searchTerm.toLowerCase();
-        const labels = document.querySelectorAll('.dropdown-options-container .dropdown-option-label');
+        const labels = document.querySelectorAll('.luft-dropdown-list .luft-dropdown-option:not(.luft-dropdown-all label)');
         labels.forEach(label => {
             const name = label.getAttribute('data-name');
             const code = label.getAttribute('data-code');
@@ -556,24 +560,24 @@ class RelatorioDreConsolidado {
         
         if (this.dreState.selectedCCs.includes('Todos')) {
             text = 'Todos os Centros';
-            if(button) button.classList.remove('active-filter');
+            if(button) button.classList.remove('has-filter');
         } else {
             const count = this.dreState.selectedCCs.length;
             text = `${count} Centro(s) Selecionado(s)`;
-            if(button) button.classList.add('active-filter'); 
+            if(button) button.classList.add('has-filter'); 
         }
         displaySpan.textContent = text;
     }
 
     async loadReport() {
-        if (!this.modal) this.modal = new ModalSystem('modalRelatorio');
+        if (!this.modal) this.modal = new LuftModalWrapper('modalRelatorio'); // Ajustado para usar o Wrapper que criamos
         await this.loadCCList();
 
         const scaleTitle = this.dreState.scaleMode === 'dre' ? '(Em Milhares)' : '(Valor Integral)';
         const totalSelecionados = this.dreState.selectedCCs.length;
         let ccTitle = this.dreState.selectedCCs.includes('Todos') ? 'Todos os Centros' : `Filtro: ${totalSelecionados} CC(s) selecionados`;
         
-        this.modal.open(`<i class="fas fa-sitemap"></i> DRE Consolidado - Unidades <small class="modal-title">${scaleTitle} | ${ccTitle}</small>`, '');
+        this.modal.open(`<i class="fas fa-sitemap text-warning"></i> DRE Consolidado - Unidades`, `${scaleTitle} | ${ccTitle}`);
         this.modal.showLoading('Calculando DRE Consolidado...');
 
         try {
@@ -591,9 +595,9 @@ class RelatorioDreConsolidado {
                     const container = document.getElementById('dreGridContainer');
                     if(container) {
                         container.innerHTML = `
-                            <div class="p-5 text-center">
-                                <i class="fas fa-filter fa-3x text-muted mb-3"></i>
-                                <h4 class="text-secondary">Sem dados</h4>
+                            <div class="luft-hub-empty" style="flex: 1; border: none; border-radius: 0;">
+                                <i class="fas fa-filter text-muted mb-3" style="font-size: 3rem;"></i>
+                                <h4 class="text-main font-bold">Sem dados para exibição</h4>
                                 <p class="text-muted">Verifique a seleção do ano e centros de custo.</p>
                             </div>`;
                     }
@@ -613,71 +617,73 @@ class RelatorioDreConsolidado {
     
     renderInterface() {
         const isDreMode = this.dreState.scaleMode === 'dre';
-        const btnScaleClass = isDreMode ? 'btn-info' : 'btn-secondary';
+        const btnScaleClass = isDreMode ? 'luft-dre-btn-active' : '';
         const btnScaleIcon = isDreMode ? 'fa-divide' : 'fa-dollar-sign';
-        const btnScaleText = isDreMode ? 'Escala: Milhares (DRE)' : 'Escala: Reais';
+        const btnScaleText = isDreMode ? 'Milhares (DRE)' : 'Reais';
         
         const showAccounts = this.dreState.showAccounts;
-        const btnAccountClass = showAccounts ? 'btn-success' : 'btn-outline-secondary';
+        const btnAccountClass = showAccounts ? 'luft-dre-btn-active' : '';
         const btnAccountIcon = showAccounts ? 'fa-eye' : 'fa-eye-slash';
-        const btnAccountText = showAccounts ? 'Contas: Visíveis' : 'Contas: Ocultas';
+        const btnAccountText = showAccounts ? 'Contas' : 'Ocultar Contas';
 
         let nomeCCSelecionado = this.dreState.selectedCCs.includes('Todos') ? 'Todos' : `${this.dreState.selectedCCs.length} selecionados`;
 
-        // Removi os botões de Filtro de Origem (FARMA, INTEC), pois agora eles SÃO as colunas.
+        // Utilizando a estrutura premium idêntica ao DRE normal
         const toolbar = `
-            <div class="dre-toolbar d-flex justify-content-between align-items-center p-3 border-bottom border-primary bg-tertiary">
+            <div class="luft-dre-toolbar">
                 <div class="d-flex gap-2 align-items-center flex-wrap">
-                    <button id="ccFilterButton" class="btn-selector-clean" 
+                    <button id="ccFilterButton" class="luft-cc-selector" 
                             onclick="relatorioSystem.dreConsolidado.openCCFilterDropdown(this)"
                             title="Filtrar por Centro de Custo">
-                        <i class="fas fa-building text-muted me-2"></i>
-                        <span id="ccFilterDisplay" class="selector-label">Todos os Centros</span>
-                        <i class="fas fa-chevron-down ms-3 text-xs text-muted"></i>
+                        <i class="fas fa-building text-muted"></i>
+                        <span id="ccFilterDisplay" class="luft-cc-display">Todos os Centros</span>
+                        <i class="fas fa-chevron-down text-xs text-muted"></i>
                     </button>
-                    <select class="form-select form-select-sm" style="width: auto; font-weight: 600; color: var(--primary);" 
+                    
+                    <select class="luft-year-selector" 
                         onchange="relatorioSystem.dreConsolidado.handleYearChange(this.value)">
-                        <option value="2024" ${this.dreState.selectedYear == 2024 ? 'selected' : ''}>2024</option>
                         <option value="2025" ${this.dreState.selectedYear == 2025 ? 'selected' : ''}>2025</option>
                         <option value="2026" ${this.dreState.selectedYear == 2026 ? 'selected' : ''}>2026</option>
                     </select>
-                    <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
 
-                    <button class="btn btn-sm ${btnScaleClass}" onclick="relatorioSystem.dreConsolidado.toggleScaleMode()" title="Alternar Escala de Valores">
+                    <div class="luft-separator-vertical"></div>
+
+                    <button class="luft-dre-btn ${btnScaleClass}" onclick="relatorioSystem.dreConsolidado.toggleScaleMode()">
                         <i class="fas ${btnScaleIcon}"></i> ${btnScaleText}
                     </button>
                     
-                    <button class="btn btn-sm ${btnAccountClass}" onclick="relatorioSystem.dreConsolidado.toggleAccountVisibility()" title="Alternar Visibilidade das Contas">
+                    <button class="luft-dre-btn ${btnAccountClass}" onclick="relatorioSystem.dreConsolidado.toggleAccountVisibility()">
                         <i class="fas ${btnAccountIcon}"></i> ${btnAccountText}
                     </button>
 
-                    <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
+                    <div class="luft-separator-vertical"></div>
                     
-                    <div class="input-group input-group-sm" style="width: 200px;">
-                        <i class="input-group-icon fas fa-search"></i>
-                        <input type="text" id="dreGlobalSearch" class="form-control" 
+                    <div class="luft-hub-search" style="max-width: 250px;">
+                        <i class="fas fa-search luft-hub-search-icon"></i>
+                        <input type="text" id="dreGlobalSearch" class="luft-hub-search-input" 
+                            style="padding-top: 8px; padding-bottom: 8px;"
                             placeholder="Buscar na árvore..." value="${this.dreState.globalSearch}"
                             oninput="relatorioSystem.dreConsolidado.handleGlobalSearch(this.value)"
                             onkeydown="if(event.key === 'Enter') { event.preventDefault(); relatorioSystem.dreConsolidado.navigateSearchNext(); }">
                     </div>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
-                    <button class="btn btn-sm btn-outline" onclick="relatorioSystem.dreConsolidado.toggleAllNodes(true)" title="Expandir Tudo"><i class="fas fa-expand-arrows-alt"></i></button>
-                    <button class="btn btn-sm btn-outline" onclick="relatorioSystem.dreConsolidado.toggleAllNodes(false)" title="Recolher Tudo"><i class="fas fa-compress-arrows-alt"></i></button>
-                    <button class="btn btn-sm btn-outline" onclick="relatorioSystem.dreConsolidado.openColumnManager()" title="Colunas"><i class="fas fa-columns"></i></button>
+                    <button class="luft-dre-btn" onclick="relatorioSystem.dreConsolidado.toggleAllNodes(true)" title="Expandir Tudo"><i class="fas fa-expand-arrows-alt"></i></button>
+                    <button class="luft-dre-btn" onclick="relatorioSystem.dreConsolidado.toggleAllNodes(false)" title="Recolher Tudo"><i class="fas fa-compress-arrows-alt"></i></button>
+                    <button class="luft-dre-btn" onclick="relatorioSystem.dreConsolidado.openColumnManager()" title="Gerenciar Colunas"><i class="fas fa-columns"></i></button>
                 </div>
             </div>`;
         
-        const gridContainer = `<div id="dreGridContainer" class="table-fixed-container" style="flex: 1; overflow: auto; background: var(--bg-secondary);"></div>`;
+        const gridContainer = `<div id="dreGridContainer" class="luft-table-container" style="flex: 1;"></div>`;
         
         const footer = `
-            <div class="dre-footer p-2 bg-tertiary border-top border-primary d-flex justify-content-between align-items-center">
-                <span class="text-secondary text-xs">
+            <div class="luft-dre-footer">
+                <span>
                     Visão: <strong>Por Unidades de Negócio</strong> | 
-                    Filtro CC: <strong class="text-info">${nomeCCSelecionado}</strong> | 
+                    Filtro CC: <strong>${nomeCCSelecionado}</strong> | 
                     Escala: <strong>${this.dreState.scaleMode.toUpperCase()}</strong>
                 </span>
-                <span class="text-muted text-xs">Atualizado: ${new Date().toLocaleTimeString('pt-BR')}</span>
+                <span>Atualizado: ${new Date().toLocaleTimeString('pt-BR')}</span>
             </div>`;
 
         this.modal.setContent(`<div style="display: flex; flex-direction: column; height: 100%;">${toolbar}${gridContainer}${footer}</div>`);
@@ -769,10 +775,10 @@ class RelatorioDreConsolidado {
     }
 
     updateSearchHighlights() {
-        document.querySelectorAll('.search-current-match').forEach(el => el.classList.remove('search-current-match'));
+        document.querySelectorAll('.luft-search-current-match').forEach(el => el.classList.remove('luft-search-current-match'));
         const currentId = this.dreState.searchMatches[this.dreState.searchCurrentIndex];
         const row = document.getElementById(`row_${currentId}`);
-        if (row) row.classList.add('search-current-match');
+        if (row) row.classList.add('luft-search-current-match');
     }
 
     handleColFilter(col, val) { if (!val) delete this.dreState.filters[col]; else this.dreState.filters[col] = val; this.debounceRender(); }
@@ -784,50 +790,53 @@ class RelatorioDreConsolidado {
         const allCols = this.dreState.columnsOrder;
         const allVisible = allCols.every(c => !this.dreState.hiddenCols.has(c));
         const modalHtml = `
-            <div class="column-manager-container">
-                <div class="column-manager-header">
-                    <h5 class="m-0"><i class="fas fa-columns text-primary"></i> Gerenciar Colunas</h5>
-                    <button class="btn btn-sm btn-outline" onclick="relatorioSystem.dreConsolidado.toggleAllColumns(this)">
-                        <i class="fas ${allVisible ? 'fa-check-square' : 'fa-square'}"></i> ${allVisible ? 'Desmarcar Todos' : 'Selecionar Todos'}
+            <div style="display: flex; flex-direction: column; height: 100%;">
+                <div class="luft-col-mgr-header">
+                    <h5><i class="fas fa-columns text-primary me-3"></i> Gerenciar Colunas</h5>
+                    <button class="luft-dre-btn" onclick="relatorioSystem.dreConsolidado.toggleAllColumns(this)" style="border-radius: var(--luft-radius-full);">
+                        <i class="fas ${allVisible ? 'fa-check-circle' : 'fa-circle'}"></i> ${allVisible ? 'Desmarcar Todos' : 'Selecionar Todos'}
                     </button>
                 </div>
-                <div class="column-grid">
+                
+                <div class="luft-col-mgr-grid">
                     ${allCols.map(c => {
                         const isVisible = !this.dreState.hiddenCols.has(c);
                         return `
-                        <label class="column-option ${isVisible ? 'selected' : ''}">
-                            <input type="checkbox" class="column-checkbox" value="${c}" ${isVisible ? 'checked' : ''} onchange="relatorioSystem.dreConsolidado.handleColumnToggle(this, '${c}')">
+                        <label class="luft-col-option ${isVisible ? 'selected' : ''}">
+                            <input type="checkbox" class="luft-col-checkbox" value="${c}" ${isVisible ? 'checked' : ''} onchange="relatorioSystem.dreConsolidado.handleColumnToggle(this, '${c}')">
                             <span>${this.getColDisplayName(c)}</span>
                         </label>`;
                     }).join('')}
                 </div>
-                <div class="mt-4 text-end border-top border-primary pt-3">
-                    <button class="btn btn-primary-custom" style="width: auto; padding: 8px 24px;" onclick="document.querySelector('.modal-backdrop.col-mgr').remove(); relatorioSystem.dreConsolidado.renderTable()">
+                
+                <div class="luft-col-mgr-footer">
+                    <button class="btn btn-primary d-flex align-items-center gap-2" onclick="document.querySelector('.luft-col-mgr-backdrop').remove(); relatorioSystem.dreConsolidado.renderTable()">
                         <i class="fas fa-check"></i> Aplicar Alterações
                     </button>
                 </div>
             </div>`;
+            
         const colModal = document.createElement('div'); 
-        colModal.className = 'modal-backdrop col-mgr active'; 
-        colModal.innerHTML = `<div class="modal-window" style="max-width: 600px;">${modalHtml}</div>`;
+        colModal.className = 'luft-col-mgr-backdrop active'; 
+        colModal.innerHTML = `<div class="luft-col-mgr-window">${modalHtml}</div>`;
         colModal.onclick = (e) => { if(e.target === colModal) { colModal.remove(); this.renderTable(); } }; 
         document.body.appendChild(colModal);
     }
 
     handleColumnToggle(checkbox, col) {
-        if (checkbox.checked) { this.dreState.hiddenCols.delete(col); checkbox.closest('.column-option').classList.add('selected'); }
-        else { this.dreState.hiddenCols.add(col); checkbox.closest('.column-option').classList.remove('selected'); }
+        if (checkbox.checked) { this.dreState.hiddenCols.delete(col); checkbox.closest('.luft-col-option').classList.add('selected'); }
+        else { this.dreState.hiddenCols.add(col); checkbox.closest('.luft-col-option').classList.remove('selected'); }
         this.updateSelectAllBtnState();
     }
 
     toggleAllColumns(btn) {
-        const checkboxes = document.querySelectorAll('.column-grid input[type="checkbox"]');
-        const isCurrentlyAllChecked = btn.querySelector('i').classList.contains('fa-check-square');
+        const checkboxes = document.querySelectorAll('.luft-col-mgr-grid input[type="checkbox"]');
+        const isCurrentlyAllChecked = btn.querySelector('i').classList.contains('fa-check-circle');
         const newState = !isCurrentlyAllChecked;
         checkboxes.forEach(chk => {
             chk.checked = newState;
             const col = chk.value;
-            const parent = chk.closest('.column-option');
+            const parent = chk.closest('.luft-col-option');
             if (newState) { this.dreState.hiddenCols.delete(col); parent.classList.add('selected'); } 
             else { this.dreState.hiddenCols.add(col); parent.classList.remove('selected'); }
         });
@@ -835,12 +844,12 @@ class RelatorioDreConsolidado {
     }
 
     updateSelectAllBtnState() {
-        const btn = document.querySelector('.column-manager-header button');
+        const btn = document.querySelector('.luft-col-mgr-header button');
         if(!btn) return;
         const allCols = this.dreState.columnsOrder;
         const allVisible = allCols.every(c => !this.dreState.hiddenCols.has(c));
-        if(allVisible) btn.innerHTML = '<i class="fas fa-check-square"></i> Desmarcar Todos';
-        else btn.innerHTML = '<i class="fas fa-square"></i> Selecionar Todos';
+        if(allVisible) btn.innerHTML = '<i class="fas fa-check-circle"></i> Desmarcar Todos';
+        else btn.innerHTML = '<i class="fas fa-circle"></i> Selecionar Todos';
     }
 
     toggleColumn(col) { if (this.dreState.hiddenCols.has(col)) this.dreState.hiddenCols.delete(col); else this.dreState.hiddenCols.add(col); }

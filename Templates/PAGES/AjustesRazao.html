@@ -4,22 +4,24 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/AjustesRazao.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 {% endblock %}
 
 {% block content %}
-<div class="excel-wrapper">
-    <div class="ribbon-bar">
-        <div class="ribbon-group">
-            <div class="app-logo"><i class="fas fa-table"></i></div>
-            <div class="ribbon-inputs">
-                <div class="input-stack">
-                    <label>Ano</label>
-                    <input type="number" id="tbAno" value="2026" style="width: 60px;">
+<div class="luft-excel-wrapper fade-in">
+    <div class="luft-ribbon-bar">
+        <div class="luft-ribbon-group">
+            <div class="luft-app-logo bg-primary-100 text-primary-600">
+                <i class="fas fa-table"></i>
+            </div>
+            
+            <div class="luft-ribbon-inputs">
+                <div class="luft-input-stack">
+                    <label>Ano de Ref.</label>
+                    <input type="number" id="tbAno" value="2026" class="luft-form-control text-center" style="width: 80px;">
                 </div>
-                <div class="input-stack">
-                    <label>Mês</label>
-                    <select id="tbMes" style="width: 100px;">
+                <div class="luft-input-stack">
+                    <label>Mês Contábil</label>
+                    <select id="tbMes" class="luft-form-select" style="width: 120px;">
                         <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
                         <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
                         <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
@@ -27,72 +29,68 @@
                     </select>
                 </div>
             </div>
-            <button class="ribbon-btn" id="btnLoad">
-                <i class="fas fa-sync-alt"></i> <span>Carregar</span>
+            <button class="luft-ribbon-btn primary" id="btnLoad">
+                <i class="fas fa-sync-alt"></i> <span>Carregar Base</span>
             </button>
         </div>
 
-        <div class="ribbon-separator"></div>
+        <div class="luft-ribbon-separator"></div>
 
-        <div class="ribbon-group">
-            <button class="ribbon-btn" id="btnAdd">
-                <i class="fas fa-plus"></i> <span>Novo</span>
+        <div class="luft-ribbon-group">
+            <button class="luft-ribbon-btn success" id="btnAdd">
+                <i class="fas fa-plus"></i> <span>Nova Linha</span>
             </button>
-            <button class="ribbon-btn" id="btnCsv">
-                <i class="fas fa-file-csv"></i> <span>CSV</span>
+            <button class="luft-ribbon-btn secondary" id="btnCsv">
+                <i class="fas fa-file-csv"></i> <span>Exportar</span>
             </button>
-            <button class="ribbon-btn" id="btnIntergrupo">
+            <button class="luft-ribbon-btn warning" id="btnIntergrupo">
                 <i class="fas fa-cogs"></i> <span>Gerar Inter.</span>
             </button>
         </div>
 
-        <div class="ribbon-status">
-            <span id="lblStatus">Pronto</span>
+        <div class="luft-ribbon-status">
+            <div class="status-indicator"></div>
+            <span id="lblStatus">Sistema Pronto</span>
         </div>
     </div>
 
-    <div class="grid-container">
-        <div id="loader" class="loader-overlay"><div class="spinner"></div></div>
+    <div class="luft-grid-container">
+        <div id="loader" class="luft-loader-overlay"><div class="luft-spinner"></div></div>
         
-        <table class="excel-table" id="mainTable">
-            <thead>
-                <tr id="headerRow"></tr>
-            </thead>
-            <tbody id="tableBody">
-                </tbody>
-            <tfoot id="tableFoot">
-                </tfoot>
+        <table class="luft-excel-table" id="mainTable">
+            <thead><tr id="headerRow"></tr></thead>
+            <tbody id="tableBody"></tbody>
+            <tfoot id="tableFoot"></tfoot>
         </table>
     </div>
 </div>
 
-<div id="contextMenu" class="context-menu">
+<div id="contextMenu" class="luft-context-menu">
     <ul>
-        <li data-action="APROVAR"><i class="fas fa-check-circle ctx-icon text-green"></i> Aprovar</li>
-        <li data-action="REPROVAR"><i class="fas fa-times-circle ctx-icon text-red"></i> Reprovar</li>
-        <li class="separator"></li>
-        <li data-action="HISTORICO"><i class="fas fa-history ctx-icon"></i> Ver Histórico</li>
-        <li class="separator"></li>
-        <li data-action="INVALIDAR"><i class="fas fa-ban ctx-icon"></i> Invalidar Linha</li>
-        <li data-action="RESTAURAR"><i class="fas fa-trash-restore ctx-icon text-blue"></i> Restaurar</li>
+        <li data-action="APROVAR"><i class="fas fa-check-circle text-success me-2"></i> Aprovar Ajuste</li>
+        <li data-action="REPROVAR"><i class="fas fa-times-circle text-danger me-2"></i> Reprovar Ajuste</li>
+        <li class="luft-menu-separator"></li>
+        <li data-action="HISTORICO"><i class="fas fa-history text-info me-2"></i> Ver Histórico</li>
+        <li class="luft-menu-separator"></li>
+        <li data-action="INVALIDAR"><i class="fas fa-ban text-muted me-2"></i> Invalidar Linha</li>
+        <li data-action="RESTAURAR"><i class="fas fa-trash-restore text-primary me-2"></i> Restaurar Linha</li>
     </ul>
 </div>
 
-<div id="modalHistory" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <span>Histórico de Alterações</span>
-            <span style="cursor:pointer;" onclick="document.getElementById('modalHistory').classList.remove('show')">&times;</span>
+<div id="modalHistory" class="luft-modal-backdrop">
+    <div class="luft-modal-window" style="max-width: 700px;">
+        <div class="luft-modal-header">
+            <h5 class="m-0 font-bold"><i class="fas fa-history text-primary me-2"></i> Histórico de Alterações</h5>
+            <button class="luft-close-btn" onclick="document.getElementById('modalHistory').classList.remove('show')"><i class="fas fa-times"></i></button>
         </div>
-        <div class="modal-body">
-            <table class="history-table">
-                <thead><tr><th>Data</th><th>Usuário</th><th>Campo</th><th>De</th><th>Para</th></tr></thead>
+        <div class="luft-modal-body p-0">
+            <table class="luft-table-modern m-0 w-100">
+                <thead><tr><th>Data</th><th>Usuário</th><th>Campo</th><th>Valor Anterior</th><th>Valor Novo</th></tr></thead>
                 <tbody id="historyBody"></tbody>
             </table>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
