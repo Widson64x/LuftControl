@@ -56,14 +56,57 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             `);
         }
 
-        showError(msg) {
-            this.setContent(`
-                <div class="luft-modal-content-wrapper p-5" style="height: 100%; background: var(--luft-bg-app);">
-                    <div style="background: var(--luft-danger-50); border: 1px solid var(--luft-danger-200); color: var(--luft-danger-700); padding: 20px; border-radius: var(--luft-radius-lg);">
-                        <i class="fas fa-exclamation-triangle me-2"></i> ${msg}
+        showError(errorObj) {
+            // Extrai a mensagem de forma segura
+            const msg = typeof errorObj === 'string' ? errorObj : (errorObj.message || String(errorObj));
+            
+            // Detecta automaticamente se é um erro de Permissão/Autenticação
+            const isAuthError = msg.includes('403') || msg.toLowerCase().includes('acesso negado') || msg.toLowerCase().includes('permissão');
+            
+            // Limpa a mensagem técnica feia para exibição ao usuário
+            let cleanMsg = msg.replace('Error: HTTP Error: 403', '').replace('403 FORBIDDEN', '').replace('Error: ', '').trim();
+            
+            if (isAuthError && cleanMsg.length < 5) {
+                cleanMsg = "Seu grupo de usuário não possui as permissões necessárias para visualizar este módulo.";
+            }
+
+            if (isAuthError) {
+                // Tela de Acesso Restrito embutida no Modal (Padrão LuftCore)
+                this.setContent(`
+                    <div class="luft-modal-content-wrapper d-flex flex-column align-items-center justify-content-center animate-slide-up" style="height: 100%; min-height: 350px; background: var(--luft-bg-app);">
+                        <div class="luft-error-icon-box text-warning bg-warning-light mb-4 shadow-sm" style="width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-lock" style="font-size: 3.5rem;"></i>
+                        </div>
+                        <h3 class="font-black text-2xl text-main m-0">Acesso Restrito</h3>
+                        
+                        <p class="text-muted mt-3 max-w-md text-center text-sm font-medium">
+                            Você não possui permissão para acessar este relatório.
+                            <br>
+                            <span class="text-xs opacity-75 font-normal mt-1 d-block">${cleanMsg}</span>
+                        </p>
+                        <br>
+                        <button class="btn btn-outline mt-5" onclick="window.fecharModal()">
+                            <i class="fas fa-times"></i> Fechar Relatório
+                        </button>
                     </div>
-                </div>
-            `);
+                `);
+            } else {
+                // Tela de Erro Genérico/500
+                this.setContent(`
+                    <div class="luft-modal-content-wrapper d-flex flex-column align-items-center justify-content-center animate-slide-up" style="height: 100%; min-height: 350px; background: var(--luft-bg-app);">
+                        <div class="luft-error-icon-box text-danger bg-danger-light mb-4 shadow-sm" style="width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 3rem;"></i>
+                        </div>
+                        <h3 class="font-black text-xl text-main m-0">Falha no Processamento</h3>
+                        <div class="bg-panel border rounded-lg p-3 mt-4 text-xs text-danger text-center max-w-lg w-full" style="word-break: break-word;">
+                            ${cleanMsg || "O servidor não conseguiu processar a requisição."}
+                        </div>
+                        <button class="btn btn-outline mt-4" onclick="window.fecharModal()">
+                            <i class="fas fa-times"></i> Fechar
+                        </button>
+                    </div>
+                `);
+            }
         }
     }
 

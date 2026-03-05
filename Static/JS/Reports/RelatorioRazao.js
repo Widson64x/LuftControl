@@ -50,7 +50,8 @@ class RelatorioRazao {
             this.renderView(respData, respSummary);
         } catch (error) {
             console.error(error);
-            this.modal.showError(`Erro ao carregar Razão: ${error.message}`);
+            // Repassa o objeto de erro inteiro para o Modal analisar
+            this.modal.showError(error);
         }
     }
 

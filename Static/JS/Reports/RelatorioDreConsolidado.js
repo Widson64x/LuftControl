@@ -116,7 +116,15 @@ class RelatorioDreConsolidado {
             
         } catch (error) {
             console.error(error);
-            if (container) container.innerHTML = `<div class="p-4 text-center" style="color: var(--luft-danger-600);">Erro: ${error.message}</div>`;
+            const isAuth = String(error).includes('403');
+            if (container) {
+                container.innerHTML = `
+                    <div class="d-flex flex-column align-items-center justify-content-center p-5 text-center h-100">
+                        <i class="fas ${isAuth ? 'fa-lock text-warning' : 'fa-exclamation-triangle text-danger'} mb-3" style="font-size: 3rem;"></i>
+                        <h5 class="text-main font-bold">${isAuth ? 'Acesso Revogado' : 'Erro ao atualizar dados'}</h5>
+                        <span class="text-muted text-sm mt-1">${isAuth ? 'Você não tem permissão para carregar estes filtros.' : error.message}</span>
+                    </div>`;
+            }
         } finally {
             this.isLoading = false;
         }
@@ -610,8 +618,8 @@ class RelatorioDreConsolidado {
             this.renderInterface();
 
         } catch (error) {
-            console.error(error);
-            this.modal.showError(`Erro no DRE Consolidado: ${error.message}`);
+            console.error(error)
+            this.modal.showError(error);
         }
     }
     
