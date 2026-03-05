@@ -1,396 +1,93 @@
 /* ==========================================================================
-   Luft Control | ENTERPRISE LOGIN SYSTEM
+   Luft Control | ENTERPRISE LOGIN SYSTEM (LuftCore Framework)
    Arquivo: Static/CSS/Login.css
-   Estilo: Clean, Professional, Systemic UI
-   Baseado em: Themes.css Variables
    ========================================================================== */
 
-/* --------------------------------------------------------------------------
-   1. LAYOUT & BACKGROUND
-   -------------------------------------------------------------------------- */
-.sys-login-wrapper {
-    position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
-    background-color: var(--bg-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    font-family: var(--font-primary);
-    overflow: hidden;
-}
-
-/* Efeito de Grid Sutil no Fundo (Aparência Técnica) */
-.sys-background-grid {
+/* Efeito de Grid Sutil no Fundo (Baseado nas cores do tema) */
+.luft-login-grid {
     position: absolute;
     inset: 0;
     background-image: 
-        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        linear-gradient(var(--luft-border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--luft-border) 1px, transparent 1px);
     background-size: 40px 40px;
     z-index: 0;
-    mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
-    -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+    mask-image: radial-gradient(circle at center, black 30%, transparent 90%);
+    -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 90%);
+    opacity: 0.6;
 }
 
-/* --------------------------------------------------------------------------
-   2. CONTAINER PRINCIPAL (CARD)
-   -------------------------------------------------------------------------- */
-.sys-login-container {
-    position: relative;
-    z-index: 10;
-    width: 100%;
-    max-width: 440px;
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-lg);
+/* Container Principal e Animação */
+.luft-login-container {
     box-shadow: 
-        0 0 0 1px rgba(0, 0, 0, 0.2), /* Borda interna sutil */
-        0 20px 50px rgba(0, 0, 0, 0.4), /* Sombra profunda */
-        0 0 100px rgba(var(--primary-rgb), 0.1); /* Glow ambiente muito sutil */
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        0 20px 50px rgba(0, 0, 0, 0.1), 
+        0 0 100px rgba(37, 99, 235, 0.05); /* Glow sutil utilizando o tom de azul primário */
+    animation: loginSlideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes slideUpFade {
+@keyframes loginSlideUpFade {
     from { opacity: 0; transform: translateY(20px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* --------------------------------------------------------------------------
-   3. HEADER & BRANDING
-   -------------------------------------------------------------------------- */
-.sys-login-header {
-    padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-lg);
-    border-bottom: 1px solid var(--border-secondary);
-    background: linear-gradient(to bottom, var(--bg-tertiary), var(--bg-secondary));
-}
-
-.sys-brand {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-}
-
-.sys-brand-icon {
-    width: 48px;
-    height: 48px;
-    background: var(--gradient-primary);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    color: white;
-    box-shadow: var(--shadow-md);
-}
-
-.sys-brand-text {
-    display: flex;
-    flex-direction: column;
-}
-
-.sys-brand-text h1 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0;
-    letter-spacing: -0.02em;
-}
-
-.sys-brand-text span {
-    font-size: 0.8rem;
-    color: var(--primary-light);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-/* --------------------------------------------------------------------------
-   4. BODY & FORMULÁRIO
-   -------------------------------------------------------------------------- */
-.sys-login-body {
-    padding: var(--spacing-xl);
-}
-
-.sys-welcome-text {
-    margin-bottom: var(--spacing-xl);
-}
-
-.sys-welcome-text h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 var(--spacing-xs);
-}
-
-.sys-welcome-text p {
-    font-size: 0.95rem;
-    color: var(--text-secondary);
-    margin: 0;
-}
-
-/* Inputs */
-.sys-input-group {
-    margin-bottom: var(--spacing-lg);
-}
-
-.sys-label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
-}
-
-.sys-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.sys-input-icon {
-    position: absolute;
-    left: 16px;
-    color: var(--text-tertiary);
-    font-size: 1rem;
-    pointer-events: none;
+/* Interação de Foco nos Inputs com Ícone */
+.form-group:focus-within i.ph-user,
+.form-group:focus-within i.ph-lock-key {
+    color: var(--luft-primary-600) !important;
     transition: color 0.2s ease;
 }
 
-.sys-input {
-    width: 100%;
-    padding: 12px 16px 12px 48px; /* Espaço para o ícone */
-    background-color: var(--bg-primary);
-    border: 1px solid var(--border-secondary);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-size: 0.95rem;
-    font-family: var(--font-primary);
-    transition: all 0.2s ease;
-}
-
-.sys-input::placeholder {
-    color: var(--text-tertiary);
-    opacity: 0.7;
-}
-
-/* Estados de Foco */
-.sys-input:hover {
-    border-color: var(--border-primary);
-}
-
-.sys-input:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
-    background-color: var(--bg-hover);
-}
-
-.sys-input:focus + .sys-input-icon, /* Se o ícone vier depois no HTML */
-.sys-input-wrapper:focus-within .sys-input-icon {
-    color: var(--primary);
-}
-
-/* --------------------------------------------------------------------------
-   5. AÇÕES (CHECKBOX E LINK)
-   -------------------------------------------------------------------------- */
-.sys-form-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-xl);
-}
-
-/* Checkbox Customizado */
-.sys-checkbox {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    user-select: none;
-}
-
-.sys-checkbox input {
-    display: none;
-}
-
-.sys-checkmark {
-    width: 18px;
-    height: 18px;
-    border: 1px solid var(--border-primary);
-    background-color: var(--bg-primary);
-    border-radius: 4px;
-    margin-right: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.sys-checkmark::after {
-    content: '\f00c'; /* FontAwesome Check */
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-    color: white;
-    font-size: 10px;
-    opacity: 0;
-    transform: scale(0.5);
-    transition: all 0.2s ease;
-}
-
-.sys-checkbox input:checked + .sys-checkmark {
-    background-color: var(--primary);
-    border-color: var(--primary);
-}
-
-.sys-checkbox input:checked + .sys-checkmark::after {
-    opacity: 1;
-    transform: scale(1);
-}
-
-.sys-checkbox-label {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
-
-/* Link */
-.sys-link {
-    font-size: 0.9rem;
-    color: var(--primary);
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s;
-}
-
-.sys-link:hover {
-    color: var(--primary-light);
-    text-decoration: underline;
-}
-
-/* --------------------------------------------------------------------------
-   6. BOTÃO PRINCIPAL
-   -------------------------------------------------------------------------- */
-.sys-btn-submit {
-    width: 100%;
-    padding: 14px;
-    background-color: var(--primary);
-    color: white;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.sys-btn-submit:hover {
-    background-color: var(--primary-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 12px rgba(var(--primary-rgb), 0.25);
-}
-
-.sys-btn-submit:active {
-    transform: translateY(0);
-    box-shadow: none;
-}
-
-.sys-btn-submit .btn-icon {
-    transition: transform 0.2s;
-}
-
-.sys-btn-submit:hover .btn-icon {
-    transform: translateX(4px);
-}
-
-/* --------------------------------------------------------------------------
-   7. FOOTER
-   -------------------------------------------------------------------------- */
-.sys-login-footer {
-    padding: var(--spacing-md) var(--spacing-xl);
-    background-color: var(--bg-tertiary);
-    border-top: 1px solid var(--border-primary);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.75rem;
-}
-
-.sys-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--text-secondary);
-}
-
+/* Status Dot (Rodapé) */
 .status-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background-color: var(--text-tertiary);
+    background-color: var(--luft-text-muted);
 }
 
 .status-dot.online {
-    background-color: var(--success);
-    box-shadow: 0 0 6px var(--success);
+    background-color: var(--luft-success-500);
+    box-shadow: 0 0 6px var(--luft-success-400);
 }
 
-.sys-copyright {
-    color: var(--text-tertiary);
+/* Checkbox Customizado */
+.luft-checkbox {
+    accent-color: var(--luft-primary-600);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
 }
 
-/* --------------------------------------------------------------------------
-   8. RESPONSIVIDADE
-   -------------------------------------------------------------------------- */
+/* Link Hover */
+.luft-link {
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.luft-link:hover {
+    color: var(--luft-primary-400);
+    text-decoration: underline;
+}
+
+/* Responsividade Agressiva para Mobile */
 @media (max-width: 480px) {
-    .sys-login-container {
-        max-width: 100%;
-        height: 100%;
+    .luft-login-container {
+        max-width: 100% !important;
+        height: 100vh;
         border-radius: 0;
         border: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-shadow: none;
     }
     
-    .sys-login-wrapper {
-        background-color: var(--bg-secondary);
+    .luft-login-container > div:first-child {
+        border-radius: 0;
     }
-}
-
-/* --------------------------------------------------------------------------
-   9. SUPORTE A TEMA CLARO
-   -------------------------------------------------------------------------- */
-[data-theme="light"] .sys-login-container {
-    background-color: #FFFFFF;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="light"] .sys-login-header {
-    background: #F8FAFC;
-    border-bottom-color: #E2E8F0;
-}
-
-[data-theme="light"] .sys-input {
-    background-color: #F8FAFC;
-    border-color: #CBD5E1;
-    color: #1E293B;
-}
-
-[data-theme="light"] .sys-input:focus {
-    background-color: #FFFFFF;
-}
-
-[data-theme="light"] .sys-background-grid {
-    background-image: 
-        linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-}
-
-[data-theme="light"] .sys-login-footer {
-    background-color: #F1F5F9;
-    border-top-color: #E2E8F0;
+    
+    .luft-login-container > div:last-child {
+        border-radius: 0;
+        margin-top: auto; /* Empurra o rodapé para o fim da tela */
+    }
 }
