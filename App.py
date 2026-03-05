@@ -76,7 +76,12 @@ luftcore_app = LuftCorePackages(
     inject_theme=True,         # Injeta CSS de temas
     inject_global=True,        # Injeta CSS global estrutural
     inject_animations=True,    # Injeta animações CSS
-    inject_js=True             # Injeta o base.js do LuftCore
+    inject_js=True,             # Injeta o base.js do LuftCore
+
+    show_topbar=True,         # Se meteres False, a barra de cima desaparece toda
+    show_search=False,        # Oculta a barra de pesquisa
+    show_notifications=False, # Oculta o botão do sininho
+    show_breadcrumb=True      # Mantém os breadcrumbs automáticos ativados
 )
 
 # --- Registro de Blueprints ---

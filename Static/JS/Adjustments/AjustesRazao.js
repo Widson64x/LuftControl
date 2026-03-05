@@ -7,7 +7,6 @@ const ExcelGrid = {
     rawData: [], viewData: [], filters: {}, excelFilters: {}, sort: { key: null, asc: true },
     isEditing: false, ctxIndex: -1,
     
-    // Aumentei a altura da linha para um visual mais Premium/Limpo
     rowHeight: 32, 
 
     columns: [
@@ -26,6 +25,31 @@ const ExcelGrid = {
         { key: 'Saldo', title: 'Saldo', width: 120, type: 'money', readonly: true, formula: true },
         { key: 'NaoOperacional', title: 'N.Op', width: 60, type: 'bool', align: 'center' }
     ],
+
+    // --- NOVO SISTEMA DE MENSAGENS LUFTCORE ---
+    showToast: function(msg, type = 'success') {
+        const toast = document.createElement('div');
+        // Define as cores baseadas no tipo de mensagem
+        const bgColor = type === 'error' ? 'var(--luft-danger-600)' : (type === 'warning' ? 'var(--luft-warning-600)' : 'var(--luft-success-600)');
+        const icon = type === 'error' ? 'fa-exclamation-triangle' : (type === 'warning' ? 'fa-exclamation-circle' : 'fa-check-circle');
+        
+        toast.innerHTML = `<i class="fas ${icon} me-2"></i> ${msg}`;
+        toast.style.cssText = `
+            position: fixed; bottom: 20px; right: 20px; background: ${bgColor}; color: white;
+            padding: 12px 24px; border-radius: var(--luft-radius-md); box-shadow: var(--luft-shadow-lg);
+            z-index: 9999; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center;
+            animation: slideDownMenu 0.3s ease forwards;
+        `;
+        document.body.appendChild(toast);
+        
+        // Remove automaticamente após 4 segundos com um efeito suave
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(10px)';
+            toast.style.transition = 'all 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    },
 
     init: function() {
         this.cacheDOM();
@@ -90,19 +114,22 @@ const ExcelGrid = {
         try {
             const ano = this.dom.tbAno.value;
             const mes = this.dom.tbMes.value;
-            const res = await fetch(`${API.getDados}?ano=${ano}&mes=${mes}`);
-            const json = await res.json();
-            if(json.error) throw new Error(json.error);
-
-            this.rawData = json;
+            
+            // Usando APIUtils do LuftCore! Ele já desempacota o JSON e trata os erros de permissão
+            const data = await APIUtils.get(`${API.getDados}?ano=${ano}&mes=${mes}`);
+            
+            this.rawData = data;
             this.excelFilters = {}; 
             this.filters = {};
             document.querySelectorAll('.luft-filter-input').forEach(i => i.value = '');
             
             this.applyFilters(); 
             this.updateStatus(`${this.rawData.length} registros carregados.`);
-        } catch (e) { alert("Erro: " + e.message); } 
-        finally { this.toggleLoader(false); }
+        } catch (e) { 
+            this.showToast(e.message, 'error'); 
+        } finally { 
+            this.toggleLoader(false); 
+        }
     },
 
     renderHeader: function() {
@@ -400,18 +427,27 @@ const ExcelGrid = {
         if (this.ctxIndex < 0) return;
         const row = this.viewData[this.ctxIndex], id = row.Id, fonte = row.Fonte;
         if (action === 'HISTORICO') { this.openHistory(id, fonte); return; }
-        if (!id || !fonte) return alert("Salve a linha primeiro!");
+        if (!id || !fonte) {
+            this.showToast("Salve a linha primeiro antes de executar essa ação!", "warning");
+            return;
+        }
 
         this.toggleLoader(true);
         try {
             let url = API.aprovar, body = { Id: id, Fonte: fonte };
             if (action === 'APROVAR') body.Acao = 'Aprovar'; else if (action === 'REPROVAR') body.Acao = 'Reprovar';
             else if (action === 'INVALIDAR' || action === 'RESTAURAR') { url = API.statusInvalido; body.Acao = action; }
-            const res = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
-            const json = await res.json();
-            if (json.msg === 'OK' || json.msg.includes('sucesso')) { this.loadData(); this.updateStatus(`Ação concluída.`); }
-            else alert("Erro: " + (json.error || "Desconhecido"));
-        } catch (e) { alert("Erro API: " + e.message); } finally { this.toggleLoader(false); }
+            
+            // Usando o post do LuftCore
+            await APIUtils.post(url, body);
+            
+            this.loadData(); 
+            this.showToast("Ação concluída com sucesso.");
+        } catch (e) { 
+            this.showToast(e.message, "error"); 
+        } finally { 
+            this.toggleLoader(false); 
+        }
     },
 
     addNewRow: function() {
@@ -423,32 +459,47 @@ const ExcelGrid = {
         try {
             const isCriacao = (row.Tipo_Linha === 'Inclusao' && !row.Id);
             const payload = { ...row }; if (isCriacao) delete payload.Id;
-            const res = await fetch(isCriacao ? API.criar : API.salvar, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ Tipo_Operacao: isCriacao ? 'INCLUSAO' : 'EDICAO', Dados: payload, Id: row.Id, Fonte: row.Fonte }) });
-            const json = await res.json();
-            if (json.id) { row.Id = json.id; if (row.Status_Ajuste === 'Original' || !row.Status_Ajuste) row.Status_Ajuste = 'Pendente'; this.updateStatus(isCriacao ? "Criado!" : "Salvo!"); }
-            else alert("Erro: " + (json.error || JSON.stringify(json)));
-        } catch (e) { alert("Erro ao salvar."); } finally { this.renderBody(); }
+            
+            const res = await APIUtils.post(isCriacao ? API.criar : API.salvar, { Tipo_Operacao: isCriacao ? 'INCLUSAO' : 'EDICAO', Dados: payload, Id: row.Id, Fonte: row.Fonte });
+            
+            if (res && res.id) { 
+                row.Id = res.id; 
+                if (row.Status_Ajuste === 'Original' || !row.Status_Ajuste) row.Status_Ajuste = 'Pendente'; 
+                this.showToast(isCriacao ? "Lançamento criado no banco!" : "Alteração salva!");
+            }
+        } catch (e) { 
+            this.showToast(e.message, "error"); 
+        } finally { 
+            this.renderBody(); 
+        }
     },
 
     gerarIntergrupo: async function() {
         const ano = this.dom.tbAno.value, mes = this.dom.tbMes.value;
-        if (!ano || !mes) return alert("Preencha Ano e Mês.");
+        if (!ano || !mes) return this.showToast("Preencha Ano e Mês.", "warning");
         if(!confirm(`Gerar ajustes intergrupo para ${mes}/${ano}?`)) return;
+        
         this.toggleLoader(true);
         try {
-            const res = await fetch('/LuftControl/Adjustments/api/gerar-intergrupo', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ano: parseInt(ano), mes: parseInt(mes) }) });
-            const json = await res.json();
-            if(json.error) throw new Error(json.error);
-            alert("Logs gerados: " + (json.logs ? json.logs.length : 0)); this.loadData();
-        } catch(e) { alert("Erro: " + e.message); } finally { this.toggleLoader(false); }
+            const logs = await APIUtils.post('/LuftControl/Adjustments/api/gerar-intergrupo', { ano: parseInt(ano), mes: parseInt(mes) });
+            this.showToast(`Concluído! ${logs ? logs.length : 0} logs gerados.`, "success");
+            this.loadData();
+        } catch(e) { 
+            this.showToast(e.message, "error"); 
+        } finally { 
+            this.toggleLoader(false); 
+        }
     },
 
     openHistory: async function(id, fonte) {
         if (!id || !fonte) return;
-        const res = await fetch(`${API.historico}?id=${id}&fonte=${fonte}`); const data = await res.json();
-        if (data.error) return alert("Erro: " + data.error);
-        document.getElementById('historyBody').innerHTML = data.map(l => `<tr><td>${l.Data}</td><td>${l.Usuario}</td><td>${l.Campo}</td><td class="text-danger">${l.De}</td><td class="text-success font-bold">${l.Para}</td></tr>`).join('');
-        document.getElementById('modalHistory').classList.add('show');
+        try {
+            const data = await APIUtils.get(`${API.historico}?id=${id}&fonte=${fonte}`);
+            document.getElementById('historyBody').innerHTML = data.map(l => `<tr><td>${l.Data}</td><td>${l.Usuario}</td><td>${l.Campo}</td><td class="text-danger">${l.De}</td><td class="text-success font-bold">${l.Para}</td></tr>`).join('');
+            document.getElementById('modalHistory').classList.add('show');
+        } catch (e) {
+            this.showToast(e.message, "error");
+        }
     },
 
     formatValue: function(val, type) {

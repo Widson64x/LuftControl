@@ -27,6 +27,13 @@
         ativo=(request.endpoint == 'Relatorios.PaginaRelatorios')) 
     }}
 
+        {# --- ITEM NORMAL (Raiz) --- #}
+    {{ ui.nav_item('Ajuste Manuais', 
+        icone='ph-bold ph-sliders-horizontal', 
+        href=url_for('Ajustes.Index'), 
+        ativo=(request.endpoint == 'Ajustes.Index')) 
+    }}
+
     {# --- ITEM COM SUBMENU (Árvore) --- #}
     {% call ui.nav_item('Sistema', icone='ph-bold ph-gear', ativo=('Settings' in request.endpoint)) %}
         
