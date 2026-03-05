@@ -95,7 +95,7 @@ class RelatorioDreConsolidado {
         try {
             let urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getDreConsolidadoData) 
                     ? API_ROUTES.getDreConsolidadoData 
-                    : '/Reports/RelatorioRazao/DreConsolidado';
+                    : '/Relatorios/RelatorioRazao/DreConsolidado';
 
             const scaleParam = this.dreState.scaleMode;
             const ccParam = encodeURIComponent(this.dreState.selectedCCs.join(','));
@@ -434,7 +434,7 @@ class RelatorioDreConsolidado {
     async loadCCList() {
         if (this.dreState.listaCCs.length > 0) return; 
         try {
-            const url = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getListaCCs) ? API_ROUTES.getListaCCs : '/Reports/RelatorioRazao/ListaCentrosCusto';
+            const url = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getListaCCs) ? API_ROUTES.getListaCCs : '/Relatorios/RelatorioRazao/ListaCentrosCusto';
             const lista = await APIUtils.get(url);
             if(lista && Array.isArray(lista)) this.dreState.listaCCs = lista;
         } catch (e) { console.error("Erro ao carregar lista de CCs:", e); }
@@ -589,7 +589,7 @@ class RelatorioDreConsolidado {
         this.modal.showLoading('Calculando DRE Consolidado...');
 
         try {
-            const urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getDreConsolidadoData) ? API_ROUTES.getDreConsolidadoData : '/Reports/RelatorioRazao/DreConsolidado';
+            const urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getDreConsolidadoData) ? API_ROUTES.getDreConsolidadoData : '/Relatorios/RelatorioRazao/DreConsolidado';
             const ccParam = encodeURIComponent(this.dreState.selectedCCs.join(','));
             const scaleParam = this.dreState.scaleMode; 
             const anoParam = this.dreState.selectedYear;

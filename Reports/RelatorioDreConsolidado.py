@@ -31,14 +31,20 @@ class RelatorioDreConsolidado:
         dre_base = RelatorioDreGerencial(self.session)
         return dre_base._ObterOrdemSubgruposPorContexto()
 
-    def _DeterminarColuna(self, origem, centro_custo, conta, is_nao_operacional, is_intergrupo):
+    # PASSO 2: Adicionado o parâmetro 'item_cod'
+    def _DeterminarColuna(self, origem, centro_custo, conta, is_nao_operacional, is_intergrupo, filial_cliente=None, item_cod=None):
         origem = str(origem).upper().strip() if origem else ''
         cc = str(centro_custo).upper().strip() if centro_custo else ''
+        filial = str(filial_cliente).upper().strip() if filial_cliente else ''
+        
+        # Tratamento da nova variável 'item_cod'
+        item = str(item_cod).strip() if item_cod else ''
         
         if is_intergrupo:
             return 'INTERGRUPO'
             
-        if is_nao_operacional:
+        # PASSO 4: Nova regra! Verifica o Item em vez de 'is_nao_operacional'
+        if item == '10190':
             if origem == 'INTEC': return 'NAO_OPER_INTEC'
             if origem in ['FARMA', 'FARMADIST']: return 'NAO_OPER_FARMA'
             return 'NAO_OPER_FARMA'
@@ -49,7 +55,7 @@ class RelatorioDreConsolidado:
             return 'FARMA_DIST'
         elif origem == 'FARMA':
             if 'POLO' in cc: return 'POLO'
-            if 'JANDIRA' in cc: return 'JANDIRA'
+            if 'JANDIRA' in filial: return 'JANDIRA' 
             if 'CABREUVA' in cc: return 'CABREUVA'
             return 'FARMA'
             
@@ -69,10 +75,11 @@ class RelatorioDreConsolidado:
 
             aggregated_data = {}
 
-            def ProcessRow(origem, conta, titulo, saldo, cc_original_str, is_nao_operacional=False, is_intergrupo=False, is_skeleton=False, forced_match=None):
-                if not is_skeleton and is_nao_operacional:
-                    conta = '00000000000'
-                    titulo = 'Não Operacionais'
+            # PASSO 2: Adicionado 'item_cod' aos parâmetros
+            def ProcessRow(origem, conta, titulo, saldo, cc_original_str, is_nao_operacional=False, is_intergrupo=False, is_skeleton=False, forced_match=None, filial_cliente=None, item_cod=None):
+                
+                # PASSO 3: O bloco de código que transformava a conta em '00000000000' foi removido
+                # para que possas visualizar exatamente as contas originais.
 
                 match = forced_match
                 if not match:
@@ -129,7 +136,8 @@ class RelatorioDreConsolidado:
                         aggregated_data[group_key]['Ordem_Conta'] = match.Ordem_Conta
 
                 if not is_skeleton and saldo != 0:
-                    coluna_alvo = self._DeterminarColuna(origem, cc_original_str, conta, is_nao_operacional, is_intergrupo)
+                    # Passamos também o item_cod para _DeterminarColuna
+                    coluna_alvo = self._DeterminarColuna(origem, cc_original_str, conta, is_nao_operacional, is_intergrupo, filial_cliente, item_cod)
                     if coluna_alvo and coluna_alvo in self.colunas:
                         val_inv = saldo * -1 
                         aggregated_data[group_key][coluna_alvo] += val_inv
@@ -138,7 +146,7 @@ class RelatorioDreConsolidado:
             for conta_def, lista_regras in definitions.items():
                 titulo_conta = mapa_titulos.get(conta_def, "Conta Configurada")
                 for regra in lista_regras:
-                    ProcessRow("Config", conta_def, titulo_conta, 0.0, None, False, False, is_skeleton=True, forced_match=regra)
+                    ProcessRow("Config", conta_def, titulo_conta, 0.0, None, False, False, is_skeleton=True, forced_match=regra, filial_cliente=None, item_cod=None)
 
             params = {}
             where_clause = 'WHERE "Invalido" = false'
@@ -146,17 +154,21 @@ class RelatorioDreConsolidado:
                 params['ano'] = int(ano)
                 where_clause += ' AND EXTRACT(YEAR FROM "Data") = :ano'
 
+            # PASSO 1: Adicionada a coluna "Item" à consulta SQL
             sql_raw = text(f"""
-                SELECT "origem", "Conta", "Título Conta", "Centro de Custo", "Saldo", "Is_Nao_Operacional", "Tipo_Operacao"
+                SELECT "origem", "Conta", "Título Conta", "Centro de Custo", "Saldo", "Is_Nao_Operacional", "Tipo_Operacao", "Filial Cliente", "Item"
                 FROM "Dre_Schema"."Tb_CTL_Razao_Consolidado" {where_clause}
             """)
             raw_rows = self.session.execute(sql_raw, params).fetchall()
 
             for row in raw_rows:
                 is_intergrupo = (row.Tipo_Operacao == 'INTERGRUPO_AUTO')
+                # Enviando getattr(row, 'Item', None)
                 ProcessRow(
                     row.origem, row.Conta, getattr(row, 'Título Conta'), row.Saldo, 
-                    getattr(row, 'Centro de Custo'), row.Is_Nao_Operacional, is_intergrupo, is_skeleton=False
+                    getattr(row, 'Centro de Custo'), row.Is_Nao_Operacional, is_intergrupo, 
+                    is_skeleton=False, filial_cliente=getattr(row, 'Filial Cliente', None),
+                    item_cod=getattr(row, 'Item', None)
                 )
 
             final_list = list(aggregated_data.values())
