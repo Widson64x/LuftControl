@@ -1,81 +1,112 @@
 /* ============================================
-   HOME / DASHBOARD STYLES
-   Dependência: Global.css
+   HOME / DASHBOARD STYLES - LUFTCORE
+   Totalmente integrado às variáveis do framework
    ============================================ */
 
-.hero-section {
+.luft-hero-section {
     text-align: center;
-    padding: var(--spacing-3xl) var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
+    padding: 3rem 1.5rem;
+    margin-bottom: 2rem;
 }
 
-.welcome-title {
-    font-size: var(--font-4xl);
-    font-weight: var(--font-weight-extrabold);
-    margin-bottom: var(--spacing-sm);
-    background: var(--gradient-primary);
+.luft-welcome-title {
+    font-size: 2.5rem;
+    font-weight: 900;
+    margin-bottom: 0.5rem;
+    /* Gradiente adaptado para usar as cores primárias do LuftCore */
+    background: linear-gradient(135deg, var(--luft-primary-600, #2563eb), var(--luft-primary-400, #60a5fa));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
-.welcome-subtitle {
-    font-size: var(--font-lg);
-    color: var(--text-secondary);
-    max-width: 600px; margin: 0 auto;
+.luft-welcome-subtitle {
+    font-size: 1.125rem;
+    color: var(--luft-text-muted);
+    max-width: 600px; 
+    margin: 0 auto;
 }
 
-/* Grid de Módulos */
-.modules-grid {
+/* Grid de Módulos Nativa */
+.luft-modules-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: var(--spacing-xl);
-    padding: 0 var(--spacing-md);
+    gap: 1.5rem;
+    padding: 0 1rem;
 }
 
-.module-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-2xl) var(--spacing-xl);
+.luft-module-card {
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border);
+    border-radius: 12px;
+    padding: 2.5rem 1.5rem;
     text-align: center;
     display: block;
     position: relative;
     overflow: hidden;
-    transition: var(--transition-normal);
+    transition: all 0.3s ease;
+    text-decoration: none;
 }
 
-.module-card::before {
-    content: ''; position: absolute;
+/* Barra superior gradiente no hover */
+.luft-module-card::before {
+    content: ''; 
+    position: absolute;
     top: 0; left: 0; width: 100%; height: 4px;
-    background: var(--gradient-primary);
-    opacity: 0; transition: var(--transition-normal);
+    background: linear-gradient(90deg, var(--luft-primary-500, #3b82f6), var(--luft-primary-300, #93c5fd));
+    opacity: 0; 
+    transition: all 0.3s ease;
 }
 
-.module-card:hover {
-    transform: translateY(-10px);
-    box-shadow: var(--shadow-xl);
-    border-color: var(--primary);
+.luft-module-card:hover:not(.disabled) {
+    transform: translateY(-8px);
+    border-color: var(--luft-primary-300);
+    /* Sombra suave caso a variável não exista na página, com fallback */
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08); 
 }
-.module-card:hover::before { opacity: 1; }
 
-.module-icon {
+.luft-module-card:hover:not(.disabled)::before { 
+    opacity: 1; 
+}
+
+.luft-module-icon {
     width: 80px; height: 80px;
-    background: var(--bg-tertiary);
+    background: var(--luft-bg-app);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto var(--spacing-lg);
-    font-size: var(--font-3xl);
-    color: var(--primary);
-    transition: var(--transition-normal);
+    margin: 0 auto 1.5rem;
+    font-size: 2.5rem;
+    color: var(--luft-primary-600);
+    transition: all 0.3s ease;
 }
 
-.module-card:hover .module-icon {
-    background: var(--gradient-primary); color: white;
-    transform: scale(1.1) rotate(5deg);
+.luft-module-card:hover:not(.disabled) .luft-module-icon {
+    background: var(--luft-primary-600); 
+    color: white;
+    transform: scale(1.1);
 }
 
-.module-title { font-size: var(--font-xl); margin-bottom: var(--spacing-sm); color: var(--text-primary); }
-.module-desc { font-size: var(--font-sm); color: var(--text-secondary); line-height: 1.6; }
+.luft-module-title {
+    color: var(--luft-text-main);
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
 
-.module-card.disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
-.module-card.disabled:hover { transform: none; box-shadow: none; border-color: var(--border-primary); }
+.luft-module-desc {
+    color: var(--luft-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+/* Estado Desabilitado Nativo */
+.luft-module-card.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--luft-glass-bg);
+}
+
+.luft-module-card.disabled .luft-module-icon {
+    color: var(--luft-text-muted);
+    background: transparent;
+    border: 1px solid var(--luft-border);
+}

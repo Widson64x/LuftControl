@@ -371,45 +371,54 @@ class TableUtils {
 /**
  * Utilitários de API
  */
+// ==========================================
+// UTILS & API COMUNICATOR GLOBAL (LuftCore Padrão)
+// ==========================================
 class APIUtils {
-    /**
-     * Faz requisição GET
-     */
     static async get(url) {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Erro ${response.status}: ${response.statusText}`);
+        const res = await fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest', // O Passaporte para o @require_ajax
+                'Accept': 'application/json'
             }
-            return await response.json();
-        } catch (error) {
-            console.error('Erro na requisição GET:', error);
-            throw error;
+        });
+        
+        if (!res.ok && res.status !== 403 && res.status !== 400) {
+            throw new Error(`HTTP Error: ${res.status}`);
         }
+        
+        const json = await res.json();
+        
+        // Trata os erros padronizados do LuftCore (api_error)
+        if (json.status === 'error' || res.status === 403) {
+            throw new Error(json.message || json.error || `Acesso Negado ou Erro (${res.status})`);
+        }
+        
+        // Desempacota o 'api_success' automaticamente
+        return json.status === 'success' ? (json.data !== undefined ? json.data : json) : json;
     }
-
-    /**
-     * Faz requisição POST
-     */
+    
     static async post(url, data) {
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) {
-                throw new Error(`Erro ${response.status}: ${response.statusText}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Erro na requisição POST:', error);
-            throw error;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest' // O Passaporte para o @require_ajax
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!res.ok && res.status !== 403 && res.status !== 400) {
+            throw new Error(`HTTP Error: ${res.status}`);
         }
+        
+        const json = await res.json();
+        
+        if (json.status === 'error' || res.status === 403) {
+            throw new Error(json.message || json.error || `Acesso Negado ou Erro (${res.status})`);
+        }
+        
+        return json.status === 'success' ? (json.data !== undefined ? json.data : json) : json;
     }
 }
 

@@ -1,18 +1,51 @@
 {% extends "Base.html" %}
+{% import 'luftcore/components.html' as ui %}
 
 {% block title %}Mapeamento e Ajustes | Luft Control{% endblock %}
 
-{% block content %}
-<div class="container fade-in" style="max-width: 1400px;">
+{% block extra_css %}
+<style>
+    .luft-page-wrapper { max-width: 1400px; margin: 0 auto; padding: var(--luft-space-8) 0; animation: luftFadeIn 0.4s ease-out; }
+    .luft-page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: var(--luft-space-8); }
     
-    <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
+    .luft-card-table { background: var(--luft-bg-panel); border: 1px solid var(--luft-border); border-radius: var(--luft-radius-xl); box-shadow: var(--luft-shadow-sm); overflow-x: auto; margin-bottom: var(--luft-space-8); }
+    
+    .luft-table-modern { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
+    .luft-table-modern th { background: var(--luft-bg-app); padding: 16px; border-bottom: 2px solid var(--luft-border-dark); border-right: 1px solid var(--luft-border-light); vertical-align: bottom; }
+    .luft-table-modern th:last-child { border-right: none; }
+    .luft-table-modern td { padding: 16px; border-bottom: 1px solid var(--luft-border-light); border-right: 1px solid var(--luft-border-light); vertical-align: top; }
+    .luft-table-modern td:last-child { border-right: none; }
+    
+    .luft-form-select {
+        width: 100%; padding: 10px 14px; border-radius: var(--luft-radius-md);
+        border: 1px solid var(--luft-border-dark); background-color: var(--luft-bg-panel);
+        color: var(--luft-text-main); font-size: var(--luft-text-sm); font-weight: 600;
+        appearance: none; cursor: pointer; transition: all 0.2s ease;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat; background-position: right 12px center; background-size: 10px;
+    }
+    .luft-form-select:focus { outline: none; border-color: var(--luft-primary-500); box-shadow: 0 0 0 3px var(--luft-primary-100); }
+    .btn-secondary{
+        background: var(--luft-danger-800) !important;
+    }
+
+    .text-main {
+        color: white !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="luft-page-wrapper">
+    
+    <div class="luft-page-header">
         <div>
-            <span class="badge" style="background: var(--primary); color: white; margin-bottom: 0.5rem;">Origem: {{ source }}</span>
-            <h2 style="font-weight: 700;">Mapeamento e Transformação</h2>
-            <p class="text-secondary">O sistema carregou suas preferências da última importação.</p>
+            <span style="background: var(--luft-primary-600); color: white; padding: 4px 10px; border-radius: var(--luft-radius-full); font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 12px; display: inline-block;">Origem: {{ source }}</span>
+            <h2 class="m-0 font-bold" style="font-size: var(--luft-text-3xl); color: var(--luft-text-main);">Mapeamento e Transformação</h2>
+            <p class="text-muted mt-2 mb-0">O sistema carregou suas preferências da última importação.</p>
         </div>
-        <div id="loadingPreview" style="display: none; color: var(--primary); font-weight: 600;">
-            <i class="fas fa-spinner fa-spin me-2"></i> Atualizando Preview...
+        <div id="loadingPreview" style="display: none; color: var(--luft-primary-600); font-weight: 700; align-items: center; gap: 8px; background: var(--luft-primary-50); padding: 8px 16px; border-radius: var(--luft-radius-full); border: 1px solid var(--luft-primary-100); font-size: var(--luft-text-sm);">
+            <i class="fas fa-spinner fa-spin"></i> Atualizando Preview...
         </div>
     </div>
 
@@ -20,34 +53,34 @@
         <input type="hidden" name="filename" id="filename" value="{{ filename }}">
         <input type="hidden" name="source" value="{{ source }}">
 
-        <div class="card" style="overflow: visible; border-radius: var(--radius-lg); border: 1px solid var(--border-primary);">
-            <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
-                <thead style="background: var(--bg-secondary); position: sticky; top: 0; z-index: 10;">
+        <div class="luft-card-table">
+            <table class="luft-table-modern">
+                <thead style="position: sticky; top: 0; z-index: 10;">
                     <tr>
-                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); text-align: left;">Coluna Excel</th>
-                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); width: 15%; text-align: left;">Amostra (Linha 5)</th>
-                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); width: 20%; text-align: left;">Transformação / Ajuste</th>
-                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); width: 5%; text-align: center;"><i class="fas fa-arrow-right"></i></th>
-                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); width: 25%; text-align: left;">Destino (Banco de Dados) <span style="color:red">*</span></th>
-                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-primary); width: 15%; background: #f8fafc; text-align: left;">Preview Final (Banco)</th>
+                        <th style="width: 15%;">Coluna Excel</th>
+                        <th style="width: 15%;">Amostra (Linha 5)</th>
+                        <th style="width: 20%;">Transformação / Ajuste</th>
+                        <th style="width: 5%; text-align: center;"><i class="fas fa-arrow-right"></i></th>
+                        <th style="width: 25%;">Destino (Banco) <span class="text-danger">*</span></th>
+                        <th style="width: 20%; background: var(--luft-bg-app);">Preview Final</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for col in excel_columns %}
-                    <tr style="border-bottom: 1px solid var(--border-primary);">
-                        <td style="padding: 1rem;">
-                            <div style="font-weight: 600; color: var(--text-primary);">{{ col }}</div>
-                            <small style="color: var(--text-tertiary);">{{ col_types[col] }}</small>
+                    <tr>
+                        <td>
+                            <div style="font-weight: 700; color: var(--luft-text-main); font-size: 13px;">{{ col }}</div>
+                            <small style="color: var(--luft-text-muted);">{{ col_types[col] }}</small>
                         </td>
 
-                        <td style="padding: 1rem; font-family: monospace; color: var(--text-secondary); background: #fff; font-size: 0.9rem;">
+                        <td style="font-family: monospace; color: var(--luft-text-secondary); background: var(--luft-bg-panel); font-size: 13px;">
                             {{ sample_row[col] }}
                         </td>
 
-                        <td style="padding: 1rem;">
-                            <select name="trans_{{ col }}" class="form-select trans-select" data-col="{{ col }}" style="font-size: 0.9rem; width: 100%;">
+                        <td>
+                            <select name="trans_{{ col }}" class="luft-form-select trans-select" data-col="{{ col }}">
                                 <option value="none" {% if not saved_transforms.get(col) %}selected{% endif %}>-- Original --</option>
-                                <option value="clean_code" style="font-weight: bold; color: #d97706;" 
+                                <option value="clean_code" style="font-weight: bold; color: var(--luft-warning-600);" 
                                     {% if saved_transforms.get(col) == 'clean_code' %}selected{% endif %}>Limpar Códigos (Apenas Números)</option>
                                 <option value="currency_br" {% if saved_transforms.get(col) == 'currency_br' %}selected{% endif %}>Moeda BR (1.000,00 -> 1000.00)</option>
                                 <option value="date_auto" {% if saved_transforms.get(col) == 'date_auto' %}selected{% endif %}>Data Automática</option>
@@ -58,16 +91,15 @@
                             </select>
                         </td>
 
-                        <td style="padding: 1rem; text-align: center; color: var(--text-tertiary);">
+                        <td style="text-align: center; color: var(--luft-text-light);">
                             <i class="fas fa-chevron-right"></i>
                         </td>
 
-                        <td style="padding: 1rem;">
-                            <select name="map_{{ col }}" class="form-select map-select" data-col="{{ col }}" style="width: 100%; border-color: var(--primary);">
-                                <option value="IGNORE" style="color: #999;">-- Ignorar Coluna --</option>
+                        <td>
+                            <select name="map_{{ col }}" class="luft-form-select map-select" data-col="{{ col }}" style="border-color: var(--luft-primary-400);">
+                                <option value="IGNORE" style="color: var(--luft-text-light);">-- Ignorar Coluna --</option>
                                 {% for db_key, db_label in db_columns.items() %}
                                     <option value="{{ db_key }}" 
-                                        {# Regra: Se existe salvo, usa o salvo. Se não, tenta bater pelo nome #}
                                         {% if saved_mapping.get(col) == db_key %}selected
                                         {% elif not saved_mapping.get(col) and col.lower() == db_key.lower() %}selected{% endif %}>
                                         {{ db_label }}
@@ -76,9 +108,9 @@
                             </select>
                         </td>
 
-                        <td style="padding: 1rem; background: #f8fafc; border-left: 1px solid var(--border-primary);">
+                        <td style="background: var(--luft-bg-app);">
                             <div id="preview_{{ col|replace(' ', '_') }}" class="preview-cell">
-                                <span style="color: #ccc; font-style: italic; font-size: 0.85rem;">Ignorado</span>
+                                <span style="color: var(--luft-text-light); font-style: italic; font-size: 12px;">Ignorado</span>
                             </div>
                         </td>
                     </tr>
@@ -88,8 +120,8 @@
         </div>
 
         <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
-            <a href="{{ url_for('Import.Inicio') }}" class="btn btn-ghost">Cancelar</a>
-            <button type="submit" class="btn btn-success" id="btnConfirm">
+            <a href="{{ url_for('Import.Inicio') }}" class="btn btn-secondary text-main" style="padding: 12px 24px;">Cancelar</a>
+            <button type="submit" class="btn btn-success" id="btnConfirm" style="padding: 12px 32px; font-weight: 700; box-shadow: var(--luft-shadow-md);">
                 <i class="fas fa-check-circle me-2"></i> Confirmar e Importar
             </button>
         </div>
@@ -98,13 +130,12 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const selects = document.querySelectorAll('select');
         const filename = document.getElementById('filename').value;
         const loading = document.getElementById('loadingPreview');
         let timeout = null;
 
         function updatePreview() {
-            loading.style.display = 'block';
+            loading.style.display = 'flex';
             
             const mapping = {};
             const transforms = {};
@@ -125,7 +156,7 @@
             .then(response => response.json())
             .then(data => {
                 document.querySelectorAll('.preview-cell').forEach(el => {
-                    el.innerHTML = '<span style="color: #ccc; font-style: italic; font-size: 0.85rem;">Ignorado</span>';
+                    el.innerHTML = '<span style="color: var(--luft-text-light); font-style: italic; font-size: 12px;">Ignorado</span>';
                 });
 
                 if(data.error) {
@@ -138,16 +169,16 @@
                     const cell = document.getElementById('preview_' + safeId);
                     
                     if(cell) {
-                        let badgeColor = '#e2e8f0'; 
-                        let badgeText = '#333';
+                        let badgeColor = 'var(--luft-slate-100)'; let badgeText = 'var(--luft-slate-700)';
+                        let borderColor = 'var(--luft-border-dark)';
                         
-                        if (info.tipo === 'Numérico') { badgeColor = '#dbeafe'; badgeText = '#1e40af'; }
-                        if (info.tipo === 'Data/Hora') { badgeColor = '#dcfce7'; badgeText = '#166534'; }
-                        if (info.tipo === 'Vazio' || info.valor === 'NULL') { badgeColor = '#fee2e2'; badgeText = '#991b1b'; }
+                        if (info.tipo === 'Numérico') { badgeColor = 'var(--luft-info-50)'; badgeText = 'var(--luft-info-700)'; borderColor = 'var(--luft-info-200)'; }
+                        if (info.tipo === 'Data/Hora') { badgeColor = 'var(--luft-success-50)'; badgeText = 'var(--luft-success-700)'; borderColor = 'var(--luft-success-200)'; }
+                        if (info.tipo === 'Vazio' || info.valor === 'NULL') { badgeColor = 'var(--luft-danger-50)'; badgeText = 'var(--luft-danger-700)'; borderColor = 'var(--luft-danger-200)'; }
 
                         cell.innerHTML = `
-                            <div style="font-weight: bold; color: #334155; font-size: 0.9rem;">${info.valor}</div>
-                            <span class="badge" style="background: ${badgeColor}; color: ${badgeText}; font-size: 0.7rem; margin-top: 4px; padding: 2px 6px; border-radius: 4px;">
+                            <div style="font-weight: 700; color: var(--luft-text-main); font-size: 14px; margin-bottom: 6px;">${info.valor}</div>
+                            <span style="background: ${badgeColor}; color: ${badgeText}; border: 1px solid ${borderColor}; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 800; text-transform: uppercase;">
                                 ${info.tipo}
                             </span>
                         `;
@@ -162,7 +193,7 @@
 
         updatePreview();
 
-        selects.forEach(select => {
+        document.querySelectorAll('select').forEach(select => {
             select.addEventListener('change', () => {
                 clearTimeout(timeout);
                 timeout = setTimeout(updatePreview, 500); 

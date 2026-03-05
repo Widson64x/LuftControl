@@ -1,6 +1,14 @@
-from flask import Blueprint, jsonify, request, abort, render_template, send_file
+from flask import Blueprint, request, render_template, send_file
 from flask_login import login_required, current_user 
 from datetime import datetime
+
+# --- Imports do LuftCore (Segurança e Padronização de API) ---
+from luftcore.extensions.flask_extension import (
+    require_permission, 
+    require_ajax, 
+    api_success, 
+    api_error
+)
 
 # Importa o Serviço (Único ponto de contato com a lógica)
 from Services.RelatoriosService import RelatoriosService
@@ -11,14 +19,25 @@ from Utils.Logger import RegistrarLog
 # Definição do Blueprint
 reports_bp = Blueprint('Relatorios', __name__) 
 
+# ============================================================
+# VIEWS (Páginas HTML)
+# ============================================================
+
 @reports_bp.route('/', methods=['GET']) 
 @login_required 
+@require_permission('relatorios.view') # Permissão base para abrir a tela
 def PaginaRelatorios():
     """Renderiza a página HTML principal de relatórios."""
     return render_template('PAGES/Relatórios.html')
 
+# ============================================================
+# APIs DE DADOS (AJAX)
+# ============================================================
+
 @reports_bp.route('/relatoriorazao/dados', methods=['GET']) 
 @login_required 
+@require_permission('relatorios.razao') # Permissão específica do Razão
+@require_ajax
 def ObterDadosRazao():
     """API: Retorna JSON com os dados paginados do Razão."""
     try: 
@@ -34,36 +53,46 @@ def ObterDadosRazao():
         svc = RelatoriosService()
         dados = svc.ObterDadosRazao(pagina, por_pagina, termo_busca, tipo_visualizacao)
         
-        return jsonify(dados), 200
+        return api_success(data=dados, message="Dados do Razão carregados.")
     except Exception as e: 
         RegistrarLog("Erro na rota ObterDadosRazao", "ERROR", e)
-        return jsonify({"error": str(e)}), 500
+        return api_error(message="Falha ao carregar os dados do Razão.", details=str(e), status=500)
 
 @reports_bp.route('/relatoriorazao/resumo', methods=['GET']) 
 @login_required 
+@require_permission('relatorios.razao')
+@require_ajax
 def ObterResumoRazao():
     """API: Retorna os totais do rodapé do Razão."""
     try: 
         tipo_visualizacao = request.args.get('view_type', 'original')
         svc = RelatoriosService()
         resumo = svc.ObterResumoRazao(tipo_visualizacao)
-        return jsonify(resumo), 200
+        
+        return api_success(data=resumo)
     except Exception as e: 
-        return jsonify({"error": str(e)}), 500
+        return api_error(message="Falha ao calcular os totais do Razão.", details=str(e), status=500)
 
 @reports_bp.route('/relatoriorazao/listacentroscusto', methods=['GET'])
 @login_required
+@require_permission('relatorios.view') # Permissão genérica é suficiente para ver o combo
+@require_ajax
 def ListarCentrosCusto():
     """API: Dropdown de Centros de Custo."""
     try:
         svc = RelatoriosService()
         lista = svc.ListarCentrosCusto()
-        return jsonify(lista), 200
+        return api_success(data=lista)
     except Exception as e:
-        return jsonify([]), 200 
+        # Se falhar, devolvemos a lista vazia dentro do padrão api_success
+        # para não quebrar a tela do usuário, como era a sua lógica original.
+        RegistrarLog("Aviso ao carregar centros de custo", "WARNING", e)
+        return api_success(data=[]) 
 
 @reports_bp.route('/relatoriorazao/rentabilidade', methods=['GET'])
 @login_required
+@require_permission('relatorios.dre') # Permissão específica do DRE
+@require_ajax
 def RelatorioRentabilidade():
     """API: Gera o relatório de DRE Gerencial."""
     try:
@@ -71,7 +100,6 @@ def RelatorioRentabilidade():
         modo_escala = request.args.get('scale_mode', 'dre')
         filtro_cc = request.args.get('centro_custo', 'Todos')
         
-        # [NOVO] Captura o ano (Padrão: Ano Atual)
         ano_atual = datetime.now().year
         ano = request.args.get('ano', ano_atual)
         
@@ -79,16 +107,17 @@ def RelatorioRentabilidade():
         RegistrarLog(f"Relatório DRE solicitado por {usuario_id}. Ano: {ano}", "WEB_REPORT")
         
         svc = RelatoriosService()
-        # [ATUALIZADO] Passando o 4º argumento (ano) que causava o erro
         dados = svc.GerarDreRentabilidade(origem, filtro_cc, modo_escala, ano)
         
-        return jsonify(dados), 200
+        return api_success(data=dados, message="DRE Gerencial processado.")
     except Exception as e:
         RegistrarLog("Erro Crítico no Relatório DRE", "ERROR", e)
-        return jsonify({"error": str(e)}), 500
+        return api_error(message="Falha ao gerar o relatório DRE.", details=str(e), status=500)
 
 @reports_bp.route('/relatoriorazao/dreconsolidado', methods=['GET'])
 @login_required
+@require_permission('relatorios.dre.consolidado') # Permissão nível Master/Gerência
+@require_ajax
 def RelatorioDreConsolidadoRota():
     """API: Gera o relatório DRE Consolidado (Visão por Unidade)."""
     try:
@@ -101,15 +130,25 @@ def RelatorioDreConsolidadoRota():
         svc = RelatoriosService()
         dados = svc.GerarDreConsolidado(modo_escala, ano)
         
-        return jsonify(dados), 200
+        return api_success(data=dados, message="DRE Consolidado processado.")
     except Exception as e:
         RegistrarLog("Erro Crítico no Relatório DRE Consolidado", "ERROR", e)
-        return jsonify({"error": str(e)}), 500
-        
+        return api_error(message="Falha ao gerar o DRE Consolidado.", details=str(e), status=500)
+
+# ============================================================
+# ARQUIVOS E EXPORTAÇÕES (NÃO USA @require_ajax)
+# ============================================================
+
 @reports_bp.route('/relatoriorazao/downloadfull', methods=['GET'])
 @login_required
+@require_permission('relatorios.exportar') # Permissão Exclusiva para Exportar Excel
 def DownloadRazaoExcel():
     """Gera e baixa o Excel completo do Razão."""
+    
+    # ATENÇÃO: NÃO usamos @require_ajax aqui, pois o navegador faz o 
+    # download do arquivo usando uma requisição GET padrão (window.location ou <a href>),
+    # o que faria o @require_ajax bloquear a chamada.
+    
     try:
         tipo_visualizacao = request.args.get('view_type', 'original')
         termo_busca = request.args.get('search', '').strip()
@@ -121,7 +160,8 @@ def DownloadRazaoExcel():
         arquivo_binario = svc.GerarExcelRazao(termo_busca, tipo_visualizacao)
         
         if not arquivo_binario:
-            return jsonify({'message': 'Sem dados para exportar'}), 404
+            # Caso chamem via fetch Blob, o api_error responde em json formatado.
+            return api_error(message="Sem dados para exportar.", status=404)
 
         nome_arquivo = f"Razao_Analitico_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
         
@@ -134,15 +174,21 @@ def DownloadRazaoExcel():
 
     except Exception as e:
         RegistrarLog("Erro no Download Excel", "ERROR", e)
-        return jsonify({'error': str(e)}), 500
-        
+        return api_error(message="Falha na exportação do Excel.", details=str(e), status=500)
+
+# ============================================================
+# ROTAS DE ADMIN/DEBUG
+# ============================================================
+
 @reports_bp.route('/relatoriorazao/debugordenamento', methods=['GET'])
 @login_required
+@require_permission('admin.master') # Só desenvolvedores ou sysadmins devem ver rotas de debug
+@require_ajax
 def DepurarOrdenamento():
-    """Rota auxiliar de debug."""
+    """Rota auxiliar de debug do Sistema."""
     try:
         svc = RelatoriosService()
         dados_debug = svc.DepurarOrdenamentoDre()
-        return jsonify(dados_debug), 200
+        return api_success(data=dados_debug, message="Dados de debug extraídos.")
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return api_error(message="Erro ao executar rotina de debug.", details=str(e), status=500)

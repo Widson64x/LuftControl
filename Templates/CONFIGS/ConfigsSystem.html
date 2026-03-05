@@ -1,327 +1,286 @@
 {% extends "Base.html" %}
+{% import 'luftcore/components.html' as ui %}
 
-{% block title %}Configurações | Luft Control{% endblock %}
+{% block title %}Configurações do Sistema - Luft Control{% endblock %}
 
 {% block extra_css %}
 <style>
     /* ==========================================================================
-       SETTINGS HUB STYLES
-       Baseado em Themes.css
+       LUFT CONTROL | SETTINGS HUB
+       Padrão Premium LuftCore
        ========================================================================== */
 
-    .settings-container {
+    .luft-settings-container {
         max-width: 1400px;
         margin: 0 auto;
-        padding-bottom: var(--spacing-3xl);
+        padding-bottom: var(--luft-space-12);
+        animation: luftFadeIn 0.4s ease-out;
+    }
+
+    @keyframes luftFadeIn { 
+        from { opacity: 0; transform: translateY(10px); } 
+        to { opacity: 1; transform: translateY(0); } 
     }
 
     /* --- 1. HERO HEADER --- */
-    .settings-hero {
-        background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-        border: 1px solid var(--border-primary);
-        border-radius: var(--radius-xl);
-        padding: var(--spacing-2xl);
-        margin-bottom: var(--spacing-2xl);
+    .luft-settings-hero {
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border);
+        border-radius: var(--luft-radius-2xl);
+        padding: var(--luft-space-8) var(--luft-space-10);
+        margin-bottom: var(--luft-space-8);
         position: relative;
         overflow: hidden;
         display: flex;
         align-items: center;
-        gap: var(--spacing-xl);
-        box-shadow: var(--shadow-lg);
+        gap: var(--luft-space-6);
+        box-shadow: var(--luft-shadow-sm);
     }
 
-    /* Efeito de luz de fundo */
-    .settings-hero::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -10%;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.1) 0%, transparent 70%);
-        filter: blur(60px);
+    .luft-settings-hero::before {
+        content: ''; position: absolute; inset: 0;
+        background: radial-gradient(circle at top right, var(--luft-primary-50) 0%, transparent 60%);
         pointer-events: none;
     }
+    
+    [data-theme="dark"] .luft-settings-hero::before {
+        background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.1) 0%, transparent 60%);
+    }
 
-    .hero-icon-box {
-        width: 80px;
-        height: 80px;
-        background: var(--gradient-primary);
-        border-radius: var(--radius-lg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 2.5rem;
+    .luft-hero-icon {
+        width: 72px; height: 72px;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--luft-primary-500);
         color: white;
-        box-shadow: 0 10px 25px rgba(var(--primary-rgb), 0.4);
+        border-radius: var(--luft-radius-xl);
+        font-size: var(--luft-text-3xl);
+        box-shadow: var(--luft-shadow-md);
         flex-shrink: 0;
+        position: relative;
         z-index: 1;
     }
 
-    .hero-text {
+    .luft-hero-content {
+        position: relative;
         z-index: 1;
     }
 
-    .hero-title {
-        font-size: 1.75rem;
-        font-weight: 800;
-        color: var(--text-primary);
-        margin-bottom: var(--spacing-xs);
-        letter-spacing: -0.02em;
+    .luft-hero-title {
+        font-size: var(--luft-text-3xl);
+        font-weight: 900;
+        color: var(--luft-text-main);
+        margin: 0 0 var(--luft-space-2) 0;
+        letter-spacing: -0.5px;
     }
 
-    .hero-description {
-        color: var(--text-secondary);
-        font-size: 1rem;
-        max-width: 600px;
+    .luft-hero-desc {
+        font-size: var(--luft-text-lg);
+        color: var(--luft-text-muted);
+        margin: 0;
+        max-width: 800px;
     }
 
-    /* --- 2. GRID DE CARDS --- */
-    .modules-grid {
+    /* --- 2. GRID DE CARTÕES --- */
+    .luft-settings-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-        gap: var(--spacing-xl);
+        gap: var(--luft-space-6);
+        margin-bottom: var(--luft-space-8);
     }
 
-    /* --- 3. CONFIG CARD DESIGN --- */
-    .config-card {
-        background-color: var(--bg-secondary);
-        border: 1px solid var(--border-primary);
-        border-radius: var(--radius-lg);
-        padding: var(--spacing-xl);
-        position: relative;
+    /* --- 3. CARTÃO DE CONFIGURAÇÃO --- */
+    .luft-settings-card {
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border);
+        border-radius: var(--luft-radius-xl);
+        padding: var(--luft-space-8);
         display: flex;
         flex-direction: column;
-        gap: var(--spacing-lg);
         text-decoration: none;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--luft-shadow-sm);
+        position: relative;
         overflow: hidden;
-        height: 100%;
     }
 
-    /* Hover Effects */
-    .config-card:hover:not(.disabled) {
-        transform: translateY(-6px);
-        border-color: rgba(var(--primary-rgb), 0.5);
-        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
-        background-color: var(--bg-hover);
+    .luft-settings-card:hover:not(.disabled) {
+        transform: translateY(-5px);
+        box-shadow: var(--luft-shadow-xl);
+        border-color: var(--luft-primary-300);
     }
 
-    /* Barra de destaque no hover */
-    .config-card::after {
-        content: '';
-        position: absolute;
-        bottom: 0; left: 0; width: 100%; height: 3px;
-        background: var(--gradient-primary);
-        transform: scaleX(0);
-        transform-origin: left;
-        transition: transform 0.3s ease;
+    .luft-settings-card.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background: var(--luft-bg-app);
     }
 
-    .config-card:hover:not(.disabled)::after {
-        transform: scaleX(1);
-    }
-
-    /* Icon Wrapper */
-    .card-header-flex {
+    .luft-card-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
+        margin-bottom: var(--luft-space-5);
     }
 
-    .card-icon {
-        width: 56px;
-        height: 56px;
-        background: rgba(var(--primary-rgb), 0.1);
-        color: var(--primary);
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        transition: all 0.3s ease;
-        border: 1px solid rgba(var(--primary-rgb), 0.1);
+    .luft-card-icon {
+        width: 56px; height: 56px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: var(--luft-text-2xl);
+        border-radius: var(--luft-radius-lg);
     }
 
-    .config-card:hover:not(.disabled) .card-icon {
-        background: var(--gradient-primary);
-        color: white;
-        transform: rotate(-5deg) scale(1.1);
-        box-shadow: 0 8px 20px rgba(var(--primary-rgb), 0.3);
+    /* Variações de Cor dos Ícones */
+    .icon-primary { background: var(--luft-primary-50); color: var(--luft-primary-600); border: 1px solid var(--luft-primary-100); }
+    .icon-success { background: var(--luft-success-50); color: var(--luft-success-600); border: 1px solid var(--luft-success-100); }
+    .icon-secondary { background: var(--luft-slate-100); color: var(--luft-slate-600); border: 1px solid var(--luft-slate-200); }
+
+    [data-theme="dark"] .icon-secondary { background: var(--luft-slate-800); color: var(--luft-slate-300); border: 1px solid var(--luft-slate-700); }
+
+    .luft-card-title {
+        font-size: var(--luft-text-xl);
+        font-weight: 800;
+        color: var(--luft-text-main);
+        margin: 0 0 var(--luft-space-3) 0;
     }
 
-    /* Typography */
-    .card-title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: var(--spacing-sm);
-    }
-
-    .card-desc {
-        font-size: 0.95rem;
-        color: var(--text-secondary);
+    .luft-card-desc {
+        color: var(--luft-text-muted);
+        font-size: var(--luft-text-sm);
         line-height: 1.6;
+        margin: 0;
         flex-grow: 1;
     }
 
-    /* Action Arrow */
-    .card-action {
+    .luft-card-action {
+        margin-top: var(--luft-space-6);
+        padding-top: var(--luft-space-4);
+        border-top: 1px solid var(--luft-border-light);
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: var(--primary);
-        margin-top: var(--spacing-md);
-        opacity: 0.8;
-        transition: all 0.3s ease;
+        justify-content: space-between;
+        color: var(--luft-primary-600);
+        font-weight: 700;
+        font-size: var(--luft-text-sm);
+        transition: color 0.2s;
     }
 
-    .config-card:hover:not(.disabled) .card-action {
-        opacity: 1;
-        gap: 12px; /* Animação de espaçamento */
+    .luft-settings-card:hover:not(.disabled) .luft-card-action {
+        color: var(--luft-primary-700);
     }
 
-    /* --- 4. DISABLED STATE --- */
-    .config-card.disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        background: rgba(0, 0, 0, 0.2); /* Mais escuro */
-        border-style: dashed;
+    .luft-settings-card:hover:not(.disabled) .luft-card-action i {
+        transform: translateX(4px);
     }
 
-    .config-card.disabled .card-icon {
-        background: var(--bg-tertiary);
-        color: var(--text-tertiary);
-        filter: grayscale(1);
+    .luft-card-action i {
+        transition: transform 0.3s ease;
     }
 
-    /* Badge Customizada */
-    .badge-soon {
-        background: rgba(245, 158, 11, 0.15);
-        color: var(--warning);
-        border: 1px solid rgba(245, 158, 11, 0.3);
+    .luft-badge-soon {
+        background: var(--luft-warning-100);
+        color: var(--luft-warning-800);
         padding: 4px 10px;
-        border-radius: var(--radius-full);
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 0.5px;
+        border-radius: var(--luft-radius-full);
+        font-size: var(--luft-text-xs);
+        font-weight: 800;
         text-transform: uppercase;
+        border: 1px solid var(--luft-warning-200);
     }
 
-    /* Botão de Voltar */
-    .btn-back-wrapper {
-        margin-top: var(--spacing-2xl);
-        padding-top: var(--spacing-lg);
-        border-top: 1px solid var(--border-primary);
+    /* --- 4. BOTÃO VOLTAR --- */
+    .luft-back-wrapper {
+        margin-top: var(--luft-space-6);
+        display: flex;
+        justify-content: flex-start;
     }
-
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="luft-settings-container">
 
-<div class="settings-container fade-in">
-    
-    <header class="settings-hero">
-        <div class="hero-icon-box">
+    <div class="luft-settings-hero">
+        <div class="luft-hero-icon">
             <i class="fas fa-sliders-h"></i>
         </div>
-        <div class="hero-text">
-            <h1 class="hero-title">Central de Configurações</h1>
-            <p class="hero-description">
-                Gerencie parâmetros técnicos, controle de acesso e estrutura financeira do sistema em um único lugar.
-            </p>
+        <div class="luft-hero-content">
+            <h1 class="luft-hero-title">Painel de Controle</h1>
+            <p class="luft-hero-desc">Gerencie regras de negócio, importe dados e configure os parâmetros globais do sistema de forma centralizada.</p>
         </div>
-    </header>
+    </div>
 
-    <div class="modules-grid">
-
-        <a href="{{ url_for('DreConfig.ViewConfiguracao') }}" class="config-card slide-in-up" style="animation-delay: 0.1s;">
-            <div class="card-header-flex">
-                <div class="card-icon">
-                    <i class="fas fa-sitemap"></i>
+    <div class="luft-settings-grid">
+        
+        <a href="{{ url_for('DreConfig.ViewConfiguracao') }}" class="luft-settings-card">
+            <div class="luft-card-header">
+                <div class="luft-card-icon icon-primary">
+                    <i class="fas fa-project-diagram"></i>
                 </div>
-                </div>
-            
-            <div>
-                <h3 class="card-title">Estrutura DRE</h3>
-                <p class="card-desc">
-                    Modele a hierarquia financeira. Crie nós virtuais, defina fórmulas de cálculo e gerencie o vínculo de contas contábeis.
-                </p>
             </div>
-
-            <div class="card-action">
-                <span>Acessar Configuração</span>
+            <h3 class="luft-card-title">Configuração DRE (Engine)</h3>
+            <p class="luft-card-desc">
+                Motor de regras e cálculos. Configure árvores hierárquicas, crie nós virtuais, estabeleça fórmulas matemáticas e defina estilos CSS para o DRE.
+            </p>
+            <div class="luft-card-action">
+                <span>Acessar Motor</span>
                 <i class="fas fa-arrow-right"></i>
             </div>
         </a>
 
-        <a href="{{ url_for('SecurityConfig.VisualizarGerenciadorSeguranca') }}" class="config-card slide-in-up" style="animation-delay: 0.2s;">
-            <div class="card-header-flex">
-                <div class="card-icon">
+        <a href="{{ url_for('SecurityConfig.VisualizarGerenciadorSeguranca') }}" class="luft-settings-card">
+            <div class="luft-card-header">
+                <div class="luft-card-icon" style="background: var(--luft-warning-50); color: var(--luft-warning-600); border: 1px solid var(--luft-warning-100);">
                     <i class="fas fa-user-shield"></i>
                 </div>
             </div>
-            
-            <div>
-                <h3 class="card-title">Segurança & Permissões</h3>
-                <p class="card-desc">
-                    Controle de acesso granular (RBAC). Gerencie usuários, crie perfis de acesso e atribua permissões específicas por módulo.
-                </p>
-            </div>
-
-            <div class="card-action">
+            <h3 class="luft-card-title">Segurança & Permissões</h3>
+            <p class="luft-card-desc">
+                Controle de acesso granular (RBAC). Gerencie usuários, crie perfis de acesso e atribua permissões específicas por módulo.
+            </p>
+            <div class="luft-card-action" style="color: var(--luft-warning-600);">
                 <span>Gerenciar Acessos</span>
                 <i class="fas fa-arrow-right"></i>
             </div>
         </a>
 
-        <a href="{{ url_for('Import.Inicio') }}" class="config-card slide-in-up" style="animation-delay: 0.25s;">
-            <div class="card-header-flex">
-                <div class="card-icon">
+        <a href="{{ url_for('Import.Inicio') }}" class="luft-settings-card">
+            <div class="luft-card-header">
+                <div class="luft-card-icon icon-success">
                     <i class="fas fa-file-import"></i>
                 </div>
             </div>
-            
-            <div>
-                <h3 class="card-title">Importação de Dados</h3>
-                <p class="card-desc">
-                    Ferramenta de ingestão de dados. Carregue ficheiros Excel (INTEC), mapeie colunas e alimente a base de dados analítica.
-                </p>
-            </div>
-
-            <div class="card-action">
+            <h3 class="luft-card-title">Importação de Dados</h3>
+            <p class="luft-card-desc">
+                Ferramenta de ingestão de dados. Carregue ficheiros Excel (INTEC), mapeie colunas e alimente a base de dados analítica de forma segura.
+            </p>
+            <div class="luft-card-action" style="color: var(--luft-success-600);">
                 <span>Nova Importação</span>
                 <i class="fas fa-arrow-right"></i>
             </div>
         </a>
 
-        <div class="config-card disabled slide-in-up" style="animation-delay: 0.3s;">
-            <div class="card-header-flex">
-                <div class="card-icon">
+        <div class="luft-settings-card disabled">
+            <div class="luft-card-header">
+                <div class="luft-card-icon icon-secondary">
                     <i class="fas fa-cogs"></i>
                 </div>
-                <span class="badge-soon">Em Breve</span>
+                <span class="luft-badge-soon">Em Breve</span>
             </div>
-            
-            <div>
-                <h3 class="card-title">Parâmetros Globais</h3>
-                <p class="card-desc">
-                    Definições avançadas do sistema, configurações de SMTP, integração com Active Directory e logs de auditoria.
-                </p>
+            <h3 class="luft-card-title">Parâmetros Globais</h3>
+            <p class="luft-card-desc">
+                Definições avançadas do sistema, configurações de SMTP, integração com Active Directory e logs de auditoria detalhados.
+            </p>
+            <div class="luft-card-action" style="color: var(--luft-text-muted);">
+                <span>Indisponível</span>
+                <i class="fas fa-lock"></i>
             </div>
         </div>
 
     </div>
 
-    <div class="btn-back-wrapper">
-        <a href="{{ url_for('Main.MenuPrincipal') }}" class="btn btn-ghost text-secondary">
-            <i class="fas fa-arrow-left me-2"></i> Voltar ao Dashboard
-        </a>
+    <div class="luft-back-wrapper">
+        {{ ui.btn('Voltar ao Início', tipo='secondary', icone='fas fa-arrow-left', href=url_for('Main.MenuPrincipal')) }}
     </div>
 
 </div>
-
 {% endblock %}

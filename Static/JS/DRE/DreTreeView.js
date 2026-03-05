@@ -42,13 +42,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const menu = document.getElementById('contextMenu');
         if(menu) menu.style.display = 'none';
     });
-
-    // Fechar modais ao clicar fora
-    document.querySelectorAll('.modal-backdrop').forEach(overlay => {
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) closeModals();
-        });
-    });
     
     // Atalhos de teclado (Alt + Setas)
     document.addEventListener('keydown', (e) => {
@@ -132,28 +125,28 @@ async function autoSync() {
 }
 
 // ==========================================================================
-// 2. MODAIS E UI
+// 2. MODAIS E UI (ATUALIZADO PARA LUFTCORE)
 // ==========================================================================
 
-function closeModals() {
-    document.querySelectorAll('.modal-backdrop').forEach(m => {
-        m.classList.remove('active');
-        setTimeout(() => {
-            if (!m.classList.contains('active')) m.style.display = 'none';
-        }, 200); 
+window.closeModals = function() {
+    // Fecha todos os modais no padrão do LuftCore
+    document.querySelectorAll('.luft-modal-backdrop, .luft-modal').forEach(el => {
+        el.classList.remove('show');
     });
 }
 
-function openModal(id) {
-    const m = document.getElementById(id);
-    if (!m) return;
+window.openModal = function(id) {
+    const backdrop = document.getElementById(id + '-backdrop');
+    const modal = document.getElementById(id);
+    
+    if (!modal) return;
     
     const menu = document.getElementById('contextMenu');
     if(menu) menu.style.display = 'none';
     
-    m.style.display = 'flex';
-    m.offsetHeight; 
-    m.classList.add('active');
+    // Abre no padrão LuftCore
+    if(backdrop) backdrop.classList.add('show');
+    modal.classList.add('show');
 
     if(id === 'modalAddSub') { 
         document.getElementById('lblParentName').innerText = contextNode.text || '...'; 
@@ -166,8 +159,8 @@ function openModal(id) {
     }
     if(id === 'modalAddVirtual') {
         resetInput('inputVirtualName');
-        // Reset da Cor
-        document.getElementById('inputVirtualColor').value = '#34495e'; 
+        // Reset da Cor (Padrão Azul LuftCore)
+        document.getElementById('inputVirtualColor').value = '#3b82f6'; 
     }
     
     if(id === 'modalLinkConta') { 
@@ -182,10 +175,10 @@ function resetInput(id){
     if(e){ e.value=''; setTimeout(()=>e.focus(), 100); } 
 }
 
-function showToast(msg) { 
+window.showToast = function(msg) { 
     const t = document.getElementById("toast"); 
     if(!t) return;
-    t.innerHTML = `<i class="fas fa-check"></i> ${msg}`; 
+    t.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`; 
     t.classList.add("show"); 
     setTimeout(() => t.classList.remove("show"), 3000); 
 }
@@ -196,7 +189,7 @@ function showToast(msg) {
 
 async function loadTree() {
     const rootUl = document.getElementById('treeRoot');
-    rootUl.innerHTML = '<li class="loading-state"><div class="spinner"></div><span>Atualizando estrutura...</span></li>';
+    rootUl.innerHTML = '<li class="loading-state"><div class="luft-dre-spinner"></div><span class="text-muted mt-2">Atualizando estrutura...</span></li>';
     
     try {
         let url;
@@ -225,7 +218,7 @@ async function loadTree() {
         if (data.error) throw new Error(data.msg || data.error);
         
         if (!data || data.length === 0) { 
-            rootUl.innerHTML = '<li class="loading-state text-secondary">Nenhuma estrutura encontrada.<br>Crie um Nó Virtual para começar.</li>'; 
+            rootUl.innerHTML = '<li class="loading-state text-muted">Nenhuma estrutura encontrada.<br>Crie um Nó Virtual para começar.</li>'; 
             return; 
         }
         
@@ -248,10 +241,11 @@ function createNodeHTML(node) {
     const li = document.createElement('li');
     const wrapper = document.createElement('div');
     
-    const COLOR_DARK   = 'color: var(--icon-structure);'; 
-    const COLOR_GRAY   = 'color: var(--icon-secondary);'; 
-    const COLOR_FOLDER = 'color: var(--icon-folder);'; 
-    const COLOR_LIGHT  = 'color: var(--icon-account);';
+    // Cores adaptadas para variáveis do LuftCore
+    const COLOR_DARK   = 'color: var(--luft-text-main);'; 
+    const COLOR_GRAY   = 'color: var(--luft-text-muted);'; 
+    const COLOR_FOLDER = 'color: var(--luft-warning-500);'; 
+    const COLOR_LIGHT  = 'color: var(--luft-success-500);';
     
     let typeClass = 'node-std';
     let icon = 'fa-circle';
@@ -316,11 +310,11 @@ function createNodeHTML(node) {
     
     const hasChildren = node.children && node.children.length > 0;
     
-    let dragHandleHtml = ordenamentoAtivo ? '<i class="fas fa-grip-vertical drag-handle" style="color: #dfe6e9;"></i>' : '';
+    let dragHandleHtml = ordenamentoAtivo ? '<i class="fas fa-grip-vertical drag-handle" style="color: var(--luft-text-light);"></i>' : '';
     
     const toggle = document.createElement('div');
     toggle.className = `toggle-icon ${hasChildren ? '' : 'invisible'}`;
-    toggle.innerHTML = '<i class="fas fa-caret-right" style="color: #95a5a6;"></i>'; 
+    toggle.innerHTML = '<i class="fas fa-caret-right" style="color: var(--luft-text-muted);"></i>'; 
     
     if(hasChildren) {
         toggle.onclick = (e) => { e.stopPropagation(); toggleNode(li, toggle); };
@@ -328,13 +322,13 @@ function createNodeHTML(node) {
     }
 
     let ordemBadge = (node.ordem && ordenamentoAtivo) 
-        ? `<span class="ordem-badge" style="color: var(--bi-row-root-text);">#${node.ordem}</span>` 
+        ? `<span class="ordem-badge" style="color: var(--luft-text-muted); font-size: 0.75rem; margin-left: auto;">#${node.ordem}</span>` 
         : '';
 
     const contentHtml = `
         ${dragHandleHtml}
         <i class="fas ${icon} type-icon" style="${styleIcon} margin-right: 8px;"></i>
-        <span class="node-text" style="color: var(--bi-row-root-text) !important; font-weight: 500;">${node.text}</span>
+        <span class="node-text" style="color: var(--luft-text-main) !important; font-weight: 500;">${node.text}</span>
         ${ordemBadge}
     `;
     
@@ -455,7 +449,7 @@ function handleRightClick(e, node, element) {
     }
 
     // 4. Posicionamento do Menu
-    const menuWidth = 220;
+    const menuWidth = 230;
     const menuHeight = 300;
     let x = e.clientX;
     let y = e.clientY;
@@ -498,7 +492,7 @@ async function editCalculado() {
         document.getElementById('selectCalcTipoExibicao').value = dadosNo.tipo_exibicao || 'valor';
         
         // Carrega a Cor (Extrai do CSS)
-        let corSalva = '#34495e';
+        let corSalva = '#3b82f6';
         if (dadosNo.estilo_css && dadosNo.estilo_css.includes('background-color:')) {
             const match = dadosNo.estilo_css.match(/background-color:\s*(#[0-9a-fA-F]{6})/);
             if (match) corSalva = match[1];
@@ -523,8 +517,8 @@ async function editCalculado() {
         atualizarPreviewFormula();
         
         // Ajusta título do modal (Visual)
-        const modalTitle = document.querySelector('#modalAddCalculado .modal-header h3');
-        if(modalTitle) modalTitle.innerText = "Editar Nó Calculado";
+        const modalTitle = document.querySelector('#modalAddCalculado .luft-modal-title');
+        if(modalTitle) modalTitle.innerHTML = '<i class="fas fa-calculator text-primary"></i> Editar Nó Calculado';
 
         openModal('modalAddCalculado');
 
@@ -765,20 +759,17 @@ function openMassManager() {
     const tipoCC = contextNode.id.replace('tipo_', '');
     const lbl = document.getElementById('lblMassType');
     
-    // CORREÇÃO CRÍTICA: 
-    // - data-code armazena o valor real ('Oper') para as APIs
-    // - innerText exibe o valor amigável ('CUSTOS') para o usuário
     lbl.dataset.code = tipoCC;
     lbl.innerText = getLabelTipoCC(tipoCC);
     
     openModal('modalMassManager');
     
-    const defaultBtn = document.querySelector('.nav-btn'); 
+    const defaultBtn = document.querySelector('.luft-dre-nav-btn'); 
     switchMassTab('tabGroupManager', defaultBtn);
 }
 
 function switchMassTab(tabId, btn) {
-    document.querySelectorAll('.tab-pane').forEach(p => {
+    document.querySelectorAll('.luft-dre-tab-pane').forEach(p => {
         p.style.display = 'none';
         p.classList.remove('active');
     });
@@ -786,15 +777,15 @@ function switchMassTab(tabId, btn) {
     const target = document.getElementById(tabId);
     if(target) {
         target.style.display = 'flex'; 
+        target.classList.remove('d-none'); // <- GARANTE QUE O D-NONE SEJA REMOVIDO!
         setTimeout(() => target.classList.add('active'), 10);
     }
 
     if(btn) {
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.luft-dre-nav-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
     }
 
-    // CORREÇÃO: Lê do dataset.code (valor real 'Oper') em vez do texto visível
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     
     if (tabId === 'tabGroupManager') {
@@ -806,7 +797,7 @@ function switchMassTab(tabId, btn) {
 
 async function loadGroupManagerList(tipoCC) {
     const list = document.getElementById('listGroupManager');
-    list.innerHTML = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+    list.innerHTML = '<div class="text-center p-4 text-muted"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
 
     const url = getRoute(null, '/Configuracao/GetSubgruposPorTipo', 'config');
 
@@ -821,7 +812,7 @@ async function loadGroupManagerList(tipoCC) {
         list.innerHTML = '';
 
         if (grupos.length === 0) {
-            list.innerHTML = '<div class="p-3 text-center text-muted">Nenhum grupo encontrado. Crie um acima.</div>';
+            list.innerHTML = '<div class="p-4 text-center text-muted">Nenhum grupo encontrado. Crie um acima.</div>';
             return;
         }
 
@@ -845,9 +836,9 @@ function createGroupManagerItem(nome) {
     
     li.innerHTML = `
         <div class="drag-col"><i class="fas fa-grip-lines reorder-handle"></i></div>
-        <div class="name-col"><span class="font-weight-500">${nome}</span></div>
-        <div class="action-col text-end">
-            <button class="delete-btn" title="Excluir Grupo e Conteúdo" onclick="submitMassDeleteFromList(this, '${nome}')">
+        <div class="name-col"><span class="font-semibold text-main">${nome}</span></div>
+        <div class="action-col text-right">
+            <button class="btn btn-xs luft-btn-ghost text-danger" title="Excluir Grupo e Conteúdo" onclick="submitMassDeleteFromList(this, '${nome}')">
                 <i class="fas fa-trash-alt"></i>
             </button>
         </div>
@@ -861,8 +852,7 @@ function createGroupManagerItem(nome) {
 
 async function loadMassGroupsList(tipoCC) {
     const list = document.getElementById('listMassGroups');
-    const select = document.getElementById('selectMassDeleteGroup'); // Se existir em legado
-    list.innerHTML = '<div class="text-center p-3 text-secondary"><i class="fas fa-spinner fa-spin"></i></div>';
+    list.innerHTML = '<div class="text-center p-4 text-muted"><i class="fas fa-spinner fa-spin"></i></div>';
     
     const url = getRoute(null, '/Configuracao/GetSubgruposPorTipo', 'config');
 
@@ -879,20 +869,14 @@ async function loadMassGroupsList(tipoCC) {
             grupos.forEach(g => {
                 htmlList += `
                     <div class="group-list-item" onclick="selectMassGroup('${g}', this)">
-                        <span><i class="fas fa-folder text-warning me-2"></i> ${g}</span>
-                        <i class="fas fa-chevron-right"></i>
+                        <span><i class="fas fa-folder text-warning mr-2"></i> ${g}</span>
+                        <i class="fas fa-chevron-right text-xs"></i>
                     </div>`;
             });
         } else {
-            htmlList = '<div class="p-3 text-center text-muted">Vazio</div>';
+            htmlList = '<div class="p-4 text-center text-muted">Vazio</div>';
         }
         list.innerHTML = htmlList;
-        
-        if(select) {
-            let htmlSelect = '<option value="" disabled selected>Selecione...</option>';
-            grupos.forEach(g => htmlSelect += `<option value="${g}">${g}</option>`);
-            select.innerHTML = htmlSelect;
-        }
     } catch(e) { console.error(e); }
 }
 
@@ -906,9 +890,8 @@ async function selectMassGroup(groupName, el) {
     document.getElementById('lblSelectedGroup').innerText = groupName;
     
     const container = document.getElementById('listLinkedAccounts');
-    container.innerHTML = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin"></i></div>';
+    container.innerHTML = '<div class="text-center p-4 text-muted"><i class="fas fa-spinner fa-spin"></i></div>';
     
-    // CORREÇÃO: Lê do dataset.code
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     const url = getRoute(null, '/Configuracao/GetContasDoGrupoMassa', 'config');
     
@@ -932,7 +915,7 @@ async function selectMassGroup(groupName, el) {
         });
 
         if (contas.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>Nenhuma conta vinculada.</p></div>';
+            container.innerHTML = '<div class="text-muted text-center mt-4"><p>Nenhuma conta vinculada.</p></div>';
         } else {
             let html = '';
             contas.forEach(item => {
@@ -945,7 +928,7 @@ async function selectMassGroup(groupName, el) {
                 
                 html += `
                     <div class="account-tag ${isPers ? 'pers' : ''}">
-                        ${isPers ? '<i class="fas fa-pen-fancy fa-xs me-1"></i>' : ''}
+                        ${isPers ? '<i class="fas fa-pen-fancy fa-xs mr-1"></i>' : ''}
                         ${label}
                         <i class="fas fa-times remove-btn" onclick="removeAccountFromGroup('${item.conta}', ${isPers})"></i>
                     </div>`;
@@ -965,7 +948,6 @@ function toggleMassCustomInput() {
 async function addAccountToGroup() {
     if(!currentSelectedGroup) return;
     const conta = document.getElementById('inputMassLinkConta').value;
-    // CORREÇÃO: Lê do dataset.code
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     const isPers = document.getElementById('chkMassPersonalizada').checked;
     const nomePers = document.getElementById('inputMassCustomName').value;
@@ -1002,7 +984,6 @@ async function addAccountToGroup() {
 }
 
 async function removeAccountFromGroup(conta, isPers) {
-    // CORREÇÃO: Lê do dataset.code
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     if(!confirm('Remover vínculo?')) return;
     
@@ -1027,7 +1008,6 @@ async function removeAccountFromGroup(conta, isPers) {
 async function submitMassCreate() {
     const input = document.getElementById('inputMassCreateName');
     const nome = input.value.trim();
-    // CORREÇÃO: Lê do dataset.code
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     
     if(!nome) return showToast('Digite um nome para o grupo.');
@@ -1056,7 +1036,6 @@ async function submitMassCreate() {
 async function submitMassDeleteFromList(btn, nome) {
     if(!confirm(`⚠️ ATENÇÃO: Isso excluirá o grupo "${nome}" de TODOS os Centros de Custo deste tipo, incluindo todas as contas vinculadas a ele.\n\nTem certeza absoluta?`)) return;
 
-    // CORREÇÃO: Lê do dataset.code
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     const url = getRoute(null, '/Configuracao/DeleteSubgrupoEmMassa', 'config');
     
@@ -1121,14 +1100,13 @@ function getDragAfterElement(container, y) {
 async function submitMassReorder() {
     const list = document.getElementById('listGroupManager');
     const items = list.querySelectorAll('.reorder-item');
-    // CORREÇÃO: Lê do dataset.code
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     
     const novaOrdemNomes = Array.from(items).map(li => li.getAttribute('data-name'));
     
     if(novaOrdemNomes.length === 0) return;
 
-    const btn = document.querySelector('#tabGroupManager .modal-footer-embedded button');
+    const btn = document.querySelector('#tabGroupManager button.btn-success');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
     btn.disabled = true;
@@ -1164,10 +1142,6 @@ async function submitMassReorder() {
     }
 }
 
-// --- REPLICAÇÃO INTEGRAL DE TIPO CC ---
-
-let tipoDestinoSelecionado = null;
-
 // ==========================================================================
 // 9. REPLICAÇÃO INTEGRAL (TIPO -> TIPO)
 // ==========================================================================
@@ -1179,23 +1153,22 @@ async function openReplicarTipoModal() {
     tipoDestinoIntegral = contextNode.id.replace('tipo_', '');
     const nomeDestino = getLabelTipoCC(tipoDestinoIntegral);
     
-    const modal = document.getElementById('modalReplicar');
     const content = document.getElementById('listaDestinos');
-    const btn = document.querySelector('#modalReplicar .btn-primary');
-    const title = document.querySelector('#modalReplicar .modal-header h3');
-    const headerInfo = document.querySelector('#modalReplicar .modal-body .mb-2') || document.querySelector('#lblOrigemReplicar').parentElement;
+    const btn = document.querySelector('#modalReplicar .luft-modal-footer .btn-primary');
+    const title = document.querySelector('#modalReplicar .luft-modal-title');
+    const headerInfo = document.querySelector('#lblOrigemReplicar')?.parentElement;
 
     // 1. Adapta o Modal (Reutiliza a estrutura visual)
-    if(title) title.innerText = "Replicar Estrutura Completa";
+    if(title) title.innerHTML = '<i class="fas fa-exchange-alt text-danger"></i> Substituição Integral';
     
     // Altera o cabeçalho para focar no DESTINO (que será apagado)
     if(headerInfo) {
         headerInfo.innerHTML = `
-            <div style="background:#fff5f5; border-left:4px solid #e74c3c; padding:10px;">
-                <h5 style="margin:0; color:#c0392b;">DESTINO: ${nomeDestino}</h5>
-                <small style="color:#7f8c8d;">Todo o conteúdo deste tipo será APAGADO e substituído.</small>
+            <div class="bg-danger-50 border-l-4 border-danger p-3 rounded">
+                <h5 class="m-0 text-danger font-bold text-base">DESTINO: ${nomeDestino}</h5>
+                <small class="text-danger-700">Todo o conteúdo deste tipo será APAGADO e substituído.</small>
             </div>
-            <div style="margin-top:15px; font-weight:bold;">Selecione a ORIGEM (Modelo):</div>
+            <div class="mt-4 font-bold text-sm text-main">Selecione a ORIGEM (Modelo):</div>
         `;
     }
 
@@ -1203,10 +1176,10 @@ async function openReplicarTipoModal() {
     const tiposDisponiveis = Object.keys(MAPA_TIPOS_CC).filter(t => t !== tipoDestinoIntegral);
 
     if (tiposDisponiveis.length === 0) {
-        content.innerHTML = '<div class="alert alert-warning">Não há outros tipos cadastrados para usar como origem.</div>';
+        content.innerHTML = '<div class="text-warning bg-warning-50 p-3 rounded">Não há outros tipos cadastrados para usar como origem.</div>';
         btn.disabled = true;
     } else {
-        let html = `<select id="selectTipoOrigemIntegral" class="form-select" style="width:100%; padding:10px; font-size:1.1em; margin-bottom:15px;">
+        let html = `<select id="selectTipoOrigemIntegral" class="form-control mb-4">
             <option value="" selected disabled>-- Selecione o Tipo de Origem --</option>`;
         
         tiposDisponiveis.forEach(t => {
@@ -1214,7 +1187,7 @@ async function openReplicarTipoModal() {
         });
         
         html += `</select>
-        <div class="alert alert-info small">
+        <div class="text-info-700 bg-info-50 p-3 rounded text-sm">
             <i class="fas fa-info-circle"></i> 
             A estrutura de grupos e vínculos de contas da origem selecionada será copiada para <strong>todos</strong> os Centros de Custo de <em>${nomeDestino}</em>.
         </div>`;
@@ -1224,12 +1197,11 @@ async function openReplicarTipoModal() {
     }
 
     // 3. Configura o Botão de Ação
-    btn.onclick = submitReplicarTipoAction; // Aponta para a nova função
-    btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Substituir Tudo';
+    btn.onclick = submitReplicarTipoAction; 
+    btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Substituir Tudo';
     btn.classList.remove('btn-primary');
-    btn.classList.add('btn-danger'); // Muda cor para indicar perigo (se CSS permitir)
+    btn.classList.add('btn-danger');
 
-    // Abre o modal
     openModal('modalReplicar');
 }
 
@@ -1241,21 +1213,11 @@ async function submitReplicarTipoAction() {
     const nomeDestino = getLabelTipoCC(tipoDestinoIntegral);
     const nomeOrigem = getLabelTipoCC(tipoOrigem);
 
-    // Logs de Debug do Cliente
-    console.group("🚀 Debug: Replicar Tipo CC");
-    console.log(`Origem Selecionada: ${tipoOrigem} (${nomeOrigem})`);
-    console.log(`Destino Alvo: ${tipoDestinoIntegral} (${nomeDestino})`);
-    console.log("Ação: Substituição Integral com Transformação de String");
-
-    // Confirmação Dupla
     if (!confirm(`⚠️ ATENÇÃO: Iniciando clonagem de '${nomeOrigem}' para '${nomeDestino}'.\nIsso apagará TODO o conteúdo de '${nomeDestino}'.\n\nConfirma?`)) {
-        console.log("Cancelado pelo usuário.");
-        console.groupEnd();
         return;
     }
 
-    // Prepara UI
-    const btn = document.querySelector('#modalReplicar .btn-primary') || document.querySelector('#modalReplicar .btn-danger');
+    const btn = document.querySelector('#modalReplicar .btn-danger');
     const txtOriginal = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
     btn.disabled = true;
@@ -1263,7 +1225,6 @@ async function submitReplicarTipoAction() {
     const url = getRoute('replicarTipoIntegral', '/Configuracao/ReplicarTipoIntegral', 'config');
 
     try {
-        console.log("Enviando requisição para API...");
         const r = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -1276,35 +1237,28 @@ async function submitReplicarTipoAction() {
         const data = await r.json();
 
         if (r.ok) {
-            console.log("✅ Sucesso API:", data.msg);
             showToast("Replicação concluída com sucesso!");
             closeModals();
             
-            // Restaura estilo do botão
             btn.classList.add('btn-primary');
             btn.classList.remove('btn-danger');
             
-            console.log("Atualizando interface...");
             await autoSync(); 
             await loadTree(); 
         } else {
-            console.error("❌ Erro API:", data.error);
             alert("Erro na replicação: " + (data.error || "Erro desconhecido"));
         }
     } catch (e) {
-        console.error("❌ Erro de Rede/JS:", e);
         alert("Erro de comunicação: " + e.message);
     } finally {
         if(btn) {
             btn.innerHTML = txtOriginal;
             btn.disabled = false;
         }
-        console.groupEnd();
     }
 }
 
 function submitMassDelete() {
-    // CORREÇÃO: Lê do dataset.code
     const nome = document.getElementById('selectMassDeleteGroup').value;
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     if(!nome) return;
@@ -1314,7 +1268,6 @@ function submitMassDelete() {
 }
 
 function submitMassUnlink() {
-    // CORREÇÃO: Lê do dataset.code
     const c = document.getElementById('inputMassUnlinkConta').value;
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     if(!c) return;
@@ -1323,7 +1276,7 @@ function submitMassUnlink() {
 }
 
 // ==========================================================================
-// 8. HELPERS
+// 8. HELPERS E OUTROS
 // ==========================================================================
 
 function openAddRootGroup() {
@@ -1332,8 +1285,7 @@ function openAddRootGroup() {
     const lbl = document.getElementById('lblParentName');
     if (lbl) {
         lbl.innerText = contextNode.text;
-        lbl.style.color = '#e74c3c'; 
-        lbl.style.fontWeight = 'bold';
+        lbl.className = 'text-danger font-bold'; 
     }
     resetInput('inputSubName');
 }
@@ -1341,26 +1293,26 @@ function openAddRootGroup() {
 async function openReplicarModal() {
     openModal('modalReplicar');
     
-    // RESET DE INTERFACE (Para evitar conflito com a Replicação de Tipo)
-    const btn = document.querySelector('#modalReplicar .btn-primary');
-    const title = document.querySelector('#modalReplicar .modal-header h3');
-    const headerInfo = document.querySelector('#modalReplicar .modal-body .mb-2') || document.querySelector('#lblOrigemReplicar').parentElement;
+    // RESET DE INTERFACE
+    const btn = document.querySelector('#modalReplicar .luft-modal-footer button:last-child');
+    const title = document.querySelector('#modalReplicar .luft-modal-title');
+    const headerInfo = document.querySelector('#lblOrigemReplicar')?.parentElement;
 
     if(btn) {
-        btn.onclick = submitReplicar; // Restaura função original
-        btn.innerHTML = 'Replicar';
+        btn.onclick = submitReplicar; 
+        btn.innerHTML = 'Replicar Estrutura';
+        btn.className = 'btn btn-primary';
         btn.disabled = false;
     }
-    if(title) title.innerText = "Replicar Estrutura (Subgrupo)";
+    if(title) title.innerHTML = '<i class="fas fa-clone text-primary"></i> Replicar Estrutura (Subgrupo)';
     
-    // Restaura o cabeçalho padrão
     if(headerInfo) {
-        headerInfo.innerHTML = `Origem: <strong id="lblOrigemReplicar">${contextNode.text}</strong>`;
+        headerInfo.innerHTML = `Origem: <strong id="lblOrigemReplicar" class="text-primary">${contextNode.text}</strong>`;
+        headerInfo.className = 'p-3 bg-app border border-light rounded-md mb-4 text-sm text-main';
     }
 
-    // Lógica original de carregar destinos
     const list = document.getElementById('listaDestinos');
-    list.innerHTML = '<div class="text-center text-muted p-2"><i class="fas fa-spinner fa-spin"></i> Carregando destinos...</div>';
+    list.innerHTML = '<div class="text-center text-muted p-4"><i class="fas fa-spinner fa-spin"></i> Carregando destinos...</div>';
     
     try {
         const url = getRoute('getDadosArvore', '/Configuracao/GetDadosArvore', 'config');
@@ -1369,22 +1321,21 @@ async function openReplicarModal() {
         let html = '';
         data.forEach(root => {
             if(root.type === 'root_tipo') {
-                html += `<div style="background:var(--bg-secondary); padding:5px; font-weight:bold; margin-top:8px; border-radius:4px;">${root.text}</div>`;
+                html += `<div class="bg-panel p-2 font-bold mt-2 rounded border border-light text-sm">${root.text}</div>`;
                 root.children.forEach(cc => {
-                    // Não mostra o próprio nó origem na lista de destinos
                     if(cc.id !== contextNode.id) {
                         html += `
-                        <label style="display:block; padding:8px 5px; cursor:pointer; border-bottom:1px solid #eee;">
-                            <input type="checkbox" class="chk-dest" value="${cc.id.replace('cc_','')}"> 
-                            <span style="margin-left:8px;">${cc.text}</span>
+                        <label class="d-flex align-items-center p-2 cursor-pointer border-b border-light hover:bg-app transition">
+                            <input type="checkbox" class="chk-dest mr-2" value="${cc.id.replace('cc_','')}"> 
+                            <span class="text-sm">${cc.text}</span>
                         </label>`;
                     }
                 });
             }
         });
-        list.innerHTML = html || '<div class="p-2">Nenhum destino disponível.</div>';
+        list.innerHTML = html || '<div class="p-3 text-muted">Nenhum destino disponível.</div>';
     } catch(e){ 
-        list.innerHTML = `<div class="text-danger p-2">Erro: ${e.message}</div>`; 
+        list.innerHTML = `<div class="text-danger p-3">Erro: ${e.message}</div>`; 
     }
 }
 
@@ -1423,7 +1374,7 @@ async function loadContasList() {
 
 async function loadStdGroupAccounts(nodeId) {
     const list = document.getElementById('listStdLinkedAccounts');
-    list.innerHTML = 'Carregando...';
+    list.innerHTML = '<div class="text-center text-muted p-4"><i class="fas fa-spinner fa-spin"></i></div>';
     const dbId = nodeId.replace('sg_', '');
     const url = getRoute(null, '/Configuracao/GetContasDoSubgrupo', 'config');
 
@@ -1436,20 +1387,20 @@ async function loadStdGroupAccounts(nodeId) {
         const d = await r.json();
         document.getElementById('lblCountStd').innerText = d.length;
         
-        if(d.length === 0) list.innerHTML = '<div class="text-muted text-center p-3">Vazio</div>';
+        if(d.length === 0) list.innerHTML = '<div class="text-muted text-center mt-4">Nenhuma conta vinculada</div>';
         else {
             let html = '';
             d.forEach(c => {
                 const info = globalTodasContas.find(x=>x.numero==c);
                 html += `
-                    <div class="account-tag" style="margin:5px;">
+                    <div class="account-tag m-1">
                         ${c} - ${info ? info.nome.substring(0,15) : '...'}
                         <i class="fas fa-times remove-btn" onclick="removeStdAccount('${c}')"></i>
                     </div>`;
             });
-            list.innerHTML = `<div style="display:flex;flex-wrap:wrap;">${html}</div>`;
+            list.innerHTML = `<div class="d-flex flex-wrap">${html}</div>`;
         }
-    } catch(e){ list.innerHTML = 'Erro'; }
+    } catch(e){ list.innerHTML = '<div class="text-danger p-3">Erro ao carregar</div>'; }
 }
 
 async function removeStdAccount(c) {
@@ -1477,17 +1428,15 @@ let operandosDisponiveis = null;
 let operandosSelecionados = [];
 
 async function openModalCalculado() {
-    // Reset de estado
     currentEditingNodeId = null;
     document.getElementById('inputCalcNome').value = '';
     document.getElementById('inputCalcOrdem').value = '50';
     document.getElementById('selectCalcOperacao').value = 'soma';
     
-    // Reset da Cor
-    document.getElementById('inputCalcColor').value = '#34495e';
+    document.getElementById('inputCalcColor').value = '#3b82f6'; // Azul LuftCore padrão
 
-    const modalTitle = document.querySelector('#modalAddCalculado .modal-header h3');
-    if(modalTitle) modalTitle.innerText = "Novo Nó Calculado";
+    const modalTitle = document.querySelector('#modalAddCalculado .luft-modal-title');
+    if(modalTitle) modalTitle.innerHTML = '<i class="fas fa-calculator text-primary"></i> Novo Nó Calculado';
 
     if (!operandosDisponiveis) {
         try {
@@ -1528,8 +1477,8 @@ function renderOperandos() {
 
     operandosSelecionados.forEach((op, idx) => {
         container.innerHTML += `
-            <div class="operando-item" data-index="${idx}">
-                <select class="form-select form-select-sm" onchange="updateOperando(${idx}, this)">
+            <div class="d-flex align-items-center gap-2 mb-2" data-index="${idx}">
+                <select class="form-control text-sm" onchange="updateOperando(${idx}, this)">
                     <option value="" disabled ${!op.id ? 'selected' : ''}>Selecione...</option>
                     
                     <optgroup label="Tipos de Centro de Custo">
@@ -1564,7 +1513,7 @@ function renderOperandos() {
                     </optgroup>
 
                 </select>
-                <button class="btn btn-xs btn-ghost text-danger" onclick="removeOperando(${idx})">
+                <button class="btn btn-icon bg-danger-50 text-danger hover:bg-danger hover:text-white" style="flex-shrink:0" onclick="removeOperando(${idx})">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1573,7 +1522,7 @@ function renderOperandos() {
 }
 
 function addOperando() {
-    operandosSelecionados.push({ tipo: 'tipo_cc', id: 'Oper', label: 'CUSTOS' }); // Default visual
+    operandosSelecionados.push({ tipo: 'tipo_cc', id: 'Oper', label: 'CUSTOS' }); 
     renderOperandos();
     atualizarPreviewFormula();
 }
@@ -1596,9 +1545,9 @@ function atualizarPreviewFormula() {
     const simbolos = { soma: '+', subtracao: '-', multiplicacao: '×', divisao: '÷' };
     
     const labels = operandosSelecionados.map(o => o.label || o.id);
-    const preview = labels.join(` ${simbolos[op]} `) || 'Selecione operandos...';
+    const preview = labels.join(` <strong class="text-primary">${simbolos[op]}</strong> `) || '<span class="text-muted">Selecione operandos...</span>';
     
-    document.getElementById('previewFormula').textContent = preview;
+    document.getElementById('previewFormula').innerHTML = preview;
 }
 
 async function submitNoCalculado() {
@@ -1607,9 +1556,8 @@ async function submitNoCalculado() {
     const ordem = parseInt(document.getElementById('inputCalcOrdem').value) || 50;
     const tipoExibicao = document.getElementById('selectCalcTipoExibicao').value;
     
-    // Captura e formata a cor
     const cor = document.getElementById('inputCalcColor').value;
-    const estiloCss = `background-color: ${cor}; font-weight: bold; color: #000000;`;
+    const estiloCss = `color: ${cor}; font-weight: bold;`;
 
     if (!nome) return alert('Informe o nome do nó');
     if (operandosSelecionados.length < 2) return alert('Adicione pelo menos 2 operandos');
@@ -1623,9 +1571,7 @@ async function submitNoCalculado() {
         }))
     };
     
-    // DECISÃO: UPDATE ou CREATE
     if (currentEditingNodeId) {
-        // Modo Edição
         const url = getRoute(null, '/Configuracao/UpdateNoCalculado', 'config');
         fetchAPI(url, {
             id: currentEditingNodeId,
@@ -1633,17 +1579,16 @@ async function submitNoCalculado() {
             formula: formula,
             ordem: ordem,
             tipo_exibicao: tipoExibicao,
-            estilo_css: estiloCss // Envia o CSS
+            estilo_css: estiloCss 
         }, 'Cálculo atualizado com sucesso!');
     } else {
-        // Modo Criação
         const url = getRoute(null, '/Configuracao/AddNoCalculado', 'config');
         fetchAPI(url, {
             nome: nome,
             formula: formula,
             ordem: ordem,
             tipo_exibicao: tipoExibicao,
-            estilo_css: estiloCss // Envia o CSS
+            estilo_css: estiloCss 
         }, 'Nó calculado criado!');
     }
 }

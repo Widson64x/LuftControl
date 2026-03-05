@@ -1,396 +1,594 @@
 /* ==========================================================================
-   Relatório: Análise Gerencial (DRE)
-   Baseado estritamente nas variáveis do Themes.css
+   Luft Control | Report_AnaliseGerencial.css
+   Módulo: Análise Gerencial (DRE) - Padrão LuftCore
    ========================================================================== */
 
-/* 1. Toolbar Superior */
-.dre-toolbar {
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-primary);
-    padding: var(--spacing-sm) var(--spacing-md);
-    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-sm);
-    flex-shrink: 0;
-}
-
-.dre-toolbar .btn {
-    font-size: var(--font-xs);
-    padding: 8px 14px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-primary);
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
-    transition: all var(--transition-fast);
-}
-
-.dre-toolbar .btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-    border-color: var(--border-hover);
-}
-
-.dre-toolbar .btn-success {
-    background: rgba(16, 185, 129, var(--opacity-10)); /* Success RGB */
-    border-color: rgba(16, 185, 129, var(--opacity-30));
-    color: var(--success);
-}
-
-.separator-vertical {
-    width: 1px; height: 20px;
-    background: var(--border-primary);
-}
-
-/* 2. Filtro de Origem */
-.origem-filter-group {
-    background: rgba(0, 0, 0, var(--opacity-20));
-    padding: 6px 12px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-primary);
-}
-
-.origem-toggle-group {
-    display: inline-flex;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    border: 1px solid var(--border-primary);
-}
-
-.origem-toggle-btn {
-    background: var(--bg-tertiary);
-    border: none;
-    border-right: 1px solid var(--border-secondary);
-    color: var(--text-secondary);
-    padding: 6px 14px;
-    font-size: var(--font-xs);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    display: inline-flex; align-items: center; gap: 6px;
-    white-space: nowrap;
-}
-.origem-toggle-btn:last-child { border-right: none; }
-.origem-toggle-btn:hover:not(.active) { background: var(--bg-hover); color: var(--text-primary); }
-
-.origem-toggle-btn.active {
-    background: var(--gradient-primary);
-    color: white;
-    font-weight: var(--font-weight-semibold);
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, var(--opacity-20));
-}
-
-/* Cores específicas de ícones (mantendo coerência com temas) */
-.origem-toggle-btn[data-origem="Consolidado"] i { color: var(--primary-light); }
-.origem-toggle-btn[data-origem="FARMA"] i { color: var(--success); }
-.origem-toggle-btn[data-origem="FARMADIST"] i { color: var(--warning); }
-.origem-toggle-btn.active i { color: white !important; }
-
-#dreOrigemBadge {
-    background: rgba(var(--primary-rgb), var(--opacity-20));
-    color: rgb(0, 0, 0);
-    border: 1px solid rgba(var(--primary-rgb), var(--opacity-30));
-    font-weight: var(--font-weight-semibold);
-}
-
-/* 3. Tabela DRE (Core) */
-.table-fixed-container {
-    border: 1px solid var(--bi-border);
-    border-radius: var(--radius-md);
-    overflow: auto;
-    background: var(--bi-bg-body);
-}
-
-.table-modern {
-    width: 100%; border-collapse: separate; border-spacing: 0;
-    font-size: var(--font-sm);
-    color: var(--text-primary);
-}
-
-/* Header */
-.table-modern thead { position: sticky; top: 0; z-index: var(--z-popover) !important; }
-
-.table-modern th {
-    background: var(--bi-bg-header) !important;
-    color: var(--text-secondary);
-    font-size: var(--font-xs);
-    font-weight: var(--font-weight-bold);
-    text-transform: uppercase;
-    padding: 12px 10px;
-    border-bottom: 2px solid var(--primary);
-    border-right: 1px solid var(--bi-border);
-    white-space: nowrap;
-}
-
-.table-modern th input {
-    width: 100%; margin-top: 8px;
-    background: var(--bi-input-bg);
-    border: 1px solid var(--bi-border);
-    border-radius: var(--radius-xs);
-    padding: 5px 8px;
-    color: var(--bi-input-text);
-    font-family: var(--font-mono);
-    font-size: var(--font-xs);
-}
-.table-modern th input:focus { border-color: var(--primary); outline: none; }
-
-/* Sticky Column */
-.table-modern th:first-child, .table-modern td:first-child {
-    position: sticky !important; left: 0 !important;
-    z-index: var(--z-fixed) !important;
-    box-shadow: var(--shadow-sm);
-}
-.table-modern th:first-child { z-index: calc(var(--z-fixed) + 10) !important; min-width: 350px; }
-
-/* Cells e Linhas - Cores do Tema */
-.table-modern td {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--bi-border);
-    white-space: nowrap;
-    transition: background-color var(--transition-fastest);
-}
-
-/* Tipos de Linha */
-.dre-row-root { background: var(--bi-row-root-bg); }
-.dre-row-root td {
-    font-weight: var(--font-weight-extrabold);
-    text-transform: uppercase;
-    padding-top: 14px; padding-bottom: 14px;
-    border-top: 1px solid var(--bi-border);
-    color: var(--bi-row-root-text) !important;
-}
-.dre-row-root td:first-child { background: var(--bi-row-root-bg); }
-
-.dre-row-group { background: var(--bi-row-group-bg); } 
-.dre-row-group td { font-weight: var(--font-weight-semibold); color: var(--bi-row-group-text); }
-.dre-row-group td:first-child { background: var(--bi-row-group-bg); }
-
-.dre-row-account { background: var(--bi-row-acct-bg); }
-.dre-row-account td { font-size: 0.8rem; color: var(--bi-row-acct-text); }
-.dre-row-account td:first-child { background: var(--bi-row-acct-bg); }
-
-/* Linhas Calculadas */
-.dre-row-calculated { 
-    background: var(--bi-row-calc-bg);
-    border-top: 1px solid var(--bi-border); 
-    border-bottom: 1px solid var(--bi-border); 
-}
-.dre-row-calculated td { 
-    font-weight: var(--font-weight-bold); 
-    font-size: 0.9rem; 
-    color: var(--bi-row-calc-text) !important; 
-}
-.dre-row-calculated td:first-child { 
-    background: var(--bi-row-calc-bg);
-    opacity: 1 !important; 
-}
-
-/* Hover */
-.table-modern tr:hover td { background: var(--bi-row-hover) !important; }
-.table-modern tr:hover td:first-child { background: var(--bi-row-hover) !important; }
-
-/* Auxiliares */
-.toggle-icon {
-    width: 20px; height: 20px;
-    display: inline-flex; align-items: center; justify-content: center;
-    border-radius: var(--radius-xs);
-    color: var(--text-tertiary);
-    cursor: pointer;
-}
-.toggle-icon:hover { background: rgba(var(--primary-rgb), var(--opacity-20)); color: var(--primary); }
-
-.search-match { background-color: rgba(245, 158, 11, var(--opacity-20)) !important; } 
-.search-current-match { background-color: rgba(245, 158, 11, var(--opacity-40)) !important; box-shadow: inset 3px 0 0 var(--warning); }
-
-/* Footer */
-.dre-footer {
-    background: linear-gradient(90deg, var(--bg-tertiary), var(--bg-secondary));
-    padding: 8px 16px;
-    border-top: 1px solid var(--border-primary);
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: var(--font-xs);
-    color: var(--text-muted);
-}
-.dre-footer strong { color: var(--primary-light); }
-
-/* ==========================================================================
-   4. Modal do Gerenciador de Colunas (Ad-hoc)
-   ========================================================================== */
-
-.modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(2px);
-    z-index: 9999; 
-    display: none;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity var(--transition-fast);
-}
-
-.modal-backdrop.active {
-    display: flex;
-    opacity: 1;
-}
-
-.modal-window {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    width: 90%;
-    max-width: 600px;
-    max-height: 85vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: slideInDown 0.2s ease-out;
-}
-
-@keyframes slideInDown {
-    from { transform: translateY(-20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-/* Estilos Internos do Gerenciador de Colunas */
-.column-manager-container {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    background: var(--bg-body);
-}
-
-.column-manager-header {
-    padding: 16px 20px;
-    background: var(--bg-tertiary);
-    border-bottom: 1px solid var(--border-primary);
+/* --------------------------------------------------------------------------
+   1. TOOLBAR SUPERIOR (Totalmente colada ao modal-header)
+   -------------------------------------------------------------------------- */
+.luft-dre-toolbar {
+    background: var(--luft-bg-panel);
+    padding: var(--luft-space-2) var(--luft-space-5);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: var(--luft-space-3);
+    flex-shrink: 0;
+    
+    /* TRUQUE: Remove a borda e puxa 1px pra cima para "fundir" com o header do modal */
+    border-top: none;
+    margin-top: -1px;
+    border-bottom: 1px solid var(--luft-border-dark);
+    box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+    z-index: 25;
+    position: relative;
 }
 
-.column-manager-header h5 {
-    font-size: var(--font-md);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-primary);
+.luft-dre-btn {
+    font-size: var(--luft-text-sm);
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: var(--luft-radius-md);
+    border: 1px solid var(--luft-border);
+    background: var(--luft-bg-panel);
+    color: var(--luft-text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.luft-dre-btn i {
+    margin-right: 8px;
+    font-size: 1.1em;
+    color: var(--luft-text-light);
+    transition: color 0.2s;
+}
+
+.luft-dre-btn:hover {
+    background: var(--luft-bg-app);
+    color: var(--luft-text-main);
+    border-color: var(--luft-border-dark);
+}
+
+.luft-dre-btn:hover i { color: var(--luft-primary-500); }
+
+.luft-dre-btn-active {
+    background: var(--luft-primary-50) !important;
+    color: var(--luft-primary-700) !important;
+    border-color: var(--luft-primary-300) !important;
+}
+.luft-dre-btn-active i { color: var(--luft-primary-600) !important; }
+
+.luft-separator-vertical { width: 1px; height: 24px; background: var(--luft-border-dark); margin: 0 var(--luft-space-2); }
+
+/* --------------------------------------------------------------------------
+   2. FILTROS E TOGGLES (Origem / Empresas) - AGORA MUITO MAIS VISÍVEIS
+   -------------------------------------------------------------------------- */
+.luft-origem-filter-group {
+    background: var(--luft-slate-100); /* Fundo sutilmente mais escuro para contraste */
+    padding: 4px;
+    border-radius: var(--luft-radius-lg);
+    border: 1px solid var(--luft-border-dark);
     display: flex;
     align-items: center;
-    gap: 10px;
 }
 
-.column-grid {
-    padding: 20px;
+.luft-origem-toggle-group {
+    display: inline-flex;
+    border-radius: var(--luft-radius-md);
+    overflow: hidden;
+    gap: 2px; /* Pequeno respiro entre os botões */
+}
+
+.luft-origem-toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--luft-slate-500);
+    padding: 6px 14px;
+    font-size: var(--luft-text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--luft-radius-md);
+}
+
+.luft-origem-toggle-btn i { margin-right: 6px; font-size: 1.1em; transition: all 0.2s; }
+
+.luft-origem-toggle-btn:hover:not(.active) {
+    color: var(--luft-text-main);
+    background: rgba(0,0,0,0.05);
+}
+
+/* ESTADO ATIVO: Azul vibrante com texto branco */
+.luft-origem-toggle-btn.active {
+    background: var(--luft-primary-600);
+    color: white;
+    box-shadow: var(--luft-shadow-sm);
+    transform: translateY(-1px);
+}
+
+.luft-origem-toggle-btn.active i {
+    color: white !important; /* Força o ícone a ficar branco */
+}
+
+.luft-dre-badge {
+    background: var(--luft-primary-900);
+    color: white;
+    padding: 4px 10px;
+    border-radius: var(--luft-radius-full);
+    font-size: var(--luft-text-xs);
+    font-weight: 800;
+    margin-left: 8px;
+    box-shadow: var(--luft-shadow-sm);
+}
+
+/* --------------------------------------------------------------------------
+   2.1 SELETOR DE CENTRO DE CUSTO (CC FILTER)
+   -------------------------------------------------------------------------- */
+.luft-cc-selector {
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border-dark);
+    color: var(--luft-text-main);
+    border-radius: var(--luft-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    height: 38px;
+    min-width: 220px;
+    max-width: 350px;
+    font-size: var(--luft-text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--luft-shadow-sm);
+}
+
+.luft-cc-selector:hover {
+    background: var(--luft-bg-app);
+    border-color: var(--luft-primary-400);
+}
+
+.luft-cc-display {
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0 8px;
+}
+
+/* Quando um Filtro está ATIVO, o botão acende para alertar o usuário */
+.luft-cc-selector.has-filter {
+    background: var(--luft-warning-50);
+    border-color: var(--luft-warning-400);
+    color: var(--luft-warning-800);
+}
+
+.luft-cc-selector.has-filter i {
+    color: var(--luft-warning-600) !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. TABELA DRE (Grid Core Premium)
+   -------------------------------------------------------------------------- */
+.luft-table-container {
+    overflow: auto;
+    background: var(--luft-bg-app);
+}
+
+/* SCROLLBAR CUSTOMIZADA E ELEGANTE PARA A TABELA */
+.luft-table-container::-webkit-scrollbar { width: 8px; height: 8px; }
+.luft-table-container::-webkit-scrollbar-track { background: var(--luft-bg-app); }
+.luft-table-container::-webkit-scrollbar-thumb { background: var(--luft-border-dark); border-radius: 4px; }
+.luft-table-container::-webkit-scrollbar-thumb:hover { background: var(--luft-text-light); }
+
+.luft-table-modern {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--luft-text-sm);
+    color: var(--luft-text-main);
+}
+
+/* Headers */
+.luft-table-modern thead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.luft-table-modern th {
+    background: var(--luft-bg-panel) !important;
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-xs);
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 14px 16px;
+    border-bottom: 2px solid var(--luft-primary-200); /* Borda inferior de destaque sutil */
+    border-right: 1px solid var(--luft-border);
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+}
+
+.luft-table-modern th:first-child, .luft-table-modern td:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 30 !important;
+    box-shadow: 3px 0 8px rgba(0,0,0,0.03); /* Sombra mais difusa na coluna fixa */
+}
+
+.luft-table-modern th:first-child {
+    z-index: 40 !important;
+    min-width: 380px;
+}
+
+/* Cells Base */
+.luft-table-modern td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--luft-border-light);
+    white-space: nowrap;
+    transition: background-color 0.15s;
+}
+
+/* ================= NÍVEIS DA ÁRVORE (CORES ADAPTÁVEIS DARK/LIGHT) ================= */
+
+/* Nível 1: Pastas Raiz (Receitas, Custos, etc) */
+.luft-dre-row-root td {
+    background: var(--luft-bg-panel);
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--luft-text-main); /* 600 costuma ter contraste excelente em ambos os temas */
+    border-top: 2px solid var(--luft-border-dark); /* Borda adaptável mais espessa */
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+.luft-dre-row-root td:first-child { background: var(--luft-bg-panel); }
+
+/* Nível 2: Grupos/Subgrupos */
+.luft-dre-row-group td {
+    background: var(--luft-bg-panel);
+    font-weight: 700;
+    color: var(--luft-text-main);
+}
+.luft-dre-row-group td:first-child { background: var(--luft-bg-panel); }
+
+/* Nível 3: Pasta que guarda a Conta */
+.luft-dre-row-account-group td {
+    background: var(--luft-bg-app); /* Leve quebra de fundo (Listras estilo Zebra) */
+    font-weight: 600;
+    color: var(--luft-text-main);
+}
+.luft-dre-row-account-group td:first-child { background: var(--luft-bg-app); }
+
+/* Nível 4: Conta Contábil final */
+.luft-dre-row-account td {
+    background: var(--luft-bg-panel);
+    font-size: var(--luft-text-sm);
+    color: var(--luft-text-muted);
+}
+.luft-dre-row-account td:first-child { background: var(--luft-bg-panel); }
+
+/* Nível Calculado (Lucro, Margem) */
+.luft-dre-row-calculated td {
+    background: var(--luft-bg-app); /* Fundo contrastante adaptável */
+    font-weight: 800;
+    color: var(--luft-text-main);
+    border-top: 1px dashed var(--luft-border-dark); /* Borda tracejada adaptável */
+    border-bottom: 1px dashed var(--luft-border-dark);
+}
+.luft-dre-row-calculated td:first-child { background: var(--luft-bg-app); }
+
+/* Hover global da Tabela (Fica bonito em Dark e Light) */
+.luft-table-modern tr:hover td { background: var(--luft-border-light) !important; }
+.luft-table-modern tr:hover td:first-child { background: var(--luft-border-light) !important; }
+
+/* ================= ÍCONES DA ÁRVORE ================= */
+.luft-toggle-icon {
+    width: 24px; height: 24px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--luft-radius-sm);
+    color: var(--luft-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.luft-toggle-icon:hover {
+    background: var(--luft-primary-100);
+    color: var(--luft-primary-700);
+}
+
+.luft-search-match { background-color: var(--luft-warning-100) !important; }
+.luft-search-current-match { background-color: var(--luft-warning-200) !important; box-shadow: inset 4px 0 0 var(--luft-warning-500); }
+
+/* --------------------------------------------------------------------------
+   4. RODAPÉ (FOOTER)
+   -------------------------------------------------------------------------- */
+.luft-dre-footer {
+    background: var(--luft-bg-panel);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--luft-text-xs);
+    color: var(--luft-text-muted);
+    /* Sombra projetada pra cima */
+    box-shadow: 0 -4px 10px -2px rgba(0, 0, 0, 0.05);
+    z-index: 25;
+    position: relative;
+}
+.luft-dre-footer strong { color: var(--luft-primary-600); font-weight: 700; }
+
+/* --------------------------------------------------------------------------
+   5. MODAL GERENCIADOR DE COLUNAS (Premium Edition)
+   -------------------------------------------------------------------------- */
+.luft-col-mgr-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.75); /* Fundo escurecido mais elegante */
+    backdrop-filter: blur(8px); /* Desfoque forte do fundo */
+    z-index: var(--luft-z-modal, 9999);
+    display: flex; align-items: center; justify-content: center;
+    animation: luftFadeInBackdrop 0.3s ease-out forwards;
+}
+
+@keyframes luftFadeInBackdrop { from { opacity: 0; } to { opacity: 1; } }
+
+.luft-col-mgr-window {
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border-dark);
+    border-radius: var(--luft-radius-2xl); /* Mais arredondado */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); /* Sombra 3D profunda */
+    width: 95%; max-width: 680px;
+    max-height: 85vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    transform: scale(0.95) translateY(20px);
+    animation: luftScaleUpWindow 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes luftScaleUpWindow { to { transform: scale(1) translateY(0); } }
+
+.luft-col-mgr-header {
+    padding: var(--luft-space-6) var(--luft-space-8);
+    background: var(--luft-bg-app);
+    border-bottom: 1px solid var(--luft-border);
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0;
+}
+
+.luft-col-mgr-header h5 {
+    font-size: var(--luft-text-xl);
+    font-weight: 800;
+    color: var(--luft-text-main);
+    margin: 0;
+    display: flex; align-items: center;
+}
+
+.luft-col-mgr-grid {
+    padding: var(--luft-space-6) var(--luft-space-8);
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--luft-space-4);
     overflow-y: auto;
-    max-height: 60vh;
+    background: var(--luft-bg-panel);
 }
 
-.column-option {
+/* Scrollbar interna elegante */
+.luft-col-mgr-grid::-webkit-scrollbar { width: 6px; }
+.luft-col-mgr-grid::-webkit-scrollbar-track { background: transparent; }
+.luft-col-mgr-grid::-webkit-scrollbar-thumb { background: var(--luft-border-dark); border-radius: 4px; }
+
+/* -------------------------------------------
+   OS CARDS DE COLUNA (Substitui os checkboxes)
+   ------------------------------------------- */
+.luft-col-option {
+    position: relative;
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: var(--luft-bg-app);
+    border: 2px solid var(--luft-border-light);
+    border-radius: var(--luft-radius-xl);
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: var(--luft-text-sm);
+    color: var(--luft-text-muted);
+    font-weight: 600;
+    user-select: none;
+    overflow: hidden;
+}
+
+/* Efeito Hover do Card */
+.luft-col-option:hover {
+    border-color: var(--luft-primary-300);
+    color: var(--luft-text-main);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+/* Estado Ativo/Selecionado do Card */
+.luft-col-option.selected {
+    background: var(--luft-primary-50);
+    border-color: var(--luft-primary-500);
+    color: var(--luft-primary-800);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15); /* Sombrinha colorida sutil */
+}
+
+/* Oculta o checkbox nativo feio */
+.luft-col-checkbox { position: absolute; opacity: 0; width: 0; height: 0; cursor: pointer; }
+
+/* Desenha um Checkbox Redondo Customizado */
+.luft-col-option::before {
+    content: '';
+    display: block;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--luft-border-dark);
+    background: var(--luft-bg-panel);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+/* Anima e preenche o Checkbox Customizado quando Selecionado */
+.luft-col-option.selected::before {
+    background-color: var(--luft-primary-500);
+    border-color: var(--luft-primary-500);
+    /* Desenha o "V" do check usando SVG embutido */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+    background-size: 12px;
+    background-position: center;
+    background-repeat: no-repeat;
+    transform: scale(1.1);
+}
+
+/* Footer do Modal */
+.luft-col-mgr-footer {
+    padding: var(--luft-space-5) var(--luft-space-8);
+    background: var(--luft-bg-app);
+    border-top: 1px solid var(--luft-border);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.luft-col-mgr-footer .btn-primary {
+    padding: 12px 28px;
+    font-size: var(--luft-text-sm);
+    font-weight: 700;
+    border-radius: var(--luft-radius-lg);
+    box-shadow: var(--luft-shadow-md);
+    transition: all 0.2s;
+}
+
+.luft-col-mgr-footer .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--luft-shadow-lg);
+}
+
+/* --------------------------------------------------------------------------
+   6. DROPDOWN DE CENTRO DE CUSTO (Custom Select Flutuante)
+   -------------------------------------------------------------------------- */
+.luft-dropdown-menu {
+    position: fixed;
+    z-index: 99999; /* Garante que fica por cima do modal XL */
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border-dark);
+    border-radius: var(--luft-radius-lg);
+    box-shadow: var(--luft-shadow-2xl);
+    width: 320px;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+    animation: luftFadeIn 0.2s ease-out;
+}
+
+.luft-dropdown-search {
+    padding: var(--luft-space-3) var(--luft-space-4);
+    border-bottom: 1px solid var(--luft-border);
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-secondary);
-    border-radius: var(--radius-sm);
+    background: var(--luft-bg-app);
+    border-radius: calc(var(--luft-radius-lg) - 1px) calc(var(--luft-radius-lg) - 1px) 0 0;
+}
+
+.luft-dropdown-search i {
+    color: var(--luft-text-muted);
+    margin-right: 12px;
+}
+
+.luft-dropdown-search input {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    color: var(--luft-text-main);
+    font-size: var(--luft-text-sm);
+    outline: none;
+}
+
+.luft-dropdown-search input::placeholder {
+    color: var(--luft-text-light);
+}
+
+.luft-dropdown-list {
+    overflow-y: auto;
+    padding: var(--luft-space-2) 0;
+}
+
+/* Scrollbar do dropdown */
+.luft-dropdown-list::-webkit-scrollbar { width: 6px; }
+.luft-dropdown-list::-webkit-scrollbar-track { background: transparent; }
+.luft-dropdown-list::-webkit-scrollbar-thumb { background: var(--luft-border-dark); border-radius: 4px; }
+.luft-dropdown-list::-webkit-scrollbar-thumb:hover { background: var(--luft-text-muted); }
+
+.luft-dropdown-option {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
     cursor: pointer;
-    transition: all var(--transition-fast);
-    user-select: none;
+    font-size: var(--luft-text-sm);
+    color: var(--luft-text-muted);
+    transition: all 0.2s;
+    margin: 2px var(--luft-space-2);
+    border-radius: var(--luft-radius-md);
 }
 
-.column-option:hover {
-    border-color: var(--primary);
-    background: var(--bg-hover);
+.luft-dropdown-option:hover {
+    background: var(--luft-bg-app);
+    color: var(--luft-text-main);
 }
 
-.column-option.selected {
-    background: rgba(var(--primary-rgb), 0.1);
-    border-color: var(--primary);
-    color: var(--primary);
-    font-weight: var(--font-weight-medium);
+.luft-dropdown-all {
+    border-bottom: 1px solid var(--luft-border-light);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
 }
 
-.column-checkbox {
-    accent-color: var(--primary);
-    cursor: pointer;
+.luft-checkbox {
+    accent-color: var(--luft-primary-600);
+    margin-right: 12px;
     width: 16px;
     height: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
 }
 
-/* Botão de Fechar/Aplicar no rodapé do modal */
-.column-manager-container .btn-primary-custom {
-    background: var(--gradient-primary);
-    color: white;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-weight: var(--font-weight-semibold);
-    box-shadow: var(--shadow-sm);
-    transition: transform var(--transition-fast);
-}
-
-.column-manager-container .btn-primary-custom:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
-}
-
-/* ==========================================================================
-   Estilos para Seletores (Form Select)
-   ========================================================================== */
-
-.form-select {
-    display: block;
-    width: 100%;
-    padding: 8px 32px 8px 12px;
-    font-size: var(--font-sm);
-    font-family: var(--font-primary);
-    color: var(--text-primary);
-    background-color: var(--bg-primary);
-    /* Seta customizada SVG para combinar com o tema */
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238b9bb4' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 10px 10px;
-    border: 1px solid var(--border-secondary);
-    border-radius: var(--radius-sm);
+/* --------------------------------------------------------------------------
+   7. SELETOR DE ANO CUSTOMIZADO (DRE Toolbar)
+   -------------------------------------------------------------------------- */
+.luft-year-selector {
+    background-color: var(--luft-bg-app);
+    color: var(--luft-primary-700); /* Cor de destaque para o ano */
+    border: 1px solid var(--luft-border-dark);
+    border-radius: var(--luft-radius-full); /* Deixa redondinho estilo "Pill" */
+    padding: 6px 36px 6px 16px; /* Espaço extra na direita para a seta */
+    font-size: var(--luft-text-sm);
+    font-weight: 800;
+    cursor: pointer;
     appearance: none;
     -webkit-appearance: none;
-    transition: all var(--transition-fast);
-    cursor: pointer;
+    /* Setinha SVG customizada com a cor primary do LuftCore */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%233b82f6' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 10px 10px;
+    transition: all 0.2s ease;
+    box-shadow: var(--luft-shadow-sm);
+    height: 38px; /* Mesma altura dos outros botões */
 }
 
-.form-select:focus {
-    border-color: var(--primary);
-    outline: 0;
-    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15); /* Brilho suave no foco */
+.luft-year-selector:hover {
+    background-color: var(--luft-primary-50);
+    border-color: var(--luft-primary-400);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 
-.form-select:disabled {
-    background-color: var(--bg-secondary);
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* Tamanho Pequeno (Small) - Alinhado com os btn-sm da Toolbar */
-.form-select-sm {
-    padding-top: 6px;
-    padding-bottom: 6px;
-    padding-left: 10px;
-    font-size: var(--font-xs);
-    height: 32px; 
-}
-
-/* Ajuste específico para quando o select está escuro/tema dark */
-[data-theme="dark"] .form-select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23a1a1aa' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
-}
-
-/* Remove a formatação padrão do select no IE/Edge antigo */
-.form-select::-ms-expand {
-    display: none;
+.luft-year-selector:focus {
+    outline: none;
+    border-color: var(--luft-primary-500);
+    box-shadow: 0 0 0 3px var(--luft-primary-100);
+    background-color: var(--luft-bg-panel);
 }

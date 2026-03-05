@@ -1,4 +1,5 @@
 {% extends 'Base.html' %}
+{% import 'luftcore/components.html' as ui %}
 
 {% block title %}Configuração DRE | Luft Control{% endblock %}
 
@@ -7,30 +8,30 @@
 {% endblock %}
 
 {% block content %}
-<div class="dre-layout-wrapper">
+<div class="luft-dre-layout-wrapper">
     
-    <header class="dre-page-header fade-in">
-        <div class="header-content">
-            <div class="header-icon">
+    <header class="luft-card hover-lift p-6 mb-4 d-flex justify-content-between align-items-center fade-in">
+        <div class="d-flex align-items-center gap-4">
+            <div class="d-flex align-items-center justify-content-center rounded-xl bg-primary-light text-primary shadow-sm" style="width: 56px; height: 56px; font-size: 1.8rem;">
                 <i class="fas fa-layer-group"></i>
             </div>
-            <div class="header-text">
-                <h1>Gerenciador DRE</h1>
-                <p>Estruturação financeira e hierarquia de contas</p>
+            <div>
+                <h1 class="text-2xl font-bold text-main m-0">Gerenciador DRE</h1>
+                <p class="text-sm text-muted m-0">Estruturação financeira e hierarquia de contas</p>
             </div>
         </div>
         
-        <div class="header-controls">
-            <div class="btn-group">
-                <button class="btn btn-outline" onclick="toggleAllTree(true)" title="Expandir Tudo">
+        <div class="d-flex align-items-center gap-3">
+            <div class="d-flex gap-2 bg-app p-1 rounded-md border border-light">
+                <button class="btn btn-outline bg-transparent border-0 px-3" onclick="toggleAllTree(true)" title="Expandir Tudo">
                     <i class="fas fa-expand-alt"></i>
                 </button>
-                <button class="btn btn-outline" onclick="toggleAllTree(false)" title="Recolher Tudo">
+                <button class="btn btn-outline bg-transparent border-0 px-3" onclick="toggleAllTree(false)" title="Recolher Tudo">
                     <i class="fas fa-compress-alt"></i>
                 </button>
             </div>
             
-            <div class="separator-vertical"></div>
+            <div class="border-l border-light h-8 mx-2"></div>
 
             <button class="btn btn-secondary" onclick="openModal('modalAddVirtual')">
                 <i class="fas fa-plus"></i> Novo Nó Virtual
@@ -50,38 +51,38 @@
         </div>
     </header>
 
-    <div class="dre-toolbar fade-in delay-1" id="ordenamentoToolbar">
-        <div class="toolbar-status">
-            <div class="status-dot" id="ordenamentoIndicator"></div>
+    <div class="luft-dre-toolbar d-flex align-items-center justify-content-between px-4 rounded-lg mb-4 fade-in delay-1" id="ordenamentoToolbar">
+        <div class="d-flex align-items-center gap-2 text-sm text-main font-medium">
+            <div class="luft-dre-status-dot" id="ordenamentoIndicator"></div>
             <span id="ordenamentoStatusText">Verificando status...</span>
         </div>
         
-        <div class="toolbar-actions">
-            <span class="toolbar-help" data-tooltip="Arraste os itens na árvore para reordenar.">
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-xs text-muted cursor-help mr-4 d-flex align-items-center gap-1" data-tooltip="Arraste os itens na árvore para reordenar.">
                 <i class="far fa-question-circle"></i> Ajuda
             </span>
             
-            <button class="btn btn-xs btn-ghost" id="btnInicializarOrdem" onclick="inicializarOrdenamento()" style="display: none;">
+            <button class="btn luft-btn-ghost text-xs px-2 py-1" id="btnInicializarOrdem" onclick="inicializarOrdenamento()" style="display: none;">
                 <i class="fas fa-magic"></i> Inicializar
             </button>
-            <button class="btn btn-xs btn-ghost" id="btnResetarOrdem" onclick="resetarOrdenamento()" style="display: none;">
+            <button class="btn luft-btn-ghost text-xs px-2 py-1" id="btnResetarOrdem" onclick="resetarOrdenamento()" style="display: none;">
                 <i class="fas fa-undo"></i> Resetar
             </button>
-            <button class="btn btn-xs btn-ghost" id="btnNormalizarOrdem" onclick="normalizarOrdenamento()" style="display: none;">
+            <button class="btn luft-btn-ghost text-xs px-2 py-1" id="btnNormalizarOrdem" onclick="normalizarOrdenamento()" style="display: none;">
                 <i class="fas fa-sort-numeric-down"></i> Normalizar
             </button>
-            <button class="btn btn-xs btn-ghost" onclick="sincronizarOrdem()">
+            <button class="btn luft-btn-ghost text-xs px-2 py-1" onclick="sincronizarOrdem()">
                 <i class="fas fa-sync"></i> Sincronizar
             </button>
         </div>
     </div>
 
-    <main class="dre-tree-container fade-in delay-2">
-        <div class="tree-scroll-wrapper" id="treeContainer">
+    <main class="luft-dre-tree-container luft-card flex-1 overflow-hidden d-flex flex-col p-0 fade-in delay-2" style="min-height: 0;">
+        <div class="flex-1 overflow-y-auto p-6 bg-app rounded-xl" id="treeContainer" style="min-height: 0;">
             <ul id="treeRoot" class="tree-root">
                 <li class="loading-state">
-                    <div class="spinner"></div>
-                    <span>Carregando estrutura...</span>
+                    <div class="luft-dre-spinner"></div>
+                    <span class="text-muted mt-2 font-medium">Carregando estrutura...</span>
                 </li>
             </ul>
         </div>
@@ -89,341 +90,285 @@
 
 </div>
 
-<div id="modalMassManager" class="modal-backdrop">
-    <div class="modal-window modal-xl">
-        <div class="modal-header">
-            <div class="modal-title">
-                <i class="fas fa-cubes"></i>
-                <div>
-                    <h3>Gestão em Massa</h3>
-                    <p>Tipo: <span id="lblMassType" class="text-highlight">...</span></p>
-                </div>
-            </div>
-            <button class="modal-close-btn" onclick="closeModals()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
+{% call ui.modal('modalMassManager', 'Gestão em Massa', 'xl', 'fas fa-cubes') %}
+    <p class="text-sm text-muted mb-4 border-b border-light pb-4">
+        Gerenciamento avançado para o Tipo: <span id="lblMassType" class="text-primary font-bold px-2 py-1 bg-primary-light rounded-md">...</span>
+    </p>
 
-        <div class="modal-body-split">
-            <aside class="modal-sidebar">
-                <nav class="sidebar-nav">
-                    <button class="nav-btn active" onclick="switchMassTab('tabGroupManager', this)">
-                        <i class="fas fa-layer-group"></i> Gerenciar Grupos
-                    </button>
-                    
-                    <button class="nav-btn" onclick="switchMassTab('tabLinkAccount', this)">
-                        <i class="fas fa-link"></i> Vincular Contas
-                    </button>
-                    <button class="nav-btn" onclick="switchMassTab('tabUnlinkAccount', this)">
-                        <i class="fas fa-unlink"></i> Desvincular
-                    </button>
-                </nav>
-            </aside>
+    <div class="luft-dre-modal-body-split d-flex border border-light rounded-lg overflow-hidden bg-app">
+        <aside class="w-25 bg-panel border-r border-light overflow-y-auto py-4">
+            <nav class="d-flex flex-col gap-1 px-2">
+                <button class="luft-dre-nav-btn active" onclick="switchMassTab('tabGroupManager', this)">
+                    <i class="fas fa-layer-group"></i> Gerenciar Grupos
+                </button>
+                <button class="luft-dre-nav-btn" onclick="switchMassTab('tabLinkAccount', this)">
+                    <i class="fas fa-link"></i> Vincular Contas
+                </button>
+                <button class="luft-dre-nav-btn" onclick="switchMassTab('tabUnlinkAccount', this)">
+                    <i class="fas fa-unlink"></i> Desvincular
+                </button>
+            </nav>
+        </aside>
 
-            <section class="modal-content-area">
-                
-                <div id="tabGroupManager" class="tab-pane active full-height">
-                    <div class="tab-header">
-                        <h4>Estrutura de Grupos</h4>
-                        <p>Crie, ordene ou exclua grupos para <strong>todos</strong> os Centros de Custo deste tipo.</p>
-                    </div>
-
-                    <div class="mass-create-bar">
-                        <input type="text" id="inputMassCreateName" class="form-input" placeholder="Nome do novo grupo..." onkeydown="if(event.key === 'Enter') submitMassCreate()">
-                        <button class="btn btn-primary" onclick="submitMassCreate()">
-                            <i class="fas fa-plus"></i> Criar
-                        </button>
-                    </div>
-
-                    <div class="mass-list-header">
-                        <span>Ordem</span>
-                        <span>Nome do Grupo</span>
-                        <span>Ações</span>
-                    </div>
-                    
-                    <div class="mass-reorder-container">
-                        <ul id="listGroupManager" class="reorder-list">
-                            <li class="loading-state">Carregando grupos...</li>
-                        </ul>
-                    </div>
-
-                    <div class="modal-footer-embedded">
-                        <small class="text-muted"><i class="fas fa-info-circle"></i> Arraste para reordenar. As alterações de ordem são salvas no botão abaixo.</small>
-                        <button class="btn btn-success" onclick="submitMassReorder()">
-                            <i class="fas fa-save"></i> Salvar Nova Ordem
-                        </button>
-                    </div>
-                </div>
-
-                <div id="tabLinkAccount" class="tab-pane full-height">
-                    <div class="dual-pane-layout">
-                        <div class="pane-left">
-                            <div class="pane-header">
-                                <span>Grupos Disponíveis</span>
-                            </div>
-                            <div class="pane-list" id="listMassGroups"></div>
-                        </div>
-
-                        <div class="pane-right">
-                            <div id="noGroupSelected" class="empty-selection">
-                                <i class="fas fa-mouse-pointer"></i>
-                                <p>Selecione um grupo à esquerda</p>
-                            </div>
-
-                            <div id="groupDetails" class="details-view" style="display: none;">
-                                <div class="details-header">
-                                    <h5 id="lblSelectedGroup">Nome do Grupo</h5>
-                                    <span class="badge" id="lblCountAccounts">0 contas</span>
-                                </div>
-
-                                <div class="accounts-list-wrapper">
-                                    <label>Contas Vinculadas</label>
-                                    <div id="listLinkedAccounts" class="tags-container"></div>
-                                </div>
-
-                                <div class="add-account-footer">
-                                    <div class="toggle-wrapper">
-                                        <label class="switch">
-                                            <input type="checkbox" id="chkMassPersonalizada" onchange="toggleMassCustomInput()">
-                                            <span class="slider"></span>
-                                        </label>
-                                        <span>Personalizada?</span>
-                                    </div>
-                                    
-                                    <div id="divMassCustomName" style="display: none;" class="mt-2 mb-2">
-                                        <input type="text" id="inputMassCustomName" class="form-input" placeholder="Nome personalizado (Opcional)">
-                                    </div>
-
-                                    <div class="input-group">
-                                        <input type="text" id="inputMassLinkConta" list="massContasDataList" class="form-input" placeholder="Buscar conta...">
-                                        <button class="btn btn-icon" onclick="addAccountToGroup()">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="tabUnlinkAccount" class="tab-pane">
-                    <div class="tab-header">
-                        <h4>Desvincular Conta</h4>
-                        <p>Remove o vínculo de uma conta específica em massa.</p>
-                    </div>
-                    <div class="form-group">
-                        <label>Número da Conta</label>
-                        <input type="text" id="inputMassUnlinkConta" list="contasDataList" class="form-input" placeholder="Digite a conta...">
-                    </div>
-                    <button class="btn btn-danger btn-block" onclick="submitMassUnlink()">
-                        <i class="fas fa-unlink"></i> Remover Vínculo
-                    </button>
-                </div>
-
-            </section>
-        </div>
-    </div>
-</div>
-
-<div id="modalAddVirtual" class="modal-backdrop">
-    <div class="modal-window modal-sm">
-        <div class="modal-header">
-            <h3>Novo Nó Virtual</h3>
-            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label>Nome da Estrutura</label>
-                <input type="text" id="inputVirtualName" class="form-input" placeholder="Ex: RECEITA LÍQUIDA">
-            </div>
-        </div>
-        <div class="form-group">
-            <label>Cor do Ícone</label>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <input type="color" id="inputVirtualColor" class="form-input" style="width: 50px; padding: 2px; height: 35px;" value="#34495e">
-                <small class="text-muted">Selecione a cor de exibição na árvore</small>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
-            <button class="btn btn-primary" onclick="submitAddVirtual()">Criar</button>
-        </div>
-    </div>
-</div>
-
-<div id="modalAddCalculado" class="modal-backdrop">
-    <div class="modal-window modal-md">
-        <div class="modal-header">
-            <div class="modal-title">
-                <i class="fas fa-calculator"></i>
-                <div>
-                    <h3>Novo Nó Calculado</h3>
-                    <p>Crie uma linha de cálculo personalizada</p>
-                </div>
-            </div>
-            <button class="modal-close-btn" onclick="closeModals()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        
-        <div class="modal-body">
-            <div class="form-group">
-                <label>Nome do Nó</label>
-                <input type="text" id="inputCalcNome" class="form-input" 
-                       placeholder="Ex: Margem Bruta, EBITDA, Lucro Líquido">
-            </div>
-            <div class="form-group">
-                <label>Cor do Ícone</label>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <input type="color" id="inputCalcColor" class="form-input" style="width: 50px; padding: 2px; height: 35px;" value="#34495e">
-                    <small class="text-muted">Personalize a cor para destaque</small>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Operação</label>
-                <select id="selectCalcOperacao" class="form-select">
-                    <option value="soma">Soma (+)</option>
-                    <option value="subtracao">Subtração (-)</option>
-                    <option value="multiplicacao">Multiplicação (×)</option>
-                    <option value="divisao">Divisão (÷)</option>
-                </select>
-            </div>
+        <section class="flex-1 d-flex flex-col position-relative bg-panel">
             
-            <div class="form-group">
-                <label>Operandos</label>
-                <p class="text-sm text-secondary mb-2">
-                    Selecione os elementos que compõem o cálculo:
-                </p>
-                <div id="containerOperandos" class="operandos-list">
+            <div id="tabGroupManager" class="luft-dre-tab-pane active h-full flex-col p-6 overflow-y-auto">
+                <div class="mb-6 border-b border-light pb-4">
+                    <h4 class="text-lg font-bold text-main m-0">Estrutura de Grupos</h4>
+                    <p class="text-sm text-muted m-0">Crie, ordene ou exclua grupos para <strong>todos</strong> os Centros de Custo deste tipo.</p>
+                </div>
+
+                <div class="d-flex gap-3 mb-6 p-4 bg-app border border-light rounded-lg align-items-center">
+                    <input type="text" id="inputMassCreateName" class="form-control flex-1" placeholder="Nome do novo grupo..." onkeydown="if(event.key === 'Enter') submitMassCreate()">
+                    <button class="btn btn-primary" onclick="submitMassCreate()">
+                        <i class="fas fa-plus"></i> Criar Grupo
+                    </button>
+                </div>
+
+                <div class="d-grid gap-4 px-4 py-2 font-semibold text-muted border-b border-light text-sm" style="grid-template-columns: 40px 1fr 60px;">
+                    <span>Ordem</span>
+                    <span>Nome do Grupo</span>
+                    <span class="text-center">Ações</span>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto my-2">
+                    <ul id="listGroupManager" class="luft-dre-reorder-list">
+                        <li class="loading-state text-center p-4 text-muted">Carregando grupos...</li>
+                    </ul>
+                </div>
+
+                <div class="mt-auto d-flex justify-content-between align-items-center bg-app p-4 border border-light rounded-lg">
+                    <small class="text-muted d-flex align-items-center gap-2">
+                        <i class="fas fa-info-circle text-primary"></i> Arraste para reordenar.
+                    </small>
+                    <button class="btn btn-success" onclick="submitMassReorder()">
+                        <i class="fas fa-save"></i> Salvar Nova Ordem
+                    </button>
+                </div>
+            </div>
+
+            <div id="tabLinkAccount" class="luft-dre-tab-pane h-full flex-col p-0 overflow-hidden">
+                <div class="d-flex w-full h-full bg-app">
+                    <div class="w-50 border-r border-light d-flex flex-col bg-panel">
+                        <div class="p-3 border-b border-light text-xs font-bold text-muted text-uppercase bg-app">
+                            Grupos Disponíveis
+                        </div>
+                        <div class="flex-1 overflow-y-auto" id="listMassGroups"></div>
                     </div>
-                <button class="btn btn-xs btn-outline mt-2" onclick="addOperando()">
-                    <i class="fas fa-plus"></i> Adicionar Operando
+
+                    <div class="w-50 d-flex flex-col bg-panel overflow-hidden">
+                        <div id="noGroupSelected" class="d-flex flex-col align-items-center justify-content-center h-full text-light">
+                            <i class="fas fa-mouse-pointer text-4xl mb-3 opacity-50"></i>
+                            <p>Selecione um grupo à esquerda</p>
+                        </div>
+
+                        <div id="groupDetails" class="d-flex flex-col h-full d-none">
+                            <div class="p-4 border-b border-light d-flex justify-content-between align-items-center bg-app">
+                                <h5 id="lblSelectedGroup" class="text-base font-bold text-main m-0">Nome do Grupo</h5>
+                                <span class="luft-badge luft-badge-info" id="lblCountAccounts">0 contas</span>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto p-4">
+                                <label class="form-label mb-3">Contas Vinculadas</label>
+                                <div id="listLinkedAccounts" class="d-flex flex-wrap gap-2"></div>
+                            </div>
+
+                            <div class="p-4 bg-app border-t border-light flex-shrink-0">
+                                <div class="d-flex align-items-center gap-3 mb-3 text-sm text-muted">
+                                    <label class="luft-dre-switch">
+                                        <input type="checkbox" id="chkMassPersonalizada" onchange="toggleMassCustomInput()">
+                                        <span class="slider"></span>
+                                    </label>
+                                    <span>Conta Personalizada?</span>
+                                </div>
+                                
+                                <div id="divMassCustomName" style="display: none;" class="mb-3">
+                                    <input type="text" id="inputMassCustomName" class="form-control" placeholder="Nome personalizado (Opcional)">
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <input type="text" id="inputMassLinkConta" list="massContasDataList" class="form-control flex-1" placeholder="Buscar conta...">
+                                    <button class="btn btn-primary px-3" onclick="addAccountToGroup()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tabUnlinkAccount" class="luft-dre-tab-pane flex-col p-6">
+                <div class="mb-6 border-b border-light pb-4">
+                    <h4 class="text-lg font-bold text-main m-0">Desvincular Conta</h4>
+                    <p class="text-sm text-muted m-0">Remove o vínculo de uma conta específica em massa de todos os grupos deste tipo.</p>
+                </div>
+                <div class="form-group mb-6">
+                    <label class="form-label">Número da Conta</label>
+                    <input type="text" id="inputMassUnlinkConta" list="contasDataList" class="form-control" placeholder="Digite a conta...">
+                </div>
+                <button class="btn btn-danger w-full" onclick="submitMassUnlink()">
+                    <i class="fas fa-unlink"></i> Remover Vínculo
                 </button>
             </div>
-            
-            <div class="form-group">
-                <label>Ordem de Exibição</label>
-                <input type="number" id="inputCalcOrdem" class="form-input" 
-                       value="50" min="0" max="999">
-                <small class="text-muted">Números menores aparecem primeiro</small>
-            </div>
-            
-            <div class="form-group">
-                <label>Tipo de Exibição</label>
-                <select id="selectCalcTipoExibicao" class="form-select">
-                    <option value="valor">Valor Monetário</option>
-                    <option value="percentual">Percentual (%)</option>
-                    <option value="indice">Índice</option>
-                </select>
-            </div>
-            
-            <div class="preview-formula">
-                <label>Pré-visualização:</label>
-                <div id="previewFormula" class="formula-preview">
-                    </div>
-            </div>
+
+        </section>
+    </div>
+{% endcall %}
+
+{% call ui.modal('modalAddVirtual', 'Novo Nó Virtual', 'md', 'fas fa-plus-circle') %}
+    <div class="form-group mb-4">
+        <label class="form-label">Nome da Estrutura</label>
+        <input type="text" id="inputVirtualName" class="form-control" placeholder="Ex: RECEITA LÍQUIDA">
+    </div>
+    <div class="form-group mb-6">
+        <label class="form-label">Cor do Ícone</label>
+        <div class="d-flex align-items-center gap-3">
+            <input type="color" id="inputVirtualColor" class="form-control p-1" style="width: 60px; height: 40px;" value="#3b82f6">
+            <small class="text-muted">Selecione a cor de exibição na árvore</small>
+        </div>
+    </div>
+    <div class="d-flex justify-content-end gap-2 border-t border-light pt-4">
+        <button class="btn luft-btn-ghost" onclick="closeModals()">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitAddVirtual()">Criar Nó Virtual</button>
+    </div>
+{% endcall %}
+
+{% call ui.modal('modalAddCalculado', 'Novo Nó Calculado', 'md', 'fas fa-calculator') %}
+    <p class="text-sm text-muted mb-4 pb-2 border-b border-light">Crie uma linha de cálculo personalizada somando ou subtraindo elementos da DRE.</p>
+    
+    <div class="form-group mb-4">
+        <label class="form-label">Nome do Nó</label>
+        <input type="text" id="inputCalcNome" class="form-control" placeholder="Ex: Margem Bruta, EBITDA, Lucro Líquido">
+    </div>
+    <div class="form-group mb-4">
+        <label class="form-label">Cor de Destaque</label>
+        <div class="d-flex align-items-center gap-3">
+            <input type="color" id="inputCalcColor" class="form-control p-1" style="width: 60px; height: 40px;" value="#2563eb">
+            <small class="text-muted">Personalize a cor para destaque na visualização</small>
+        </div>
+    </div>
+    <div class="form-group mb-4">
+        <label class="form-label">Operação</label>
+        <select id="selectCalcOperacao" class="form-control">
+            <option value="soma">Soma (+)</option>
+            <option value="subtracao">Subtração (-)</option>
+            <option value="multiplicacao">Multiplicação (×)</option>
+            <option value="divisao">Divisão (÷)</option>
+        </select>
+    </div>
+    
+    <div class="form-group mb-4 bg-app p-4 rounded-lg border border-light">
+        <label class="form-label">Operandos</label>
+        <p class="text-xs text-muted mb-3">Selecione os elementos que compõem o cálculo:</p>
+        <div id="containerOperandos" class="d-flex flex-col gap-2 mb-3"></div>
+        <button class="btn btn-outline btn-sm text-sm" onclick="addOperando()">
+            <i class="fas fa-plus"></i> Adicionar Operando
+        </button>
+    </div>
+    
+    <div class="d-flex gap-4 mb-4">
+        <div class="form-group w-50 m-0">
+            <label class="form-label">Ordem de Exibição</label>
+            <input type="number" id="inputCalcOrdem" class="form-control" value="50" min="0" max="999">
+            <small class="text-muted text-xs mt-1 d-block">Números menores aparecem primeiro</small>
+        </div>
+        <div class="form-group w-50 m-0">
+            <label class="form-label">Tipo de Exibição</label>
+            <select id="selectCalcTipoExibicao" class="form-control">
+                <option value="valor">Valor Monetário</option>
+                <option value="percentual">Percentual (%)</option>
+                <option value="indice">Índice</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="form-group mb-6">
+        <label class="form-label">Pré-visualização da Fórmula:</label>
+        <div id="previewFormula" class="p-3 bg-panel border border-light rounded-md text-main font-mono text-sm d-flex align-items-center min-h-[40px]">
+        </div>
+    </div>
+    
+    <div class="d-flex justify-content-end gap-2 border-t border-light pt-4">
+        <button class="btn luft-btn-ghost" onclick="closeModals()">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitNoCalculado()">
+            <i class="fas fa-save"></i> Salvar Cálculo
+        </button>
+    </div>
+{% endcall %}
+
+{% call ui.modal('modalAddSub', 'Novo Subgrupo', 'sm', 'fas fa-folder-plus') %}
+    <div class="p-3 bg-app border border-light rounded-md mb-4 text-sm text-main">
+        Pai: <strong id="lblParentName" class="text-primary">...</strong>
+    </div>
+    <div class="form-group mb-6">
+        <label class="form-label">Nome do Grupo</label>
+        <input type="text" id="inputSubName" class="form-control" placeholder="Ex: Pessoal">
+    </div>
+    <div class="d-flex justify-content-end gap-2 border-t border-light pt-4">
+        <button class="btn luft-btn-ghost" onclick="closeModals()">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitAddSub()">Criar Subgrupo</button>
+    </div>
+{% endcall %}
+
+{% call ui.modal('modalLinkConta', 'Gerenciar Contas', 'md', 'fas fa-link') %}
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-app border border-light rounded-md">
+        <span class="text-sm text-main">Grupo de Destino: <strong id="lblGroupTarget" class="text-primary">...</strong></span>
+        <span class="luft-badge luft-badge-primary" id="lblCountStd">0</span>
+    </div>
+    
+    <div class="luft-dre-scrollable-list flex-1 overflow-y-auto border border-light rounded-md p-2 mb-4 bg-panel min-h-[200px] max-h-[300px]" id="listStdLinkedAccounts">
+    </div>
+
+    <div class="bg-app p-4 rounded-md border border-light">
+        <label class="form-label mb-2">Adicionar Conta ao Grupo</label>
+        <div class="d-flex gap-2">
+            <input type="text" id="inputContaSearch" list="stdContasDataList" class="form-control flex-1" placeholder="Buscar conta pelo número ou nome...">
+            <button class="btn btn-primary" onclick="submitLinkConta()">Vincular</button>
+        </div>
+    </div>
+{% endcall %}
+
+{% call ui.modal('modalLinkDetalhe', 'Vincular Personalizada', 'sm', 'fas fa-tag') %}
+    <div class="p-3 bg-app border border-light rounded-md mb-4 text-sm text-main">
+        Destino: <strong id="lblDetailTarget" class="text-primary">...</strong>
+    </div>
+    <div class="form-group mb-4">
+        <label class="form-label">1. Conta Contábil Base</label>
+        <input type="text" id="inputDetailConta" list="contasDataList" class="form-control" placeholder="Ex: 6010...">
+    </div>
+    <div class="form-group mb-6">
+        <label class="form-label">2. Nome de Exibição (Opcional)</label>
+        <input type="text" id="inputDetailName" class="form-control" placeholder="Ex: Vendas Matriz">
+    </div>
+    <div class="d-flex justify-content-end gap-2 border-t border-light pt-4">
+        <button class="btn luft-btn-ghost" onclick="closeModals()">Cancelar</button>
+        <button class="btn btn-success" onclick="submitLinkDetalhe()">Salvar Vínculo</button>
+    </div>
+{% endcall %}
+
+<div class="luft-modal-backdrop" id="modalReplicar-backdrop" onclick="LuftCore.fecharModal('modalReplicar')"></div>
+<div class="luft-modal luft-modal-md" id="modalReplicar">
+    <div class="luft-modal-header">
+        <h3 class="luft-modal-title d-flex align-items-center gap-2" id="lblReplicarTitle">
+            <i class="fas fa-clone text-primary"></i> Replicar Estrutura
+        </h3>
+        <button class="luft-modal-close" onclick="closeModals()" title="Fechar"><i class="ph-bold ph-x"></i></button>
+    </div>
+    <div class="luft-modal-body d-flex flex-col">
+        <div class="p-3 bg-app border border-light rounded-md mb-4 text-sm text-main">
+            Origem: <strong id="lblOrigemReplicar" class="text-primary">...</strong>
         </div>
         
-        <div class="modal-footer">
-            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
-            <button class="btn btn-primary" onclick="submitNoCalculado()">
-                <i class="fas fa-save"></i> Criar Nó
-            </button>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button class="btn luft-btn-ghost text-xs px-2 py-1" onclick="toggleAllDestinos()">Inverter Seleção</button>
+            <span id="lblTotalSelecionados" class="luft-badge luft-badge-info">0 selecionados</span>
         </div>
+        <div id="listaDestinos" class="luft-dre-checklist-container flex-1 overflow-y-auto border border-light rounded-md p-3 bg-app max-h-[300px]"></div>
     </div>
-</div>
-
-<div id="modalAddSub" class="modal-backdrop">
-    <div class="modal-window modal-sm">
-        <div class="modal-header">
-            <h3>Novo Subgrupo</h3>
-            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body">
-            <p class="modal-subtitle">Pai: <strong id="lblParentName">...</strong></p>
-            <div class="form-group">
-                <label>Nome do Grupo</label>
-                <input type="text" id="inputSubName" class="form-input" placeholder="Ex: Pessoal">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
-            <button class="btn btn-primary" onclick="submitAddSub()">Criar</button>
-        </div>
-    </div>
-</div>
-
-<div id="modalLinkConta" class="modal-backdrop">
-    <div class="modal-window modal-md">
-        <div class="modal-header">
-            <h3>Gerenciar Contas</h3>
-            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body">
-            <div class="stats-bar">
-                <span>Grupo: <strong id="lblGroupTarget">...</strong></span>
-                <span class="badge" id="lblCountStd">0</span>
-            </div>
-            
-            <div class="scrollable-list" id="listStdLinkedAccounts">
-            </div>
-
-            <div class="footer-input-area">
-                <label>Adicionar Conta</label>
-                <div class="input-group">
-                    <input type="text" id="inputContaSearch" list="stdContasDataList" class="form-input" placeholder="Buscar conta...">
-                    <button class="btn btn-primary" onclick="submitLinkConta()">Adicionar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="modalLinkDetalhe" class="modal-backdrop">
-    <div class="modal-window modal-sm">
-        <div class="modal-header">
-            <h3>Vincular Personalizada</h3>
-            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body">
-            <p class="modal-subtitle">Destino: <strong id="lblDetailTarget">...</strong></p>
-            <div class="form-group">
-                <label>1. Conta Contábil</label>
-                <input type="text" id="inputDetailConta" list="contasDataList" class="form-input" placeholder="6010...">
-            </div>
-            <div class="form-group">
-                <label>2. Nome de Exibição (Opcional)</label>
-                <input type="text" id="inputDetailName" class="form-input" placeholder="Ex: Venda Matriz">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
-            <button class="btn btn-success" onclick="submitLinkDetalhe()">Salvar</button>
-        </div>
-    </div>
-</div>
-
-<div id="modalReplicar" class="modal-backdrop">
-    <div class="modal-window modal-md">
-        <div class="modal-header">
-            <h3 id="lblReplicarTitle">Replicar Estrutura</h3>
-            <button class="modal-close-btn" onclick="closeModals()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body full-height">
-            <div class="mb-2">
-                <strong id="lblOrigemReplicar">...</strong>
-            </div>
-            
-            <div class="selection-controls">
-                <button class="btn btn-xs btn-text" onclick="toggleAllDestinos()">Inverter Seleção</button>
-                <span id="lblTotalSelecionados">0 selecionados</span>
-            </div>
-            <div id="listaDestinos" class="checklist-container"></div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-text" onclick="closeModals()">Cancelar</button>
-            <button class="btn btn-primary" onclick="submitReplicar()">Replicar</button>
-        </div>
+    <div class="luft-modal-footer">
+        <button class="btn luft-btn-ghost" onclick="closeModals()">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitReplicar()">Replicar Estrutura</button>
     </div>
 </div>
 
@@ -437,11 +382,11 @@
 <div id="contextMenu" class="context-menu">
     <div class="ctx-group">
         <div class="ctx-item" id="ctxEditCalc" onclick="editCalculado()" style="display: none;">
-            <i class="fas fa-calculator"></i> Editar Fórmula
+            <i class="fas fa-calculator text-primary"></i> Editar Fórmula
         </div>
         
         <div class="ctx-item" id="ctxRename" onclick="renameNode()">
-            <i class="fas fa-pen"></i> Renomear
+            <i class="fas fa-pen text-info"></i> Renomear
         </div>
     </div>
     
@@ -449,11 +394,11 @@
     
     <div class="ctx-group">
         <div class="ctx-item" id="ctxMoveUp" onclick="moverParaCima()">
-            <i class="fas fa-arrow-up"></i> Mover p/ Cima
+            <i class="fas fa-arrow-up text-muted"></i> Mover p/ Cima
             <span class="shortcut">Alt+↑</span>
         </div>
         <div class="ctx-item" id="ctxMoveDown" onclick="moverParaBaixo()">
-            <i class="fas fa-arrow-down"></i> Mover p/ Baixo
+            <i class="fas fa-arrow-down text-muted"></i> Mover p/ Baixo
             <span class="shortcut">Alt+↓</span>
         </div>
     </div>
@@ -461,10 +406,10 @@
     <div class="ctx-separator" id="divSystematic"></div>
 
     <div class="ctx-item highlight" id="ctxMassManager" onclick="openMassManager()">
-        <i class="fas fa-layer-group"></i> Gerenciar em Massa
+        <i class="fas fa-layer-group text-warning"></i> Gerenciar em Massa
     </div>
 
-    <div class="ctx-item" id="ctxReplicarTipo" onclick="openReplicarTipoModal()" style="display: none; color: #e74c3c;">
+    <div class="ctx-item" id="ctxReplicarTipo" onclick="openReplicarTipoModal()" style="display: none; color: var(--luft-danger-600);">
         <i class="fas fa-exchange-alt"></i> Replicar (Substituir)
     </div>
 
@@ -472,20 +417,20 @@
 
     <div class="ctx-group">
         <div class="ctx-item" id="ctxAddSub" onclick="openModal('modalAddSub')">
-            <i class="fas fa-folder-plus"></i> Novo Subgrupo
+            <i class="fas fa-folder-plus text-success"></i> Novo Subgrupo
         </div>
         <div class="ctx-item" id="ctxLinkConta" onclick="openModal('modalLinkConta')">
-            <i class="fas fa-link"></i> Vincular Conta
+            <i class="fas fa-link text-success"></i> Vincular Conta
         </div>
         <div class="ctx-item" id="ctxLinkDetalhe" onclick="openModal('modalLinkDetalhe')">
-            <i class="fas fa-tag"></i> Vincular Personalizada
+            <i class="fas fa-tag text-purple-500"></i> Vincular Personalizada
         </div>
     </div>
 
     <div class="ctx-group">
-        <div class="ctx-item" id="ctxCopy" onclick="copyNode()"><i class="fas fa-copy"></i> Copiar</div>
-        <div class="ctx-item" id="ctxPaste" onclick="pasteNode()"><i class="fas fa-paste"></i> Colar</div>
-        <div class="ctx-item" id="ctxReplicar" onclick="openReplicarModal()"><i class="fas fa-clone"></i> Replicar</div>
+        <div class="ctx-item" id="ctxCopy" onclick="copyNode()"><i class="fas fa-copy text-muted"></i> Copiar</div>
+        <div class="ctx-item" id="ctxPaste" onclick="pasteNode()"><i class="fas fa-paste text-muted"></i> Colar</div>
+        <div class="ctx-item" id="ctxReplicar" onclick="openReplicarModal()"><i class="fas fa-clone text-muted"></i> Replicar</div>
     </div>
 
     <div class="ctx-separator" id="ctxDivider"></div>
@@ -500,7 +445,6 @@
 {% block extra_js %}
 <script>
     const API_ROUTES = {
-        // --- CONFIGURAÇÃO: LEITURA ---
         getDadosArvore:         "{{ url_for('DreConfig.GetDadosArvore') }}",
         getContasDisponiveis:   "{{ url_for('DreConfig.GetContasDisponiveis') }}",
         getOperandosDisponiveis:"{{ url_for('DreConfig.GetOperandosDisponiveis') }}",
@@ -508,37 +452,33 @@
         getContasDoGrupoMassa:  "{{ url_for('DreConfig.GetContasDoGrupoMassa') }}",
         getContasDoSubgrupo:    "{{ url_for('DreConfig.GetContasDoSubgrupo') }}",
 
-        // --- CONFIGURAÇÃO: ESCRITA (RENOMEAR) ---
         renameNoVirtual:        "{{ url_for('DreConfig.RenameNoVirtual') }}",
         renameSubgrupo:         "{{ url_for('DreConfig.RenameSubgrupo') }}",
         renameContaPersonalizada:"{{ url_for('DreConfig.RenameContaPersonalizada') }}",
 
-        // --- CONFIGURAÇÃO: ESCRITA (CRIAR/VINCULAR) ---
         addNoVirtual:           "{{ url_for('DreConfig.AddNoVirtual') }}",
         addSubgrupo:            "{{ url_for('DreConfig.AddSubgrupo') }}",
-        addSubgrupoSistematico: "{{ url_for('DreConfig.AddSubgrupoSistematico') }}", // Massa
+        addSubgrupoSistematico: "{{ url_for('DreConfig.AddSubgrupoSistematico') }}", 
         addNoCalculado:         "{{ url_for('DreConfig.AddNoCalculado') }}",
         vincularConta:          "{{ url_for('DreConfig.VincularConta') }}",
         vincularContaDetalhe:   "{{ url_for('DreConfig.VincularContaDetalhe') }}",
         vincularContaEmMassa:   "{{ url_for('DreConfig.VincularContaEmMassa') }}",
         colarEstrutura:         "{{ url_for('DreConfig.ColarEstrutura') }}",
         replicarEstrutura:      "{{ url_for('DreConfig.ReplicarEstrutura') }}",
-        replicarTipoIntegral:   "{{ url_for('DreConfig.ReplicarTipoIntegral') }}", // ROTA ADICIONADA
+        replicarTipoIntegral:   "{{ url_for('DreConfig.ReplicarTipoIntegral') }}", 
 
-        // --- CONFIGURAÇÃO: ESCRITA (DELETAR/DESVINCULAR) ---
         deleteSubgrupo:         "{{ url_for('DreConfig.DeleteSubgrupo') }}",
         deleteSubgrupoEmMassa:  "{{ url_for('DreConfig.DeleteSubgrupoEmMassa') }}",
         deleteNoVirtual:        "{{ url_for('DreConfig.DeleteNoVirtual') }}",
         desvincularConta:       "{{ url_for('DreConfig.DesvincularConta') }}",
         desvincularContaEmMassa:"{{ url_for('DreConfig.DesvincularContaEmMassa') }}",
 
-        // --- ORDENAMENTO ---
         ordenamentoInicializar: "{{ url_for('DreOrdenamento.InicializarOrdenamento') }}",
         ordenamentoNormalizar:  "{{ url_for('DreOrdenamento.NormalizarContexto') }}",
         getArvoreOrdenada:      "{{ url_for('DreOrdenamento.GetArvoreOrdenada') }}",
-        getFilhosOrdenados: "{{ url_for('DreOrdenamento.GetFilhosOrdenados') }}",
-        reordenarLote: "{{ url_for('DreOrdenamento.ReordenarLote') }}",
-        reordenarEmMassa: "{{ url_for('DreOrdenamento.ReordenarEmMassa') }}", 
+        getFilhosOrdenados:     "{{ url_for('DreOrdenamento.GetFilhosOrdenados') }}",
+        reordenarLote:          "{{ url_for('DreOrdenamento.ReordenarLote') }}",
+        reordenarEmMassa:       "{{ url_for('DreOrdenamento.ReordenarEmMassa') }}", 
     };
 </script>
 

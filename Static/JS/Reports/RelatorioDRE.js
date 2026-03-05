@@ -1,6 +1,7 @@
 // ============================================================================
 // Luft Control - MÓDULO: DRE GERENCIAL E RENTABILIDADE
 // Arquivo: Static/JS/Reports/RelatorioDRE.js
+// Design System: LuftCore
 // ============================================================================
 
 class RelatorioDRE {
@@ -67,13 +68,13 @@ class RelatorioDRE {
 
     renderEmptyState() {
         const emptyHtml = `
-            <div class="dre-toolbar d-flex justify-content-between align-items-center p-3 border-bottom border-primary bg-tertiary">
+            <div class="luft-dre-toolbar">
                 <div class="d-flex gap-2 align-items-center">${this.renderOrigemFilter()}</div>
             </div>
-            <div class="p-4 text-center" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                <i class="fas fa-database fa-3x text-muted mb-3"></i>
-                <h4 class="text-secondary">Sem dados</h4>
-                <p class="text-muted">Nenhum registro encontrado para "${this.dreState.origemFilter}".</p>
+            <div class="luft-hub-empty" style="flex: 1; border-radius: 0; border: none; border-top: 1px solid var(--luft-border);">
+                <i class="fas fa-folder-open mb-3" style="font-size: 3rem; color: var(--luft-border-dark);"></i>
+                <h4 style="color: var(--luft-text-main); font-weight: 700;">Sem dados contábeis</h4>
+                <p style="color: var(--luft-text-muted);">Nenhum registro encontrado para a seleção atual.</p>
             </div>`;
         this.modal.setContent(`<div style="display: flex; flex-direction: column; height: 100%;">${emptyHtml}</div>`);
     }
@@ -83,7 +84,7 @@ class RelatorioDRE {
         this.isLoading = true;
         
         const container = document.getElementById('dreGridContainer');
-        if (container) container.innerHTML = `<div class="loading-container" style="height: 100%;"><div class="loading-spinner"></div></div>`;
+        if (container) container.innerHTML = `<div class="luft-hub-loading" style="height: 100%;"><div class="luft-spinner"></div></div>`;
 
         try {
             let urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRentabilidadeData) 
@@ -100,7 +101,7 @@ class RelatorioDRE {
             if (!data || data.length === 0) {
                 this.rawData = [];
                 this.treeData = [];
-                if (container) container.innerHTML = '<div class="p-4 text-center text-muted">Vazio (Nenhuma empresa selecionada ou sem dados para este ano)</div>';
+                if (container) container.innerHTML = '<div class="p-5 text-center text-muted">Vazio (Nenhuma empresa selecionada ou sem dados para este ano)</div>';
             } else {
                 this.rawData = data;
                 await this.processTreeWithCalculated();
@@ -110,7 +111,15 @@ class RelatorioDRE {
             
         } catch (error) {
             console.error(error);
-            if (container) container.innerHTML = `<div class="p-4 text-center text-danger">Erro: ${error.message}</div>`;
+            const isAuth = String(error).includes('403');
+            if (container) {
+                container.innerHTML = `
+                    <div class="d-flex flex-column align-items-center justify-content-center p-5 text-center h-100">
+                        <i class="fas ${isAuth ? 'fa-lock text-warning' : 'fa-exclamation-triangle text-danger'} mb-3" style="font-size: 3rem;"></i>
+                        <h5 class="text-main font-bold">${isAuth ? 'Acesso Revogado' : 'Erro ao atualizar dados'}</h5>
+                        <span class="text-muted text-sm mt-1">${isAuth ? 'Você não tem permissão para carregar estes filtros.' : error.message}</span>
+                    </div>`;
+            }
         } finally {
             this.isLoading = false;
         }
@@ -124,29 +133,26 @@ class RelatorioDRE {
     renderOrigemFilter() {
         const opcoes = ['FARMA', 'FARMADIST', 'INTEC'];
         return `
-            <div class="origem-filter-group d-flex align-items-center gap-2">
-                <div class="btn-group origem-toggle-group" role="group" aria-label="Filtro de Empresas">
+            <div class="luft-origem-filter-group">
+                <div class="luft-origem-toggle-group">
                     ${opcoes.map(op => {
                         const isActive = this.dreState.selectedOrigins.includes(op);
-                        const style = isActive ? 'background-color: var(--primary); color: white;' : 'background-color: var(--bg-secondary); color: var(--text-secondary);';
-                        
                         return `
-                        <button type="button" class="btn btn-sm ${isActive ? 'active' : ''}" 
-                                style="${style} border: 1px solid var(--border-primary);"
+                        <button type="button" class="luft-origem-toggle-btn ${isActive ? 'active' : ''}" 
                                 onclick="relatorioSystem.dre.handleOrigemChange('${op}')">
                             ${this.getOrigemIcon(op)} ${op}
                         </button>
                         `;
                     }).join('')}
                 </div>
-                <span id="dreOrigemBadge" class="badge badge-secondary ms-2" title="Registros carregados">
+                <span id="dreOrigemBadge" class="luft-dre-badge" title="Registros carregados">
                     ${this.rawData.length}
                 </span>
             </div>`;
     }
 
     getOrigemIcon(origem) {
-        const icons = { 'FARMA': '<i class="fas fa-pills"></i>', 'FARMADIST': '<i class="fas fa-truck"></i>', 'INTEC': '<i class="fas fa-network-wired"></i>' };
+        const icons = { 'FARMA': '<i class="fas fa-pills text-success"></i>', 'FARMADIST': '<i class="fas fa-truck text-warning"></i>', 'INTEC': '<i class="fas fa-network-wired text-primary"></i>' };
         return icons[origem] || '<i class="fas fa-building"></i>';
     }
 
@@ -163,6 +169,7 @@ class RelatorioDRE {
         this.reloadDataAsync();
     }
 
+    // O código de processamento da árvore se mantém igualzinho para não quebrar a lógica!
     processTree() {
         const root = [];
         const map = {}; 
@@ -241,15 +248,9 @@ class RelatorioDRE {
                 });
             }
 
-            // ==========================================
-            // NOVO PADRÃO: PASTA (TÍTULO) -> ARQUIVO (NÚMERO DA CONTA)
-            // ==========================================
-            
-            // 1. Cria (ou pega) a PASTA com o nome da conta (ex: "📁 SALARIOS")
             const safeTitleName = String(row.Titulo_Conta || '').replace(/[^a-zA-Z0-9]/g, '');
             const tituloId = `TIT_${safeTitleName}_${currentId}`;
             
-            // Usa 'group' para a linha ganhar o ícone de pasta e a setinha de expandir/recolher
             const tituloNode = getOrCreateNode(tituloId, row.Titulo_Conta, 'account-group', currentNode.children);
             
             let ordemContaLeaf = 999999;
@@ -259,22 +260,19 @@ class RelatorioDRE {
                 ordemContaLeaf = parseInt(row.Conta, 10); 
             }
 
-            // Atualiza a ordem da pasta para ser a menor ordem das contas dentro dela
             if (ordemContaLeaf < tituloNode.ordem) {
                 tituloNode.ordem = ordemContaLeaf;
             }
             
-            // Soma os valores do lançamento na pasta
             sumValues(tituloNode, row);
 
-            // 2. Cria a CONTA ESPECÍFICA dentro da pasta (ex: "📄 31101")
             const contaId = `C_${row.Conta}_${tituloId}`; 
             let contaNode = tituloNode.children.find(c => c.id === contaId);
 
             if (!contaNode) {
                 contaNode = {
                     id: contaId,
-                    label: `${row.Conta}`, // Mostra apenas o número, pois o nome já está na pasta pai!
+                    label: `${row.Conta}`,
                     rawTitle: row.Titulo_Conta,
                     contaCodigo: row.Conta,   
                     tipoCC: row.Tipo_CC,      
@@ -285,11 +283,9 @@ class RelatorioDRE {
                 tituloNode.children.push(contaNode);
             }
 
-            // Acumula os valores na conta específica
             meses.forEach(m => {
                 contaNode.values[m] += (parseFloat(row[m]) || 0);
             });
-            // ==========================================
         });
 
         this.treeData = root;
@@ -387,26 +383,18 @@ class RelatorioDRE {
         const rootHeaderName = this.dreState.viewMode === 'CC' ? 'Estrutura / Centro de Custo' : 'Estrutura DRE';
 
         let headerHtml = `
-            <thead style="position: sticky; top: 0; z-index: 20;">
+            <thead>
                 <tr>
-                    <th style="min-width: 350px; left: 0; position: sticky; z-index: 30;">
-                        ${rootHeaderName}
-                    </th>
+                    <th>${rootHeaderName}</th>
                     ${cols.map(c => `
-                        <th class="text-end" style="min-width: 110px;">
-                            <div class="d-flex flex-column">
-                                <span class="mb-1 cursor-pointer text-xs font-bold" onclick="relatorioSystem.dre.sortBy('${c}')">${c}</span>
-                            </div>
+                        <th class="text-end">
+                            <span class="cursor-pointer" onclick="relatorioSystem.dre.sortBy('${c}')">${c}</span>
                         </th>
                     `).join('')}
                 </tr>
             </thead>`;
 
         let bodyRows = '';
-        const COLOR_DARK = 'color: var(--icon-structure);'; 
-        const COLOR_GRAY = 'color: var(--icon-secondary);'; 
-        const COLOR_FOLDER = 'color: var(--icon-folder);'; 
-        const COLOR_LIGHT = 'color: var(--icon-account);';
         const showAccounts = this.dreState.showAccounts;
 
         const renderNode = (node, level) => {
@@ -421,27 +409,28 @@ class RelatorioDRE {
             let iconClass = '';
             let iconStyle = '';
 
-            if (node.type === 'calculated') { iconClass = 'fa-calculator'; iconStyle = COLOR_DARK; } 
+            // Cores baseadas nas variáveis LuftCore
+            if (node.type === 'calculated') { iconClass = 'fa-calculator'; iconStyle = 'color: var(--luft-warning-600);'; } 
             else if (node.type === 'root') {
-                if (node.virtualId) { iconClass = 'fa-cube'; iconStyle = COLOR_DARK; } 
+                if (node.virtualId) { iconClass = 'fa-cube'; iconStyle = 'color: var(--luft-primary-600);'; } 
                 else {
-                    iconClass = 'fa-layer-group'; iconStyle = COLOR_DARK;
-                    if (node.ordem < 1000 && !node.virtualId) { iconClass = 'fa-globe'; iconStyle = COLOR_GRAY; }
+                    iconClass = 'fa-layer-group'; iconStyle = 'color: var(--luft-primary-600);';
+                    if (node.ordem < 1000 && !node.virtualId) { iconClass = 'fa-globe'; iconStyle = 'color: var(--luft-text-muted);'; }
                 }
             }
-            else if (node.type === 'group') { iconClass = 'fa-folder'; iconStyle = COLOR_FOLDER; }
-            
-            // --- ADICIONE ESTA LINHA AQUI ---
-            else if (node.type === 'account-group') { iconClass = 'fa-file-alt'; iconStyle = COLOR_LIGHT; }
-            
-            else if (node.type === 'account') { iconClass = 'fa-file-alt'; iconStyle = COLOR_LIGHT; }
+            else if (node.type === 'group') { iconClass = 'fa-folder'; iconStyle = 'color: var(--luft-info-500);'; }
+            else if (node.type === 'account-group') { iconClass = 'fa-file-invoice'; iconStyle = 'color: var(--luft-text-light);'; }
+            else if (node.type === 'account') { iconClass = 'fa-file-alt'; iconStyle = 'color: var(--luft-text-light);'; }
 
             let iconHtml = '';
             if (isGroup) {
-                iconHtml = `<i class="fas fa-caret-${isExpanded ? 'down' : 'right'} me-2 toggle-icon" onclick="event.stopPropagation(); relatorioSystem.dre.toggleNode('${node.id}')" style="width:10px; cursor: pointer; color: var(--text-tertiary);"></i>`;
-                iconHtml += `<i class="fas ${iconClass} me-2" style="${iconStyle}"></i>`;
+                // Forcei o margin-right: 8px na setinha
+                iconHtml = `<div class="luft-toggle-icon" style="margin-right: 8px;" onclick="event.stopPropagation(); relatorioSystem.dre.toggleNode('${node.id}')"><i class="fas fa-chevron-${isExpanded ? 'down' : 'right'}"></i></div>`;
+                // Forcei o margin-right: 12px no ícone da pasta
+                iconHtml += `<i class="fas ${iconClass}" style="${iconStyle}; margin-right: 12px;"></i>`;
             } else {
-                iconHtml = `<i class="fas ${iconClass} me-2" style="margin-left: 18px; ${iconStyle}"></i>`;
+                // Forcei o margin-right: 12px no ícone da conta final
+                iconHtml = `<i class="fas ${iconClass}" style="margin-left: 32px; margin-right: 12px; ${iconStyle}"></i>`;
             }
 
             const cssString = node.estiloCss || '';
@@ -459,17 +448,19 @@ class RelatorioDRE {
                     else displayVal = FormatUtils.formatNumber(val);
                 }
                 if (node.tipoExibicao === 'percentual' && val !== 0) displayVal = val.toFixed(2) + '%';
-                const weight = (node.type === 'root' || node.type === 'calculated') ? 'font-weight: 600;' : '';
-                return `<td class="text-end font-mono ${colorClass}" style="${weight} ${cssString}">${displayVal}</td>`;
+                
+                return `<td class="text-end ${colorClass}" style="font-family: monospace; ${cssString}">${displayVal}</td>`;
             }).join('');
 
             const isMatch = this.dreState.searchMatches.includes(node.id);
-            const searchClass = isMatch ? 'search-match' : '';
+            const searchClass = isMatch ? 'luft-search-match' : '';
 
-            bodyRows += `<tr id="row_${node.id}" class="dre-row-${node.type} ${searchClass}" ${trStyle}>
+            // Forcei um margin-left: 4px no span do texto só pra garantir + adicionei gap no container flex
+            bodyRows += `<tr id="row_${node.id}" class="luft-dre-row-${node.type} ${searchClass}" ${trStyle}>
                     <td style="padding-left: ${padding}px; ${cssString}"> 
-                        <div class="d-flex align-items-center cell-label">
-                            ${iconHtml}<span class="text-truncate" title="${node.formulaDescricao || ''}">${node.label}</span>
+                        <div class="d-flex align-items-center" style="gap: 4px;">
+                            ${iconHtml}
+                            <span class="text-truncate" style="margin-left: 6px;" title="${node.formulaDescricao || ''}">${node.label}</span>
                         </div>
                     </td>${cellsHtml}</tr>`;
 
@@ -477,7 +468,7 @@ class RelatorioDRE {
         };
 
         this.treeData.forEach(node => renderNode(node, 0));
-        container.innerHTML = `<table class="table-modern w-100" style="border-collapse: separate; border-spacing: 0;">${headerHtml}<tbody>${bodyRows}</tbody></table>`;
+        container.innerHTML = `<table class="luft-table-modern"> ${headerHtml}<tbody>${bodyRows}</tbody></table>`;
     }
     
     async loadCCList() {
@@ -505,17 +496,17 @@ class RelatorioDRE {
 
     openCCFilterDropdown(buttonElement) {
         if (this.isLoading) return;
-        const dropdownId = 'cc-filter-dropdown';
+        const dropdownId = 'luft-cc-dropdown';
         let dropdown = document.getElementById(dropdownId);
         
         if (dropdown) { dropdown.remove(); return; }
 
         dropdown = document.createElement('div');
         dropdown.id = dropdownId;
-        dropdown.className = 'custom-dropdown-menu';
+        dropdown.className = 'luft-dropdown-menu'; // Usando as novas classes!
         
         const searchHtml = `
-            <div class="dropdown-search-box">
+            <div class="luft-dropdown-search">
                 <i class="fas fa-search"></i>
                 <input type="text" placeholder="Pesquisar Centro..." id="ccSearchInput" oninput="relatorioSystem.dre.filterCCList(this.value)">
             </div>`;
@@ -523,28 +514,35 @@ class RelatorioDRE {
         const optionsHtml = this.dreState.listaCCs.map(cc => {
             const isSelected = this.dreState.selectedCCs.includes(String(cc.codigo));
             return `
-                <label class="dropdown-option-label" data-name="${cc.nome.toLowerCase()}" data-code="${cc.codigo}">
-                    <input type="checkbox" value="${cc.codigo}" ${isSelected ? 'checked' : ''} onchange="relatorioSystem.dre.handleCCCheckboxChange(this)">
+                <label class="luft-dropdown-option" data-name="${cc.nome.toLowerCase()}" data-code="${cc.codigo}">
+                    <input type="checkbox" class="luft-checkbox" value="${cc.codigo}" ${isSelected ? 'checked' : ''} onchange="relatorioSystem.dre.handleCCCheckboxChange(this)">
                     <span>${cc.nome}</span>
                 </label>`;
         }).join('');
         
         const isAllSelected = this.dreState.selectedCCs.includes('Todos') || this.dreState.selectedCCs.length === 0;
         const allOptionHtml = `
-            <div class="dropdown-all-option">
-                <label class="dropdown-option-label dropdown-select-all">
-                    <input type="checkbox" value="Todos" id="chkSelectAllCC" ${isAllSelected ? 'checked' : ''} onchange="relatorioSystem.dre.handleSelectAllCC(this.checked)">
-                    <span>[ Selecionar Tudo ]</span>
+            <div class="luft-dropdown-all">
+                <label class="luft-dropdown-option" style="color: var(--luft-primary-700); font-weight: 700;">
+                    <input type="checkbox" class="luft-checkbox" value="Todos" id="chkSelectAllCC" ${isAllSelected ? 'checked' : ''} onchange="relatorioSystem.dre.handleSelectAllCC(this.checked)">
+                    <span>[ Selecionar Todos ]</span>
                 </label>
             </div>`;
 
-        dropdown.innerHTML = searchHtml + `<div class="dropdown-options-container">${allOptionHtml}${optionsHtml}</div>`;
+        dropdown.innerHTML = searchHtml + `<div class="luft-dropdown-list">${allOptionHtml}${optionsHtml}</div>`;
         
+        // Posicionamento exato abaixo do botão
         const rect = buttonElement.getBoundingClientRect();
-        dropdown.style.top = `${rect.bottom + 5}px`;
-        dropdown.style.right = `${window.innerWidth - rect.right}px`; 
+        dropdown.style.top = `${rect.bottom + 6}px`;
+        dropdown.style.left = `${rect.left}px`; 
 
         document.body.appendChild(dropdown);
+
+        // Foca automaticamente no input de pesquisa ao abrir
+        setTimeout(() => {
+            const searchInput = document.getElementById('ccSearchInput');
+            if (searchInput) searchInput.focus();
+        }, 50);
 
         const closeOnOutsideClick = (event) => {
             if (dropdown && !dropdown.contains(event.target) && !buttonElement.contains(event.target)) {
@@ -553,6 +551,33 @@ class RelatorioDRE {
             }
         };
         setTimeout(() => { document.addEventListener('click', closeOnOutsideClick); }, 100);
+    }
+
+    handleSelectAllCC(isChecked) {
+         // Atualizado para buscar dentro da nova classe luft-dropdown-list
+         const checkboxes = document.querySelectorAll('.luft-dropdown-list input[type="checkbox"]');
+         if (isChecked) {
+            checkboxes.forEach(chk => chk.checked = true);
+            this.dreState.selectedCCs = ['Todos'];
+         } else {
+            checkboxes.forEach(chk => chk.checked = false);
+            this.dreState.selectedCCs = []; 
+         }
+         this.updateCCButtonDisplay();
+         clearTimeout(this.debounceTimer); 
+         this.debounceTimer = setTimeout(() => { this.loadReport(); }, 800);
+    }
+
+    filterCCList(searchTerm) {
+        const term = searchTerm.toLowerCase();
+        // Atualizado para buscar os labels corretos
+        const labels = document.querySelectorAll('.luft-dropdown-list .luft-dropdown-option:not(.luft-dropdown-all label)');
+        labels.forEach(label => {
+            const name = label.getAttribute('data-name');
+            const code = label.getAttribute('data-code');
+            const match = name.includes(term) || code.includes(term);
+            label.style.display = match ? 'flex' : 'none';
+        });
     }
 
     handleCCCheckboxChange(checkbox) {
@@ -578,31 +603,6 @@ class RelatorioDRE {
         this.debounceTimer = setTimeout(() => { this.loadReport(); }, 800);
     }
     
-    handleSelectAllCC(isChecked) {
-         const checkboxes = document.querySelectorAll('.dropdown-options-container input[type="checkbox"]');
-         if (isChecked) {
-            checkboxes.forEach(chk => chk.checked = true);
-            this.dreState.selectedCCs = ['Todos'];
-         } else {
-            checkboxes.forEach(chk => chk.checked = false);
-            this.dreState.selectedCCs = []; 
-         }
-         this.updateCCButtonDisplay();
-         clearTimeout(this.debounceTimer); 
-         this.debounceTimer = setTimeout(() => { this.loadReport(); }, 800);
-    }
-
-    filterCCList(searchTerm) {
-        const term = searchTerm.toLowerCase();
-        const labels = document.querySelectorAll('.dropdown-options-container .dropdown-option-label');
-        labels.forEach(label => {
-            const name = label.getAttribute('data-name');
-            const code = label.getAttribute('data-code');
-            const match = name.includes(term) || code.includes(term);
-            label.style.display = match ? 'flex' : 'none';
-        });
-    }
-    
     updateCCButtonDisplay() {
         const displaySpan = document.getElementById('ccFilterDisplay');
         if (!displaySpan) return;
@@ -612,11 +612,13 @@ class RelatorioDRE {
         
         if (this.dreState.selectedCCs.includes('Todos')) {
             text = 'Todos os Centros';
-            if(button) button.classList.remove('active-filter');
+            // Remove o destaque quando está em "Todos"
+            if(button) button.classList.remove('has-filter');
         } else {
             const count = this.dreState.selectedCCs.length;
-            text = `${count} Centro(s) Selecionado(s)`;
-            if(button) button.classList.add('active-filter'); 
+            text = `${count} Centro(s) Selecionados`;
+            // Adiciona a classe de alerta/destaque visual
+            if(button) button.classList.add('has-filter'); 
         }
         displaySpan.textContent = text;
     }
@@ -629,7 +631,7 @@ class RelatorioDRE {
         const totalSelecionados = this.dreState.selectedCCs.length;
         let ccTitle = this.dreState.selectedCCs.includes('Todos') ? 'Todos os Centros' : `Filtro: ${totalSelecionados} CC(s) selecionados`;
         
-        this.modal.open(`<i class="fas fa-cubes"></i> Análise Gerencial DRE <small class="modal-title">${scaleTitle} | ${ccTitle}</small>`, '');
+        this.modal.open(`<i class="fas fa-cubes text-primary"></i> Análise Gerencial DRE <small class="text-muted ms-2">${scaleTitle} | ${ccTitle}</small>`, '');
         this.modal.showLoading('Calculando DRE...');
 
         try {
@@ -648,10 +650,10 @@ class RelatorioDRE {
                     const container = document.getElementById('dreGridContainer');
                     if(container) {
                         container.innerHTML = `
-                            <div class="p-5 text-center">
-                                <i class="fas fa-filter fa-3x text-muted mb-3"></i>
-                                <h4 class="text-secondary">Sem dados</h4>
-                                <p class="text-muted">Verifique a seleção de empresas e centros de custo.</p>
+                            <div class="luft-hub-empty" style="flex: 1; border: none; border-radius: 0;">
+                                <i class="fas fa-filter text-muted mb-3" style="font-size: 3rem;"></i>
+                                <h4 class="text-main font-bold">Sem dados para exibição</h4>
+                                <p class="text-muted">Verifique a seleção de empresas e filtros na barra superior.</p>
                             </div>`;
                     }
                 }, 100);
@@ -664,78 +666,80 @@ class RelatorioDRE {
 
         } catch (error) {
             console.error(error);
-            this.modal.showError(`Erro no DRE: ${error.message}`);
+            this.modal.showError(error);
         }
     }
     
     renderInterface() {
         const isDreMode = this.dreState.scaleMode === 'dre';
-        const btnScaleClass = isDreMode ? 'btn-info' : 'btn-secondary';
+        const btnScaleClass = isDreMode ? 'luft-dre-btn-active' : '';
         const btnScaleIcon = isDreMode ? 'fa-divide' : 'fa-dollar-sign';
-        const btnScaleText = isDreMode ? 'Escala: Milhares (DRE)' : 'Escala: Reais';
+        const btnScaleText = isDreMode ? 'Milhares (DRE)' : 'Reais';
         
         const showAccounts = this.dreState.showAccounts;
-        const btnAccountClass = showAccounts ? 'btn-success' : 'btn-outline-secondary';
+        const btnAccountClass = showAccounts ? 'luft-dre-btn-active' : '';
         const btnAccountIcon = showAccounts ? 'fa-eye' : 'fa-eye-slash';
-        const btnAccountText = showAccounts ? 'Contas: Visíveis' : 'Contas: Ocultas';
+        const btnAccountText = showAccounts ? 'Contas' : 'Ocultar Contas';
 
         let nomeCCSelecionado = this.dreState.selectedCCs.includes('Todos') ? 'Todos' : `${this.dreState.selectedCCs.length} selecionados`;
 
         const toolbar = `
-            <div class="dre-toolbar d-flex justify-content-between align-items-center p-3 border-bottom border-primary bg-tertiary">
+            <div class="luft-dre-toolbar">
                 <div class="d-flex gap-2 align-items-center flex-wrap">
                     ${this.renderOrigemFilter()}
                     
-                    <button id="ccFilterButton" class="btn-selector-clean" 
+                    <button id="ccFilterButton" class="luft-cc-selector" 
                             onclick="relatorioSystem.dre.openCCFilterDropdown(this)"
                             title="Filtrar por Centro de Custo">
-                        <i class="fas fa-building text-muted me-2"></i>
-                        <span id="ccFilterDisplay" class="selector-label">Todos os Centros</span>
-                        <i class="fas fa-chevron-down ms-3 text-xs text-muted"></i>
+                        <i class="fas fa-building text-muted"></i>
+                        <span id="ccFilterDisplay" class="luft-cc-display">Todos os Centros</span>
+                        <i class="fas fa-chevron-down text-xs text-muted"></i>
                     </button>
-                    <select class="form-select form-select-sm" style="width: auto; font-weight: 600; color: var(--primary);" 
+                    
+                    <select class="luft-year-selector"
                         onchange="relatorioSystem.dre.handleYearChange(this.value)">
-                        <option value="2024" ${this.dreState.selectedYear == 2024 ? 'selected' : ''}>2024</option>
                         <option value="2025" ${this.dreState.selectedYear == 2025 ? 'selected' : ''}>2025</option>
                         <option value="2026" ${this.dreState.selectedYear == 2026 ? 'selected' : ''}>2026</option>
                     </select>
-                    <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
 
-                    <button class="btn btn-sm ${btnScaleClass}" onclick="relatorioSystem.dre.toggleScaleMode()" title="Alternar Escala de Valores">
+                    <div class="luft-separator-vertical"></div>
+
+                    <button class="luft-dre-btn ${btnScaleClass}" onclick="relatorioSystem.dre.toggleScaleMode()">
                         <i class="fas ${btnScaleIcon}"></i> ${btnScaleText}
                     </button>
                     
-                    <button class="btn btn-sm ${btnAccountClass}" onclick="relatorioSystem.dre.toggleAccountVisibility()" title="Alternar Visibilidade das Contas">
+                    <button class="luft-dre-btn ${btnAccountClass}" onclick="relatorioSystem.dre.toggleAccountVisibility()">
                         <i class="fas ${btnAccountIcon}"></i> ${btnAccountText}
                     </button>
 
-                    <div class="separator-vertical mx-2" style="height: 20px; border-left: 1px solid var(--border-secondary);"></div>
+                    <div class="luft-separator-vertical"></div>
                     
-                    <div class="input-group input-group-sm" style="width: 200px;">
-                        <i class="input-group-icon fas fa-search"></i>
-                        <input type="text" id="dreGlobalSearch" class="form-control" 
+                    <div class="luft-hub-search" style="max-width: 250px;">
+                        <i class="fas fa-search luft-hub-search-icon"></i>
+                        <input type="text" id="dreGlobalSearch" class="luft-hub-search-input" 
+                            style="padding-top: 8px; padding-bottom: 8px;"
                             placeholder="Buscar na árvore..." value="${this.dreState.globalSearch}"
                             oninput="relatorioSystem.dre.handleGlobalSearch(this.value)"
                             onkeydown="if(event.key === 'Enter') { event.preventDefault(); relatorioSystem.dre.navigateSearchNext(); }">
                     </div>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
-                    <button class="btn btn-sm btn-outline" onclick="relatorioSystem.dre.toggleAllNodes(true)" title="Expandir Tudo"><i class="fas fa-expand-arrows-alt"></i></button>
-                    <button class="btn btn-sm btn-outline" onclick="relatorioSystem.dre.toggleAllNodes(false)" title="Recolher Tudo"><i class="fas fa-compress-arrows-alt"></i></button>
-                    <button class="btn btn-sm btn-outline" onclick="relatorioSystem.dre.openColumnManager()" title="Colunas"><i class="fas fa-columns"></i></button>
+                    <button class="luft-dre-btn" onclick="relatorioSystem.dre.toggleAllNodes(true)" title="Expandir Tudo"><i class="fas fa-expand-arrows-alt"></i></button>
+                    <button class="luft-dre-btn" onclick="relatorioSystem.dre.toggleAllNodes(false)" title="Recolher Tudo"><i class="fas fa-compress-arrows-alt"></i></button>
+                    <button class="luft-dre-btn" onclick="relatorioSystem.dre.openColumnManager()" title="Gerenciar Colunas"><i class="fas fa-columns"></i></button>
                 </div>
             </div>`;
         
-        const gridContainer = `<div id="dreGridContainer" class="table-fixed-container" style="flex: 1; overflow: auto; background: var(--bg-secondary);"></div>`;
+        const gridContainer = `<div id="dreGridContainer" class="luft-table-container" style="flex: 1;"></div>`;
         
         const footer = `
-            <div class="dre-footer p-2 bg-tertiary border-top border-primary d-flex justify-content-between align-items-center">
-                <span class="text-secondary text-xs">
+            <div class="luft-dre-footer">
+                <span>
                     Empresas: <strong>${this.dreState.selectedOrigins.join(', ')}</strong> | 
-                    Filtro CC: <strong class="text-info">${nomeCCSelecionado}</strong> | 
+                    Filtro CC: <strong>${nomeCCSelecionado}</strong> | 
                     Escala: <strong>${this.dreState.scaleMode.toUpperCase()}</strong>
                 </span>
-                <span class="text-muted text-xs">Atualizado: ${new Date().toLocaleTimeString('pt-BR')}</span>
+                <span>Atualizado: ${new Date().toLocaleTimeString('pt-BR')}</span>
             </div>`;
 
         this.modal.setContent(`<div style="display: flex; flex-direction: column; height: 100%;">${toolbar}${gridContainer}${footer}</div>`);
@@ -827,64 +831,68 @@ class RelatorioDRE {
     }
 
     updateSearchHighlights() {
-        document.querySelectorAll('.search-current-match').forEach(el => el.classList.remove('search-current-match'));
+        document.querySelectorAll('.luft-search-current-match').forEach(el => el.classList.remove('luft-search-current-match'));
         const currentId = this.dreState.searchMatches[this.dreState.searchCurrentIndex];
         const row = document.getElementById(`row_${currentId}`);
-        if (row) row.classList.add('search-current-match');
+        if (row) row.classList.add('luft-search-current-match');
     }
 
     handleColFilter(col, val) { if (!val) delete this.dreState.filters[col]; else this.dreState.filters[col] = val; this.debounceRender(); }
     debounceRender() { clearTimeout(this.debounceTimer); this.debounceTimer = setTimeout(() => { this.applyFilters(); this.renderTable(); }, 400); }
     toggleNode(id) { if (this.dreState.expanded.has(id)) this.dreState.expanded.delete(id); else this.dreState.expanded.add(id); this.renderTable(); }
     toggleAllNodes(expand) { const recurse = (nodes) => { nodes.forEach(n => { if (expand) this.dreState.expanded.add(n.id); else this.dreState.expanded.delete(n.id); if (n.children) recurse(n.children); }); }; recurse(this.treeData); this.renderTable(); }
+    
     openColumnManager() {
         const allCols = this.dreState.columnsOrder;
         const allVisible = allCols.every(c => !this.dreState.hiddenCols.has(c));
         const modalHtml = `
-            <div class="column-manager-container">
-                <div class="column-manager-header">
-                    <h5 class="m-0"><i class="fas fa-columns text-primary"></i> Gerenciar Colunas</h5>
-                    <button class="btn btn-sm btn-outline" onclick="relatorioSystem.dre.toggleAllColumns(this)">
-                        <i class="fas ${allVisible ? 'fa-check-square' : 'fa-square'}"></i> ${allVisible ? 'Desmarcar Todos' : 'Selecionar Todos'}
+            <div style="display: flex; flex-direction: column; height: 100%;">
+                <div class="luft-col-mgr-header">
+                    <h5><i class="fas fa-columns text-primary me-3"></i> Gerenciar Colunas</h5>
+                    <button class="luft-dre-btn" onclick="relatorioSystem.dre.toggleAllColumns(this)" style="border-radius: var(--luft-radius-full);">
+                        <i class="fas ${allVisible ? 'fa-check-circle' : 'fa-circle'}"></i> ${allVisible ? 'Desmarcar Todos' : 'Selecionar Todos'}
                     </button>
                 </div>
-                <div class="column-grid">
+                
+                <div class="luft-col-mgr-grid">
                     ${allCols.map(c => {
                         const isVisible = !this.dreState.hiddenCols.has(c);
                         return `
-                        <label class="column-option ${isVisible ? 'selected' : ''}">
-                            <input type="checkbox" class="column-checkbox" value="${c}" ${isVisible ? 'checked' : ''} onchange="relatorioSystem.dre.handleColumnToggle(this, '${c}')">
+                        <label class="luft-col-option ${isVisible ? 'selected' : ''}">
+                            <input type="checkbox" class="luft-col-checkbox" value="${c}" ${isVisible ? 'checked' : ''} onchange="relatorioSystem.dre.handleColumnToggle(this, '${c}')">
                             <span>${c}</span>
                         </label>`;
                     }).join('')}
                 </div>
-                <div class="mt-4 text-end border-top border-primary pt-3">
-                    <button class="btn btn-primary-custom" style="width: auto; padding: 8px 24px;" onclick="document.querySelector('.modal-backdrop.col-mgr').remove(); relatorioSystem.dre.renderTable()">
+                
+                <div class="luft-col-mgr-footer">
+                    <button class="btn btn-primary d-flex align-items-center gap-2" onclick="document.querySelector('.luft-col-mgr-backdrop').remove(); relatorioSystem.dre.renderTable()">
                         <i class="fas fa-check"></i> Aplicar Alterações
                     </button>
                 </div>
             </div>`;
+            
         const colModal = document.createElement('div'); 
-        colModal.className = 'modal-backdrop col-mgr active'; 
-        colModal.innerHTML = `<div class="modal-window" style="max-width: 600px;">${modalHtml}</div>`;
+        colModal.className = 'luft-col-mgr-backdrop active'; 
+        colModal.innerHTML = `<div class="luft-col-mgr-window">${modalHtml}</div>`;
         colModal.onclick = (e) => { if(e.target === colModal) { colModal.remove(); this.renderTable(); } }; 
         document.body.appendChild(colModal);
     }
 
     handleColumnToggle(checkbox, col) {
-        if (checkbox.checked) { this.dreState.hiddenCols.delete(col); checkbox.closest('.column-option').classList.add('selected'); }
-        else { this.dreState.hiddenCols.add(col); checkbox.closest('.column-option').classList.remove('selected'); }
+        if (checkbox.checked) { this.dreState.hiddenCols.delete(col); checkbox.closest('.luft-col-option').classList.add('selected'); }
+        else { this.dreState.hiddenCols.add(col); checkbox.closest('.luft-col-option').classList.remove('selected'); }
         this.updateSelectAllBtnState();
     }
 
     toggleAllColumns(btn) {
-        const checkboxes = document.querySelectorAll('.column-grid input[type="checkbox"]');
+        const checkboxes = document.querySelectorAll('.luft-col-mgr-grid input[type="checkbox"]');
         const isCurrentlyAllChecked = btn.querySelector('i').classList.contains('fa-check-square');
         const newState = !isCurrentlyAllChecked;
         checkboxes.forEach(chk => {
             chk.checked = newState;
             const col = chk.value;
-            const parent = chk.closest('.column-option');
+            const parent = chk.closest('.luft-col-option');
             if (newState) { this.dreState.hiddenCols.delete(col); parent.classList.add('selected'); } 
             else { this.dreState.hiddenCols.add(col); parent.classList.remove('selected'); }
         });
@@ -892,7 +900,7 @@ class RelatorioDRE {
     }
 
     updateSelectAllBtnState() {
-        const btn = document.querySelector('.column-manager-header button');
+        const btn = document.querySelector('.luft-col-mgr-header button');
         if(!btn) return;
         const allCols = this.dreState.columnsOrder;
         const allVisible = allCols.every(c => !this.dreState.hiddenCols.has(c));
@@ -910,6 +918,7 @@ class RelatorioDRE {
         };
         sortNodes(this.treeData); this.renderTable();
     }
+    
     exportToCsv() { 
         let csv = "data:text/csv;charset=utf-8,";
         const visibleCols = this.dreState.columnsOrder.filter(c => !this.dreState.hiddenCols.has(c));

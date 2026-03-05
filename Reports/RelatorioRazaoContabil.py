@@ -9,27 +9,64 @@ class RelatorioRazaoContabil:
     def __init__(self, session):
         self.session = session
 
+    def _get_tabela_e_filtros(self, tipo_visualizacao, termo_busca):
+        """
+        Retorna a string do FROM, a cláusula WHERE e os parâmetros baseados no tipo de visualização.
+        """
+        params = {}
+        if tipo_visualizacao == 'original':
+            # Modo Original: Une as 3 tabelas puras dinamicamente e calcula o Saldo (Debito - Credito)
+            tabela = """(
+                SELECT 'FARMA' as origem, "Conta", "Título Conta", "Data", "Numero", "Descricao", 
+                       "Contra Partida - Credito", "Filial", "Centro de Custo", "Item", "Cod Cl. Valor", 
+                       "Debito", "Credito", (COALESCE("Debito", 0) - COALESCE("Credito", 0)) as "Saldo", 'ORIGINAL' as "Tipo_Operacao"
+                FROM "Dre_Schema"."Tb_CTL_Razao_Farma"
+                UNION ALL
+                SELECT 'FARMADIST' as origem, "Conta", "Título Conta", "Data", "Numero", "Descricao", 
+                       "Contra Partida - Credito", "Filial", "Centro de Custo", "Item", "Cod Cl. Valor", 
+                       "Debito", "Credito", (COALESCE("Debito", 0) - COALESCE("Credito", 0)) as "Saldo", 'ORIGINAL' as "Tipo_Operacao"
+                FROM "Dre_Schema"."Tb_CTL_Razao_FarmaDist"
+                UNION ALL
+                SELECT 'INTEC' as origem, "Conta", "Título Conta", "Data", "Numero", "Descricao", 
+                       "Contra Partida - Credito", "Filial", "Centro de Custo", "Item", "Cod Cl. Valor", 
+                       "Debito", "Credito", (COALESCE("Debito", 0) - COALESCE("Credito", 0)) as "Saldo", 'ORIGINAL' as "Tipo_Operacao"
+                FROM "Dre_Schema"."Tb_CTL_Razao_Intec"
+            ) base"""
+            
+            filtro = ""
+            if termo_busca:
+                filtro = "WHERE (\"Conta\"::TEXT ILIKE :termo OR \"Título Conta\" ILIKE :termo OR \"Descricao\" ILIKE :termo OR \"Numero\"::TEXT ILIKE :termo OR \"origem\" ILIKE :termo)"
+                params['termo'] = f"%{termo_busca}%"
+        else:
+            # Modo Ajustado: Traz da Consolidada (que já possui a coluna Saldo)
+            tabela = '"Dre_Schema"."Tb_CTL_Razao_Consolidado" base'
+            filtro = 'WHERE base."Invalido" = false'
+            
+            if termo_busca:
+                filtro += " AND (base.\"Conta\"::TEXT ILIKE :termo OR base.\"Título Conta\" ILIKE :termo OR base.\"Descricao\" ILIKE :termo OR base.\"Numero\"::TEXT ILIKE :termo OR base.\"origem\" ILIKE :termo)"
+                params['termo'] = f"%{termo_busca}%"
+                
+        return tabela, filtro, params
+
     def ObterDados(self, pagina=1, por_pagina=50, termo_busca='', tipo_visualizacao='adjusted'):
         offset = (pagina - 1) * por_pagina
-        params = {'limit': por_pagina, 'offset': offset}
-        filter_snippet = ""
         
-        if termo_busca:
-            filter_snippet = "AND (\"Conta\"::TEXT ILIKE :termo OR \"Título Conta\" ILIKE :termo OR \"Descricao\" ILIKE :termo OR \"Numero\"::TEXT ILIKE :termo OR \"origem\" ILIKE :termo)"
-            params['termo'] = f"%{termo_busca}%"
+        tabela, filtro, params = self._get_tabela_e_filtros(tipo_visualizacao, termo_busca)
+        params['limit'] = por_pagina
+        params['offset'] = offset
 
-        # Leitura direta, limpa e rápida da tabela Consolidada!
+        # Monta a Query principal usando a tabela dinâmica
         sql_query = f"""
-            SELECT "Id", "Fonte", "origem", "Conta", "Título Conta", "Data", "Numero", "Descricao", 
+            SELECT "origem", "Conta", "Título Conta", "Data", "Numero", "Descricao", 
                    "Contra Partida - Credito", "Filial", "Centro de Custo", "Item", "Cod Cl. Valor", 
-                   "Debito", "Credito", "Saldo", "Nome CC" as "Nome do CC", "Tipo_Operacao"
-            FROM "Dre_Schema"."Tb_CTL_Razao_Consolidado" 
-            WHERE "Invalido" = false {filter_snippet} 
+                   "Debito", "Credito", "Saldo", "Tipo_Operacao"
+            FROM {tabela} 
+            {filtro} 
             ORDER BY "Data" DESC, "Conta" ASC, "Numero" ASC 
             LIMIT :limit OFFSET :offset
         """
         
-        sql_count = f'SELECT COUNT(*) FROM "Dre_Schema"."Tb_CTL_Razao_Consolidado" WHERE "Invalido" = false {filter_snippet}'
+        sql_count = f'SELECT COUNT(*) FROM {tabela} {filtro}'
 
         try:
             total_registros = self.session.execute(text(sql_count), params).scalar() or 0
@@ -46,8 +83,8 @@ class RelatorioRazaoContabil:
                     'debito': float(r.Debito or 0), 'credito': float(r.Credito or 0), 'saldo': float(r.Saldo or 0), 'is_ajustado': False
                 }
                 
-                # Identifica visualmente o que foi manipulado ou inserido
-                if r.Tipo_Operacao and r.Tipo_Operacao != 'ORIGINAL':
+                # Identifica visualmente o que foi manipulado ou inserido (se existir na base)
+                if hasattr(r, 'Tipo_Operacao') and r.Tipo_Operacao and r.Tipo_Operacao != 'ORIGINAL':
                     row_dict['is_ajustado'] = True
                     if r.Tipo_Operacao == 'INCLUSAO': row_dict['origem'] = f"{r.origem} (NOVO)"
                     else: row_dict['origem'] = f"{r.origem} (EDIT)"
@@ -59,13 +96,13 @@ class RelatorioRazaoContabil:
             raise e
 
     def ObterResumo(self, tipo_visualizacao='adjusted'):
+        tabela, filtro, params = self._get_tabela_e_filtros(tipo_visualizacao, '')
         try:
-            sql = text("""
+            sql = text(f"""
                 SELECT COUNT(*), SUM("Debito"), SUM("Credito"), SUM("Saldo") 
-                FROM "Dre_Schema"."Tb_CTL_Razao_Consolidado"
-                WHERE "Invalido" = false
+                FROM {tabela} {filtro}
             """)
-            base = self.session.execute(sql).fetchone()
+            base = self.session.execute(sql, params).fetchone()
             return {
                 'total_registros': base[0] or 0, 'total_debito': float(base[1] or 0), 
                 'total_credito': float(base[2] or 0), 'saldo_total': float(base[3] or 0)
@@ -74,19 +111,14 @@ class RelatorioRazaoContabil:
             return {'total_registros': 0, 'total_debito': 0, 'total_credito': 0, 'saldo_total': 0}
 
     def ExportarCompleto(self, termo_busca='', tipo_visualizacao='adjusted'):
-        params = {}
-        filter_snippet = ""
-        
-        if termo_busca:
-            params['termo'] = f"%{termo_busca}%"
-            filter_snippet = "AND (\"Conta\"::TEXT ILIKE :termo OR \"Título Conta\" ILIKE :termo OR \"Descricao\" ILIKE :termo OR \"Numero\"::TEXT ILIKE :termo OR \"origem\" ILIKE :termo)"
+        tabela, filtro, params = self._get_tabela_e_filtros(tipo_visualizacao, termo_busca)
 
         try:
             sql = text(f"""
                 SELECT "origem", "Conta", "Título Conta", "Data", "Numero", "Descricao", "Contra Partida - Credito" as "Contra Partida", 
                        "Filial", "Centro de Custo", "Item", "Cod Cl. Valor", "Debito", "Credito", "Saldo", "Tipo_Operacao"
-                FROM "Dre_Schema"."Tb_CTL_Razao_Consolidado" 
-                WHERE "Invalido" = false {filter_snippet}
+                FROM {tabela} 
+                {filtro}
                 ORDER BY "Data", "Conta"
             """)
                 

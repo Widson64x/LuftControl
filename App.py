@@ -1,9 +1,10 @@
 from flask import Flask, redirect, url_for
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from flask_sqlalchemy import SQLAlchemy 
 from flask_migrate import Migrate        
 from dotenv import load_dotenv
 import os
+from luftcore.extensions.flask_extension import LuftCorePackages, LuftUser
 
 # --- Imports das Rotas ---
 # Importando a função auxiliar que também foi renomeada
@@ -44,8 +45,6 @@ migrate = Migrate(app, db, metadata=DreBase.metadata)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-# ATENÇÃO: Como renomeamos o blueprint para 'Auth' e a função para 'Login', 
-# o endpoint mudou de 'auth.login' para 'Auth.Login'.
 login_manager.login_view = 'Auth.Login' 
 login_manager.login_message = "Por favor, faça login para acessar essa página."
 login_manager.login_message_category = "warning"
@@ -54,6 +53,36 @@ login_manager.login_message_category = "warning"
 def LoadUser(user_id):
     """Callback do Flask-Login em PascalCase."""
     return CarregarUsuarioFlask(user_id)
+
+# ==========================================
+# --- INICIALIZAÇÃO DO LUFTCORE ---
+# ==========================================
+
+# 1. Mapeamento do Usuário
+# O framework vai extrair esses dados do current_user do Flask-Login em cada requisição
+gerenciador_usuario = LuftUser(
+    callback_usuario=lambda: current_user,
+    attr_nome='nome',          # Atributo obrigatório
+    email='email',             # Atributos extras mapeados para o front
+    cargo='nome_grupo',        # Exemplo: usando o grupo de permissão como 'cargo' no front
+    nome_completo='nome_completo'
+)
+
+# 2. Injeção do Framework na Aplicação
+luftcore_app = LuftCorePackages(
+    app=app,
+    app_name="Luft Control",
+    gerenciador_usuario=gerenciador_usuario,
+    inject_theme=True,         # Injeta CSS de temas
+    inject_global=True,        # Injeta CSS global estrutural
+    inject_animations=True,    # Injeta animações CSS
+    inject_js=True,             # Injeta o base.js do LuftCore
+
+    show_topbar=True,         # Se meteres False, a barra de cima desaparece toda
+    show_search=False,        # Oculta a barra de pesquisa
+    show_notifications=False, # Oculta o botão do sininho
+    show_breadcrumb=True      # Mantém os breadcrumbs automáticos ativados
+)
 
 # --- Registro de Blueprints ---
 app.register_blueprint(auth_bp,        url_prefix=ROUTE_PREFIX + '/Auth')

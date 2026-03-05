@@ -1,239 +1,100 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <!-- ========== META TAGS ========== -->
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="description" content="Sistema de Controle DRE - Análise Financeira e Relatórios Gerenciais">
-    <meta name="keywords" content="DRE, Controle Financeiro, Relatórios, Análise, Dashboard">
-    <meta name="author" content="Luft Control">
-    <meta name="robots" content="noindex, nofollow">
-    
-    <!-- ========== TÍTULO ========== -->
-    <title>{% block title %}Luft Control{% endblock %}</title>
-    
-    <!-- ========== FAVICON ========== -->
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='IMG/Favicon.ico') }}">
-    
-    <!-- ========== PRECONNECT PARA PERFORMANCE ========== -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    
-    <!-- ========== GOOGLE FONTS ========== -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
-    <!-- ========== FONT AWESOME ========== -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 
-          integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" 
-          crossorigin="anonymous" 
-          referrerpolicy="no-referrer">
-    
-    <!-- ========== CSS MODULAR ========== -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Themes.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Global.css') }}">   
-    <!-- ========== CSS ADICIONAL (POR PÁGINA) ========== -->
+{% extends "luftcore/base.html" %}
+{# 1. Importando os componentes do LuftCore #}
+{% import 'luftcore/components.html' as ui %}
+
+{% block titulo %}
+    {% block title %}Luft Control{% endblock %}
+{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     {% block extra_css %}{% endblock %}
+{% endblock %}
+
+{# 2. Usando a Macro de Menu para gerar a Sidebar #}
+{% block sidebar_menu %}
+    {# --- ITEM NORMAL (Raiz) --- #}
+    {{ ui.nav_item('Home', 
+        icone='ph-bold ph-house', 
+        href=url_for('Main.MenuPrincipal'), 
+        ativo=(request.endpoint == 'Main.MenuPrincipal')) 
+    }}
+
+    {# --- ITEM NORMAL (Raiz) --- #}
+    {{ ui.nav_item('Home', 
+        icone='ph-bold ph-table', 
+        href=url_for('Relatorios.PaginaRelatorios'), 
+        ativo=(request.endpoint == 'Relatorios.PaginaRelatorios')) 
+    }}
+
+        {# --- ITEM NORMAL (Raiz) --- #}
+    {{ ui.nav_item('Ajuste Manuais', 
+        icone='ph-bold ph-sliders-horizontal', 
+        href=url_for('Ajustes.Index'), 
+        ativo=(request.endpoint == 'Ajustes.Index')) 
+    }}
+
+    {# --- ITEM COM SUBMENU (Árvore) --- #}
+    {% call ui.nav_item('Sistema', icone='ph-bold ph-gear', ativo=('Settings' in request.endpoint)) %}
+        
+        {{ ui.nav_item('Configurações Gerais', href=url_for('Main.MenuConfiguracoes')) }}
+        {{ ui.nav_item('Configurações DRE', href=url_for('DreConfig.ViewConfiguracao')) }}
+        {{ ui.nav_item('Segurança e Permissões', href=url_for('SecurityConfig.VisualizarGerenciadorSeguranca')) }}
+        {{ ui.nav_item('Importação de Dados', href=url_for('Import.Inicio')) }}
+        
+    {% endcall %}
+{% endblock %}
+
+{# 3. Sobrescrevendo as ações do rodapé para abrir o seu modal #}
+{% block sidebar_actions %}
+    <button onclick="LuftCore.alternarTema()" class="luft-btn-action hover-lift" title="Tema">
+        <i class="ph-bold ph-moon"></i>
+    </button>
     
-    <!-- ========== INLINE CRITICAL CSS ========== -->
-    <style>
-        /* Loading inicial - evita FOUC (Flash of Unstyled Content) */
-        body {
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        body.loaded {
-            opacity: 1;
-        }
-    </style>
-</head>
+    <a href="{{ url_for('Main.MenuConfiguracoes') }}" class="luft-btn-action hover-lift" title="Configurações">
+        <i class="ph-bold ph-sliders-horizontal"></i>
+    </a>
+    
+    <a href="{{ url_for('Auth.Logout') }}" class="luft-btn-action hover-lift text-danger" title="Sair">
+        <i class="ph-bold ph-power"></i>
+    </a>
+{% endblock %}
 
-<body>
-    <!-- ========== LOADING OVERLAY (OPCIONAL) ========== -->
-    <div id="pageLoader" style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: var(--bg-primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        transition: opacity 0.3s ease;
-    ">
-        <div class="loading-spinner"></div>
-    </div>
+{% block nome_usuario %}
+    {{ current_user.nome if current_user.is_authenticated else 'Visitante' }}
+{% endblock %}
 
-    <!-- ========== MENU DE NAVEGAÇÃO ========== -->
-    {% if current_user.is_authenticated %}
-        {% include 'BASE/Menu.html' %}
-    {% endif %}
+{% block content %}
+    {% block page_content %}{% endblock %}
 
-    <!-- ========== CONTAINER PRINCIPAL ========== -->
-    <main class="container" style="margin-top: 2rem; margin-bottom: 2rem; min-height: calc(100vh - 200px);">
-        
-        <!-- ========== FLASH MESSAGES ========== -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div id="flashMessages" style="margin-bottom: 2rem;">
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} slide-in-down" role="alert">
-                            <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
-                            <span>{{ message }}</span>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <!-- ========== BREADCRUMB (OPCIONAL) ========== -->
-        {% block breadcrumb %}{% endblock %}
-
-        <!-- ========== CONTEÚDO DA PÁGINA ========== -->
-        {% block content %}
-            <div class="empty-state">
-                <i class="fas fa-file-alt"></i>
-                <p>Conteúdo não encontrado</p>
-            </div>
-        {% endblock %}
-        
-    </main>
-
-    <!-- ========== FOOTER (OPCIONAL) ========== -->
-    {% block footer %}
-    <footer class="sys-footer">
-        <div class="sys-footer-line"></div>
-
-        <div class="container">
-            <div class="sys-footer-content">
-                
-                <div class="sys-footer-brand">
-                    <div class="sys-footer-logo">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div class="sys-footer-info">
-                        <span class="sys-name">Luft Control</span>
-                        <span class="sys-version">Enterprise Edition v2.0</span>
-                    </div>
-                </div>
-
-                <nav class="sys-footer-nav">
-                    <a href="#" class="sys-link" title="Central de Ajuda">
-                        <i class="far fa-life-ring"></i> <span>Suporte</span>
-                    </a>
-                    <a href="#" class="sys-link" title="Manual do Sistema">
-                        <i class="far fa-file-alt"></i> <span>Documentação</span>
-                    </a>
-                    <a href="#" class="sys-link" title="Histórico de Versões">
-                        <i class="fas fa-code-branch"></i> <span>Changelog</span>
-                    </a>
-                    <!--
-                    <a href="#" class="sys-link" title="Status dos Serviços">
-                        <i class="fas fa-server"></i> <span>API Status</span>
-                    </a>
-                    -->
-                </nav>
-
-                <div class="sys-footer-meta">
-                    <div class="sys-copyright">
-                        &copy; 2025 Luft Control
-                    </div>
-                </div>
-
-            </div>
+    <div id="modalConfig" class="modal-overlay" style="display: none;">
         </div>
-    </footer>
-    {% endblock %}
+{% endblock %}
 
-    <!-- ========== JAVASCRIPT MODULAR ========== -->
-    
-    <!-- 1. Sistema Principal (SEMPRE CARREGA) -->
+{% block extra_scripts %}
     <script src="{{ url_for('static', filename='JS/Core/Main.js') }}" defer></script>
     <script src="{{ url_for('static', filename='JS/Reports/Relatorios.js') }}" defer></script>
     
-    <!-- 2. Scripts Adicionais (POR PÁGINA) -->
-    {% block extra_js %}{% endblock %}
-    
-    <!-- ========== SCRIPT DE INICIALIZAÇÃO ========== -->
     <script>
-        // Remove loading overlay quando página carregar
-        window.addEventListener('load', function() {
-            // Remove page loader
-            const loader = document.getElementById('pageLoader');
-            if (loader) {
-                loader.style.opacity = '0';
-                setTimeout(() => loader.remove(), 300);
-            }
-            
-            // Marca body como carregado
-            document.body.classList.add('loaded');
-            
-            // Auto-remove flash messages após 5 segundos
-            const flashMessages = document.getElementById('flashMessages');
-            if (flashMessages) {
-                setTimeout(() => {
-                    flashMessages.style.opacity = '0';
-                    setTimeout(() => flashMessages.remove(), 300);
-                }, 5000);
-            }
-        });
-
-        // Tratamento de erros global
-        window.addEventListener('error', function(e) {
-            console.error('Erro global:', e.error);
-        });
-
-        // Detecta se usuário está offline
-        window.addEventListener('offline', function() {
-            if (window.NotificationSystem) {
-                NotificationSystem.show('Você está offline', 'warning');
-            }
-        });
-
-        window.addEventListener('online', function() {
-            if (window.NotificationSystem) {
-                NotificationSystem.show('Conexão restaurada', 'success');
-            }
-        });
-
-        // Previne que usuário saia sem salvar (se houver formulário modificado)
-        let formModified = false;
-        document.addEventListener('DOMContentLoaded', function() {
-            const forms = document.querySelectorAll('form');
-            forms.forEach(form => {
-                form.addEventListener('change', () => formModified = true);
-                form.addEventListener('submit', () => formModified = false);
-            });
-        });
-
-        window.addEventListener('beforeunload', function(e) {
-            if (formModified) {
-                e.preventDefault();
-                e.returnValue = 'Você tem alterações não salvas. Deseja realmente sair?';
-                return e.returnValue;
-            }
-        });
-
-        // Atalhos de teclado globais
-        document.addEventListener('keydown', function(e) {
-            // Ctrl/Cmd + S - Previne salvar padrão do navegador
-            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                e.preventDefault();
-                const form = document.querySelector('form');
-                if (form) {
-                    form.submit();
+        function ExecutarSincronizacaoConsolidada() {
+            fetch("{{ url_for('Api.SyncConsolidado') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
                 }
-            }
-        });
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    console.warn("Aviso na Sincronização em Background:", data.msg);
+                }
+            })
+            .catch(error => console.error("Erro na chamada de sincronização:", error));
+        }
+
+        setInterval(ExecutarSincronizacaoConsolidada, 60000);
+        ExecutarSincronizacaoConsolidada();
     </script>
     
-    <!-- ========== ANALYTICS (OPCIONAL) ========== -->
-    {% block analytics %}
-    <!-- Adicione Google Analytics ou outro aqui se necessário -->
-    {% endblock %}
-    
-</body>
-</html>
+    {% block extra_js %}{% endblock %}
+{% endblock %}

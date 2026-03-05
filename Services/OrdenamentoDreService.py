@@ -309,6 +309,14 @@ class OrdenamentoDreService:
         session = self._ObterSessao()
         try:
             if not lista_nova_ordem: return 0
+            
+            # --- CORREÇÃO DO ERRO DE UNIQUE CONSTRAINT ---
+            # Desloca as ordens atuais deste contexto temporariamente (+10000) 
+            # para evitar colisões com a chave única durante o loop abaixo.
+            sql_shift = text('UPDATE "Dre_Schema"."Tb_CTL_Dre_Ordenamento" SET ordem = ordem + 10000 WHERE contexto_pai = :ctx')
+            session.execute(sql_shift, {"ctx": contexto})
+            # ---------------------------------------------
+            
             for item in lista_nova_ordem:
                 sql = text("""
                     INSERT INTO "Dre_Schema"."Tb_CTL_Dre_Ordenamento" 

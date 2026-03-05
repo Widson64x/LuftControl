@@ -644,63 +644,56 @@ def AddNoCalculado():
 def VincularConta():
     session = get_session()
     try:
-        conta = str(request.json.get('conta')).strip()
-        subgrupo_node_id = request.json.get('subgrupo_id') 
+        data = request.json
+        conta = str(data.get('conta')).strip()
+        subgrupo_node_id = str(data.get('subgrupo_id')) 
 
-        if not subgrupo_node_id.startswith("sg_"): raise Exception("Contas só podem ser vinculadas a Subgrupos.")
+        if not subgrupo_node_id.startswith("sg_"): 
+            return jsonify({"error": "Contas só podem ser vinculadas a Subgrupos."}), 400
         sg_id = int(subgrupo_node_id.replace("sg_", ""))
 
-        # --- ATUALIZADO ---
-        sql = text("""
+        sql_raiz = text("""
             WITH RECURSIVE hierarquia AS (
                 SELECT "Id", "Id_Pai", "Raiz_Centro_Custo_Codigo", "Raiz_Centro_Custo_Tipo", 
                        "Raiz_No_Virtual_Id", 0 as nivel
                 FROM "Dre_Schema"."Tb_CTL_Dre_Hierarquia"
                 WHERE "Id" = :sg_id
-                
                 UNION ALL
-                
-                SELECT p."Id", p."Id_Pai", 
-                       COALESCE(h."Raiz_Centro_Custo_Codigo", p."Raiz_Centro_Custo_Codigo"),
-                       COALESCE(h."Raiz_Centro_Custo_Tipo", p."Raiz_Centro_Custo_Tipo"),
-                       COALESCE(h."Raiz_No_Virtual_Id", p."Raiz_No_Virtual_Id"),
-                       h.nivel + 1
+                SELECT p."Id", p."Id_Pai", p."Raiz_Centro_Custo_Codigo", p."Raiz_Centro_Custo_Tipo", 
+                       p."Raiz_No_Virtual_Id", h.nivel + 1
                 FROM "Dre_Schema"."Tb_CTL_Dre_Hierarquia" p
                 INNER JOIN hierarquia h ON h."Id_Pai" = p."Id"
-                WHERE h."Raiz_Centro_Custo_Codigo" IS NULL AND h."Raiz_No_Virtual_Id" IS NULL
             )
             SELECT "Raiz_Centro_Custo_Codigo", "Raiz_Centro_Custo_Tipo", "Raiz_No_Virtual_Id"
             FROM hierarquia
             WHERE "Raiz_Centro_Custo_Codigo" IS NOT NULL OR "Raiz_No_Virtual_Id" IS NOT NULL
-            ORDER BY nivel DESC LIMIT 1
+            ORDER BY nivel ASC LIMIT 1
         """)
-        result = session.execute(sql, {"sg_id": sg_id}).first()
+        result = session.execute(sql_raiz, {"sg_id": sg_id}).first()
         
-        if not result:
-            root_cc_code, root_virt_id, root_tipo = None, None, "Virtual"
-        else:
-            root_cc_code, root_tipo, root_virt_id = result[0], result[1] or "Virtual", result[2]
+        root_cc_code = result[0] if result else None
+        root_tipo = result[1] if result and result[1] else "Virtual"
+        root_virt_id = result[2] if result else None
 
         chave_tipo = f"{conta}{root_tipo}"
         chave_cod = f"{conta}{root_cc_code}" if root_cc_code else f"{conta}VIRTUAL{root_virt_id}"
 
-        # --- ATUALIZADO ---
+        # CORREÇÃO: Alvo do conflito alterado para "Chave_Conta_Codigo_CC"
         sql_upsert = text("""
             INSERT INTO "Dre_Schema"."Tb_CTL_Dre_Conta_Vinculo" 
                 ("Conta_Contabil", "Id_Hierarquia", "Chave_Conta_Tipo_CC", "Chave_Conta_Codigo_CC")
             VALUES (:conta, :sg_id, :chave_tipo, :chave_cod)
-            ON CONFLICT ("Conta_Contabil") DO UPDATE SET
+            ON CONFLICT ("Chave_Conta_Codigo_CC") DO UPDATE SET
                 "Id_Hierarquia" = EXCLUDED."Id_Hierarquia",
                 "Chave_Conta_Tipo_CC" = EXCLUDED."Chave_Conta_Tipo_CC",
-                "Chave_Conta_Codigo_CC" = EXCLUDED."Chave_Conta_Codigo_CC"
+                "Conta_Contabil" = EXCLUDED."Conta_Contabil"
         """)
         session.execute(sql_upsert, {"conta": conta, "sg_id": sg_id, "chave_tipo": chave_tipo, "chave_cod": chave_cod})
 
-        session.query(CtlDreOrdenamento).filter(CtlDreOrdenamento.tipo_no == 'conta', CtlDreOrdenamento.id_referencia == conta).delete(synchronize_session=False)
+        session.query(CtlDreOrdenamento).filter(CtlDreOrdenamento.tipo_no == 'conta', CtlDreOrdenamento.id_referencia == conta).delete()
 
         contexto_pai = f"sg_{sg_id}"
         nova_ordem = calcular_proxima_ordem(session, contexto_pai)
-
         reg_ordem = CtlDreOrdenamento(tipo_no='conta', id_referencia=conta, contexto_pai=contexto_pai, ordem=nova_ordem, nivel_profundidade=99)
         session.add(reg_ordem)
 
@@ -708,6 +701,7 @@ def VincularConta():
         return jsonify({"success": True}), 200
     except Exception as e:
         session.rollback()
+        print(f"Erro VincularConta: {str(e)}")
         return jsonify({"error": str(e)}), 500
     finally:
         session.close()
@@ -717,29 +711,48 @@ def VincularConta():
 def VincularContaDetalhe():
     session = get_session()
     try:
-        conta, nome_personalizado, parent_id = request.json.get('conta'), request.json.get('nome_personalizado'), request.json.get('parent_id')
-        if not conta or not parent_id: return jsonify({"error": "Dados incompletos"}), 400
+        data = request.json
+        conta = str(data.get('conta')).strip()
+        nome_personalizado = data.get('nome_personalizado')
+        parent_id = str(data.get('parent_id'))
+
+        if not conta or not parent_id: 
+            return jsonify({"error": "Dados incompletos"}), 400
 
         id_hierarquia, id_no_virtual = None, None
-        if parent_id.startswith("virt_"): id_no_virtual = int(parent_id.replace("virt_", ""))
-        elif parent_id.startswith("sg_"): id_hierarquia = int(parent_id.replace("sg_", ""))
-        else: return jsonify({"error": "Local inválido para vínculo de detalhe"}), 400
+        if parent_id.startswith("virt_"): 
+            id_no_virtual = int(parent_id.replace("virt_", ""))
+        elif parent_id.startswith("sg_"): 
+            id_hierarquia = int(parent_id.replace("sg_", ""))
 
-        # --- ATUALIZADO ---
-        sql = text("""
-            INSERT INTO "Dre_Schema"."Tb_CTL_Dre_Conta_Personalizada"
-                ("Conta_Contabil", "Nome_Personalizado", "Id_Hierarquia", "Id_No_Virtual")
-            VALUES (:conta, :nome, :hier, :virt)
-            ON CONFLICT ("Conta_Contabil") DO UPDATE SET
-                "Nome_Personalizado" = COALESCE(EXCLUDED."Nome_Personalizado", "Tb_CTL_Dre_Conta_Personalizada"."Nome_Personalizado"),
-                "Id_Hierarquia" = EXCLUDED."Id_Hierarquia",
-                "Id_No_Virtual" = EXCLUDED."Id_No_Virtual"
-        """)
+        # CORREÇÃO: Alvo do conflito alterado para a composição de colunas
+        # Nota: Se id_no_virtual for usado, garanta que existe índice para ele também.
+        if id_hierarquia:
+            sql = text("""
+                INSERT INTO "Dre_Schema"."Tb_CTL_Dre_Conta_Personalizada"
+                    ("Conta_Contabil", "Nome_Personalizado", "Id_Hierarquia", "Id_No_Virtual")
+                VALUES (:conta, :nome, :hier, :virt)
+                ON CONFLICT ("Conta_Contabil", "Id_Hierarquia") DO UPDATE SET
+                    "Nome_Personalizado" = EXCLUDED."Nome_Personalizado",
+                    "Id_No_Virtual" = EXCLUDED."Id_No_Virtual"
+            """)
+        else:
+            # Caso para Nó Virtual
+            sql = text("""
+                INSERT INTO "Dre_Schema"."Tb_CTL_Dre_Conta_Personalizada"
+                    ("Conta_Contabil", "Nome_Personalizado", "Id_Hierarquia", "Id_No_Virtual")
+                VALUES (:conta, :nome, :hier, :virt)
+                ON CONFLICT ("Conta_Contabil", "Id_No_Virtual") DO UPDATE SET
+                    "Nome_Personalizado" = EXCLUDED."Nome_Personalizado",
+                    "Id_Hierarquia" = EXCLUDED."Id_Hierarquia"
+            """)
+        
         session.execute(sql, {"conta": conta, "nome": nome_personalizado, "hier": id_hierarquia, "virt": id_no_virtual})
         session.commit()
         return jsonify({"success": True}), 200
     except Exception as e:
         session.rollback()
+        print(f"Erro VincularContaDetalhe: {str(e)}")
         return jsonify({"error": str(e)}), 500
     finally:
         session.close()
