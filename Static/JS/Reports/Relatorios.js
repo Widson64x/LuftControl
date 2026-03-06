@@ -120,6 +120,9 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.dre = null;
             this.dreConsolidado = null;
             
+            // 1. ADICIONA AQUI A VARIÁVEL DO NOVO RELATÓRIO
+            this.dreOperacao = null; 
+            
             this.init();
         }
 
@@ -134,7 +137,6 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
         setupSystem() {
             const modalElement = document.getElementById('modalRelatorio');
             
-            // Aqui é o grande truque: Usamos o novo adaptador no lugar do ModalSystem antigo
             if (modalElement) {
                 this.modal = new LuftModalWrapper('modalRelatorio');
             } else {
@@ -150,6 +152,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             }
             if (typeof RelatorioDreConsolidado !== 'undefined') {
                 this.dreConsolidado = new RelatorioDreConsolidado(this.modal);
+            }
+            
+            // 2. INSTANCIA O NOVO RELATÓRIO AQUI
+            if (typeof RelatorioDreOperacao !== 'undefined') {
+                this.dreOperacao = new RelatorioDreOperacao(this.modal);
             }
         }
 
@@ -168,6 +175,11 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
 
         loadDreConsolidadoReport() {
             if (this.dreConsolidado) this.dreConsolidado.loadReport();
+        }
+
+        // 3. ADICIONA O MÉTODO QUE O BOTÃO DO HTML VAI CHAMAR
+        loadDreOperacaoReport() {
+            if (this.dreOperacao) this.dreOperacao.loadReport();
         }
     }
 
