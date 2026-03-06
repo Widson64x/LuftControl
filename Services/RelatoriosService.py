@@ -150,6 +150,29 @@ class RelatoriosService:
         finally:
             session.close()
 
+    def GerarDreOperacao(self, modo_escala='dre', ano=None):
+        """
+        Serviço para calcular o DRE com colunas por Operação.
+        """
+        session = self._ObterSessao() # <- AQUI ESTÁ A CORREÇÃO
+        try:
+            from Reports.RelatorioDreOperacao import RelatorioDreOperacao
+            relatorio = RelatorioDreOperacao(session)
+            
+            # 1. Busca e mapeia nas colunas novas
+            dados = relatorio.ProcessarRelatorio(ano=ano)
+            
+            # 2. Executa Fórmulas
+            dados_calculados = relatorio.CalcularNosVirtuais(dados)
+            
+            # 3. Formatação
+            if modo_escala == 'dre':
+                return relatorio.AplicarMilhares(dados_calculados)
+                
+            return dados_calculados
+        finally:
+            session.close()
+
     def DepurarOrdenamentoDre(self):
         """Wrapper para DepurarEstruturaEOrdem."""
         session = self._ObterSessao()

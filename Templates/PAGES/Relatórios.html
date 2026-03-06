@@ -111,6 +111,24 @@
             </div>
         </div>
 
+        <div class="luft-hub-card" data-category="estrategico" data-search="dre operacao resultado">
+            <div class="luft-hub-card-header">
+                <div class="luft-hub-card-icon" style="background: var(--luft-info-50); color: var(--luft-info-600); border-color: var(--luft-info-100);">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                {{ ui.badge('Estratégico', cor='info') }}
+            </div>
+            <div class="luft-hub-card-body">
+                <h3>DRE por Operação</h3>
+                <p>Visão de Resultado distribuída pelas diferentes tipologias de Operação do Grupo.</p>
+            </div>
+            <div class="luft-hub-card-footer">
+                <button class="luft-hub-btn" onclick="relatorioSystem.loadDreOperacaoReport()">
+                    <span>Acessar Relatório</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -135,6 +153,7 @@
         getRazaoResumo:         "{{ url_for('Relatorios.ObterResumoRazao') }}",
         getRentabilidadeData:   "{{ url_for('Relatorios.RelatorioRentabilidade') }}",
         getDreConsolidadoData:  "{{ url_for('Relatorios.RelatorioDreConsolidadoRota') }}",
+        getDreOperacaoData:     "{{ url_for('Relatorios.RelatorioDreOperacaoRota') }}",
         getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}",
         getRazaoDownload:       "{{ url_for('Relatorios.DownloadRazaoExcel') }}", 
         getListaCCs:            "{{ url_for('Relatorios.ListarCentrosCusto') }}"      
@@ -190,4 +209,5 @@
 <script src="{{ url_for('static', filename='JS/Reports/RelatorioRazao.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/Reports/RelatorioDRE.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/Reports/RelatorioDreConsolidado.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/Reports/RelatorioDreOperacao.js') }}"></script>
 {% endblock %}

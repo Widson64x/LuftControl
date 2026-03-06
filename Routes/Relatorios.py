@@ -135,6 +135,27 @@ def RelatorioDreConsolidadoRota():
         RegistrarLog("Erro Crítico no Relatório DRE Consolidado", "ERROR", e)
         return api_error(message="Falha ao gerar o DRE Consolidado.", details=str(e), status=500)
 
+@reports_bp.route('/relatoriorazao/dreoperacao', methods=['GET'])
+@login_required
+@require_permission('relatorios.dre.consolidado') # Podes criar uma permissão nova se quiseres!
+@require_ajax
+def RelatorioDreOperacaoRota():
+    """API: Gera o relatório DRE por Operação."""
+    try:
+        modo_escala = request.args.get('scale_mode', 'dre')
+        ano = request.args.get('ano', datetime.now().year)
+        
+        usuario_id = current_user.get_id() if current_user else "Anonimo"
+        RegistrarLog(f"Relatório DRE Operação solicitado por {usuario_id}. Ano: {ano}", "WEB_REPORT")
+        
+        svc = RelatoriosService()
+        dados = svc.GerarDreOperacao(modo_escala, ano)
+        
+        return api_success(data=dados, message="DRE Operação processado.")
+    except Exception as e:
+        RegistrarLog("Erro Crítico no Relatório DRE Operação", "ERROR", e)
+        return api_error(message="Falha ao gerar o DRE Operação.", details=str(e), status=500)
+    
 # ============================================================
 # ARQUIVOS E EXPORTAÇÕES (NÃO USA @require_ajax)
 # ============================================================
@@ -182,7 +203,7 @@ def DownloadRazaoExcel():
 
 @reports_bp.route('/relatoriorazao/debugordenamento', methods=['GET'])
 @login_required
-@require_permission('admin.master') # Só desenvolvedores ou sysadmins devem ver rotas de debug
+@require_permission('admin.master') # Só desenvolvedores 'ou sysadmins devem ver rotas de debug
 @require_ajax
 def DepurarOrdenamento():
     """Rota auxiliar de debug do Sistema."""
