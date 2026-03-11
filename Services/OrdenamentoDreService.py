@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from Db.Connections import GetPostgresEngine
 
 # --- NOVOS IMPORTS ---
-from Models.POSTGRESS.CTL_Dre_Ordenamento import (
+from Models.Postgress.CTL_Dre_Ordenamento import (
     CtlDreOrdenamento, 
     calcular_proxima_ordem,
     reordenar_contexto,

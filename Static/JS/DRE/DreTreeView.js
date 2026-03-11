@@ -13,7 +13,7 @@ let tipoDestinoIntegral = null; // Controle para replicação de Tipos
 
 // DEFINIÇÃO DE PREFIXOS (Baseado nos seus logs)
 const PREFIX_ORDEM = '/LuftControl/DreOrdenamento';
-const PREFIX_CONFIG = '/LuftControl/DreConfig';
+const PREFIX_CONFIG = '/LuftControl/';
 
 // MAPA VISUAL (Somente Visualização)
 const MAPA_TIPOS_CC = {
@@ -110,7 +110,7 @@ async function autoSync() {
     const statusText = document.getElementById('ordenamentoStatusText');
     if(statusText) statusText.innerText = "Sincronizando...";
 
-    const url = getRoute('inicializarOrdenamento', '/Ordenamento/Inicializar', 'ordem');
+    const url = getRoute('inicializarOrdenamento', '/ordenamento/inicializar', 'ordem');
 
     try {
         await fetch(url, {
@@ -194,9 +194,9 @@ async function loadTree() {
     try {
         let url;
         if (ordenamentoAtivo) {
-            url = getRoute('getArvoreOrdenada', '/Ordenamento/GetArvoreOrdenada', 'ordem');
+            url = getRoute('getArvoreOrdenada', '/ordenamento/obter-arvore', 'ordem');
         } else {
-            url = getRoute('getDadosArvore', '/Configuracao/GetDadosArvore', 'config');
+            url = getRoute('getDadosArvore', '/configuracao/dados-arvore', 'config');
         }
         
         console.log("LoadTree URL:", url);
@@ -471,7 +471,7 @@ async function editCalculado() {
     // Carrega operandos se necessário
     if (!operandosDisponiveis) {
         try {
-            const url = getRoute('GetOperandosDisponiveis', '/Configuracao/GetOperandosDisponiveis', 'config');
+            const url = getRoute('GetOperandosDisponiveis', '/configuracao/operandos-disponiveis', 'config');
             const r = await fetch(url);
             operandosDisponiveis = await r.json();
         } catch(e) { return alert("Erro ao carregar dependências"); }
@@ -479,7 +479,7 @@ async function editCalculado() {
 
     // Busca os dados completos deste nó (Fórmula, estilo, etc)
     try {
-        const url = getRoute('GetNosCalculados', '/Configuracao/GetNosCalculados', 'config');
+        const url = getRoute('GetNosCalculados', '/configuracao/nos-calculados', 'config');
         const r = await fetch(url);
         const lista = await r.json();
         const dadosNo = lista.find(n => n.id == dbId);
@@ -533,9 +533,9 @@ async function renameNode() {
     if (!novoNome || novoNome === contextNode.text) return;
 
     let endpoint = '';
-    if (contextNode.type === 'root_virtual') endpoint = '/Configuracao/RenameNoVirtual';
-    else if (contextNode.type === 'subgrupo') endpoint = '/Configuracao/RenameSubgrupo';
-    else if (contextNode.type === 'conta_detalhe') endpoint = '/Configuracao/RenameContaPersonalizada';
+    if (contextNode.type === 'root_virtual') endpoint = '/configuracao/renomear-virtual';
+    else if (contextNode.type === 'subgrupo') endpoint = '/configuracao/renomear-subgrupo';
+    else if (contextNode.type === 'conta_detalhe') endpoint = '/configuracao/renomear-personalizada';
     
     if (endpoint) {
         fetchAPI(getRoute(null, endpoint, 'config'), { id: contextNode.id, novo_nome: novoNome }, 'Renomeado!');
@@ -552,16 +552,16 @@ function copyNode() {
 async function pasteNode() {
     if (!clipboard) return;
     if (!confirm(`Colar "${clipboard.text}" dentro de "${contextNode.text}"?`)) return;
-    const url = getRoute(null, '/Configuracao/ColarEstrutura', 'config');
+    const url = getRoute(null, '/configuracao/colar-estrutura', 'config');
     fetchAPI(url, { origem_id: clipboard.id, destino_id: contextNode.id }, 'Estrutura colada!');
 }
 
 async function deleteNode() {
     if(!confirm(`Remover "${contextNode.text}" permanentemente?`)) return;
     let endpoint = '';
-    if(contextNode.type==='subgrupo') endpoint='/Configuracao/DeleteSubgrupo';
-    if(contextNode.type && contextNode.type.includes('conta')) endpoint='/Configuracao/DesvincularConta';
-    if(contextNode.type==='root_virtual') endpoint='/Configuracao/DeleteNoVirtual';
+    if(contextNode.type==='subgrupo') endpoint='/configuracao/excluir-subgrupo';
+    if(contextNode.type && contextNode.type.includes('conta')) endpoint='/configuracao/desvincular-conta';
+    if(contextNode.type==='root_virtual') endpoint='/configuracao/excluir-no-virtual';
     
     if(endpoint) {
         fetchAPI(getRoute(null, endpoint, 'config'), {id:contextNode.id}, 'Item removido.');
@@ -582,7 +582,7 @@ async function verificarOrdenamento() {
     const btnNorm = document.getElementById('btnNormalizarOrdem');
     
     try {
-        const url = getRoute('getFilhosOrdenados', '/Ordenamento/GetFilhosOrdenados', 'ordem');
+        const url = getRoute('getFilhosOrdenados', '/ordenamento/obter-filhos', 'ordem');
 
         const r = await fetch(url, {
             method: 'POST',
@@ -620,7 +620,7 @@ async function verificarOrdenamento() {
 async function inicializarOrdenamento() {
     if (!confirm('Inicializar estrutura de ordenamento?')) return;
     showToast('Inicializando...');
-    const url = getRoute('inicializarOrdenamento', '/Ordenamento/Inicializar', 'ordem');
+    const url = getRoute('inicializarOrdenamento', '/ordenamento/inicializar', 'ordem');
     try {
         const r = await fetch(url, {
             method: 'POST',
@@ -633,7 +633,7 @@ async function inicializarOrdenamento() {
 
 async function resetarOrdenamento() {
     if (!confirm('RESETAR toda a ordem para o padrão alfabético/código?')) return;
-    const url = getRoute('inicializarOrdenamento', '/Ordenamento/Inicializar', 'ordem');
+    const url = getRoute('inicializarOrdenamento', '/ordenamento/inicializar', 'ordem');
     try {
         const r = await fetch(url, {
             method: 'POST',
@@ -645,7 +645,7 @@ async function resetarOrdenamento() {
 }
 
 async function normalizarOrdenamento() {
-    const url = getRoute(null, '/Ordenamento/Normalizar', 'ordem');
+    const url = getRoute(null, '/ordenamento/normalizar', 'ordem');
     try {
         const r = await fetch(url, {
             method: 'POST',
@@ -695,7 +695,7 @@ function submitAddVirtual() {
 
     if(!n) return alert('Nome?'); 
     
-    fetchAPI(getRoute(null, '/Configuracao/AddNoVirtual', 'config'), {
+    fetchAPI(getRoute(null, '/configuracao/adicionar-no-virtual', 'config'), {
         nome: n,
         cor: c // Envia a cor
     }, 'Nó Virtual criado!');
@@ -707,7 +707,7 @@ function submitAddSub() {
     if (!contextNode || !contextNode.id) return alert('Erro de contexto. Tente novamente.');
 
     fetchAPI(
-        getRoute(null, '/Configuracao/AddSubgrupo', 'config'), 
+        getRoute(null, '/configuracao/adicionar-subgrupo', 'config'), 
         { nome: n, parent_id: contextNode.id }, 
         'Grupo criado!'
     );
@@ -716,7 +716,7 @@ function submitAddSub() {
 async function submitLinkConta() {
     const c = document.getElementById('inputContaSearch').value;
     if(!c) return alert('Conta?');
-    const url = getRoute(null, '/Configuracao/VincularConta', 'config');
+    const url = getRoute(null, '/configuracao/vincular-conta', 'config');
     
     try {
         const r = await fetch(url, {
@@ -741,7 +741,7 @@ function submitLinkDetalhe() {
     const n = document.getElementById('inputDetailName').value; 
     if(!c) return alert('Conta?'); 
     fetchAPI(
-        getRoute(null, '/Configuracao/VincularContaDetalhe', 'config'), 
+        getRoute(null, '/configuracao/vincular-contaDetalhe', 'config'), 
         {conta:c, nome_personalizado:n, parent_id:contextNode.id}, 
         'Vinculado!'
     );
@@ -799,7 +799,7 @@ async function loadGroupManagerList(tipoCC) {
     const list = document.getElementById('listGroupManager');
     list.innerHTML = '<div class="text-center p-4 text-muted"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
 
-    const url = getRoute(null, '/Configuracao/GetSubgruposPorTipo', 'config');
+    const url = getRoute(null, '/configuracao/subgrupos-tipo', 'config');
 
     try {
         const r = await fetch(url, {
@@ -854,7 +854,7 @@ async function loadMassGroupsList(tipoCC) {
     const list = document.getElementById('listMassGroups');
     list.innerHTML = '<div class="text-center p-4 text-muted"><i class="fas fa-spinner fa-spin"></i></div>';
     
-    const url = getRoute(null, '/Configuracao/GetSubgruposPorTipo', 'config');
+    const url = getRoute(null, '/configuracao/subgrupos-tipo', 'config');
 
     try {
         const r = await fetch(url, {
@@ -893,7 +893,7 @@ async function selectMassGroup(groupName, el) {
     container.innerHTML = '<div class="text-center p-4 text-muted"><i class="fas fa-spinner fa-spin"></i></div>';
     
     const tipoCC = document.getElementById('lblMassType').dataset.code;
-    const url = getRoute(null, '/Configuracao/GetContasDoGrupoMassa', 'config');
+    const url = getRoute(null, '/configuracao/contas-grupo-massa', 'config');
     
     try {
         const r = await fetch(url, {
@@ -954,7 +954,7 @@ async function addAccountToGroup() {
     
     if(!conta) return alert('Conta?');
     
-    const url = getRoute(null, '/Configuracao/VincularContaEmMassa', 'config');
+    const url = getRoute(null, '/configuracao/vincular-contaEmMassa', 'config');
 
     try {
         const r = await fetch(url, {
@@ -987,7 +987,7 @@ async function removeAccountFromGroup(conta, isPers) {
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     if(!confirm('Remover vínculo?')) return;
     
-    const url = getRoute(null, '/Configuracao/DesvincularContaEmMassa', 'config');
+    const url = getRoute(null, '/configuracao/desvincular-contaEmMassa', 'config');
 
     try {
         const r = await fetch(url, {
@@ -1012,7 +1012,7 @@ async function submitMassCreate() {
     
     if(!nome) return showToast('Digite um nome para o grupo.');
     
-    const url = getRoute(null, '/Configuracao/AddSubgrupoSistematico', 'config');
+    const url = getRoute(null, '/configuracao/adicionar-subgrupoSistematico', 'config');
     
     try {
         const r = await fetch(url, {
@@ -1037,7 +1037,7 @@ async function submitMassDeleteFromList(btn, nome) {
     if(!confirm(`⚠️ ATENÇÃO: Isso excluirá o grupo "${nome}" de TODOS os Centros de Custo deste tipo, incluindo todas as contas vinculadas a ele.\n\nTem certeza absoluta?`)) return;
 
     const tipoCC = document.getElementById('lblMassType').dataset.code;
-    const url = getRoute(null, '/Configuracao/DeleteSubgrupoEmMassa', 'config');
+    const url = getRoute(null, '/configuracao/excluir-subgrupoEmMassa', 'config');
     
     const originalIcon = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
@@ -1111,7 +1111,7 @@ async function submitMassReorder() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
     btn.disabled = true;
 
-    const url = getRoute('reordenarEmMassa', '/Ordenamento/ReordenarEmMassa', 'ordem');
+    const url = getRoute('reordenarEmMassa', '/ordenamento/reordenar-massa', 'ordem');
 
     try {
         const r = await fetch(url, {
@@ -1222,7 +1222,7 @@ async function submitReplicarTipoAction() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
     btn.disabled = true;
 
-    const url = getRoute('replicarTipoIntegral', '/Configuracao/ReplicarTipoIntegral', 'config');
+    const url = getRoute('replicarTipoIntegral', '/configuracao/replicar-tipo-integral', 'config');
 
     try {
         const r = await fetch(url, {
@@ -1263,7 +1263,7 @@ function submitMassDelete() {
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     if(!nome) return;
     if(!confirm('Isso apagará o grupo e contas de TODOS os CCs. Continuar?')) return;
-    const url = getRoute(null, '/Configuracao/DeleteSubgrupoEmMassa', 'config');
+    const url = getRoute(null, '/configuracao/excluir-subgrupoEmMassa', 'config');
     fetchAPI(url, {nome_grupo:nome, tipo_cc:tipoCC}, 'Grupo Excluído!');
 }
 
@@ -1271,7 +1271,7 @@ function submitMassUnlink() {
     const c = document.getElementById('inputMassUnlinkConta').value;
     const tipoCC = document.getElementById('lblMassType').dataset.code;
     if(!c) return;
-    const url = getRoute(null, '/Configuracao/DesvincularContaEmMassa', 'config');
+    const url = getRoute(null, '/configuracao/desvincular-contaEmMassa', 'config');
     fetchAPI(url, {conta:c, tipo_cc:tipoCC}, 'Vínculo removido!');
 }
 
@@ -1315,7 +1315,7 @@ async function openReplicarModal() {
     list.innerHTML = '<div class="text-center text-muted p-4"><i class="fas fa-spinner fa-spin"></i> Carregando destinos...</div>';
     
     try {
-        const url = getRoute('getDadosArvore', '/Configuracao/GetDadosArvore', 'config');
+        const url = getRoute('getDadosArvore', '/configuracao/dados-arvore', 'config');
         const r = await fetch(url);
         const data = await r.json();
         let html = '';
@@ -1347,13 +1347,13 @@ function toggleAllDestinos() {
 async function submitReplicar() {
     const ids = Array.from(document.querySelectorAll('.chk-dest:checked')).map(c => c.value);
     if(ids.length === 0) return alert('Selecione destinos');
-    const url = getRoute(null, '/Configuracao/ReplicarEstrutura', 'config');
+    const url = getRoute(null, '/configuracao/replicar-estrutura', 'config');
     fetchAPI(url, {origem_node_id: contextNode.id, destinos_ids: ids}, 'Replicado!');
 }
 
 async function loadContasList() {
     try {
-        const url = getRoute('GetContasDisponiveis', '/Configuracao/GetContasDisponiveis', 'config');
+        const url = getRoute('GetContasDisponiveis', '/configuracao/contas-disponiveis', 'config');
         const r = await fetch(url);
         if(!r.ok) throw new Error("Falha ao carregar contas");
         const d = await r.json();
@@ -1376,7 +1376,7 @@ async function loadStdGroupAccounts(nodeId) {
     const list = document.getElementById('listStdLinkedAccounts');
     list.innerHTML = '<div class="text-center text-muted p-4"><i class="fas fa-spinner fa-spin"></i></div>';
     const dbId = nodeId.replace('sg_', '');
-    const url = getRoute(null, '/Configuracao/GetContasDoSubgrupo', 'config');
+    const url = getRoute(null, '/configuracao/contas-subgrupo', 'config');
 
     try {
         const r = await fetch(url, {
@@ -1405,7 +1405,7 @@ async function loadStdGroupAccounts(nodeId) {
 
 async function removeStdAccount(c) {
     if(!confirm('Desvincular?')) return;
-    const url = getRoute(null, '/Configuracao/DesvincularConta', 'config');
+    const url = getRoute(null, '/configuracao/desvincular-conta', 'config');
     try {
         const r = await fetch(url, {
             method: 'POST',
@@ -1440,7 +1440,7 @@ async function openModalCalculado() {
 
     if (!operandosDisponiveis) {
         try {
-            const url = getRoute('GetOperandosDisponiveis', '/Configuracao/GetOperandosDisponiveis', 'config');
+            const url = getRoute('GetOperandosDisponiveis', '/configuracao/operandos-disponiveis', 'config');
             const r = await fetch(url);
             
             if (!r.ok) {
@@ -1572,7 +1572,7 @@ async function submitNoCalculado() {
     };
     
     if (currentEditingNodeId) {
-        const url = getRoute(null, '/Configuracao/UpdateNoCalculado', 'config');
+        const url = getRoute(null, '/configuracao/atualizar-calculado', 'config');
         fetchAPI(url, {
             id: currentEditingNodeId,
             nome: nome,
@@ -1582,7 +1582,7 @@ async function submitNoCalculado() {
             estilo_css: estiloCss 
         }, 'Cálculo atualizado com sucesso!');
     } else {
-        const url = getRoute(null, '/Configuracao/AddNoCalculado', 'config');
+        const url = getRoute(null, '/configuracao/adicionar-calculado', 'config');
         fetchAPI(url, {
             nome: nome,
             formula: formula,

@@ -5,8 +5,8 @@ import pandas as pd
 from sqlalchemy import text, func
 
 # --- NOVOS IMPORTS ALINHADOS COM A NOVA ARQUITETURA ---
-from Models.POSTGRESS.CTL_Razao import CtlRazaoConsolidado
-from Models.POSTGRESS.CTL_Ajustes import CtlAjusteLog
+from Models.Postgress.CTL_Razao import CtlRazaoConsolidado
+from Models.Postgress.CTL_Ajustes import CtlAjusteLog
 from Settings import BaseConfig
 import os
 import sys

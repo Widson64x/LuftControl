@@ -8,7 +8,7 @@ from Services.ImportacaoDadosService import ImportacaoDadosService
 from Utils.Logger import RegistrarLog
 
 # Cria o Blueprint
-import_bp = Blueprint('Import', __name__)
+import_bp = Blueprint('Importacao', __name__)
 
 # Colunas Padrão que o sistema espera receber (Meta-dados)
 DB_COLUMNS_PADRAO = {
@@ -33,7 +33,7 @@ def Inicio():
     Tela Inicial: Mostra as opções de tabelas disponíveis para importar.
     """
     svc = ImportacaoDadosService()
-    return render_template('IMPORT/Index.html', sources=svc.TABELAS_PERMITIDAS)
+    return render_template('Pages/Import/ImportIndex.html', sources=svc.TABELAS_PERMITIDAS)
 
 @import_bp.route('/importacao/analise', methods=['POST'])
 @login_required
@@ -43,7 +43,7 @@ def Analisar():
     """
     if 'file' not in request.files:
         flash('Nenhum ficheiro selecionado.', 'danger')
-        return redirect(url_for('Import.Inicio'))
+        return redirect(url_for('Importacao.Inicio'))
     
     arquivo = request.files['file']
     origem = request.form.get('source')
@@ -55,11 +55,11 @@ def Analisar():
     if not origem or origem not in svc.TABELAS_PERMITIDAS:
         RegistrarLog(f"Tentativa de upload para origem inválida: {origem} por {id_usuario}", "WARNING")
         flash('Origem inválida.', 'danger')
-        return redirect(url_for('Import.Inicio'))
+        return redirect(url_for('Importacao.Inicio'))
 
     if arquivo.filename == '':
         flash('Nenhum ficheiro selecionado.', 'danger')
-        return redirect(url_for('Import.Inicio'))
+        return redirect(url_for('Importacao.Inicio'))
 
     try:
         RegistrarLog(f"Recebendo arquivo {arquivo.filename} para análise ({origem}) - Usuário: {id_usuario}", "WEB")
@@ -74,7 +74,7 @@ def Analisar():
         mapeamento_salvo, transformacoes_salvas = svc.CarregarUltimaConfiguracao(origem)
         
         return render_template(
-            'IMPORT/MapColumns.html', 
+            'Pages/Import/MapColumns.html', 
             filename=nome_unico,
             source=origem,
             excel_columns=colunas_excel,
@@ -88,11 +88,11 @@ def Analisar():
     except Exception as e:
         RegistrarLog(f"Erro na rota de análise para {arquivo.filename}", "ERROR", e)
         flash(f'Erro ao processar arquivo: {str(e)}', 'danger')
-        return redirect(url_for('Import.Inicio'))
+        return redirect(url_for('Importacao.Inicio'))
     
-@import_bp.route('/importacao/api/preview', methods=['POST'])
+@import_bp.route('/importacao/api/previa', methods=['POST'])
 @login_required
-def ApiPrevia():
+def ObterPrevia():
     """
     Rota AJAX: Retorna como um valor vai ficar após a transformação.
     """
@@ -142,7 +142,7 @@ def Confirmar():
 
         if not mapeamento:
             flash('Nenhuma coluna foi mapeada.', 'warning')
-            return redirect(url_for('Import.Inicio'))
+            return redirect(url_for('Importacao.Inicio'))
         
         svc = ImportacaoDadosService()
         
@@ -153,11 +153,11 @@ def Confirmar():
             transformacoes=transformacoes
         )
         flash(f'Sucesso! {linhas} registos importados em {origem} (Competência: {competencia}).', 'success')
-        return redirect(url_for('Import.Historico'))
+        return redirect(url_for('Importacao.Historico'))
     except Exception as e:
         RegistrarLog(f"Erro fatal na rota Confirmar para {origem}", "ERROR", e)
         flash(f'Erro na importação: {str(e)}', 'danger')
-        return redirect(url_for('Import.Inicio'))
+        return redirect(url_for('Importacao.Inicio'))
 
 @import_bp.route('/importacao/historico', methods=['GET'])
 @login_required
@@ -167,7 +167,7 @@ def Historico():
     """
     svc = ImportacaoDadosService()
     logs = svc.ObterHistoricoImportacao()
-    return render_template('IMPORT/History.html', logs=logs)
+    return render_template('Pages/Import/ImportHistory.html', logs=logs)
 
 @import_bp.route('/importacao/reverter', methods=['POST'])
 @login_required
@@ -181,7 +181,7 @@ def Reverter():
 
     if not motivo:
         flash('Motivo obrigatório.', 'warning')
-        return redirect(url_for('Import.Historico'))
+        return redirect(url_for('Importacao.Historico'))
     
     svc = ImportacaoDadosService()
     
@@ -192,4 +192,4 @@ def Reverter():
     except Exception as e:
         RegistrarLog(f"Erro na interface de Reversão ID {id_log}", "ERROR", e)
         flash(f'Falha na reversão: {str(e)}', 'danger')
-    return redirect(url_for('Import.Historico'))
+    return redirect(url_for('Importacao.Historico'))

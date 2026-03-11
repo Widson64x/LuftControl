@@ -1,4 +1,4 @@
-{% extends "Base.html" %}
+{% extends "Layout/BaseLayout.html" %}
 {% import 'luftcore/components.html' as ui %}
 
 {% block title %}Histórico de Importações | Luft Control{% endblock %}
@@ -41,7 +41,7 @@
             <h2 class="m-0 font-bold" style="font-size: var(--luft-text-3xl); color: var(--luft-text-main);">Auditoria de Importações</h2>
             <p class="text-muted mt-2 mb-0">Logs de execução e reversão de cargas de dados.</p>
         </div>
-        {{ ui.btn('Nova Importação', tipo='primary', icone='fas fa-plus', href=url_for('Import.Inicio')) }}
+        {{ ui.btn('Nova Importação', tipo='primary', icone='fas fa-plus', href=url_for('Importacao.Inicio')) }}
     </div>
 
     <div class="luft-card-table">
@@ -102,7 +102,7 @@
             <p class="text-main mb-2">Você está prestes a remover <strong>TODOS</strong> os dados da competência <strong id="modalComp" class="text-danger"></strong> desta origem.</p>
             <p class="text-muted text-sm mb-4">Esta ação será auditada.</p>
             
-            <form action="{{ url_for('Import.Reverter') }}" method="POST">
+            <form action="{{ url_for('Importacao.Reverter') }}" method="POST">
                 <input type="hidden" name="log_id" id="modalLogId">
                 
                 <label style="display: block; margin-bottom: 8px; font-weight: 700; color: var(--luft-text-main);">Motivo (Obrigatório):</label>

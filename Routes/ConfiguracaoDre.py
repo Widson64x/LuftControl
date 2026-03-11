@@ -1,5 +1,5 @@
 """
-Routes/DreConfig.py - VERSÃO OTIMIZADA
+Routes/ConfiguracaoDre.py - VERSÃO OTIMIZADA
 Rotas para Configuração da Árvore DRE (Demonstração do Resultado do Exercício)
 """
 
@@ -13,15 +13,16 @@ import time
 from Db.Connections import GetPostgresEngine
 
 # --- NOVOS IMPORTS DE MODELS ---
-from Models.POSTGRESS.CTL_Dre_Estrutura import (
+from Models.Postgress.CTL_Dre_Estrutura import (
     CtlDreContaVinculo, 
     CtlDreNoVirtual, 
     CtlDreHierarquia, 
     CtlDreContaPersonalizada
 )
-from Models.POSTGRESS.CTL_Dre_Ordenamento import CtlDreOrdenamento, calcular_proxima_ordem
+from Models.Postgress.CTL_Dre_Ordenamento import CtlDreOrdenamento, calcular_proxima_ordem
 
-dre_config_bp = Blueprint('DreConfig', __name__)
+# Nome da Blueprint atualizado para ConfiguracaoDre
+configuracao_dre_bp = Blueprint('ConfiguracaoDre', __name__)
 
 # ============================================================
 # SEÇÃO 1: FUNÇÕES AUXILIARES OTIMIZADAS
@@ -72,19 +73,19 @@ def gerar_descricao_formula(formula: dict) -> str:
 # SEÇÃO 2: ROTAS DE VISUALIZAÇÃO (VIEWS/TEMPLATES)
 # ============================================================
 
-@dre_config_bp.route('/Configuracao/Arvore', methods=['GET'])
+@configuracao_dre_bp.route('/configuracao/arvore', methods=['GET'])
 @login_required
-def ViewConfiguracao():
-    return render_template('CONFIGS/ConfigsDRE.html')
+def VisualizarArvore():
+    return render_template('Pages/Configs/DreConfigs.html')
 
 
 # ============================================================
 # SEÇÃO 3: ROTAS DE CONSULTA OTIMIZADAS
 # ============================================================
 
-@dre_config_bp.route('/Configuracao/GetDadosArvore', methods=['GET'])
+@configuracao_dre_bp.route('/configuracao/dados-arvore', methods=['GET'])
 @login_required
-def GetDadosArvore():
+def ObterDadosArvore():
     session = get_session()
     try:
         start = time.time()
@@ -243,9 +244,9 @@ def GetDadosArvore():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/GetContasDisponiveis', methods=['GET'])
+@configuracao_dre_bp.route('/configuracao/contas-disponiveis', methods=['GET'])
 @login_required
-def GetContasDisponiveis():
+def ObterContasDisponiveis():
     session = get_session()
     try:
         # --- ATUALIZADO ---
@@ -268,9 +269,9 @@ def GetContasDisponiveis():
         session.close()
 
 
-@dre_config_bp.route('/Configuracao/GetContasDoSubgrupo', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/contas-subgrupo', methods=['POST'])
 @login_required
-def GetContasDoSubgrupo():
+def ObterContasSubgrupo():
     session = get_session()
     try:
         data = request.json
@@ -293,9 +294,9 @@ def GetContasDoSubgrupo():
         session.close()
 
 
-@dre_config_bp.route('/Configuracao/GetSubgruposPorTipo', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/subgrupos-tipo', methods=['POST'])
 @login_required
-def GetSubgruposPorTipo():
+def ObterSubgruposPorTipo():
     session = get_session()
     try:
         tipo_cc = request.json.get('tipo_cc') 
@@ -318,9 +319,9 @@ def GetSubgruposPorTipo():
         session.close()
 
 
-@dre_config_bp.route('/Configuracao/GetContasDoGrupoMassa', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/contas-grupo-massa', methods=['POST'])
 @login_required
-def GetContasDoGrupoMassa():
+def ObterContasGrupoMassa():
     session = get_session()
     try:
         tipo_cc = request.json.get('tipo_cc')
@@ -355,9 +356,9 @@ def GetContasDoGrupoMassa():
         session.close()
 
 
-@dre_config_bp.route('/Configuracao/GetNosCalculados', methods=['GET'])
+@configuracao_dre_bp.route('/configuracao/nos-calculados', methods=['GET'])
 @login_required
-def GetNosCalculados():
+def ObterNosCalculados():
     session = get_session()
     try:
         # --- ATUALIZADO ---
@@ -378,9 +379,9 @@ def GetNosCalculados():
         session.close()
 
 
-@dre_config_bp.route('/Configuracao/GetOperandosDisponiveis', methods=['GET'])
+@configuracao_dre_bp.route('/configuracao/operandos-disponiveis', methods=['GET'])
 @login_required
-def GetOperandosDisponiveis():
+def ObterOperandosDisponiveis():
     session = get_session()
     try:
         resultado = {"nos_virtuais": [], "tipos_cc": [], "subgrupos_raiz": []}
@@ -409,9 +410,9 @@ def GetOperandosDisponiveis():
 # SEÇÃO 4: ROTAS DE CRIAÇÃO (ADD) - OTIMIZADAS
 # ============================================================
 
-@dre_config_bp.route('/Configuracao/AddSubgrupo', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/adicionar-subgrupo', methods=['POST'])
 @login_required
-def AddSubgrupo():
+def AdicionarSubgrupo():
     session = get_session()
     try:
         data = request.json
@@ -525,9 +526,9 @@ def AddSubgrupo():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/AddSubgrupoSistematico', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/adicionar-sistematico', methods=['POST'])
 @login_required
-def AddSubgrupoSistematico():
+def AdicionarSubgrupoSistematico():
     session = get_session()
     try:
         nome_grupo = request.json.get('nome')
@@ -568,9 +569,9 @@ def AddSubgrupoSistematico():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/AddNoVirtual', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/adicionar-no-virtual', methods=['POST'])
 @login_required
-def AddNoVirtual():
+def AdicionarNoVirtual():
     session = get_session()
     try:
         nome, cor = request.json.get('nome'), request.json.get('cor')
@@ -600,9 +601,9 @@ def AddNoVirtual():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/AddNoCalculado', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/adicionar-calculado', methods=['POST'])
 @login_required
-def AddNoCalculado():
+def AdicionarNoCalculado():
     session = get_session()
     try:
         data = request.json
@@ -639,7 +640,7 @@ def AddNoCalculado():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/VincularConta', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/vincular-conta', methods=['POST'])
 @login_required
 def VincularConta():
     session = get_session()
@@ -706,7 +707,7 @@ def VincularConta():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/VincularContaDetalhe', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/vincular-detalhe', methods=['POST'])
 @login_required
 def VincularContaDetalhe():
     session = get_session()
@@ -726,7 +727,6 @@ def VincularContaDetalhe():
             id_hierarquia = int(parent_id.replace("sg_", ""))
 
         # CORREÇÃO: Alvo do conflito alterado para a composição de colunas
-        # Nota: Se id_no_virtual for usado, garanta que existe índice para ele também.
         if id_hierarquia:
             sql = text("""
                 INSERT INTO "Dre_Schema"."Tb_CTL_Dre_Conta_Personalizada"
@@ -761,9 +761,9 @@ def VincularContaDetalhe():
 # SEÇÃO 5: ROTAS DE ATUALIZAÇÃO (UPDATE/RENAME)
 # ============================================================
 
-@dre_config_bp.route('/Configuracao/RenameNoVirtual', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/renomear-virtual', methods=['POST'])
 @login_required
-def RenameNoVirtual():
+def RenomearNoVirtual():
     session = get_session()
     try:
         # --- ATUALIZADO ---
@@ -778,9 +778,9 @@ def RenameNoVirtual():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/RenameSubgrupo', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/renomear-subgrupo', methods=['POST'])
 @login_required
-def RenameSubgrupo():
+def RenomearSubgrupo():
     session = get_session()
     try:
         # --- ATUALIZADO ---
@@ -795,9 +795,9 @@ def RenameSubgrupo():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/RenameContaPersonalizada', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/renomear-personalizada', methods=['POST'])
 @login_required
-def RenameContaPersonalizada():
+def RenomearContaPersonalizada():
     session = get_session()
     try:
         # --- ATUALIZADO ---
@@ -812,9 +812,9 @@ def RenameContaPersonalizada():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/UpdateNoCalculado', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/atualizar-calculado', methods=['POST'])
 @login_required
-def UpdateNoCalculado():
+def AtualizarNoCalculado():
     session = get_session()
     try:
         data = request.json
@@ -855,9 +855,9 @@ def UpdateNoCalculado():
 # SEÇÃO 6: ROTAS DE EXCLUSÃO (DELETE) - OTIMIZADAS
 # ============================================================
 
-@dre_config_bp.route('/Configuracao/DeleteSubgrupo', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/excluir-subgrupo', methods=['POST'])
 @login_required
-def DeleteSubgrupo():
+def ExcluirSubgrupo():
     session = get_session()
     try:
         node_id = request.json.get('id') 
@@ -901,7 +901,7 @@ def DeleteSubgrupo():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/DesvincularConta', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/desvincular-conta', methods=['POST'])
 @login_required
 def DesvincularConta():
     session = get_session()
@@ -927,9 +927,9 @@ def DesvincularConta():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/DeleteNoVirtual', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/excluir-no-virtual', methods=['POST'])
 @login_required
-def DeleteNoVirtual():
+def ExcluirNoVirtual():
     session = get_session()
     try:
         node_id = request.json.get('id')
@@ -982,7 +982,7 @@ def DeleteNoVirtual():
 # SEÇÃO 7: ROTAS DE OPERAÇÕES EM MASSA - OTIMIZADAS
 # ============================================================
 
-@dre_config_bp.route('/Configuracao/VincularContaEmMassa', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/vincular-massa', methods=['POST'])
 @login_required
 def VincularContaEmMassa():
     session = get_session()
@@ -1027,7 +1027,7 @@ def VincularContaEmMassa():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/DesvincularContaEmMassa', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/desvincular-massa', methods=['POST'])
 @login_required
 def DesvincularContaEmMassa():
     session = get_session()
@@ -1058,9 +1058,9 @@ def DesvincularContaEmMassa():
     finally:
         session.close()
 
-@dre_config_bp.route('/Configuracao/DeleteSubgrupoEmMassa', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/excluir-subgrupo-massa', methods=['POST'])
 @login_required
-def DeleteSubgrupoEmMassa():
+def ExcluirSubgrupoEmMassa():
     session = get_session()
     try:
         tipo_cc, nome_grupo = request.json.get('tipo_cc'), request.json.get('nome_grupo')
@@ -1106,18 +1106,18 @@ def DeleteSubgrupoEmMassa():
 # SEÇÃO 8: ROTAS DE REPLICAÇÃO - OTIMIZADAS
 # ============================================================
 
-@dre_config_bp.route('/Configuracao/ReplicarEstrutura', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/replicar-estrutura', methods=['POST'])
 @login_required
 def ReplicarEstrutura():
     return jsonify({"success": True, "msg": "ReplicarEstrutura em manutenção temporária após refatoração."}), 200
 
-@dre_config_bp.route('/Configuracao/ColarEstrutura', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/colar-estrutura', methods=['POST'])
 @login_required
 def ColarEstrutura():
     return jsonify({"success": True, "msg": "ColarEstrutura em manutenção temporária após refatoração."}), 200
 
 
-@dre_config_bp.route('/Configuracao/ReplicarTipoIntegral', methods=['POST'])
+@configuracao_dre_bp.route('/configuracao/replicar-tipo-integral', methods=['POST'])
 @login_required
 def ReplicarTipoIntegral():
     session = get_session()

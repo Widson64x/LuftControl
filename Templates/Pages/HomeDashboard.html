@@ -1,9 +1,9 @@
-{% extends "Base.html" %}
+{% extends "Layout/BaseLayout.html" %}
 
 {% block title %}Dashboard - Luft Control{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/HomeDashboard.css') }}">
 {% endblock %}
 
 {% block breadcrumb %}
@@ -32,7 +32,7 @@
         </p>
     </a>
     
-    <a href="{{ url_for('Ajustes.Index') }}" class="luft-module-card">
+    <a href="{{ url_for('AjustesManuais.Inicio') }}" class="luft-module-card">
         <div class="luft-module-icon">
             <i class="ph-bold ph-sliders-horizontal"></i>
         </div>
@@ -55,7 +55,7 @@
         </p>
     </div>
 
-    <a href="{{ url_for('Main.MenuConfiguracoes') }}" class="luft-module-card">
+    <a href="{{ url_for('Principal.MenuConfiguracoes') }}" class="luft-module-card">
         <div class="luft-module-icon">
             <i class="ph-bold ph-gear"></i>
         </div>

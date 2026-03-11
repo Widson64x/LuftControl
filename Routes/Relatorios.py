@@ -23,18 +23,18 @@ reports_bp = Blueprint('Relatorios', __name__)
 # VIEWS (Páginas HTML)
 # ============================================================
 
-@reports_bp.route('/', methods=['GET']) 
+@reports_bp.route('/relatorios', methods=['GET']) 
 @login_required 
 @require_permission('relatorios.view') # Permissão base para abrir a tela
 def PaginaRelatorios():
     """Renderiza a página HTML principal de relatórios."""
-    return render_template('PAGES/Relatórios.html')
+    return render_template('Pages/Reports/ReportsDashboard.html')
 
 # ============================================================
 # APIs DE DADOS (AJAX)
 # ============================================================
 
-@reports_bp.route('/relatoriorazao/dados', methods=['GET']) 
+@reports_bp.route('/razao/dados', methods=['GET']) 
 @login_required 
 @require_permission('relatorios.razao') # Permissão específica do Razão
 @require_ajax
@@ -58,7 +58,7 @@ def ObterDadosRazao():
         RegistrarLog("Erro na rota ObterDadosRazao", "ERROR", e)
         return api_error(message="Falha ao carregar os dados do Razão.", details=str(e), status=500)
 
-@reports_bp.route('/relatoriorazao/resumo', methods=['GET']) 
+@reports_bp.route('/razao/resumo', methods=['GET']) 
 @login_required 
 @require_permission('relatorios.razao')
 @require_ajax
@@ -73,7 +73,7 @@ def ObterResumoRazao():
     except Exception as e: 
         return api_error(message="Falha ao calcular os totais do Razão.", details=str(e), status=500)
 
-@reports_bp.route('/relatoriorazao/listacentroscusto', methods=['GET'])
+@reports_bp.route('/razao/centros-custo', methods=['GET'])
 @login_required
 @require_permission('relatorios.view') # Permissão genérica é suficiente para ver o combo
 @require_ajax
@@ -89,7 +89,7 @@ def ListarCentrosCusto():
         RegistrarLog("Aviso ao carregar centros de custo", "WARNING", e)
         return api_success(data=[]) 
 
-@reports_bp.route('/relatoriorazao/rentabilidade', methods=['GET'])
+@reports_bp.route('/dre/rentabilidade', methods=['GET'])
 @login_required
 @require_permission('relatorios.dre') # Permissão específica do DRE
 @require_ajax
@@ -114,11 +114,11 @@ def RelatorioRentabilidade():
         RegistrarLog("Erro Crítico no Relatório DRE", "ERROR", e)
         return api_error(message="Falha ao gerar o relatório DRE.", details=str(e), status=500)
 
-@reports_bp.route('/relatoriorazao/dreconsolidado', methods=['GET'])
+@reports_bp.route('/dre/consolidado', methods=['GET'])
 @login_required
 @require_permission('relatorios.dre.consolidado') # Permissão nível Master/Gerência
 @require_ajax
-def RelatorioDreConsolidadoRota():
+def GerarDreConsolidado():
     """API: Gera o relatório DRE Consolidado (Visão por Unidade)."""
     try:
         modo_escala = request.args.get('scale_mode', 'dre')
@@ -135,11 +135,11 @@ def RelatorioDreConsolidadoRota():
         RegistrarLog("Erro Crítico no Relatório DRE Consolidado", "ERROR", e)
         return api_error(message="Falha ao gerar o DRE Consolidado.", details=str(e), status=500)
 
-@reports_bp.route('/relatoriorazao/dreoperacao', methods=['GET'])
+@reports_bp.route('/dre/operacao', methods=['GET'])
 @login_required
 @require_permission('relatorios.dre.consolidado') # Podes criar uma permissão nova se quiseres!
 @require_ajax
-def RelatorioDreOperacaoRota():
+def GerarDreOperacao():
     """API: Gera o relatório DRE por Operação."""
     try:
         modo_escala = request.args.get('scale_mode', 'dre')
@@ -160,10 +160,10 @@ def RelatorioDreOperacaoRota():
 # ARQUIVOS E EXPORTAÇÕES (NÃO USA @require_ajax)
 # ============================================================
 
-@reports_bp.route('/relatoriorazao/downloadfull', methods=['GET'])
+@reports_bp.route('/razao/download', methods=['GET'])
 @login_required
 @require_permission('relatorios.exportar') # Permissão Exclusiva para Exportar Excel
-def DownloadRazaoExcel():
+def BaixarRazaoExcel():
     """Gera e baixa o Excel completo do Razão."""
     
     # ATENÇÃO: NÃO usamos @require_ajax aqui, pois o navegador faz o 
@@ -201,7 +201,7 @@ def DownloadRazaoExcel():
 # ROTAS DE ADMIN/DEBUG
 # ============================================================
 
-@reports_bp.route('/relatoriorazao/debugordenamento', methods=['GET'])
+@reports_bp.route('Relatorios.DepurarOrdenamento', methods=['GET'])
 @login_required
 @require_permission('admin.master') # Só desenvolvedores 'ou sysadmins devem ver rotas de debug
 @require_ajax

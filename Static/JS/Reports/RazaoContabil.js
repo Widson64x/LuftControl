@@ -32,8 +32,8 @@ class RelatorioRazao {
         }
 
         try {
-            const urlData = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRazaoData) ? API_ROUTES.getRazaoData : '/Relatorios/RelatorioRazao/Dados'; 
-            const urlSummary = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRazaoResumo) ? API_ROUTES.getRazaoResumo : '/Relatorios/RelatorioRazao/Resumo';
+            const urlData = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRazaoData) ? API_ROUTES.getRazaoData : '/Relatorios/razao/dados'; 
+            const urlSummary = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getRazaoResumo) ? API_ROUTES.getRazaoResumo : '/Relatorios/razao/resumo';
 
             const term = encodeURIComponent(this.search);
             const viewType = this.viewType;

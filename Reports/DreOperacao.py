@@ -1,64 +1,93 @@
 import json
 import math
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from sqlalchemy import text
 import os
 import sys
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Utils.Utils import ReportUtils
 from Utils.Logger import RegistrarLog
 
-class RelatorioDreConsolidado:
+class DreOperacao:
     def __init__(self, session):
         self.session = session
+        
+        # AS COLUNAS EXATAS QUE PEDISTE
         self.colunas = [
-            'INTEC', 'FARMA', 'FARMA_DIST', 'POLO', 'JANDIRA', 
-            'CABREUVA', 'NAO_OPER_INTEC', 'NAO_OPER_FARMA', 'INTERGRUPO', 'Total_Geral'
+            'TRANSPORTE', 'ARMAZENAGEM', 'POLO_SC', 'CONSOLIDADO_OP', 
+            'JANDIRA_CABREUVA', 'INTERGRUPO', 'NAO_OPERACIONAL', 'CONSOLIDADO'
         ]
 
     def _ObterEstruturaHierarquia(self):
-        from Reports.RelatorioDreGerencial import RelatorioDreGerencial
-        dre_base = RelatorioDreGerencial(self.session)
+        from Reports.DreGerencial import DreGerencial
+        dre_base = DreGerencial(self.session)
         return dre_base._ObterEstruturaHierarquia()
 
     def _ObterOrdenamento(self):
-        from Reports.RelatorioDreGerencial import RelatorioDreGerencial
-        dre_base = RelatorioDreGerencial(self.session)
+        from Reports.DreGerencial import DreGerencial
+        dre_base = DreGerencial(self.session)
         return dre_base._ObterOrdenamento()
 
     def _ObterOrdemSubgruposPorContexto(self):
-        from Reports.RelatorioDreGerencial import RelatorioDreGerencial
-        dre_base = RelatorioDreGerencial(self.session)
+        from Reports.DreGerencial import DreGerencial
+        dre_base = DreGerencial(self.session)
         return dre_base._ObterOrdemSubgruposPorContexto()
 
-    # PASSO 2: Adicionado o parâmetro 'item_cod'
+    # ==========================================
+    # REGRAS DE DISTRIBUIÇÃO (PROVISÓRIAS)
+    # ==========================================
     def _DeterminarColuna(self, origem, centro_custo, conta, is_nao_operacional, is_intergrupo, filial_cliente=None, item_cod=None):
         origem = str(origem).upper().strip() if origem else ''
         cc = str(centro_custo).upper().strip() if centro_custo else ''
         filial = str(filial_cliente).upper().strip() if filial_cliente else ''
-        
-        # Tratamento da nova variável 'item_cod'
         item = str(item_cod).strip() if item_cod else ''
         
+        # ====================================================================
+        # PASSO 1: Identificar a classificação original (DRE Consolidado)
+        # ====================================================================
+        coluna_consolidado = None
+        
         if is_intergrupo:
-            return 'INTERGRUPO'
-            
-        # PASSO 4: Nova regra! Verifica o Item em vez de 'is_nao_operacional'
-        if item == '10190':
-            if origem == 'INTEC': return 'NAO_OPER_INTEC'
-            if origem in ['FARMA', 'FARMADIST']: return 'NAO_OPER_FARMA'
-            return 'NAO_OPER_FARMA'
-
-        if origem == 'INTEC':
-            return 'INTEC'
+            coluna_consolidado = 'INTERGRUPO'
+        elif item == '10190':
+            if origem == 'INTEC': coluna_consolidado = 'NAO_OPER_INTEC'
+            elif origem in ['FARMA', 'FARMADIST']: coluna_consolidado = 'NAO_OPER_FARMA'
+            else: coluna_consolidado = 'NAO_OPER_FARMA'
+        elif origem == 'INTEC':
+            coluna_consolidado = 'INTEC'
         elif origem == 'FARMADIST':
-            return 'FARMA_DIST'
+            coluna_consolidado = 'FARMA_DIST'
         elif origem == 'FARMA':
-            if 'POLO' in cc: return 'POLO'
-            if 'JANDIRA' in filial: return 'JANDIRA' 
-            if 'CABREUVA' in cc: return 'CABREUVA'
-            return 'FARMA'
+            if 'POLO' in cc: coluna_consolidado = 'POLO'
+            elif 'JANDIRA' in filial: coluna_consolidado = 'JANDIRA' 
+            elif 'CABREUVA' in cc: coluna_consolidado = 'CABREUVA'
+            else: coluna_consolidado = 'FARMA'
+
+        # ====================================================================
+        # PASSO 2: Mapear para as novas colunas do DRE por Operação
+        # ====================================================================
+        
+        # REGRA 1: TRANSPORTE
+        # Absorve: INTEC + FARMA + NÃO OPERACIONAL FARMA + INTERGRUPO
+        if coluna_consolidado in ['INTEC', 'FARMA', 'NAO_OPER_FARMA', 'INTERGRUPO']:
+            return 'TRANSPORTE'
             
+        # --------------------------------------------------------------------
+        # (Lógica temporária para as outras colunas não ficarem vazias)
+        # --------------------------------------------------------------------
+        if coluna_consolidado == 'POLO': 
+            return 'POLO_SC'
+            
+        if coluna_consolidado in ['JANDIRA', 'CABREUVA']: 
+            return 'JANDIRA_CABREUVA'
+            
+        if coluna_consolidado == 'FARMA_DIST':
+            return 'ARMAZENAGEM'
+            
+        if coluna_consolidado == 'NAO_OPER_INTEC':
+            return 'NAO_OPERACIONAL'
+
         return None
 
     def ProcessarRelatorio(self, ano=None):
@@ -75,12 +104,7 @@ class RelatorioDreConsolidado:
 
             aggregated_data = {}
 
-            # PASSO 2: Adicionado 'item_cod' aos parâmetros
             def ProcessRow(origem, conta, titulo, saldo, cc_original_str, is_nao_operacional=False, is_intergrupo=False, is_skeleton=False, forced_match=None, filial_cliente=None, item_cod=None):
-                
-                # PASSO 3: O bloco de código que transformava a conta em '00000000000' foi removido
-                # para que possas visualizar exatamente as contas originais.
-
                 match = forced_match
                 if not match:
                     rules = definitions.get(conta, [])
@@ -136,12 +160,12 @@ class RelatorioDreConsolidado:
                         aggregated_data[group_key]['Ordem_Conta'] = match.Ordem_Conta
 
                 if not is_skeleton and saldo != 0:
-                    # Passamos também o item_cod para _DeterminarColuna
                     coluna_alvo = self._DeterminarColuna(origem, cc_original_str, conta, is_nao_operacional, is_intergrupo, filial_cliente, item_cod)
                     if coluna_alvo and coluna_alvo in self.colunas:
                         val_inv = saldo * -1 
                         aggregated_data[group_key][coluna_alvo] += val_inv
-                        aggregated_data[group_key]['Total_Geral'] += val_inv
+                        # A coluna final agora chama-se CONSOLIDADO em vez de Total_Geral
+                        aggregated_data[group_key]['CONSOLIDADO'] += val_inv
 
             for conta_def, lista_regras in definitions.items():
                 titulo_conta = mapa_titulos.get(conta_def, "Conta Configurada")
@@ -154,7 +178,6 @@ class RelatorioDreConsolidado:
                 params['ano'] = int(ano)
                 where_clause += ' AND EXTRACT(YEAR FROM "Data") = :ano'
 
-            # PASSO 1: Adicionada a coluna "Item" à consulta SQL
             sql_raw = text(f"""
                 SELECT "origem", "Conta", "Título Conta", "Centro de Custo", "Saldo", "Is_Nao_Operacional", "Tipo_Operacao", "Filial Cliente", "Item"
                 FROM "Dre_Schema"."Tb_CTL_Razao_Consolidado" {where_clause}
@@ -163,7 +186,6 @@ class RelatorioDreConsolidado:
 
             for row in raw_rows:
                 is_intergrupo = (row.Tipo_Operacao == 'INTERGRUPO_AUTO')
-                # Enviando getattr(row, 'Item', None)
                 ProcessRow(
                     row.origem, row.Conta, getattr(row, 'Título Conta'), row.Saldo, 
                     getattr(row, 'Centro de Custo'), row.Is_Nao_Operacional, is_intergrupo, 
@@ -177,7 +199,7 @@ class RelatorioDreConsolidado:
             return final_list
         
         except Exception as e:
-            RegistrarLog("Erro no Relatório DRE Consolidado", "ERROR", e)
+            RegistrarLog("Erro no Relatório DRE Operacao", "ERROR", e)
             raise e
         
     def CalcularNosVirtuais(self, data_rows):

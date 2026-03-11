@@ -6,7 +6,7 @@ from sqlalchemy import text
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from Db.Connections import GetPostgresEngine
-from Models.POSTGRESS.Rentabilidade import Base
+from Models.Postgress.Rentabilidade import Base
 
 def criar_tabela():
     engine = GetPostgresEngine()

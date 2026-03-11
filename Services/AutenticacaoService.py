@@ -7,8 +7,8 @@ from ldap3 import Server, Connection, SIMPLE, core
 from Db.Connections import GetSqlServerEngine, GetPostgresEngine
 
 # --- Imports dos Modelos ---
-from Models.SQL_SERVER.Usuario import Usuario, UsuarioGrupo, MenuAcesso, Menu
-from Models.POSTGRESS.CTL_Seguranca import CtlSegUsuario # ATUALIZADO
+from Models.SqlServer.Usuario import Usuario, UsuarioGrupo, MenuAcesso, Menu
+from Models.Postgress.CTL_Seguranca import CtlSegUsuario # ATUALIZADO
 
 # --- Import do Logger ---
 from Utils.Logger import RegistrarLog

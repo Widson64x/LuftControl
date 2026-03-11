@@ -1,6 +1,6 @@
 from sqlalchemy.orm import sessionmaker
 from Db.Connections import GetPostgresEngine
-from Models.POSTGRESS.CTL_Seguranca import CtlSegUsuario, CtlSegPerfil, CtlSegPermissao
+from Models.Postgress.CTL_Seguranca import CtlSegUsuario, CtlSegPerfil, CtlSegPermissao
 
 class ConfiguracaoSegurancaService:
     """

@@ -1,8 +1,8 @@
-# Services/ConsolidacaoService.py
+# Services/SyncService.py
 from sqlalchemy import text
 from Utils.Logger import RegistrarLog
 
-class ConsolidacaoService:
+class SyncService:
     def __init__(self, session_db):
         self.session = session_db
         self.schema = "Dre_Schema"

@@ -11,7 +11,7 @@ from luftcore.extensions.flask_extension import LuftCorePackages, LuftUser
 from Routes.Autenticacao import auth_bp, CarregarUsuarioFlask
 from Routes.MenuPrincipal import main_bp
 from Routes.Relatorios import reports_bp
-from Routes.ConfiguracaoDre import dre_config_bp
+from Routes.ConfiguracaoDre import configuracao_dre_bp
 from Routes.OrdenamentoDre import dre_ordem_bp
 from Routes.ConfiguracaoSeguranca import security_bp
 from Routes.AjustesManuais import ajustes_bp
@@ -20,7 +20,7 @@ from Routes.Api import api_bp
 
 # --- Imports Banco de Dados ---
 from Db.Connections import PG_DATABASE_URL, CheckConnections
-from Models.POSTGRESS.CTL_Dre_Estrutura import Base as DreBase
+from Models.Postgress.CTL_Dre_Estrutura import Base as DreBase
 
 from Utils.Logger import ConfigurarLogger, RegistrarLog
 
@@ -45,7 +45,7 @@ migrate = Migrate(app, db, metadata=DreBase.metadata)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-login_manager.login_view = 'Auth.Login' 
+login_manager.login_view = 'Autenticacao.Login' 
 login_manager.login_message = "Por favor, faça login para acessar essa página."
 login_manager.login_message_category = "warning"
 
@@ -85,19 +85,19 @@ luftcore_app = LuftCorePackages(
 )
 
 # --- Registro de Blueprints ---
-app.register_blueprint(auth_bp,        url_prefix=ROUTE_PREFIX + '/Auth')
-app.register_blueprint(main_bp,        url_prefix=ROUTE_PREFIX + '/')
-app.register_blueprint(api_bp,         url_prefix=ROUTE_PREFIX + '/Api')
-app.register_blueprint(reports_bp,     url_prefix=ROUTE_PREFIX + '/Relatorios')
-app.register_blueprint(dre_config_bp,  url_prefix=ROUTE_PREFIX + '/DreConfig')
-app.register_blueprint(dre_ordem_bp,   url_prefix=ROUTE_PREFIX + '/DreOrdenamento')
-app.register_blueprint(ajustes_bp,     url_prefix=ROUTE_PREFIX + '/Adjustments')
-app.register_blueprint(security_bp,    url_prefix=ROUTE_PREFIX + '/SecurityConfig')
-app.register_blueprint(import_bp,      url_prefix=ROUTE_PREFIX + '/Import')
+app.register_blueprint(auth_bp, url_prefix=ROUTE_PREFIX)
+app.register_blueprint(main_bp, url_prefix=ROUTE_PREFIX)
+app.register_blueprint(api_bp, url_prefix=ROUTE_PREFIX)
+app.register_blueprint(reports_bp, url_prefix=ROUTE_PREFIX)
+app.register_blueprint(configuracao_dre_bp, url_prefix=ROUTE_PREFIX)
+app.register_blueprint(dre_ordem_bp, url_prefix=ROUTE_PREFIX)
+app.register_blueprint(ajustes_bp, url_prefix=ROUTE_PREFIX)
+app.register_blueprint(security_bp, url_prefix=ROUTE_PREFIX)
+app.register_blueprint(import_bp, url_prefix=ROUTE_PREFIX)
 
 @app.route('/')
 def Index(): # Até o index merece um PascalCase
-    return redirect(url_for('Main.MenuPrincipal'))
+    return redirect(url_for('Principal.MenuPrincipal'))
 
 if __name__ == "__main__":
     ConfigurarLogger()

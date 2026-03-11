@@ -1,4 +1,4 @@
-{% extends "Base.html" %}
+{% extends "Layout/BaseLayout.html" %}
 {% import 'luftcore/components.html' as ui %}
 
 {% block title %}Central de Relatórios - Luft Control{% endblock %}
@@ -6,9 +6,9 @@
 {% block extra_css %}
     <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
     
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports/Report_AnaliseGerencial.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Reports/Report_RelatorioRazao.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Reports/ReportsGeneral.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Reports/ManagementReport.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Reports/LedgerReport.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -152,10 +152,10 @@
         getRazaoData:           "{{ url_for('Relatorios.ObterDadosRazao') }}",
         getRazaoResumo:         "{{ url_for('Relatorios.ObterResumoRazao') }}",
         getRentabilidadeData:   "{{ url_for('Relatorios.RelatorioRentabilidade') }}",
-        getDreConsolidadoData:  "{{ url_for('Relatorios.RelatorioDreConsolidadoRota') }}",
-        getDreOperacaoData:     "{{ url_for('Relatorios.RelatorioDreOperacaoRota') }}",
-        getNosCalculados:       "{{ url_for('DreConfig.GetNosCalculados') }}",
-        getRazaoDownload:       "{{ url_for('Relatorios.DownloadRazaoExcel') }}", 
+        getDreConsolidadoData:  "{{ url_for('Relatorios.GerarDreConsolidado') }}",
+        getDreOperacaoData:     "{{ url_for('Relatorios.GerarDreOperacao') }}",
+        getNosCalculados:       "{{ url_for('ConfiguracaoDre.ObterNosCalculados') }}",
+        getRazaoDownload:       "{{ url_for('Relatorios.BaixarRazaoExcel') }}", 
         getListaCCs:            "{{ url_for('Relatorios.ListarCentrosCusto') }}"      
     };
 
@@ -205,9 +205,9 @@
         });
     });
 </script>
-<script src="{{ url_for('static', filename='JS/Reports/Relatorios.js') }}"></script>
-<script src="{{ url_for('static', filename='JS/Reports/RelatorioRazao.js') }}"></script>
-<script src="{{ url_for('static', filename='JS/Reports/RelatorioDRE.js') }}"></script>
-<script src="{{ url_for('static', filename='JS/Reports/RelatorioDreConsolidado.js') }}"></script>
-<script src="{{ url_for('static', filename='JS/Reports/RelatorioDreOperacao.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/Reports/ReportsMain.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/Reports/RazaoContabil.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/Reports/DreGerencial.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/Reports/DreConsolidado.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/Reports/DreOperacao.js') }}"></script>
 {% endblock %}
