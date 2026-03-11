@@ -1,10 +1,10 @@
 // ============================================================================
 // Luft Control - MÓDULO: DRE CONSOLIDADO (UNIDADES DE NEGÓCIO)
-// Arquivo: Static/JS/Reports/RelatorioDreConsolidado.js
+// Arquivo: Static/JS/Reports/DreConsolidado.js
 // Design System: LuftCore
 // ============================================================================
 
-class RelatorioDreConsolidado {
+class DreConsolidado {
     constructor(modalSystem) {
         this.modal = modalSystem;
         this.rawData = [];      
@@ -95,7 +95,7 @@ class RelatorioDreConsolidado {
         try {
             let urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getDreConsolidadoData) 
                     ? API_ROUTES.getDreConsolidadoData 
-                    : '/Relatorios/RelatorioRazao/DreConsolidado';
+                    : '/Relatorios/dre/consolidado';
 
             const scaleParam = this.dreState.scaleMode;
             const ccParam = encodeURIComponent(this.dreState.selectedCCs.join(','));
@@ -434,7 +434,7 @@ class RelatorioDreConsolidado {
     async loadCCList() {
         if (this.dreState.listaCCs.length > 0) return; 
         try {
-            const url = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getListaCCs) ? API_ROUTES.getListaCCs : '/Relatorios/RelatorioRazao/ListaCentrosCusto';
+            const url = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getListaCCs) ? API_ROUTES.getListaCCs : '/Relatorios/razao/centros-custo';
             const lista = await APIUtils.get(url);
             if(lista && Array.isArray(lista)) this.dreState.listaCCs = lista;
         } catch (e) { console.error("Erro ao carregar lista de CCs:", e); }
@@ -589,7 +589,7 @@ class RelatorioDreConsolidado {
         this.modal.showLoading('Calculando DRE Consolidado...');
 
         try {
-            const urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getDreConsolidadoData) ? API_ROUTES.getDreConsolidadoData : '/Relatorios/RelatorioRazao/DreConsolidado';
+            const urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getDreConsolidadoData) ? API_ROUTES.getDreConsolidadoData : '/Relatorios/dre/consolidado';
             const ccParam = encodeURIComponent(this.dreState.selectedCCs.join(','));
             const scaleParam = this.dreState.scaleMode; 
             const anoParam = this.dreState.selectedYear;
@@ -884,7 +884,7 @@ class RelatorioDreConsolidado {
         const link = document.createElement("a"); link.href = encodeURI(csv); link.download = "dre_consolidado_unidades.csv"; document.body.appendChild(link); link.click(); link.remove();
     }
     
-    async loadNosCalculados() { try { const r = await APIUtils.get((API_ROUTES?.getNosCalculados) || '/Configuracao/GetNosCalculados'); this.nosCalculados = r || []; return this.nosCalculados; } catch { return []; } }
+    async loadNosCalculados() { try { const r = await APIUtils.get((API_ROUTES?.getNosCalculados) || '/configuracao/nos-calculados'); this.nosCalculados = r || []; return this.nosCalculados; } catch { return []; } }
     
     calcularValorNo(formula, mes_ou_coluna, valoresAgregados, contextoSuffix = null) {
         if (!formula || !formula.operandos) return 0;

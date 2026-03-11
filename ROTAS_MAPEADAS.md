@@ -62,7 +62,7 @@
 - **Resposta:** Renderiza `PAGES/Relatórios.html`
 
 ### 2. Relatório Razão - Dados
-- **URL:** `/Reports/RelatorioRazao/Dados`
+- **URL:** `/Reports/razao/dados`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Query Params:**
@@ -72,7 +72,7 @@
 - **Campos retornados:** Conta, Título, Data, Descrição, Débito, Crédito, Saldo, etc.
 
 ### 3. Relatório Razão - Resumo
-- **URL:** `/Reports/RelatorioRazao/Resumo`
+- **URL:** `/Reports/razao/resumo`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Query Params:**
@@ -81,7 +81,7 @@
 - **Resposta:** JSON com resumo consolidado
 
 ### 4. Relatório Razão - Rentabilidade
-- **URL:** `/Reports/RelatorioRazao/Rentabilidade`
+- **URL:** `/Reports/dre/rentabilidade`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Query Params:**
@@ -90,7 +90,7 @@
 - **Resposta:** JSON com dados de rentabilidade
 
 ### 5. Relatório Razão - Rentabilidade por Centro de Custo
-- **URL:** `/Reports/RelatorioRazao/RentabilidadePorCC`
+- **URL:** `/Reports/dre/rentabilidadePorCC`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Query Params:**
@@ -101,12 +101,12 @@
 ---
 
 ## 📐 CONFIGURAÇÃO DRE (DreConfig Blueprint)
-**Prefixo:** `/DreConfig`
+**Prefixo:** `ConfiguracaoDre`
 
 ### Views/Templates
 
 #### 1. Página de Configuração da Árvore
-- **URL:** `/DreConfig/Configuracao/Arvore`
+- **URL:** `ConfiguracaoDre/configuracao/arvore`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Resposta:** Renderiza `CONFIGS/ConfigsDRE.html`
@@ -114,19 +114,19 @@
 ### Consultas (GET)
 
 #### 2. Dados da Árvore DRE Completa
-- **URL:** `/DreConfig/Configuracao/GetDadosArvore`
+- **URL:** `ConfiguracaoDre/configuracao/dados-arvore`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Resposta:** JSON com estrutura completa da DRE (hierarquia, virtuais, contas, etc.)
 
 #### 3. Contas Disponíveis (não vinculadas)
-- **URL:** `/DreConfig/Configuracao/GetContasDisponiveis`
+- **URL:** `ConfiguracaoDre/configuracao/contas-disponiveis`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Resposta:** JSON com lista de contas disponíveis para vinculação
 
 #### 4. Contas de um Subgrupo
-- **URL:** `/DreConfig/Configuracao/GetContasDoSubgrupo`
+- **URL:** `ConfiguracaoDre/configuracao/contas-subgrupo`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -138,7 +138,7 @@
 - **Resposta:** JSON com contas do subgrupo
 
 #### 5. Subgrupos por Tipo
-- **URL:** `/DreConfig/Configuracao/GetSubgruposPorTipo`
+- **URL:** `ConfiguracaoDre/configuracao/subgrupos-tipo`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -150,7 +150,7 @@
 - **Resposta:** JSON com subgrupos filtrados
 
 #### 6. Contas de Grupo em Massa
-- **URL:** `/DreConfig/Configuracao/GetContasDoGrupoMassa`
+- **URL:** `ConfiguracaoDre/configuracao/contas-grupo-massa`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -162,13 +162,13 @@
 - **Resposta:** JSON com contas de múltiplos grupos
 
 #### 7. Nós Calculados
-- **URL:** `/DreConfig/Configuracao/GetNosCalculados`
+- **URL:** `ConfiguracaoDre/configuracao/nos-calculados`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Resposta:** JSON com todos os nós calculados (fórmulas)
 
 #### 8. Operandos Disponíveis
-- **URL:** `/DreConfig/Configuracao/GetOperandosDisponiveis`
+- **URL:** `ConfiguracaoDre/configuracao/operandos-disponiveis`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Resposta:** JSON com elementos que podem ser operandos em fórmulas
@@ -176,7 +176,7 @@
 ### Criação (ADD)
 
 #### 9. Adicionar Subgrupo
-- **URL:** `/DreConfig/Configuracao/AddSubgrupo`
+- **URL:** `ConfiguracaoDre/configuracao/adicionar-subgrupo`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -190,7 +190,7 @@
 - **Resposta:** JSON com ID do novo subgrupo
 
 #### 10. Adicionar Subgrupo Sistemático
-- **URL:** `/DreConfig/Configuracao/AddSubgrupoSistematico`
+- **URL:** `ConfiguracaoDre/configuracao/adicionar-subgrupoSistematico`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -202,7 +202,7 @@
 - **Resposta:** JSON com subgrupos criados automaticamente
 
 #### 11. Adicionar Nó Virtual
-- **URL:** `/DreConfig/Configuracao/AddNoVirtual`
+- **URL:** `ConfiguracaoDre/configuracao/adicionar-no-virtual`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -215,7 +215,7 @@
 - **Resposta:** JSON com ID do nó criado
 
 #### 12. Adicionar Nó Calculado (Fórmula)
-- **URL:** `/DreConfig/Configuracao/AddNoCalculado`
+- **URL:** `ConfiguracaoDre/configuracao/adicionar-calculado`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -231,7 +231,7 @@
 - **Resposta:** JSON com ID do nó calculado
 
 #### 13. Vincular Conta
-- **URL:** `/DreConfig/Configuracao/VincularConta`
+- **URL:** `ConfiguracaoDre/configuracao/vincular-conta`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -244,7 +244,7 @@
 - **Resposta:** JSON com status da vinculação
 
 #### 14. Vincular Conta Detalhe
-- **URL:** `/DreConfig/Configuracao/VincularContaDetalhe`
+- **URL:** `ConfiguracaoDre/configuracao/vincular-contaDetalhe`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -258,7 +258,7 @@
 - **Resposta:** JSON com status
 
 #### 15. Vincular Contas em Massa
-- **URL:** `/DreConfig/Configuracao/VincularContaEmMassa`
+- **URL:** `ConfiguracaoDre/configuracao/vincular-contaEmMassa`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -275,7 +275,7 @@
 ### Atualização (UPDATE/RENAME)
 
 #### 16. Renomear Nó Virtual
-- **URL:** `/DreConfig/Configuracao/RenameNoVirtual`
+- **URL:** `ConfiguracaoDre/configuracao/renomear-virtual`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -288,7 +288,7 @@
 - **Resposta:** JSON com status
 
 #### 17. Renomear Subgrupo
-- **URL:** `/DreConfig/Configuracao/RenameSubgrupo`
+- **URL:** `ConfiguracaoDre/configuracao/renomear-subgrupo`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -301,7 +301,7 @@
 - **Resposta:** JSON com status
 
 #### 18. Renomear Conta Personalizada
-- **URL:** `/DreConfig/Configuracao/RenameContaPersonalizada`
+- **URL:** `ConfiguracaoDre/configuracao/renomear-personalizada`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -314,7 +314,7 @@
 - **Resposta:** JSON com status
 
 #### 19. Atualizar Nó Calculado
-- **URL:** `/DreConfig/Configuracao/UpdateNoCalculado`
+- **URL:** `ConfiguracaoDre/configuracao/atualizar-calculado`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -333,7 +333,7 @@
 ### Exclusão/Desvincular (DELETE)
 
 #### 20. Deletar Subgrupo
-- **URL:** `/DreConfig/Configuracao/DeleteSubgrupo`
+- **URL:** `ConfiguracaoDre/configuracao/excluir-subgrupo`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -345,7 +345,7 @@
 - **Resposta:** JSON com status
 
 #### 21. Desvinular Conta
-- **URL:** `/DreConfig/Configuracao/DesvincularConta`
+- **URL:** `ConfiguracaoDre/configuracao/desvincular-conta`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -358,7 +358,7 @@
 - **Resposta:** JSON com status
 
 #### 22. Deletar Nó Virtual
-- **URL:** `/DreConfig/Configuracao/DeleteNoVirtual`
+- **URL:** `ConfiguracaoDre/configuracao/excluir-no-virtual`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -370,7 +370,7 @@
 - **Resposta:** JSON com status
 
 #### 23. Desvincular Contas em Massa
-- **URL:** `/DreConfig/Configuracao/DesvincularContaEmMassa`
+- **URL:** `ConfiguracaoDre/configuracao/desvincular-contaEmMassa`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -384,7 +384,7 @@
 - **Resposta:** JSON com resultado
 
 #### 24. Deletar Subgrupos em Massa
-- **URL:** `/DreConfig/Configuracao/DeleteSubgrupoEmMassa`
+- **URL:** `ConfiguracaoDre/configuracao/excluir-subgrupoEmMassa`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -398,7 +398,7 @@
 ### Operações Avançadas
 
 #### 25. Replicar Estrutura
-- **URL:** `/DreConfig/Configuracao/ReplicarEstrutura`
+- **URL:** `ConfiguracaoDre/configuracao/replicar-estrutura`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -410,7 +410,7 @@
 - **Resposta:** JSON com estrutura copiada para clipboard
 
 #### 26. Colar Estrutura
-- **URL:** `/DreConfig/Configuracao/ColarEstrutura`
+- **URL:** `ConfiguracaoDre/configuracao/colar-estrutura`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -425,20 +425,20 @@
 ### Utilitários
 
 #### 27. Corrigir Banco
-- **URL:** `/DreConfig/Configuracao/CorrigirBanco`
+- **URL:** `ConfiguracaoDre/Configuracao/CorrigirBanco`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Descrição:** Corrige inconsistências no banco de dados
 - **Resposta:** JSON com resultado
 
 #### 28. Corrigir Constraint Personalizada
-- **URL:** `/DreConfig/Configuracao/CorrigirConstraintPersonalizada`
+- **URL:** `ConfiguracaoDre/Configuracao/CorrigirConstraintPersonalizada`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Resposta:** JSON com resultado
 
 #### 29. Verificar Tabela Nó Virtual (Teste)
-- **URL:** `/DreConfig/Teste/VerificarTabelaNoVirtual`
+- **URL:** `ConfiguracaoDre/Teste/VerificarTabelaNoVirtual`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Resposta:** JSON com informações de debug
@@ -449,7 +449,7 @@
 **Prefixo:** `/DreOrdenamento`
 
 #### 1. Inicializar Ordenamento
-- **URL:** `/DreOrdenamento/Ordenamento/Inicializar`
+- **URL:** `/DreOrdenamento/ordenamento/inicializar`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -461,7 +461,7 @@
 - **Resposta:** JSON com registros criados
 
 #### 2. Obter Ordem
-- **URL:** `/DreOrdenamento/Ordenamento/GetOrdem`
+- **URL:** `/DreOrdenamento/ordenamento/obter-ordem`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -475,7 +475,7 @@
 - **Resposta:** JSON com dados de ordenamento
 
 #### 3. Obter Filhos Ordenados
-- **URL:** `/DreOrdenamento/Ordenamento/GetFilhosOrdenados`
+- **URL:** `/DreOrdenamento/ordenamento/obter-filhos`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -487,7 +487,7 @@
 - **Resposta:** JSON com lista de filhos ordenados
 
 #### 4. Mover Elemento
-- **URL:** `/DreOrdenamento/Ordenamento/Mover`
+- **URL:** `/DreOrdenamento/ordenamento/mover`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -502,7 +502,7 @@
 - **Resposta:** JSON com status
 
 #### 5. Reordenar Lote
-- **URL:** `/DreOrdenamento/Ordenamento/ReordenarLote`
+- **URL:** `/DreOrdenamento/ordenamento/reordenar-lote`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -517,7 +517,7 @@
 - **Resposta:** JSON com resultado
 
 #### 6. Normalizar Ordenamento
-- **URL:** `/DreOrdenamento/Ordenamento/Normalizar`
+- **URL:** `/DreOrdenamento/ordenamento/normalizar`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -529,13 +529,13 @@
 - **Resposta:** JSON com resultado
 
 #### 7. Obter Árvore Ordenada
-- **URL:** `/DreOrdenamento/Ordenamento/GetArvoreOrdenada`
+- **URL:** `/DreOrdenamento/ordenamento/obter-arvore`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Resposta:** JSON com árvore completa ordenada
 
 #### 8. Sincronizar Novo
-- **URL:** `/DreOrdenamento/Ordenamento/SincronizarNovo`
+- **URL:** `/DreOrdenamento/ordenamento/sincronizar-novo`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -549,7 +549,7 @@
 - **Resposta:** JSON com resultado
 
 #### 9. Remover Elemento do Ordenamento
-- **URL:** `/DreOrdenamento/Ordenamento/RemoverElemento`
+- **URL:** `/DreOrdenamento/ordenamento/remover-elemento`
 - **Método:** `POST`
 - **Autenticação:** ✅ Requerida
 - **Body:**
@@ -569,14 +569,14 @@
 ### Views
 
 #### 1. Gerenciador de Segurança
-- **URL:** `/SecurityConfig/Manager`
+- **URL:** `/SecurityConfig/gerenciador`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Permissão:** `security.view`
 - **Resposta:** Renderiza `CONFIGS/ConfigsPerms.html`
 
 #### 2. Visualizador de Segurança (Grafo)
-- **URL:** `/SecurityConfig/Visualizador`
+- **URL:** `/SecurityConfig/visualizador`
 - **Método:** `GET`
 - **Autenticação:** ✅ Requerida
 - **Permissão:** `security.view`
@@ -732,12 +732,12 @@ GET /
 
 ### 3. Buscar Dados da DRE
 ```
-GET /DreConfig/Configuracao/GetDadosArvore
+GET ConfiguracaoDre/configuracao/dados-arvore
 ```
 
 ### 4. Criar Novo Subgrupo
 ```
-POST /DreConfig/Configuracao/AddSubgrupo
+POST ConfiguracaoDre/configuracao/adicionar-subgrupo
 Body: {
   "nome": "Novo Subgrupo",
   "tipo_cc_id": "tipo_1"

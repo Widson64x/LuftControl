@@ -8,9 +8,9 @@ from datetime import datetime
 from Db.Connections import GetPostgresEngine
 
 # --- Imports dos Relatórios (Novos Nomes) ---
-from Reports.RelatorioRazaoContabil import RelatorioRazaoContabil
-from Reports.RelatorioDreGerencial import RelatorioDreGerencial
-from Reports.RelatorioDreConsolidado import RelatorioDreConsolidado
+from Reports.RazaoContabil import RazaoContabil
+from Reports.DreGerencial import DreGerencial
+from Reports.DreConsolidado import DreConsolidado
 
 # --- Import do Logger ---
 from Utils.Logger import RegistrarLog
@@ -34,19 +34,19 @@ class RelatoriosService:
     # ============================================================
 
     def ObterDadosRazao(self, pagina, por_pagina, termo_busca, tipo_visualizacao):
-        """Wrapper para ObterDados do RelatorioRazaoContabil."""
+        """Wrapper para ObterDados do RazaoContabil."""
         session = self._ObterSessao()
         try:
-            relatorio = RelatorioRazaoContabil(session)
+            relatorio = RazaoContabil(session)
             return relatorio.ObterDados(pagina, por_pagina, termo_busca, tipo_visualizacao)
         finally:
             session.close()
 
     def ObterResumoRazao(self, tipo_visualizacao):
-        """Wrapper para ObterResumo do RelatorioRazaoContabil."""
+        """Wrapper para ObterResumo do RazaoContabil."""
         session = self._ObterSessao()
         try:
-            relatorio = RelatorioRazaoContabil(session)
+            relatorio = RazaoContabil(session)
             return relatorio.ObterResumo(tipo_visualizacao)
         finally:
             session.close()
@@ -55,7 +55,7 @@ class RelatoriosService:
         """Wrapper para ListarCentrosCusto."""
         session = self._ObterSessao()
         try:
-            relatorio = RelatorioRazaoContabil(session)
+            relatorio = RazaoContabil(session)
             return relatorio.ListarCentrosCusto()
         finally:
             session.close()
@@ -67,7 +67,7 @@ class RelatoriosService:
         """
         session = self._ObterSessao()
         try:
-            relatorio = RelatorioRazaoContabil(session)
+            relatorio = RazaoContabil(session)
             data_rows = relatorio.ExportarCompleto(termo_busca, tipo_visualizacao)
             
             if not data_rows:
@@ -106,7 +106,7 @@ class RelatoriosService:
         """
         session = self._ObterSessao()
         try:
-            relatorio = RelatorioDreGerencial(session)
+            relatorio = DreGerencial(session)
             
             # 1. Busca Dados Base e Aplica Hierarquia
             # [ATUALIZADO] Repassando o ano para o motor
@@ -134,7 +134,7 @@ class RelatoriosService:
         """
         session = self._ObterSessao()
         try:
-            relatorio = RelatorioDreConsolidado(session)
+            relatorio = DreConsolidado(session)
             
             # 1. Busca e mapeia nas colunas novas
             dados = relatorio.ProcessarRelatorio(ano=ano)
@@ -156,8 +156,8 @@ class RelatoriosService:
         """
         session = self._ObterSessao() # <- AQUI ESTÁ A CORREÇÃO
         try:
-            from Reports.RelatorioDreOperacao import RelatorioDreOperacao
-            relatorio = RelatorioDreOperacao(session)
+            from Reports.DreOperacao import DreOperacao
+            relatorio = DreOperacao(session)
             
             # 1. Busca e mapeia nas colunas novas
             dados = relatorio.ProcessarRelatorio(ano=ano)
@@ -177,7 +177,7 @@ class RelatoriosService:
         """Wrapper para DepurarEstruturaEOrdem."""
         session = self._ObterSessao()
         try:
-            relatorio = RelatorioDreGerencial(session)
+            relatorio = DreGerencial(session)
             return relatorio.DepurarEstruturaEOrdem()
         finally:
             session.close()

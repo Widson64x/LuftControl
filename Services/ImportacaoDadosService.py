@@ -14,7 +14,7 @@ from Utils.Logger import RegistrarLog
 from Db.Connections import GetPostgresEngine
 
 # --- NOVOS IMPORTS DE SISTEMA ---
-from Models.POSTGRESS.CTL_Sistema import CtlSysHistImportacao, CtlSysConfigImportacao
+from Models.Postgress.CTL_Sistema import CtlSysHistImportacao, CtlSysConfigImportacao
 
 class ImportacaoDadosService:
     PASTA_TEMPORARIA = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Data', 'Temp'))

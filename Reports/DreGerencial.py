@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Utils.Utils import ReportUtils
 from Utils.Logger import RegistrarLog
 
-class RelatorioDreGerencial:
+class DreGerencial:
     def __init__(self, session):
         self.session = session
         self.meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez','Total_Ano']

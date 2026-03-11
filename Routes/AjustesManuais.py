@@ -16,25 +16,25 @@ from luftcore.extensions.flask_extension import (
 )
 
 # Definindo a Blueprint
-ajustes_bp = Blueprint('Ajustes', __name__)
+ajustes_bp = Blueprint('AjustesManuais', __name__)
 
 def GetSession():
     """Abre uma sessão novinha com o Postgres."""
     engine = GetPostgresEngine()
     return sessionmaker(bind=engine)()
 
-@ajustes_bp.route('/ajustes-razao', methods=['GET'])
+@ajustes_bp.route('/razao', methods=['GET'])
 @require_permission('ajustes.view') # Protegendo a tela
-def Index():
+def Inicio():
     """Rota principal que entrega a página HTML."""
     user = current_user.nome
     RegistrarLog(f"Acesso à página de Ajustes. User: {user}", "HTTP")
-    return render_template('PAGES/AjustesRazao.html')
+    return render_template('Pages/Adjustments/LedgerAdjustments.html')
 
 @ajustes_bp.route('/api/gerar-intergrupo', methods=['POST'])
 @require_permission('ajustes.gerar') # Exige permissão específica
 @require_ajax
-def GerarAjusteIntergrupo():
+def GerarIntergrupo():
     """Gera ajustes apenas para o Mês e Ano selecionados na tela."""
     session_db = GetSession()
     try:
@@ -58,10 +58,10 @@ def GerarAjusteIntergrupo():
     finally:
         session_db.close()
 
-@ajustes_bp.route('/api/ajustes-razao/dados', methods=['GET'])
+@ajustes_bp.route('/api/razao/dados', methods=['GET'])
 @require_permission('ajustes.view')
 @require_ajax
-def GetDados():
+def ObterDados():
     """Busca os dados para popular o grid."""
     session_db = GetSession()
     try:
@@ -80,10 +80,10 @@ def GetDados():
     finally:
         session_db.close()
 
-@ajustes_bp.route('/api/ajustes-razao/criar', methods=['POST'])
+@ajustes_bp.route('/api/razao/criar', methods=['POST'])
 @require_permission('ajustes.editar')
 @require_ajax
-def Criar():
+def CriarAjuste():
     """Rota exclusiva para CRIAÇÃO de novos lançamentos manuais."""
     session_db = GetSession()
     try:
@@ -102,10 +102,10 @@ def Criar():
     finally:
         session_db.close()
         
-@ajustes_bp.route('/api/ajustes-razao/salvar', methods=['POST'])
+@ajustes_bp.route('/api/razao/salvar', methods=['POST'])
 @require_permission('ajustes.editar')
 @require_ajax
-def Salvar():
+def SalvarAjuste():
     """Salva ou edita um ajuste."""
     session_db = GetSession()
     try:
@@ -123,10 +123,10 @@ def Salvar():
     finally:
         session_db.close()
 
-@ajustes_bp.route('/api/ajustes-razao/aprovar', methods=['POST'])
-@require_permission('ajustes.aprovar')
+@ajustes_bp.route('/api/razao/aprovar', methods=['POST'])
+@require_permission('AjustesManuais.AprovarAjuste')
 @require_ajax
-def Aprovar():
+def AprovarAjuste():
     session_db = GetSession()
     try:
         dt = request.json
@@ -148,7 +148,7 @@ def Aprovar():
     finally:
         session_db.close()
 
-@ajustes_bp.route('/api/ajustes-razao/status-invalido', methods=['POST'])
+@ajustes_bp.route('/api/razao/status-invalido', methods=['POST'])
 @require_permission('ajustes.editar')
 @require_ajax
 def AlterarStatusInvalido():
@@ -174,10 +174,10 @@ def AlterarStatusInvalido():
     finally:
         session_db.close()
 
-@ajustes_bp.route('/api/ajustes-razao/historico', methods=['GET'])
+@ajustes_bp.route('/api/razao/historico', methods=['GET'])
 @require_permission('ajustes.view')
 @require_ajax
-def GetHistorico():
+def ObterHistorico():
     """Fofoca completa: mostra tudo o que aconteceu com aquele ajuste."""
     session_db = GetSession()
     try:

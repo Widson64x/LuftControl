@@ -8,7 +8,7 @@ from Services.AutenticacaoService import AutenticacaoService
 from Utils.Logger import RegistrarLog 
 
 # Definição do Blueprint
-auth_bp = Blueprint('Auth', __name__)
+auth_bp = Blueprint('Autenticacao', __name__)
 
 # Instância do serviço
 auth_service = AutenticacaoService()
@@ -50,7 +50,7 @@ def Login():
                             RegistrarLog(f"Acesso negado. Grupo '{usuario_flask.nome_grupo}' não autorizado. Usuário: {username}", "WARNING")
                             flash('Usuário não possui permissão para acessar o sistema.', 'danger')
                             logout_user()
-                            return redirect(url_for('Auth.Login'))
+                            return redirect(url_for('Autenticacao.Login'))
                         
                         # 2. Login com Sucesso: PASSAR O PARÂMETRO 'remember'
                         login_user(usuario_flask, remember=lembrar_mim)
@@ -61,7 +61,7 @@ def Login():
                         
                         # Redirecionamento (Página anterior ou Dashboard)
                         next_page = request.args.get('next')
-                        return redirect(next_page or url_for('Main.MenuPrincipal'))
+                        return redirect(next_page or url_for('Principal.MenuPrincipal'))
                     else:
                         RegistrarLog(f"Erro ao instanciar wrapper do usuário: {username}", "ERROR")
                         flash('Erro interno ao carregar perfil do usuário.', 'danger')
@@ -79,7 +79,7 @@ def Login():
             
     return render_template('AUTH/Login.html')
 
-@auth_bp.route('/logout')
+@auth_bp.route('/sair')
 @login_required
 def Logout():
     """
@@ -96,4 +96,4 @@ def Logout():
     # Mensagem exibida na tela de login após sair
     flash('Você saiu do sistema de forma segura.', 'info')
     
-    return redirect(url_for('Auth.Login'))
+    return redirect(url_for('Autenticacao.Login'))

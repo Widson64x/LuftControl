@@ -1,9 +1,9 @@
-{% extends "Base.html" %}
+{% extends "Layout/BaseLayout.html" %}
 
 {% block title %}Contabilidade - Ajustes Razão{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/AjustesRazao.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Adjustments/LedgerAdjustments.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -96,14 +96,14 @@
 {% block extra_js %}
 <script>
     const API = {
-        getDados: "{{ url_for('Ajustes.GetDados') }}",
-        salvar: "{{ url_for('Ajustes.Salvar') }}",
-        criar: "{{ url_for('Ajustes.Criar') }}",
-        aprovar: "{{ url_for('Ajustes.Aprovar') }}",
-        statusInvalido: "{{ url_for('Ajustes.AlterarStatusInvalido') }}",
-        historico: "{{ url_for('Ajustes.GetHistorico') }}",
-        intergrupo: "{{ url_for('Ajustes.GerarAjusteIntergrupo') }}"
+        getDados: "{{ url_for('AjustesManuais.ObterDados') }}",
+        salvar: "{{ url_for('AjustesManuais.SalvarAjuste') }}",
+        criar: "{{ url_for('AjustesManuais.CriarAjuste') }}",
+        aprovar: "{{ url_for('AjustesManuais.AprovarAjuste') }}",
+        statusInvalido: "{{ url_for('AjustesManuais.AlterarStatusInvalido') }}",
+        historico: "{{ url_for('AjustesManuais.ObterHistorico') }}",
+        intergrupo: "{{ url_for('AjustesManuais.GerarIntergrupo') }}"
     };
 </script>
-<script src="{{ url_for('static', filename='JS/Adjustments/AjustesRazao.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/Adjustments/LedgerAdjustments.js') }}"></script>
 {% endblock %}

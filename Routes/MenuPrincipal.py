@@ -1,19 +1,19 @@
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 
-main_bp = Blueprint('Main', __name__)
+main_bp = Blueprint('Principal', __name__)
 
 @main_bp.route('/')
 @login_required
 def MenuPrincipal():
-    return render_template('Main.html', user=current_user)
+    return render_template('Pages/HomeDashboard.html', user=current_user)
 
 # --- NOVA ROTA: HUB DE CONFIGURAÇÕES ---
-@main_bp.route('/Settings')
+@main_bp.route('/configuracoes')
 @login_required
 def MenuConfiguracoes():
     """
     Página centralizadora de configurações do sistema.
     Aqui o usuário escolhe se quer configurar DRE, Usuários, etc.
     """
-    return render_template('CONFIGS/ConfigsSystem.html')
+    return render_template('Pages/Configs/SystemConfigs.html')

@@ -1,4 +1,4 @@
-{% extends "Base.html" %}
+{% extends "Layout/BaseLayout.html" %}
 {% import 'luftcore/components.html' as ui %}
 
 {% block title %}Mapeamento e Ajustes | Luft Control{% endblock %}
@@ -49,7 +49,7 @@
         </div>
     </div>
 
-    <form action="{{ url_for('Import.Confirmar') }}" method="POST" id="importForm">
+    <form action="{{ url_for('Importacao.Confirmar') }}" method="POST" id="importForm">
         <input type="hidden" name="filename" id="filename" value="{{ filename }}">
         <input type="hidden" name="source" value="{{ source }}">
 
@@ -120,7 +120,7 @@
         </div>
 
         <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
-            <a href="{{ url_for('Import.Inicio') }}" class="btn btn-secondary text-main" style="padding: 12px 24px;">Cancelar</a>
+            <a href="{{ url_for('Importacao.Inicio') }}" class="btn btn-secondary text-main" style="padding: 12px 24px;">Cancelar</a>
             <button type="submit" class="btn btn-success" id="btnConfirm" style="padding: 12px 32px; font-weight: 700; box-shadow: var(--luft-shadow-md);">
                 <i class="fas fa-check-circle me-2"></i> Confirmar e Importar
             </button>
@@ -148,7 +148,7 @@
                 if(el.value !== 'none') transforms[el.dataset.col] = el.value;
             });
 
-            fetch("{{ url_for('Import.ApiPrevia') }}", {
+            fetch("{{ url_for('Importacao.ObterPrevia') }}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename, mapping, transforms })

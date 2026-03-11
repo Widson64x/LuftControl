@@ -150,13 +150,13 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             if (typeof RelatorioDRE !== 'undefined') {
                 this.dre = new RelatorioDRE(this.modal);
             }
-            if (typeof RelatorioDreConsolidado !== 'undefined') {
-                this.dreConsolidado = new RelatorioDreConsolidado(this.modal);
+            if (typeof DreConsolidado !== 'undefined') {
+                this.dreConsolidado = new DreConsolidado(this.modal);
             }
             
             // 2. INSTANCIA O NOVO RELATÓRIO AQUI
-            if (typeof RelatorioDreOperacao !== 'undefined') {
-                this.dreOperacao = new RelatorioDreOperacao(this.modal);
+            if (typeof DreOperacao !== 'undefined') {
+                this.dreOperacao = new DreOperacao(this.modal);
             }
         }
 

@@ -4,7 +4,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from Db.Connections import GetPostgresEngine
-from Models.POSTGRESS.ImportConfig import Base
+from Models.Postgress.ImportConfig import Base
 
 def criar_tabela_config():
     engine = GetPostgresEngine()

@@ -1,9 +1,9 @@
 // ============================================================================
 // Luft Control - MÓDULO: DRE POR OPERAÇÃO
-// Arquivo: Static/JS/Reports/RelatorioDreOperacao.js
+// Arquivo: Static/JS/Reports/DreOperacao.js
 // ============================================================================
 
-class RelatorioDreOperacao {
+class DreOperacao {
     constructor(modalSystem) {
         this.modal = modalSystem;
         this.rawData = [];      
@@ -40,7 +40,7 @@ class RelatorioDreOperacao {
         this.nosCalculados = [];
     }
 
-    // --- COPIA EXATA DOS MÉTODOS DO RelatorioDreConsolidado.js ---
+    // --- COPIA EXATA DOS MÉTODOS DO DreConsolidado.js ---
 
     toggleAccountVisibility() {
         if (this.isLoading) return;
@@ -110,7 +110,7 @@ class RelatorioDreOperacao {
             // ATENÇÃO À ROTA NOVA!
             let urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getDreOperacaoData) 
                     ? API_ROUTES.getDreOperacaoData 
-                    : '/Relatorios/RelatorioRazao/DreOperacao';
+                    : '/Relatorios/dre/operacao';
 
             const scaleParam = this.dreState.scaleMode;
             const ccParam = encodeURIComponent(this.dreState.selectedCCs.join(','));
@@ -435,7 +435,7 @@ class RelatorioDreOperacao {
     async loadCCList() {
         if (this.dreState.listaCCs.length > 0) return; 
         try {
-            const url = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getListaCCs) ? API_ROUTES.getListaCCs : '/Relatorios/RelatorioRazao/ListaCentrosCusto';
+            const url = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getListaCCs) ? API_ROUTES.getListaCCs : '/Relatorios/razao/centros-custo';
             const lista = await APIUtils.get(url);
             if(lista && Array.isArray(lista)) this.dreState.listaCCs = lista;
         } catch (e) { console.error("Erro ao carregar lista de CCs:", e); }
@@ -530,7 +530,7 @@ class RelatorioDreOperacao {
         this.modal.showLoading('Calculando DRE Operação...');
 
         try {
-            const urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getDreOperacaoData) ? API_ROUTES.getDreOperacaoData : '/Relatorios/RelatorioRazao/DreOperacao';
+            const urlBase = (typeof API_ROUTES !== 'undefined' && API_ROUTES.getDreOperacaoData) ? API_ROUTES.getDreOperacaoData : '/Relatorios/dre/operacao';
             const ccParam = encodeURIComponent(this.dreState.selectedCCs.join(','));
             const data = await APIUtils.get(`${urlBase}?scale_mode=${this.dreState.scaleMode}&centro_custo=${ccParam}&ano=${this.dreState.selectedYear}`);
             if (!data || data.length === 0) {
@@ -646,7 +646,7 @@ class RelatorioDreOperacao {
     sortBy(col) { if (this.dreState.sort.col === col) this.dreState.sort.dir = this.dreState.sort.dir === 'asc' ? 'desc' : 'asc'; else { this.dreState.sort.col = col; this.dreState.sort.dir = 'desc'; } const sortNodes = (nodes) => { nodes.sort((a, b) => { const valA = a.values[col] || 0; const valB = b.values[col] || 0; return this.dreState.sort.dir === 'asc' ? valA - valB : valB - valA; }); nodes.forEach(n => { if (n.children) sortNodes(n.children); }); }; sortNodes(this.treeData); this.renderTable(); }
     exportToCsv() { let csv = "data:text/csv;charset=utf-8,"; const visibleCols = this.dreState.columnsOrder.filter(c => !this.dreState.hiddenCols.has(c)); csv += `# Relatório DRE Operação\r\nEstrutura;${visibleCols.map(c => this.getColDisplayName(c)).join(";")}\r\n`; const processRow = (node, prefix = "") => { if (!node.isVisible) return; csv += `"${prefix}${node.label}";` + visibleCols.map(c => (node.values[c]||0).toFixed(2).replace('.',',')).join(";") + "\r\n"; if(node.children) node.children.forEach(child => processRow(child, prefix + "  ")); }; this.treeData.forEach(n => processRow(n)); const link = document.createElement("a"); link.href = encodeURI(csv); link.download = "dre_operacao.csv"; document.body.appendChild(link); link.click(); link.remove(); }
     
-    async loadNosCalculados() { try { const r = await APIUtils.get((API_ROUTES?.getNosCalculados) || '/Configuracao/GetNosCalculados'); this.nosCalculados = r || []; return this.nosCalculados; } catch { return []; } }
+    async loadNosCalculados() { try { const r = await APIUtils.get((API_ROUTES?.getNosCalculados) || '/configuracao/nos-calculados'); this.nosCalculados = r || []; return this.nosCalculados; } catch { return []; } }
     
     calcularValorNo(formula, mes_ou_coluna, valoresAgregados, contextoSuffix = null) {
         if (!formula || !formula.operandos) return 0;

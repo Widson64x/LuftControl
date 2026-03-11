@@ -13,41 +13,41 @@ from luftcore.extensions.flask_extension import (
 )
 
 # Define o Blueprint
-security_bp = Blueprint('SecurityConfig', __name__)
+security_bp = Blueprint('Seguranca', __name__)
 
 # ============================================================
 # VIEWS (Páginas HTML)
 # ============================================================
 
-@security_bp.route('/manager', methods=['GET'])
+@security_bp.route('/gerenciador', methods=['GET'])
 @login_required
 @require_permission('security.view')
-def VisualizarGerenciadorSeguranca():
+def VisualizarGerenciador():
     """Tela Principal de Gestão de Permissões."""
-    return render_template('CONFIGS/ConfigsPerms.html')
+    return render_template('Pages/Configs/PermissionConfigs.html')
 
-@security_bp.route('/visualizador', methods=['GET'])
+@security_bp.route('/visualizador', methods=['GET'])    
 @login_required
 @require_permission('security.view')
-def VisualizarMapaSeguranca():
+def VisualizarMapa():
     """Tela Visual do Grafo de Segurança."""
-    return render_template('COMPONENTS/SecurityMap.html')
+    return render_template('Components/SecurityMap.html')
 
 # ============================================================
 # API: LEITURA (Protegido por @require_ajax para impedir acesso via URL)
 # ============================================================
 
-@security_bp.route('/api/get-security-graph', methods=['GET'])
+@security_bp.route('/api/obter-grafo', methods=['GET'])
 @login_required
 @require_ajax
-def ObterGrafoSeguranca():
+def ObterGrafo():
     try:
         dados = ConfiguracaoSegurancaService.ObterGrafoDeSeguranca()
         return api_success(data=dados, message="Grafo carregado com sucesso.")
     except Exception as e:
         return api_error(message="Falha ao carregar o grafo de segurança.", details=str(e), status=500)
 
-@security_bp.route('/api/get-active-users', methods=['GET'])
+@security_bp.route('/api/obter-usuarios', methods=['GET'])
 @login_required
 @require_ajax
 def ObterUsuariosAtivos():
@@ -57,7 +57,7 @@ def ObterUsuariosAtivos():
     except Exception as e:
         return api_error(message="Falha ao listar usuários ativos.", details=str(e), status=500)
 
-@security_bp.route('/api/get-roles-and-permissions', methods=['GET'])
+@security_bp.route('/api/obter-papeis', methods=['GET'])
 @login_required
 @require_ajax
 def ObterPapeisEPermissoes():
@@ -71,7 +71,7 @@ def ObterPapeisEPermissoes():
 # API: ESCRITA (Gerenciamento)
 # ============================================================
 
-@security_bp.route('/api/update-user-role', methods=['POST'])
+@security_bp.route('/api/atualizar-papel', methods=['POST'])
 @login_required
 @require_permission('security.manage')
 @require_ajax
@@ -86,7 +86,7 @@ def AtualizarPapelUsuario():
     except Exception as e:
         return api_error(message="Erro ao atualizar perfil de usuário.", details=str(e), status=500)
 
-@security_bp.route('/api/save-role', methods=['POST'])
+@security_bp.route('/api/salvar-papel', methods=['POST'])
 @login_required
 @require_permission('security.manage')
 @require_ajax
@@ -103,7 +103,7 @@ def SalvarPapel():
     except Exception as e:
         return api_error(message="Erro ao salvar grupo de permissões.", details=str(e), status=500)
 
-@security_bp.route('/api/save-permission', methods=['POST'])
+@security_bp.route('/api/salvar-permissao', methods=['POST'])
 @login_required
 @require_permission('security.manage')
 @require_ajax
@@ -120,7 +120,7 @@ def SalvarPermissao():
     except Exception as e:
         return api_error(message="Erro ao criar permissão.", details=str(e), status=500)
 
-@security_bp.route('/api/delete-role', methods=['POST'])
+@security_bp.route('/api/excluir-papel', methods=['POST'])
 @login_required
 @require_permission('security.manage')
 @require_ajax
@@ -134,7 +134,7 @@ def ExcluirPapel():
     except Exception as e:
         return api_error(message="Erro ao excluir grupo.", details=str(e), status=500)
 
-@security_bp.route('/api/delete-permission', methods=['POST'])
+@security_bp.route('/api/excluir-permissao', methods=['POST'])
 @login_required
 @require_permission('security.manage')
 @require_ajax
@@ -148,7 +148,7 @@ def ExcluirPermissao():
     except Exception as e:
         return api_error(message="Erro ao excluir. Pode estar em uso.", details=str(e), status=500)
 
-@security_bp.route('/api/toggle-direct-permission', methods=['POST'])
+@security_bp.route('/api/alternar-permissao', methods=['POST'])
 @login_required
 @require_permission('security.manage')
 @require_ajax

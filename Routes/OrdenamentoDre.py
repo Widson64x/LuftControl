@@ -2,9 +2,9 @@ from flask import Blueprint, jsonify, request
 from flask_login import login_required
 from Services.OrdenamentoDreService import OrdenamentoDreService
 
-dre_ordem_bp = Blueprint('DreOrdenamento', __name__)
+dre_ordem_bp = Blueprint('OrdenamentoDre', __name__)
 
-@dre_ordem_bp.route('/Ordenamento/Inicializar', methods=['POST'])
+@dre_ordem_bp.route('/ordenamento/inicializar', methods=['POST'])
 @login_required
 def InicializarOrdenamento():
     """Rota para popular a tabela de ordenamento."""
@@ -18,9 +18,9 @@ def InicializarOrdenamento():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/Ordenamento/GetOrdem', methods=['POST'])
+@dre_ordem_bp.route('/ordenamento/obter-ordem', methods=['POST'])
 @login_required
-def GetOrdem():
+def ObterOrdem():
     """Retorna a ordem de um elemento específico."""
     try:
         data = request.json
@@ -34,9 +34,9 @@ def GetOrdem():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/Ordenamento/GetFilhosOrdenados', methods=['POST'])
+@dre_ordem_bp.route('/ordenamento/obter-filhos', methods=['POST'])
 @login_required
-def GetFilhosOrdenados():
+def ObterFilhosOrdenados():
     """Lista filhos ordenados de um contexto."""
     try:
         contexto = request.json.get('contexto_pai', 'root')
@@ -46,9 +46,9 @@ def GetFilhosOrdenados():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/Ordenamento/GetArvoreOrdenada', methods=['GET'])
+@dre_ordem_bp.route('/ordenamento/obter-arvore', methods=['GET'])
 @login_required
-def GetArvoreOrdenada():
+def ObterArvoreOrdenada():
     """Retorna a árvore completa (Cacheada/Otimizada)."""
     try:
         svc = OrdenamentoDreService()
@@ -57,14 +57,14 @@ def GetArvoreOrdenada():
         if arvore is None:
             return jsonify({
                 "error": "Ordenamento não inicializado",
-                "msg": "Execute POST /Ordenamento/Inicializar primeiro"
+                "msg": "Execute POST /ordenamento/inicializar primeiro"
             }), 400
             
         return jsonify(arvore), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/Ordenamento/Mover', methods=['POST'])
+@dre_ordem_bp.route('/ordenamento/mover', methods=['POST'])
 @login_required
 def MoverNo():
     """Move um nó de posição."""
@@ -84,7 +84,7 @@ def MoverNo():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/Ordenamento/ReordenarLote', methods=['POST'])
+@dre_ordem_bp.route('/ordenamento/reordenar-lote', methods=['POST'])
 @login_required
 def ReordenarLote():
     """Reordena múltiplos itens de uma vez."""
@@ -99,7 +99,7 @@ def ReordenarLote():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/Ordenamento/Normalizar', methods=['POST'])
+@dre_ordem_bp.route('/ordenamento/normalizar', methods=['POST'])
 @login_required
 def NormalizarContexto():
     """Normaliza intervalos (10, 20, 30...)."""
@@ -110,7 +110,7 @@ def NormalizarContexto():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/Ordenamento/SincronizarNovo', methods=['POST'])
+@dre_ordem_bp.route('/ordenamento/sincronizar-novo', methods=['POST'])
 @login_required
 def SincronizarNovoElemento():
     """Adiciona elemento novo na árvore."""
@@ -127,7 +127,7 @@ def SincronizarNovoElemento():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/Ordenamento/RemoverElemento', methods=['POST'])
+@dre_ordem_bp.route('/ordenamento/remover-elemento', methods=['POST'])
 @login_required
 def RemoverDoOrdenamento():
     """Remove elemento da árvore."""
@@ -143,7 +143,7 @@ def RemoverDoOrdenamento():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/Ordenamento/ReordenarEmMassa', methods=['POST'])
+@dre_ordem_bp.route('/ordenamento/reordenar-massa', methods=['POST'])
 @login_required
 def ReordenarEmMassa():
     """Reordena grupos baseado em lista de nomes."""

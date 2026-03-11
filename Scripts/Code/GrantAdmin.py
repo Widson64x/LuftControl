@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Db.Connections import GetPostgresEngine
 from sqlalchemy.orm import sessionmaker
-from Models.POSTGRESS.CTL_Seguranca import SecPermission, SecRole, SecUserExtension
+from Models.Postgress.CTL_Seguranca import SecPermission, SecRole, SecUserExtension
 
 def grant_admin():
     # SEU USUÁRIO DE LOGIN (Conforme visto no log)
@@ -63,7 +63,7 @@ def grant_admin():
         print(f"[!] Usuário '{MEU_LOGIN}' promovido a Administrador.")
 
         session.commit()
-        print("\n✅ SUCESSO! Tente acessar a página /SecurityConfig/Manager agora.")
+        print("\n✅ SUCESSO! Tente acessar a página /SecurityConfig/gerenciador agora.")
 
     except Exception as e:
         session.rollback()

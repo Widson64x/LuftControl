@@ -1,4 +1,4 @@
-{% extends "Base.html" %}
+{% extends "Layout/BaseLayout.html" %}
 {% import 'luftcore/components.html' as ui %}
 
 {% block title %}Central de Segurança Global{% endblock %}
@@ -267,15 +267,15 @@
 <script>
     // Configuração centralizada das Rotas da API baseadas no Backend (ConfiguracaoSeguranca.py)
     const SECURITY_API_ROUTES = {
-        getGraph: "{{ url_for('SecurityConfig.ObterGrafoSeguranca') }}",
-        getUsers: "{{ url_for('SecurityConfig.ObterUsuariosAtivos') }}",
-        getRolesPerms: "{{ url_for('SecurityConfig.ObterPapeisEPermissoes') }}",
-        updateUserRole: "{{ url_for('SecurityConfig.AtualizarPapelUsuario') }}",
-        saveRole: "{{ url_for('SecurityConfig.SalvarPapel') }}",
-        savePerm: "{{ url_for('SecurityConfig.SalvarPermissao') }}",
-        deleteRole: "{{ url_for('SecurityConfig.ExcluirPapel') }}",
-        deletePerm: "{{ url_for('SecurityConfig.ExcluirPermissao') }}",
-        toggleDirectPerm: "{{ url_for('SecurityConfig.AlternarPermissaoDireta') }}"
+        getGraph: "{{ url_for('Seguranca.ObterGrafo') }}",
+        getUsers: "{{ url_for('Seguranca.ObterUsuariosAtivos') }}",
+        getRolesPerms: "{{ url_for('Seguranca.ObterPapeisEPermissoes') }}",
+        updateUserRole: "{{ url_for('Seguranca.AtualizarPapelUsuario') }}",
+        saveRole: "{{ url_for('Seguranca.SalvarPapel') }}",
+        savePerm: "{{ url_for('Seguranca.SalvarPermissao') }}",
+        deleteRole: "{{ url_for('Seguranca.ExcluirPapel') }}",
+        deletePerm: "{{ url_for('Seguranca.ExcluirPermissao') }}",
+        toggleDirectPerm: "{{ url_for('Seguranca.AlternarPermissaoDireta') }}"
     };
 </script>
 <script src="{{ url_for('static', filename='JS/Security/SecurityApp.js') }}"></script>

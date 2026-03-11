@@ -5,7 +5,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from Db.Connections import GetPostgresEngine
-from Models.POSTGRESS.ImportHistory import Base
+from Models.Postgress.ImportHistory import Base
 
 def criar_tabelas_importacao():
     engine = GetPostgresEngine()

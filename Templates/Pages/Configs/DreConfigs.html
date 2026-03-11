@@ -1,10 +1,10 @@
-{% extends 'Base.html' %}
+{% extends "Layout/BaseLayout.html" %}
 {% import 'luftcore/components.html' as ui %}
 
 {% block title %}Configuração DRE | Luft Control{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/ConfiguracaoDRE.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Configs/DreConfigs.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -445,43 +445,43 @@
 {% block extra_js %}
 <script>
     const API_ROUTES = {
-        getDadosArvore:         "{{ url_for('DreConfig.GetDadosArvore') }}",
-        getContasDisponiveis:   "{{ url_for('DreConfig.GetContasDisponiveis') }}",
-        getOperandosDisponiveis:"{{ url_for('DreConfig.GetOperandosDisponiveis') }}",
-        getSubgruposPorTipo:    "{{ url_for('DreConfig.GetSubgruposPorTipo') }}",
-        getContasDoGrupoMassa:  "{{ url_for('DreConfig.GetContasDoGrupoMassa') }}",
-        getContasDoSubgrupo:    "{{ url_for('DreConfig.GetContasDoSubgrupo') }}",
+        getDadosArvore:         "{{ url_for('ConfiguracaoDre.ObterDadosArvore') }}",
+        getContasDisponiveis:   "{{ url_for('ConfiguracaoDre.ObterContasDisponiveis') }}",
+        getOperandosDisponiveis:"{{ url_for('ConfiguracaoDre.ObterOperandosDisponiveis') }}",
+        getSubgruposPorTipo:    "{{ url_for('ConfiguracaoDre.ObterSubgruposPorTipo') }}",
+        getContasDoGrupoMassa:  "{{ url_for('ConfiguracaoDre.ObterContasGrupoMassa') }}",
+        getContasDoSubgrupo:    "{{ url_for('ConfiguracaoDre.ObterContasSubgrupo') }}",
 
-        renameNoVirtual:        "{{ url_for('DreConfig.RenameNoVirtual') }}",
-        renameSubgrupo:         "{{ url_for('DreConfig.RenameSubgrupo') }}",
-        renameContaPersonalizada:"{{ url_for('DreConfig.RenameContaPersonalizada') }}",
+        renameNoVirtual:        "{{ url_for('ConfiguracaoDre.RenomearNoVirtual') }}",
+        renameSubgrupo:         "{{ url_for('ConfiguracaoDre.RenomearSubgrupo') }}",
+        renameContaPersonalizada:"{{ url_for('ConfiguracaoDre.RenomearContaPersonalizada') }}",
 
-        addNoVirtual:           "{{ url_for('DreConfig.AddNoVirtual') }}",
-        addSubgrupo:            "{{ url_for('DreConfig.AddSubgrupo') }}",
-        addSubgrupoSistematico: "{{ url_for('DreConfig.AddSubgrupoSistematico') }}", 
-        addNoCalculado:         "{{ url_for('DreConfig.AddNoCalculado') }}",
-        vincularConta:          "{{ url_for('DreConfig.VincularConta') }}",
-        vincularContaDetalhe:   "{{ url_for('DreConfig.VincularContaDetalhe') }}",
-        vincularContaEmMassa:   "{{ url_for('DreConfig.VincularContaEmMassa') }}",
-        colarEstrutura:         "{{ url_for('DreConfig.ColarEstrutura') }}",
-        replicarEstrutura:      "{{ url_for('DreConfig.ReplicarEstrutura') }}",
-        replicarTipoIntegral:   "{{ url_for('DreConfig.ReplicarTipoIntegral') }}", 
+        addNoVirtual:           "{{ url_for('ConfiguracaoDre.AdicionarNoVirtual') }}",
+        addSubgrupo:            "{{ url_for('ConfiguracaoDre.AdicionarSubgrupo') }}",
+        addSubgrupoSistematico: "{{ url_for('ConfiguracaoDre.AdicionarSubgrupoSistematico') }}", 
+        addNoCalculado:         "{{ url_for('ConfiguracaoDre.AdicionarNoCalculado') }}",
+        vincularConta:          "{{ url_for('ConfiguracaoDre.VincularConta') }}",
+        vincularContaDetalhe:   "{{ url_for('ConfiguracaoDre.VincularContaDetalhe') }}",
+        vincularContaEmMassa:   "{{ url_for('ConfiguracaoDre.VincularContaEmMassa') }}",
+        colarEstrutura:         "{{ url_for('ConfiguracaoDre.ColarEstrutura') }}",
+        replicarEstrutura:      "{{ url_for('ConfiguracaoDre.ReplicarEstrutura') }}",
+        replicarTipoIntegral:   "{{ url_for('ConfiguracaoDre.ReplicarTipoIntegral') }}", 
 
-        deleteSubgrupo:         "{{ url_for('DreConfig.DeleteSubgrupo') }}",
-        deleteSubgrupoEmMassa:  "{{ url_for('DreConfig.DeleteSubgrupoEmMassa') }}",
-        deleteNoVirtual:        "{{ url_for('DreConfig.DeleteNoVirtual') }}",
-        desvincularConta:       "{{ url_for('DreConfig.DesvincularConta') }}",
-        desvincularContaEmMassa:"{{ url_for('DreConfig.DesvincularContaEmMassa') }}",
+        deleteSubgrupo:         "{{ url_for('ConfiguracaoDre.ExcluirSubgrupo') }}",
+        deleteSubgrupoEmMassa:  "{{ url_for('ConfiguracaoDre.ExcluirSubgrupoEmMassa') }}",
+        deleteNoVirtual:        "{{ url_for('ConfiguracaoDre.ExcluirNoVirtual') }}",
+        desvincularConta:       "{{ url_for('ConfiguracaoDre.DesvincularConta') }}",
+        desvincularContaEmMassa:"{{ url_for('ConfiguracaoDre.DesvincularContaEmMassa') }}",
 
-        ordenamentoInicializar: "{{ url_for('DreOrdenamento.InicializarOrdenamento') }}",
-        ordenamentoNormalizar:  "{{ url_for('DreOrdenamento.NormalizarContexto') }}",
-        getArvoreOrdenada:      "{{ url_for('DreOrdenamento.GetArvoreOrdenada') }}",
-        getFilhosOrdenados:     "{{ url_for('DreOrdenamento.GetFilhosOrdenados') }}",
-        reordenarLote:          "{{ url_for('DreOrdenamento.ReordenarLote') }}",
-        reordenarEmMassa:       "{{ url_for('DreOrdenamento.ReordenarEmMassa') }}", 
+        ordenamentoInicializar: "{{ url_for('OrdenamentoDre.InicializarOrdenamento') }}",
+        ordenamentoNormalizar:  "{{ url_for('OrdenamentoDre.NormalizarContexto') }}",
+        getArvoreOrdenada:      "{{ url_for('OrdenamentoDre.ObterArvoreOrdenada') }}",
+        getFilhosOrdenados:     "{{ url_for('OrdenamentoDre.ObterFilhosOrdenados') }}",
+        reordenarLote:          "{{ url_for('OrdenamentoDre.ReordenarLote') }}",
+        reordenarEmMassa:       "{{ url_for('OrdenamentoDre.ReordenarEmMassa') }}", 
     };
 </script>
 
-<script src="{{ url_for('static', filename='JS/DRE/DreOrdenamento.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/DRE/DreOrdering.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/DRE/DreTreeView.js') }}"></script>
-{% endblock %}
+{% endblock %}  
