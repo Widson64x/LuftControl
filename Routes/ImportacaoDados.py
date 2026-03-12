@@ -1,5 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from luftcore.extensions.flask_extension import require_ajax
+from Services.PermissaoService import RequerPermissao
 
 # Importa a Classe de Serviço
 from Services.ImportacaoDadosService import ImportacaoDadosService
@@ -28,6 +30,7 @@ DB_COLUMNS_PADRAO = {
 
 @import_bp.route('/importacao', methods=['GET'])
 @login_required
+@RequerPermissao('IMPORTACAO.VISUALIZAR')
 def Inicio():
     """
     Tela Inicial: Mostra as opções de tabelas disponíveis para importar.
@@ -37,6 +40,7 @@ def Inicio():
 
 @import_bp.route('/importacao/analise', methods=['POST'])
 @login_required
+@RequerPermissao('IMPORTACAO.CRIAR') # Formulário envia arquivo inteiro (Sem AJAX)
 def Analisar():
     """
     Recebe o arquivo, salva temporariamente e analisa as colunas para o usuário mapear.
@@ -92,6 +96,8 @@ def Analisar():
     
 @import_bp.route('/importacao/api/previa', methods=['POST'])
 @login_required
+@RequerPermissao('IMPORTACAO.VISUALIZAR')
+@require_ajax
 def ObterPrevia():
     """
     Rota AJAX: Retorna como um valor vai ficar após a transformação.
@@ -112,6 +118,7 @@ def ObterPrevia():
 
 @import_bp.route('/importacao/confirmar', methods=['POST'])
 @login_required
+@RequerPermissao('IMPORTACAO.CRIAR') # Submissão de Form
 def Confirmar():
     """
     Processa o formulário de mapeamento e dispara a importação real.
@@ -161,6 +168,7 @@ def Confirmar():
 
 @import_bp.route('/importacao/historico', methods=['GET'])
 @login_required
+@RequerPermissao('IMPORTACAO.HISTORICO.VISUALIZAR')
 def Historico():
     """
     Exibe o log de todas as importações feitas e permite Reversão.
@@ -171,6 +179,7 @@ def Historico():
 
 @import_bp.route('/importacao/reverter', methods=['POST'])
 @login_required
+@RequerPermissao('IMPORTACAO.REVERTER') # Form submit normal com redirect
 def Reverter():
     """
     Ação de deletar uma importação feita erroneamente (Rollback).

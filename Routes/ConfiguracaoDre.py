@@ -6,8 +6,7 @@ Rotas para Configuração da Árvore DRE (Demonstração do Resultado do Exercí
 from flask import Blueprint, jsonify, request, render_template, json
 from flask_login import login_required
 from sqlalchemy import text, func
-from sqlalchemy.orm import sessionmaker, joinedload
-from functools import lru_cache
+from sqlalchemy.orm import sessionmaker
 import time
 
 from Db.Connections import GetPostgresEngine

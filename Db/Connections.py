@@ -2,6 +2,7 @@ import sys
 import os
 import time
 from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker # <-- NOVO IMPORT AQUI
 from sqlalchemy.pool import NullPool
 
 # ==========================================
@@ -20,7 +21,7 @@ PG_DATABASE_URL = settings.get_postgres_uri()
 SQL_DATABASE_URL = settings.get_sqlserver_uri()
 
 # ==========================================
-# FUNÇÕES DE ENGINE (Core)
+# FUNÇÕES DE ENGINE E SESSÃO (Core)
 # ==========================================
 
 def GetPostgresEngine():
@@ -35,6 +36,13 @@ def GetPostgresEngine():
     except Exception as e:
         print(f"Erro ao criar engine Postgres: {e}")
         return None
+
+def GetPostgresSession():
+    """Retorna uma Sessão ORM pronta para o PostgreSQL"""
+    engine = GetPostgresEngine()
+    if engine:
+        return sessionmaker(bind=engine)()
+    return None
 
 def GetPostgresEngineRobust():
     """
@@ -75,6 +83,11 @@ def GetSqlServerEngine():
     queremos fechar a conexão explicitamente após o uso para não travar o ERP.
     """
     return create_engine(SQL_DATABASE_URL, pool_pre_ping=True, poolclass=NullPool)
+
+def GetSqlServerSession():
+    """Retorna uma Sessão ORM pronta para o SQL Server (LuftInforma)"""
+    engine = GetSqlServerEngine()
+    return sessionmaker(bind=engine)()
 
 # ==========================================
 # FUNÇÃO DE DIAGNÓSTICO

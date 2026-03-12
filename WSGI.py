@@ -30,4 +30,7 @@ if __name__ == "__main__":
     print(f"--> Modo: Produção (Serviço Windows)")
     
     # Inicia o servidor Waitress
-    serve(app, host=host, port=port)
+    prefix = os.getenv("ROUTE_PREFIX", "/LuftControl")
+    
+    # Inicia o servidor Waitress informando o url_prefix (SCRIPT_NAME)
+    serve(app, host=host, port=port, url_prefix=prefix)

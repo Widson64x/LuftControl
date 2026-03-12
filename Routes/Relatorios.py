@@ -4,7 +4,6 @@ from datetime import datetime
 
 # --- Imports do LuftCore (Segurança e Padronização de API) ---
 from luftcore.extensions.flask_extension import (
-    require_permission, 
     require_ajax, 
     api_success, 
     api_error
@@ -12,7 +11,7 @@ from luftcore.extensions.flask_extension import (
 
 # Importa o Serviço (Único ponto de contato com a lógica)
 from Services.RelatoriosService import RelatoriosService
-
+from Services.PermissaoService import RequerPermissao
 # Import do Logger
 from Utils.Logger import RegistrarLog
 
@@ -25,7 +24,7 @@ reports_bp = Blueprint('Relatorios', __name__)
 
 @reports_bp.route('/relatorios', methods=['GET']) 
 @login_required 
-@require_permission('relatorios.view') # Permissão base para abrir a tela
+@RequerPermissao('RELATORIOS.VISUALIZAR')
 def PaginaRelatorios():
     """Renderiza a página HTML principal de relatórios."""
     return render_template('Pages/Reports/ReportsDashboard.html')
@@ -36,7 +35,7 @@ def PaginaRelatorios():
 
 @reports_bp.route('/razao/dados', methods=['GET']) 
 @login_required 
-@require_permission('relatorios.razao') # Permissão específica do Razão
+@RequerPermissao('RELATORIOS.RAZAO.VISUALIZAR') 
 @require_ajax
 def ObterDadosRazao():
     """API: Retorna JSON com os dados paginados do Razão."""
@@ -60,7 +59,7 @@ def ObterDadosRazao():
 
 @reports_bp.route('/razao/resumo', methods=['GET']) 
 @login_required 
-@require_permission('relatorios.razao')
+@RequerPermissao('RELATORIOS.RAZAO.VISUALIZAR')
 @require_ajax
 def ObterResumoRazao():
     """API: Retorna os totais do rodapé do Razão."""
@@ -75,7 +74,7 @@ def ObterResumoRazao():
 
 @reports_bp.route('/razao/centros-custo', methods=['GET'])
 @login_required
-@require_permission('relatorios.view') # Permissão genérica é suficiente para ver o combo
+@RequerPermissao('RELATORIOS.VISUALIZAR') 
 @require_ajax
 def ListarCentrosCusto():
     """API: Dropdown de Centros de Custo."""
@@ -91,7 +90,7 @@ def ListarCentrosCusto():
 
 @reports_bp.route('/dre/rentabilidade', methods=['GET'])
 @login_required
-@require_permission('relatorios.dre') # Permissão específica do DRE
+@RequerPermissao('RELATORIOS.DRE.VISUALIZAR') 
 @require_ajax
 def RelatorioRentabilidade():
     """API: Gera o relatório de DRE Gerencial."""
@@ -116,7 +115,7 @@ def RelatorioRentabilidade():
 
 @reports_bp.route('/dre/consolidado', methods=['GET'])
 @login_required
-@require_permission('relatorios.dre.consolidado') # Permissão nível Master/Gerência
+@RequerPermissao('RELATORIOS.DRE_CONSOLIDADO.VISUALIZAR') 
 @require_ajax
 def GerarDreConsolidado():
     """API: Gera o relatório DRE Consolidado (Visão por Unidade)."""
@@ -137,7 +136,7 @@ def GerarDreConsolidado():
 
 @reports_bp.route('/dre/operacao', methods=['GET'])
 @login_required
-@require_permission('relatorios.dre.consolidado') # Podes criar uma permissão nova se quiseres!
+@RequerPermissao('RELATORIOS.DRE_OPERACAO.VISUALIZAR')
 @require_ajax
 def GerarDreOperacao():
     """API: Gera o relatório DRE por Operação."""
@@ -162,7 +161,8 @@ def GerarDreOperacao():
 
 @reports_bp.route('/razao/download', methods=['GET'])
 @login_required
-@require_permission('relatorios.exportar') # Permissão Exclusiva para Exportar Excel
+@RequerPermissao('RELATORIOS.RAZAO.EXPORTAR') 
+# Sem require_ajax pois é download/attachment
 def BaixarRazaoExcel():
     """Gera e baixa o Excel completo do Razão."""
     
@@ -203,7 +203,7 @@ def BaixarRazaoExcel():
 
 @reports_bp.route('Relatorios.DepurarOrdenamento', methods=['GET'])
 @login_required
-@require_permission('admin.master') # Só desenvolvedores 'ou sysadmins devem ver rotas de debug
+@RequerPermissao('SISTEMA.ADMIN.DEPURAR') 
 @require_ajax
 def DepurarOrdenamento():
     """Rota auxiliar de debug do Sistema."""
