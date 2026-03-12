@@ -1,11 +1,12 @@
 from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+from flask_login import UserMixin
 
 # Cria a base para os modelos ORM
 Base = declarative_base()
 
-# Modelo ORM para a tabela de usuários
-class Usuario(Base):
+# Adicione UserMixin aqui nos parênteses
+class Usuario(Base, UserMixin): 
     __tablename__ = "usuario"
 
     Codigo_Usuario = Column(Integer, primary_key=True, autoincrement=True)  # Chave primária
@@ -13,6 +14,11 @@ class Usuario(Base):
     Nome_Usuario = Column(String)                 
     Email_Usuario = Column(String)                      
     codigo_usuariogrupo = Column(Integer, ForeignKey("usuariogrupo.codigo_usuariogrupo"))
+
+    # O Flask-Login precisa de uma função get_id() que retorne o ID em formato de texto (String).
+    # Como a sua chave primária chama 'Codigo_Usuario' (e não apenas 'id'), precisamos avisar o Flask-Login:
+    def get_id(self):
+        return str(self.Codigo_Usuario)
 
 class UsuarioGrupo(Base):
     __tablename__ = "usuariogrupo"

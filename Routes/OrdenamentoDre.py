@@ -1,11 +1,15 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
+from luftcore.extensions.flask_extension import require_ajax
+from Services.PermissaoService import RequerPermissao
 from Services.OrdenamentoDreService import OrdenamentoDreService
 
 dre_ordem_bp = Blueprint('OrdenamentoDre', __name__)
 
 @dre_ordem_bp.route('/ordenamento/inicializar', methods=['POST'])
 @login_required
+@RequerPermissao('ORDENAMENTO_DRE.EDITAR')
+@require_ajax
 def InicializarOrdenamento():
     """Rota para popular a tabela de ordenamento."""
     try:
@@ -20,6 +24,8 @@ def InicializarOrdenamento():
 
 @dre_ordem_bp.route('/ordenamento/obter-ordem', methods=['POST'])
 @login_required
+@RequerPermissao('ORDENAMENTO_DRE.VISUALIZAR')
+@require_ajax
 def ObterOrdem():
     """Retorna a ordem de um elemento específico."""
     try:
@@ -36,6 +42,8 @@ def ObterOrdem():
 
 @dre_ordem_bp.route('/ordenamento/obter-filhos', methods=['POST'])
 @login_required
+@RequerPermissao('ORDENAMENTO_DRE.VISUALIZAR')
+@require_ajax
 def ObterFilhosOrdenados():
     """Lista filhos ordenados de um contexto."""
     try:
@@ -48,6 +56,8 @@ def ObterFilhosOrdenados():
 
 @dre_ordem_bp.route('/ordenamento/obter-arvore', methods=['GET'])
 @login_required
+@RequerPermissao('ORDENAMENTO_DRE.VISUALIZAR')
+@require_ajax
 def ObterArvoreOrdenada():
     """Retorna a árvore completa (Cacheada/Otimizada)."""
     try:
@@ -66,6 +76,8 @@ def ObterArvoreOrdenada():
 
 @dre_ordem_bp.route('/ordenamento/mover', methods=['POST'])
 @login_required
+@RequerPermissao('ORDENAMENTO_DRE.EDITAR')
+@require_ajax
 def MoverNo():
     """Move um nó de posição."""
     try:
@@ -86,6 +98,8 @@ def MoverNo():
 
 @dre_ordem_bp.route('/ordenamento/reordenar-lote', methods=['POST'])
 @login_required
+@RequerPermissao('ORDENAMENTO_DRE.EDITAR')
+@require_ajax
 def ReordenarLote():
     """Reordena múltiplos itens de uma vez."""
     try:
@@ -101,6 +115,8 @@ def ReordenarLote():
 
 @dre_ordem_bp.route('/ordenamento/normalizar', methods=['POST'])
 @login_required
+@RequerPermissao('ORDENAMENTO_DRE.EDITAR')
+@require_ajax
 def NormalizarContexto():
     """Normaliza intervalos (10, 20, 30...)."""
     try:
@@ -112,6 +128,8 @@ def NormalizarContexto():
 
 @dre_ordem_bp.route('/ordenamento/sincronizar-novo', methods=['POST'])
 @login_required
+@RequerPermissao('ORDENAMENTO_DRE.EDITAR')
+@require_ajax
 def SincronizarNovoElemento():
     """Adiciona elemento novo na árvore."""
     try:
@@ -129,6 +147,8 @@ def SincronizarNovoElemento():
 
 @dre_ordem_bp.route('/ordenamento/remover-elemento', methods=['POST'])
 @login_required
+@RequerPermissao('ORDENAMENTO_DRE.EXCLUIR')
+@require_ajax
 def RemoverDoOrdenamento():
     """Remove elemento da árvore."""
     try:
@@ -145,6 +165,8 @@ def RemoverDoOrdenamento():
 
 @dre_ordem_bp.route('/ordenamento/reordenar-massa', methods=['POST'])
 @login_required
+@RequerPermissao('ORDENAMENTO_DRE.EDITAR')
+@require_ajax
 def ReordenarEmMassa():
     """Reordena grupos baseado em lista de nomes."""
     try:

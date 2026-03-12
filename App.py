@@ -21,6 +21,7 @@ from Routes.Api import api_bp
 # --- Imports Banco de Dados ---
 from Db.Connections import PG_DATABASE_URL, CheckConnections
 from Models.Postgress.CTL_Dre_Estrutura import Base as DreBase
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from Utils.Logger import ConfigurarLogger, RegistrarLog
 
@@ -31,6 +32,10 @@ ROUTE_PREFIX = os.getenv("ROUTE_PREFIX", "")
 app = Flask(__name__,
             static_url_path=f'{ROUTE_PREFIX}/Static', 
             static_folder='Static')
+
+# === ADICIONE ESTA LINHA AQUI ===
+# Diz ao Flask para confiar no cabeçalho X-Forwarded-For (1 nível de proxy)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 app.secret_key = os.getenv("SECRET_PASSPHRASE", "40028922") # Chave secreta padrão para desenvolvimento
 

@@ -1,11 +1,12 @@
 from flask import Blueprint, render_template, request
-from flask_login import current_user
+from flask_login import current_user, login_required
 from sqlalchemy.orm import sessionmaker
 
 # --- Conexões e Serviços ---
 from Db.Connections import GetPostgresEngine
 from Services.AjustesManuaisService import AjustesManuaisService
 from Utils.Logger import RegistrarLog
+from Services.PermissaoService import RequerPermissao
 
 # --- O Poder do LuftCore ---
 from luftcore.extensions.flask_extension import (
@@ -24,7 +25,8 @@ def GetSession():
     return sessionmaker(bind=engine)()
 
 @ajustes_bp.route('/razao', methods=['GET'])
-@require_permission('ajustes.view') # Protegendo a tela
+@login_required
+@RequerPermissao('AJUSTES_MANUAIS_RAZAO.VISUALIZAR')
 def Inicio():
     """Rota principal que entrega a página HTML."""
     user = current_user.nome
@@ -32,7 +34,8 @@ def Inicio():
     return render_template('Pages/Adjustments/LedgerAdjustments.html')
 
 @ajustes_bp.route('/api/gerar-intergrupo', methods=['POST'])
-@require_permission('ajustes.gerar') # Exige permissão específica
+@login_required
+@RequerPermissao('AJUSTES_MANUAIS_RAZAO.INTERGRUPO.SINCRONIZAR')
 @require_ajax
 def GerarIntergrupo():
     """Gera ajustes apenas para o Mês e Ano selecionados na tela."""
@@ -59,7 +62,8 @@ def GerarIntergrupo():
         session_db.close()
 
 @ajustes_bp.route('/api/razao/dados', methods=['GET'])
-@require_permission('ajustes.view')
+@login_required
+@RequerPermissao('AJUSTES_MANUAIS_RAZAO.VISUALIZAR')
 @require_ajax
 def ObterDados():
     """Busca os dados para popular o grid."""
@@ -81,7 +85,8 @@ def ObterDados():
         session_db.close()
 
 @ajustes_bp.route('/api/razao/criar', methods=['POST'])
-@require_permission('ajustes.editar')
+@login_required
+@RequerPermissao('AJUSTES_MANUAIS_RAZAO.CRIAR')
 @require_ajax
 def CriarAjuste():
     """Rota exclusiva para CRIAÇÃO de novos lançamentos manuais."""
@@ -103,7 +108,8 @@ def CriarAjuste():
         session_db.close()
         
 @ajustes_bp.route('/api/razao/salvar', methods=['POST'])
-@require_permission('ajustes.editar')
+@login_required
+@RequerPermissao('AJUSTES_MANUAIS_RAZAO.EDITAR')
 @require_ajax
 def SalvarAjuste():
     """Salva ou edita um ajuste."""
@@ -124,7 +130,8 @@ def SalvarAjuste():
         session_db.close()
 
 @ajustes_bp.route('/api/razao/aprovar', methods=['POST'])
-@require_permission('AjustesManuais.AprovarAjuste')
+@login_required
+@RequerPermissao('AJUSTES_MANUAIS_RAZAO.APROVAR')
 @require_ajax
 def AprovarAjuste():
     session_db = GetSession()
@@ -149,7 +156,8 @@ def AprovarAjuste():
         session_db.close()
 
 @ajustes_bp.route('/api/razao/status-invalido', methods=['POST'])
-@require_permission('ajustes.editar')
+@login_required
+@RequerPermissao('AJUSTES_MANUAIS_RAZAO.EDITAR')
 @require_ajax
 def AlterarStatusInvalido():
     session_db = GetSession()
@@ -175,7 +183,8 @@ def AlterarStatusInvalido():
         session_db.close()
 
 @ajustes_bp.route('/api/razao/historico', methods=['GET'])
-@require_permission('ajustes.view')
+@login_required
+@RequerPermissao('AJUSTES_MANUAIS_RAZAO.VISUALIZAR')
 @require_ajax
 def ObterHistorico():
     """Fofoca completa: mostra tudo o que aconteceu com aquele ajuste."""
