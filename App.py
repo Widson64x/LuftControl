@@ -22,7 +22,6 @@ from Modules.DRE.Routes.Api import api_bp
 from Db.Connections import PG_DATABASE_URL, CheckConnections
 from Models.Postgress.CTL_Dre_Estrutura import Base as DreBase
 from werkzeug.middleware.proxy_fix import ProxyFix
-
 from Utils.Logger import ConfigurarLogger, RegistrarLog
 
 load_dotenv()
