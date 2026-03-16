@@ -4,14 +4,13 @@ from sqlalchemy.orm import sessionmaker
 
 # --- Conexões e Serviços ---
 from Db.Connections import GetPostgresEngine
-from Services.AjustesManuaisService import AjustesManuaisService
+from Modules.DRE.Services.AjustesManuaisService import AjustesManuaisService
 from Utils.Logger import RegistrarLog
-from Services.PermissaoService import RequerPermissao
+from Modules.DRE.Services.PermissaoService import RequerPermissao
 
 # --- O Poder do LuftCore ---
 from luftcore.extensions.flask_extension import (
-    require_permission, 
-    require_ajax, 
+    require_ajax,
     api_success, 
     api_error
 )

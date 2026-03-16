@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
 from luftcore.extensions.flask_extension import require_ajax
-from Services.PermissaoService import RequerPermissao
-from Services.OrdenamentoDreService import OrdenamentoDreService
+from Modules.DRE.Services.PermissaoService import RequerPermissao
+from Modules.DRE.Services.OrdenamentoDreService import OrdenamentoDreService
 
 dre_ordem_bp = Blueprint('OrdenamentoDre', __name__)
 

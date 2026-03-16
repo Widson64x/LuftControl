@@ -2,10 +2,9 @@
 from flask import Blueprint, jsonify
 from sqlalchemy.orm import sessionmaker
 from Db.Connections import GetPostgresEngine
-from Services.SyncService import SyncService
+from Modules.DRE.Services.SyncService import SyncService
 from flask_login import login_required
-from Services.PermissaoService import RequerPermissao
-from luftcore.extensions.flask_extension import require_ajax
+from Modules.DRE.Services.PermissaoService import RequerPermissao
 
 api_bp = Blueprint('Api', __name__)
 

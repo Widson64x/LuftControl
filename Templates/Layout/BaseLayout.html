@@ -3,97 +3,94 @@
 {% import 'luftcore/components.html' as ui %}
 
 {% block titulo %}
-    {% block title %}Luft Control{% endblock %}
+{% block title %}Luft Control{% endblock %}
 {% endblock %}
 
 {% block extra_head %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    {% block extra_css %}{% endblock %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+{% block extra_css %}{% endblock %}
 {% endblock %}
 
 {# 2. Usando a Macro de Menu para gerar a Sidebar #}
 {% block sidebar_menu %}
-    {# --- ITEM NORMAL (Raiz) --- #}
-    {{ ui.nav_item('Home', 
-        icone='ph-bold ph-house', 
-        href=url_for('Principal.MenuPrincipal'), 
-        ativo=(request.endpoint == 'Principal.MenuPrincipal')) 
-    }}
+{# --- ITEM NORMAL (Raiz - Visão Global) --- #}
+{{ ui.nav_item('Home',
+icone='ph-bold ph-house',
+href=url_for('Principal.MenuPrincipal'),
+ativo=(request.endpoint == 'Principal.MenuPrincipal'))
+}}
 
-    {# --- ITEM NORMAL (Raiz) --- #}
-    {{ ui.nav_item('Relatórios', 
-        icone='ph-bold ph-table', 
-        href=url_for('Relatorios.PaginaRelatorios'), 
-        ativo=(request.endpoint == 'Relatorios.PaginaRelatorios')) 
-    }}
+{# --- NOVO: ITEM COM SUBMENU (Módulo DRE) --- #}
+{% set dre_endpoints = ['Principal.HubDRE', 'Relatorios.PaginaRelatorios', 'AjustesManuais.Inicio', 'ConfiguracaoDre.VisualizarArvore', 'Importacao.Inicio'] %}
+{% call ui.nav_item('Módulo DRE', icone='ph-bold ph-chart-bar', ativo=(request.endpoint in dre_endpoints)) %}
 
-    {# --- ITEM NORMAL (Raiz) --- #}
-    {{ ui.nav_item('Ajuste Manuais', 
-        icone='ph-bold ph-sliders-horizontal', 
-        href=url_for('AjustesManuais.Inicio'), 
-        ativo=(request.endpoint == 'AjustesManuais.Inicio')) 
-    }}
+{{ ui.nav_item('Hub do DRE', href=url_for('Principal.HubDRE')) }}
+{{ ui.nav_item('Relatórios', href=url_for('Relatorios.PaginaRelatorios')) }}
+{{ ui.nav_item('Ajustes Manuais', href=url_for('AjustesManuais.Inicio')) }}
+{{ ui.nav_item('Importação de Dados', href=url_for('Importacao.Inicio')) }}
+{{ ui.nav_item('Configurações (Engine)', href=url_for('ConfiguracaoDre.VisualizarArvore')) }}
 
-    {# --- ITEM COM SUBMENU (Árvore) --- #}
-    {% call ui.nav_item('Sistema', icone='ph-bold ph-gear', ativo=('Settings' in request.endpoint)) %}
-        
-        {{ ui.nav_item('Configurações Gerais', href=url_for('Principal.MenuConfiguracoes')) }}
-        {{ ui.nav_item('Configurações DRE', href=url_for('ConfiguracaoDre.VisualizarArvore')) }}
-        {{ ui.nav_item('Segurança e Permissões', href=url_for('Seguranca.VisualizarGerenciador')) }}
-        {{ ui.nav_item('Importação de Dados', href=url_for('Importacao.Inicio')) }}
-        
-    {% endcall %}
+{% endcall %}
+
+{# --- ITEM COM SUBMENU (Administração Global) --- #}
+{% set sys_endpoints = ['Principal.MenuConfiguracoes', 'Seguranca.VisualizarGerenciador'] %}
+{% call ui.nav_item('Sistema', icone='ph-bold ph-gear', ativo=(request.endpoint in sys_endpoints)) %}
+
+{{ ui.nav_item('Configurações Gerais', href=url_for('Principal.MenuConfiguracoes')) }}
+{{ ui.nav_item('Segurança e Permissões', href=url_for('Seguranca.VisualizarGerenciador')) }}
+
+{% endcall %}
 {% endblock %}
 
-{# 3. Sobrescrevendo as ações do rodapé para abrir o seu modal #}
+{# 3. Ações do rodapé #}
 {% block sidebar_actions %}
-    <button onclick="LuftCore.alternarTema()" class="luft-btn-action hover-lift" title="Tema">
-        <i class="ph-bold ph-moon"></i>
-    </button>
-    
-    <a href="{{ url_for('Principal.MenuConfiguracoes') }}" class="luft-btn-action hover-lift" title="Configurações">
-        <i class="ph-bold ph-sliders-horizontal"></i>
-    </a>
-    
-    <a href="{{ url_for('Autenticacao.Logout') }}" class="luft-btn-action hover-lift text-danger" title="Sair">
-        <i class="ph-bold ph-power"></i>
-    </a>
+<button onclick="LuftCore.alternarTema()" class="luft-btn-action hover-lift" title="Tema">
+    <i class="ph-bold ph-moon"></i>
+</button>
+
+<a href="{{ url_for('Principal.MenuConfiguracoes') }}" class="luft-btn-action hover-lift" title="Configurações do Sistema">
+    <i class="ph-bold ph-sliders-horizontal"></i>
+</a>
+
+<a href="{{ url_for('Autenticacao.Logout') }}" class="luft-btn-action hover-lift text-danger" title="Sair">
+    <i class="ph-bold ph-power"></i>
+</a>
 {% endblock %}
 
 {% block nome_usuario %}
-    {{ current_user.nome if current_user.is_authenticated else 'Visitante' }}
+{{ current_user.nome if current_user.is_authenticated else 'Visitante' }}
 {% endblock %}
 
 {% block content %}
-    {% block page_content %}{% endblock %}
+{% block page_content %}{% endblock %}
 
-    <div id="modalConfig" class="modal-overlay" style="display: none;"></div>
+<div id="modalConfig" class="modal-overlay" style="display: none;"></div>
 {% endblock %}
 
 {% block extra_scripts %}
-    <script src="{{ url_for('static', filename='JS/Core/Main.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='JS/Reports/ReportsMain.js') }}" defer></script>
-    
-    <script>
-        function ExecutarSincronizacaoConsolidada() {
-            fetch("{{ url_for('Api.SincronizarConsolidado') }}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status !== 'success') {
-                    console.warn("Aviso na Sincronização em Background:", data.msg);
-                }
-            })
-            .catch(error => console.error("Erro na chamada de sincronização:", error));
-        }
+<script src="{{ url_for('static', filename='JS/Core/Main.js') }}" defer></script>
+<script src="{{ url_for('static', filename='JS/Reports/ReportsMain.js') }}" defer></script>
 
-        setInterval(ExecutarSincronizacaoConsolidada, 60000);
-        ExecutarSincronizacaoConsolidada();
-    </script>
-    
-    {% block extra_js %}{% endblock %}
+<script>
+    function ExecutarSincronizacaoConsolidada() {
+        fetch("{{ url_for('Api.SincronizarConsolidado') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status !== 'success') {
+                console.warn("Aviso na Sincronização em Background:", data.msg);
+            }
+        })
+        .catch(error => console.error("Erro na chamada de sincronização:", error));
+    }
+
+    setInterval(ExecutarSincronizacaoConsolidada, 60000);
+    ExecutarSincronizacaoConsolidada();
+</script>
+
+{% block extra_js %}{% endblock %}
 {% endblock %}

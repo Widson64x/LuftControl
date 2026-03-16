@@ -1,10 +1,10 @@
 import json
 import math
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from sqlalchemy import text
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 from Utils.Utils import ReportUtils
 from Utils.Logger import RegistrarLog
 
@@ -17,17 +17,17 @@ class DreConsolidado:
         ]
 
     def _ObterEstruturaHierarquia(self):
-        from Reports.DreGerencial import DreGerencial
+        from Modules.DRE.Reports.DreGerencial import DreGerencial
         dre_base = DreGerencial(self.session)
         return dre_base._ObterEstruturaHierarquia()
 
     def _ObterOrdenamento(self):
-        from Reports.DreGerencial import DreGerencial
+        from Modules.DRE.Reports.DreGerencial import DreGerencial
         dre_base = DreGerencial(self.session)
         return dre_base._ObterOrdenamento()
 
     def _ObterOrdemSubgruposPorContexto(self):
-        from Reports.DreGerencial import DreGerencial
+        from Modules.DRE.Reports.DreGerencial import DreGerencial
         dre_base = DreGerencial(self.session)
         return dre_base._ObterOrdemSubgruposPorContexto()
 

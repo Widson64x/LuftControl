@@ -8,15 +8,15 @@ from luftcore.extensions.flask_extension import LuftCorePackages, LuftUser
 
 # --- Imports das Rotas ---
 # Importando a função auxiliar que também foi renomeada
-from Routes.Autenticacao import auth_bp, CarregarUsuarioFlask
-from Routes.MenuPrincipal import main_bp
-from Routes.Relatorios import reports_bp
-from Routes.ConfiguracaoDre import configuracao_dre_bp
-from Routes.OrdenamentoDre import dre_ordem_bp
-from Routes.ConfiguracaoSeguranca import security_bp
-from Routes.AjustesManuais import ajustes_bp
-from Routes.ImportacaoDados import import_bp
-from Routes.Api import api_bp
+from Modules.DRE.Routes.Autenticacao import auth_bp, CarregarUsuarioFlask
+from Modules.DRE.Routes.MenuPrincipal import main_bp
+from Modules.DRE.Routes.Relatorios import reports_bp
+from Modules.DRE.Routes.ConfiguracaoDre import configuracao_dre_bp
+from Modules.DRE.Routes.OrdenamentoDre import dre_ordem_bp
+from Modules.DRE.Routes.ConfiguracaoSeguranca import security_bp
+from Modules.DRE.Routes.AjustesManuais import ajustes_bp
+from Modules.DRE.Routes.ImportacaoDados import import_bp
+from Modules.DRE.Routes.Api import api_bp
 
 # --- Imports Banco de Dados ---
 from Db.Connections import PG_DATABASE_URL, CheckConnections

@@ -10,8 +10,8 @@ from luftcore.extensions.flask_extension import (
 )
 
 # Importa o Serviço (Único ponto de contato com a lógica)
-from Services.RelatoriosService import RelatoriosService
-from Services.PermissaoService import RequerPermissao
+from Modules.DRE.Services.RelatoriosService import RelatoriosService
+from Modules.DRE.Services.PermissaoService import RequerPermissao
 # Import do Logger
 from Utils.Logger import RegistrarLog
 

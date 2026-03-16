@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
-from Services.PermissaoService import RequerPermissao
+from Modules.DRE.Services.PermissaoService import RequerPermissao
 
 main_bp = Blueprint('Principal', __name__)
 
@@ -10,13 +10,22 @@ main_bp = Blueprint('Principal', __name__)
 def MenuPrincipal():
     return render_template('Pages/HomeDashboard.html', user=current_user)
 
-# --- NOVA ROTA: HUB DE CONFIGURAÇÕES ---
+@main_bp.route('/dre')
+@login_required
+#@RequerPermissao('DRE.VISUALIZAR')  # Ajuste para a permissão correta do seu sistema
+def HubDRE():
+    """
+    Painel central do Módulo DRE.
+    Dá acesso a relatórios, ajustes, importação e configurações do DRE.
+    """
+    return render_template('Pages/DreHub.html')
+
 @main_bp.route('/configuracoes')
 @login_required
 @RequerPermissao('CONFIGURACOES.VISUALIZAR')
 def MenuConfiguracoes():
     """
-    Página centralizadora de configurações do sistema.
-    Aqui o usuário escolhe se quer configurar DRE, Usuários, etc.
+    Página centralizadora de configurações globais do sistema.
+    Focada em Segurança, Parâmetros do App, etc.
     """
     return render_template('Pages/Configs/SystemConfigs.html')

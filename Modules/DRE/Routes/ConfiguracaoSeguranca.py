@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from Db.Connections import GetSqlServerSession 
 from Models.SqlServer.Permissoes import Tb_PLN_Permissao, Tb_PLN_PermissaoGrupo, Tb_PLN_PermissaoUsuario
 from Models.SqlServer.Usuario import UsuarioGrupo, Usuario
-from Services.PermissaoService import RequerPermissao, PermissaoService, DEBUG_PERMISSIONS
+from Modules.DRE.Services.PermissaoService import RequerPermissao, PermissaoService, DEBUG_PERMISSIONS
 
 security_bp = Blueprint('Seguranca', __name__)
 SISTEMA_ID = int(os.getenv("SISTEMA_ID", 2))

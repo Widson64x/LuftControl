@@ -1,0 +1,222 @@
+{% extends "Layout/BaseLayout.html" %}
+{% import 'luftcore/components.html' as ui %}
+
+{% block title %}Hub DRE - Luft Control{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Reaproveitando a estrutura fluida de cards premium */
+    .luft-hub-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding-bottom: var(--luft-space-12);
+        animation: luftFadeIn 0.4s ease-out;
+    }
+
+    @keyframes luftFadeIn { 
+        from { opacity: 0; transform: translateY(10px); } 
+        to { opacity: 1; transform: translateY(0); } 
+    }
+
+    .luft-hub-hero {
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border);
+        border-radius: var(--luft-radius-2xl);
+        padding: var(--luft-space-8) var(--luft-space-10);
+        margin-bottom: var(--luft-space-8);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        gap: var(--luft-space-6);
+        box-shadow: var(--luft-shadow-sm);
+    }
+
+    .luft-hub-hero::before {
+        content: ''; position: absolute; inset: 0;
+        background: radial-gradient(circle at top right, var(--luft-primary-50) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    
+    [data-theme="dark"] .luft-hub-hero::before {
+        background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.1) 0%, transparent 60%);
+    }
+
+    .luft-hero-icon {
+        width: 72px; height: 72px;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--luft-primary-600);
+        color: white;
+        border-radius: var(--luft-radius-xl);
+        font-size: var(--luft-text-3xl);
+        box-shadow: var(--luft-shadow-md);
+        flex-shrink: 0;
+        position: relative;
+        z-index: 1;
+    }
+
+    .luft-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .luft-hero-title {
+        font-size: var(--luft-text-3xl);
+        font-weight: 900;
+        color: var(--luft-text-main);
+        margin: 0 0 var(--luft-space-2) 0;
+        letter-spacing: -0.5px;
+    }
+
+    .luft-hero-desc {
+        font-size: var(--luft-text-lg);
+        color: var(--luft-text-muted);
+        margin: 0;
+        max-width: 800px;
+    }
+
+    .luft-hub-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: var(--luft-space-6);
+    }
+
+    .luft-hub-card {
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border);
+        border-radius: var(--luft-radius-xl);
+        padding: var(--luft-space-8);
+        display: flex;
+        flex-direction: column;
+        text-decoration: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--luft-shadow-sm);
+    }
+
+    .luft-hub-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--luft-shadow-xl);
+        border-color: var(--luft-primary-300);
+    }
+
+    .luft-card-icon-wrapper {
+        width: 56px; height: 56px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: var(--luft-text-2xl);
+        border-radius: var(--luft-radius-lg);
+        margin-bottom: var(--luft-space-5);
+    }
+
+    /* Cores Temáticas para as ações do DRE */
+    .icon-report { background: var(--luft-primary-50); color: var(--luft-primary-600); border: 1px solid var(--luft-primary-100); }
+    .icon-adjust { background: var(--luft-warning-50); color: var(--luft-warning-600); border: 1px solid var(--luft-warning-100); }
+    .icon-import { background: var(--luft-success-50); color: var(--luft-success-600); border: 1px solid var(--luft-success-100); }
+    .icon-engine { background: var(--luft-slate-100); color: var(--luft-slate-700); border: 1px solid var(--luft-slate-200); }
+
+    [data-theme="dark"] .icon-engine { background: var(--luft-slate-800); color: var(--luft-slate-300); border: 1px solid var(--luft-slate-700); }
+
+    .luft-card-title {
+        font-size: var(--luft-text-xl);
+        font-weight: 800;
+        color: var(--luft-text-main);
+        margin: 0 0 var(--luft-space-3) 0;
+    }
+
+    .luft-card-desc {
+        color: var(--luft-text-muted);
+        font-size: var(--luft-text-sm);
+        line-height: 1.6;
+        margin: 0;
+        flex-grow: 1;
+    }
+
+    .luft-card-action {
+        margin-top: var(--luft-space-6);
+        padding-top: var(--luft-space-4);
+        border-top: 1px solid var(--luft-border-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-weight: 700;
+        font-size: var(--luft-text-sm);
+    }
+
+    .luft-hub-card:hover .luft-card-action i {
+        transform: translateX(4px);
+        transition: transform 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="luft-breadcrumb-item d-flex align-items-center gap-1"><a href="{{ url_for('Principal.MenuPrincipal') }}" class="text-muted text-decoration-none"><i class="ph-fill ph-house"></i> Home</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item active">Módulo DRE</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="luft-hub-container">
+
+    <div class="luft-hub-hero">
+        <div class="luft-hero-icon">
+            <i class="ph-bold ph-chart-bar"></i>
+        </div>
+        <div class="luft-hero-content">
+            <h1 class="luft-hero-title">Painel de Controle: DRE</h1>
+            <p class="luft-hero-desc">Área dedicada ao demonstrativo financeiro. Opere as regras de negócio, alimente a base de dados e acesse as visões gerenciais.</p>
+        </div>
+    </div>
+
+    <div class="luft-hub-grid">
+
+        <a href="{{ url_for('Relatorios.PaginaRelatorios') }}" class="luft-hub-card">
+            <div class="luft-card-icon-wrapper icon-report">
+                <i class="ph-bold ph-presentation-chart"></i>
+            </div>
+            <h3 class="luft-card-title">Relatórios & Análises</h3>
+            <p class="luft-card-desc">Visão consolidada, gerencial e analítica. Acesse os números processados e detalhamento de contas.</p>
+            <div class="luft-card-action text-primary">
+                <span>Visualizar Relatórios</span>
+                <i class="ph-bold ph-arrow-right"></i>
+            </div>
+        </a>
+
+        <a href="{{ url_for('AjustesManuais.Inicio') }}" class="luft-hub-card">
+            <div class="luft-card-icon-wrapper icon-adjust">
+                <i class="ph-bold ph-sliders"></i>
+            </div>
+            <h3 class="luft-card-title">Ajustes Manuais</h3>
+            <p class="luft-card-desc">Lançamentos de diário, reclassificações e rateios operacionais diretos na base de dados do DRE.</p>
+            <div class="luft-card-action text-warning">
+                <span>Realizar Lançamento</span>
+                <i class="ph-bold ph-arrow-right"></i>
+            </div>
+        </a>
+
+        <a href="{{ url_for('Importacao.Inicio') }}" class="luft-hub-card">
+            <div class="luft-card-icon-wrapper icon-import">
+                <i class="ph-bold ph-file-csv"></i>
+            </div>
+            <h3 class="luft-card-title">Importação de Dados</h3>
+            <p class="luft-card-desc">Ingestão de dados externos (Ex: Balancetes INTEC), mapeamento de colunas e histórico de cargas.</p>
+            <div class="luft-card-action text-success">
+                <span>Importar Planilhas</span>
+                <i class="ph-bold ph-arrow-right"></i>
+            </div>
+        </a>
+
+        <a href="{{ url_for('ConfiguracaoDre.VisualizarArvore') }}" class="luft-hub-card">
+            <div class="luft-card-icon-wrapper icon-engine">
+                <i class="ph-bold ph-tree-structure"></i>
+            </div>
+            <h3 class="luft-card-title">Configuração (Engine)</h3>
+            <p class="luft-card-desc">Motor de regras. Edite a árvore hierárquica, fórmulas matemáticas e contas associadas aos nós do DRE.</p>
+            <div class="luft-card-action text-slate-700">
+                <span>Ajustar Motor</span>
+                <i class="ph-bold ph-arrow-right"></i>
+            </div>
+        </a>
+
+    </div>
+</div>
+{% endblock %}

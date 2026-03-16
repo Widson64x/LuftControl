@@ -17,7 +17,7 @@ from Db.Connections import GetPostgresEngine
 from Models.Postgress.CTL_Sistema import CtlSysHistImportacao, CtlSysConfigImportacao
 
 class ImportacaoDadosService:
-    PASTA_TEMPORARIA = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Data', 'Temp'))
+    PASTA_TEMPORARIA = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..', 'Data', 'Temp'))
     
     # ATUALIZADO: Usando os novos nomes das tabelas de Razão
     TABELAS_PERMITIDAS = [

@@ -10,7 +10,7 @@ from Models.Postgress.CTL_Ajustes import CtlAjusteLog
 from Settings import BaseConfig
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 from Utils.Common import parse_bool
 from Utils.Logger import RegistrarLog 
 from Db.Connections import GetPostgresEngine

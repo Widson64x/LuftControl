@@ -3,65 +3,55 @@
 {% block title %}Dashboard - Luft Control{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/HomeDashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/HomeDashboard.css') }}">
 {% endblock %}
 
 {% block breadcrumb %}
-    <span class="luft-breadcrumb-item d-flex align-items-center gap-1"><i class="ph-fill ph-house"></i> Home</span>
-    <i class="ph-bold ph-caret-right"></i>
-    <span class="luft-breadcrumb-item active">Dashboard Inicial</span>
+<span class="luft-breadcrumb-item d-flex align-items-center gap-1"><i class="ph-fill ph-house"></i> Home</span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item active">Módulos da Controladoria</span>
 {% endblock %}
 
 {% block page_content %}
 <div class="luft-hero-section animate-slide-up">
     <h1 class="luft-welcome-title">Olá, {{ current_user.nome }}!</h1>
     <p class="luft-welcome-subtitle">
-        Bem-vindo ao Luft Control. Selecione um módulo abaixo para iniciar suas atividades.
+        Plataforma Integrada de Controladoria. Selecione um módulo abaixo para iniciar suas atividades.
     </p>
 </div>
 
 <div class="luft-modules-grid animate-fade-in">
-    
-    <a href="{{ url_for('Relatorios.PaginaRelatorios') }}" class="luft-module-card">
-        <div class="luft-module-icon">
+
+    <a href="{{ url_for('Principal.HubDRE') }}" class="luft-module-card">
+        <div class="luft-module-icon" style="color: var(--luft-primary-600); background: var(--luft-primary-50);">
             <i class="ph-bold ph-receipt"></i>
         </div>
-        <h3 class="luft-module-title">Relatórios Financeiros</h3>
+        <h3 class="luft-module-title">DRE Gerencial</h3>
         <p class="luft-module-desc">
-            Acesse bases analíticas, Razão Contábil Completo e exportação de dados brutos.
+            Acesso centralizado aos demonstrativos, relatórios analíticos, engine de cálculo, importações e ajustes manuais.
         </p>
     </a>
-    
-    <a href="{{ url_for('AjustesManuais.Inicio') }}" class="luft-module-card">
-        <div class="luft-module-icon">
-            <i class="ph-bold ph-sliders-horizontal"></i>
-        </div>
-        <h3 class="luft-module-title">Ajustes Manuais</h3>
-        <p class="luft-module-desc">
-            Acesse as bases e realize ajustes manuais para refletir corretamente nos relatórios financeiros.
-        </p>
-    </a>
-    
+
     <div class="luft-module-card disabled">
-        <div class="luft-module-icon">
-            <i class="ph-bold ph-chart-pie-slice"></i>
+        <div class="luft-module-icon" style="color: var(--luft-warning-600); background: var(--luft-warning-50);">
+            <i class="ph-bold ph-chart-line-up"></i>
         </div>
-        <h3 class="luft-module-title">Dashboards Visuais</h3>
+        <h3 class="luft-module-title">Budget x Real</h3>
         <p class="luft-module-desc">
-            Indicadores gráficos, KPIs de performance e análise executiva. <br>
-            <span class="font-bold text-xs" style="display: inline-block; margin-top: 12px; background: var(--luft-border); padding: 4px 10px; border-radius: 20px; color: var(--luft-text-main);">
-                Em Breve
+            Acompanhamento gerencial do orçamento previsto versus o realizado pelas unidades de negócio. <br>
+            <span class="font-bold text-xs" style="display: inline-block; margin-top: 12px; background: var(--luft-warning-100); padding: 4px 10px; border-radius: 20px; color: var(--luft-warning-800); border: 1px solid var(--luft-warning-200);">
+                Em Desenvolvimento
             </span>
         </p>
     </div>
 
     <a href="{{ url_for('Principal.MenuConfiguracoes') }}" class="luft-module-card">
-        <div class="luft-module-icon">
-            <i class="ph-bold ph-gear"></i>
+        <div class="luft-module-icon" style="color: var(--luft-slate-600); background: var(--luft-slate-100);">
+            <i class="ph-bold ph-shield-check"></i>
         </div>
-        <h3 class="luft-module-title">Configurações</h3>
+        <h3 class="luft-module-title">Administração Global</h3>
         <p class="luft-module-desc">
-            Gerenciamento de usuários, permissões, configurações de DRE e parâmetros do sistema.
+            Gerenciamento centralizado de usuários, controle de permissões de acesso (RBAC) e parâmetros gerais do sistema.
         </p>
     </a>
 

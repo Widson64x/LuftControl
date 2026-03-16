@@ -1,16 +1,14 @@
 from sqlalchemy.orm import sessionmaker
 import pandas as pd
 import io
-import xlsxwriter
-from datetime import datetime
 
 # --- Imports de Banco de Dados ---
 from Db.Connections import GetPostgresEngine
 
 # --- Imports dos Relatórios (Novos Nomes) ---
-from Reports.RazaoContabil import RazaoContabil
-from Reports.DreGerencial import DreGerencial
-from Reports.DreConsolidado import DreConsolidado
+from Modules.DRE.Reports.RazaoContabil import RazaoContabil
+from Modules.DRE.Reports.DreGerencial import DreGerencial
+from Modules.DRE.Reports.DreConsolidado import DreConsolidado
 
 # --- Import do Logger ---
 from Utils.Logger import RegistrarLog
@@ -156,7 +154,7 @@ class RelatoriosService:
         """
         session = self._ObterSessao() # <- AQUI ESTÁ A CORREÇÃO
         try:
-            from Reports.DreOperacao import DreOperacao
+            from Modules.DRE.Reports.DreOperacao import DreOperacao
             relatorio = DreOperacao(session)
             
             # 1. Busca e mapeia nas colunas novas

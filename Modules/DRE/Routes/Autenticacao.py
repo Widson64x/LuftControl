@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 
 # Importa o Serviço de Autenticação
-from Services.AutenticacaoService import AutenticacaoService
+from Modules.DRE.Services.AutenticacaoService import AutenticacaoService
 
 # Import do Logger
 from Utils.Logger import RegistrarLog 

@@ -1,10 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from luftcore.extensions.flask_extension import require_ajax
-from Services.PermissaoService import RequerPermissao
+from Modules.DRE.Services.PermissaoService import RequerPermissao
 
 # Importa a Classe de Serviço
-from Services.ImportacaoDadosService import ImportacaoDadosService
+from Modules.DRE.Services.ImportacaoDadosService import ImportacaoDadosService
 
 # --- Import do Logger ---
 from Utils.Logger import RegistrarLog

@@ -22,7 +22,7 @@
 .luft-welcome-subtitle {
     font-size: 1.125rem;
     color: var(--luft-text-muted);
-    max-width: 600px; 
+    max-width: 600px;
     margin: 0 auto;
 }
 
@@ -49,11 +49,11 @@
 
 /* Barra superior gradiente no hover */
 .luft-module-card::before {
-    content: ''; 
+    content: '';
     position: absolute;
     top: 0; left: 0; width: 100%; height: 4px;
     background: linear-gradient(90deg, var(--luft-primary-500, #3b82f6), var(--luft-primary-300, #93c5fd));
-    opacity: 0; 
+    opacity: 0;
     transition: all 0.3s ease;
 }
 
@@ -61,11 +61,11 @@
     transform: translateY(-8px);
     border-color: var(--luft-primary-300);
     /* Sombra suave caso a variável não exista na página, com fallback */
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08); 
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
 }
 
-.luft-module-card:hover:not(.disabled)::before { 
-    opacity: 1; 
+.luft-module-card:hover:not(.disabled)::before {
+    opacity: 1;
 }
 
 .luft-module-icon {
@@ -80,7 +80,7 @@
 }
 
 .luft-module-card:hover:not(.disabled) .luft-module-icon {
-    background: var(--luft-primary-600); 
+    background: var(--luft-primary-600);
     color: white;
     transform: scale(1.1);
 }
