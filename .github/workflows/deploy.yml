@@ -84,10 +84,8 @@ jobs:
 
         Write-Host "Criando venv do zero..."
         
-        # Tenta criar usando o 'py' (Windows Launcher) em vez de 'python'
-        # Se falhar, você precisará trocar a linha abaixo pelo caminho completo. 
-        # Exemplo: cmd /c "`"C:\Program Files\Python311\python.exe`" -m venv .venv"
-        cmd /c "py -m venv .venv"
+        # Usando o caminho absoluto do Python que você forneceu
+        cmd /c '"C:\Users\user_b2bi\AppData\Local\Programs\Python\Python313\python.exe" -m venv .venv'
         
         # Verificação para evitar rodar o pip se a venv não foi criada
         if (Test-Path ".venv\Scripts\python.exe") {
@@ -95,7 +93,7 @@ jobs:
             cmd /c ".venv\Scripts\python.exe -m pip install --upgrade pip"
             cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
         } else {
-            Write-Error "Falha: O Python não foi encontrado para criar a .venv. Substitua 'py' pelo caminho absoluto do Python no servidor."
+            Write-Error "Falha: O Python não conseguiu criar a .venv. Verifique as permissões da pasta."
             exit 1
         }
 
