@@ -21,7 +21,7 @@ jobs:
         PYTHONIOENCODING: "utf-8"
       run: |
         # --- CONFIGURAÇÕES ---
-        $ServiceName = "LuftControl"
+        $ServiceName = "Luft-Control"
         $AppPath = "C:\ProjetosPython\LuftControl"
         $LogFile = "C:\actions-runner-luftControl\deploy-log.txt"
         $NssmExe = "C:\nssm-2.24\win64\nssm.exe"
