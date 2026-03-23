@@ -76,19 +76,28 @@ jobs:
         # Entra na pasta do projeto
         Set-Location $AppPath
 
-        # DELETA A .venv SE ELA EXISTIR (Isso vai resolver o erro do ~arkupsafe)
+        # DELETA A .venv SE ELA EXISTIR
         if (Test-Path ".venv") {
             Write-Host "Apagando a .venv atual..."
             Remove-Item -Path ".venv" -Recurse -Force -ErrorAction SilentlyContinue
         }
 
-        # Cria a venv do zero e instala tudo novamente
         Write-Host "Criando venv do zero..."
-        cmd /c "python -m venv .venv"
         
-        Write-Host "Instalando as dependências..."
-        cmd /c ".venv\Scripts\python.exe -m pip install --upgrade pip"
-        cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
+        # Tenta criar usando o 'py' (Windows Launcher) em vez de 'python'
+        # Se falhar, você precisará trocar a linha abaixo pelo caminho completo. 
+        # Exemplo: cmd /c "`"C:\Program Files\Python311\python.exe`" -m venv .venv"
+        cmd /c "py -m venv .venv"
+        
+        # Verificação para evitar rodar o pip se a venv não foi criada
+        if (Test-Path ".venv\Scripts\python.exe") {
+            Write-Host "Instalando as dependências..."
+            cmd /c ".venv\Scripts\python.exe -m pip install --upgrade pip"
+            cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
+        } else {
+            Write-Error "Falha: O Python não foi encontrado para criar a .venv. Substitua 'py' pelo caminho absoluto do Python no servidor."
+            exit 1
+        }
 
         # -----------------------------------------------------------
         # 4. INICIAR SERVIÇO
