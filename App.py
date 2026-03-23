@@ -89,15 +89,15 @@ luftcore_app = LuftCorePackages(
 )
 
 # --- Registro de Blueprints ---
-app.register_blueprint(auth_bp, url_prefix=ROUTE_PREFIX)
-app.register_blueprint(main_bp, url_prefix=ROUTE_PREFIX)
-app.register_blueprint(api_bp, url_prefix=ROUTE_PREFIX)
-app.register_blueprint(reports_bp, url_prefix=ROUTE_PREFIX)
-app.register_blueprint(configuracao_dre_bp, url_prefix=ROUTE_PREFIX)
-app.register_blueprint(dre_ordem_bp, url_prefix=ROUTE_PREFIX)
-app.register_blueprint(ajustes_bp, url_prefix=ROUTE_PREFIX)
-app.register_blueprint(security_bp, url_prefix=ROUTE_PREFIX)
-app.register_blueprint(import_bp, url_prefix=ROUTE_PREFIX)
+app.register_blueprint(auth_bp)
+app.register_blueprint(main_bp)
+app.register_blueprint(api_bp)
+app.register_blueprint(reports_bp)
+app.register_blueprint(configuracao_dre_bp)
+app.register_blueprint(dre_ordem_bp)
+app.register_blueprint(ajustes_bp)
+app.register_blueprint(security_bp)
+app.register_blueprint(import_bp)
 
 @app.route('/')
 def Index(): # Até o index merece um PascalCase

@@ -69,32 +69,19 @@ jobs:
         Write-Host "Arquivos copiados com sucesso."
 
         # -----------------------------------------------------------
-        # 3. ATUALIZAR DEPENDÊNCIAS (TEMPORÁRIO - CORREÇÃO DE VENV)
+        # 3. ATUALIZAR DEPENDÊNCIAS
         # -----------------------------------------------------------
-        Write-Host "3. Verificando e limpando dependências corrompidas..."
+        Write-Host "3. Verificando dependências..."
         
         # Entra na pasta do projeto
         Set-Location $AppPath
 
-        # DELETA A .venv SE ELA EXISTIR
         if (Test-Path ".venv") {
-            Write-Host "Apagando a .venv atual..."
-            Remove-Item -Path ".venv" -Recurse -Force -ErrorAction SilentlyContinue
-        }
-
-        Write-Host "Criando venv do zero..."
-        
-        # Usando o caminho absoluto do Python que você forneceu
-        cmd /c '"C:\Users\user_b2bi\AppData\Local\Programs\Python\Python313\python.exe" -m venv .venv'
-        
-        # Verificação para evitar rodar o pip se a venv não foi criada
-        if (Test-Path ".venv\Scripts\python.exe") {
-            Write-Host "Instalando as dependências..."
-            cmd /c ".venv\Scripts\python.exe -m pip install --upgrade pip"
             cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
         } else {
-            Write-Error "Falha: O Python não conseguiu criar a .venv. Verifique as permissões da pasta."
-            exit 1
+            Write-Warning "Criando venv..."
+            cmd /c "python -m venv .venv"
+            cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
         }
 
         # -----------------------------------------------------------
