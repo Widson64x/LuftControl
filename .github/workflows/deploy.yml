@@ -23,7 +23,7 @@ jobs:
         # --- CONFIGURAÇÕES ---
         $ServiceName = "Luft-Control"
         $AppPath = "C:\ProjetosPython\LuftControl"
-        $LogFile = "C:\actions-runner-luftControl\deploy-log.txt"
+        $LogFile = "C:\GitHubRunners\Luft-Control\deploy-log.txt"
         $NssmExe = "C:\nssm-2.24\win64\nssm.exe"
         
         # Inicia Log
@@ -102,7 +102,7 @@ jobs:
         if ($ServiceStatus.Status -eq 'Running') {
             Write-Host "SUCESSO: Serviço iniciado e rodando!"
         } else {
-            Write-Error "FALHA CRÍTICA: O serviço não subiu. Verifique o log em C:\ProjetosPython\LuftControl (logs do app)."
+            Write-Error "FALHA CRÍTICA: O serviço não subiu. Verifique o log em C:\GitHubRunners\Luft-Control (logs do app)."
             Stop-Transcript; exit 1
         }
 
