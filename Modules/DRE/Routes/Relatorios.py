@@ -201,7 +201,7 @@ def BaixarRazaoExcel():
 # ROTAS DE ADMIN/DEBUG
 # ============================================================
 
-@reports_bp.route('Relatorios.DepurarOrdenamento', methods=['GET'])
+@reports_bp.route('/relatorios/depurar-ordenamento', methods=['GET'])
 @login_required
 @RequerPermissao('SISTEMA.ADMIN.DEPURAR') 
 @require_ajax
