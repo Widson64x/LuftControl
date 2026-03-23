@@ -69,20 +69,26 @@ jobs:
         Write-Host "Arquivos copiados com sucesso."
 
         # -----------------------------------------------------------
-        # 3. ATUALIZAR DEPENDÊNCIAS
+        # 3. ATUALIZAR DEPENDÊNCIAS (TEMPORÁRIO - CORREÇÃO DE VENV)
         # -----------------------------------------------------------
-        Write-Host "3. Verificando dependências..."
+        Write-Host "3. Verificando e limpando dependências corrompidas..."
         
         # Entra na pasta do projeto
         Set-Location $AppPath
 
+        # DELETA A .venv SE ELA EXISTIR (Isso vai resolver o erro do ~arkupsafe)
         if (Test-Path ".venv") {
-            cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
-        } else {
-            Write-Warning "Criando venv..."
-            cmd /c "python -m venv .venv"
-            cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
+            Write-Host "Apagando a .venv atual..."
+            Remove-Item -Path ".venv" -Recurse -Force -ErrorAction SilentlyContinue
         }
+
+        # Cria a venv do zero e instala tudo novamente
+        Write-Host "Criando venv do zero..."
+        cmd /c "python -m venv .venv"
+        
+        Write-Host "Instalando as dependências..."
+        cmd /c ".venv\Scripts\python.exe -m pip install --upgrade pip"
+        cmd /c ".venv\Scripts\python.exe -m pip install -r requirements.txt"
 
         # -----------------------------------------------------------
         # 4. INICIAR SERVIÇO
