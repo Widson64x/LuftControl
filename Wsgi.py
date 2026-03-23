@@ -17,22 +17,20 @@ except ImportError:
     print("Instale rodando: pip install waitress")
     sys.exit(1)
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     # Configurações do ambiente
-    host = os.environ.get("HOST", "127.0.0.1")
-    port = int(os.environ.get("PORT", "9007"))
-
-    # Pega o prefixo usando a mesma lógica do App.py
-    prefix = ROUTE_PREFIX = os.getenv("ROUTE_PREFIX", "")
-
+    # Em produção com NGINX na frente, geralmente rodamos em localhost
+    host = BaseConfig.HOST
     
-    # Se o prefixo for vazio, definimos o padrão para o ConnectAir
-    if not prefix:
-        prefix = "/Luft-ConnectAir"
+    # Porta interna do serviço (O NGINX vai redirecionar a porta 80 para cá)
+    port = BaseConfig.PORT
 
-    print(f"--> INICIANDO SERVIDOR WSGI (WAITRESS) PARA O Luft-ConnectAir")
-    print(f"--> Endereço: http://{host}:{port}{prefix}")
+    print(f"--> INICIANDO SERVIDOR WSGI (WAITRESS) PARA O Luft Control")
+    print(f"--> Endereço: http://{host}:{port}")
     print(f"--> Modo: Produção (Serviço Windows)")
     
-    # Inicia o servidor Waitress com o url_prefix!
-    serve(app, host=host, port=port, threads=6, url_prefix=prefix)
+    # Inicia o servidor Waitress
+    prefix = os.getenv("ROUTE_PREFIX", "/LuftControl")
+    
+    # Inicia o servidor Waitress informando o url_prefix (SCRIPT_NAME)
+    serve(app, host=host, port=port, url_prefix=prefix)
