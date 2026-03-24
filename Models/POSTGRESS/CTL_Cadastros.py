@@ -4,6 +4,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
 Base = declarative_base()
+"""
+-- Tabela fora de uso, pois a estrutura de agrupamento de contas foi alterada para ser mais flexível e permitir múltiplos níveis de agrupamento.
 
 class CtlCadAgrupamentoConta(Base):
     __tablename__ = 'Tb_CTL_Cad_Agrupamento_Conta'
@@ -17,7 +19,7 @@ class CtlCadAgrupamentoConta(Base):
     Ordem = Column(Integer)
     Data_Criacao = Column(DateTime, default=datetime.now)
     Data_Atualizacao = Column(DateTime, onupdate=datetime.now)
-
+"""
 class CtlCadCentroCusto(Base):
     __tablename__ = 'Tb_CTL_Cad_Centro_Custo'
     __table_args__ = {'schema': 'Dre_Schema'}
