@@ -1,13 +1,38 @@
 // ============================================
 // Luft Control - MAIN JAVASCRIPT
-// Arquivo: Static/js/main.js
+// Arquivo: Static/JS/Core/Main.js
 // ============================================
+
+// ============================================
+// 1. INTERCEPTADOR GLOBAL DE FETCH
+// Injeta automaticamente o cabeçalho X-Requested-With 
+// em TODAS as requisições do sistema para passar no @require_ajax
+// ============================================
+const originalFetch = window.fetch;
+window.fetch = async function(resource, config) {
+    // Garante que o config e o config.headers existam
+    config = config || {};
+    config.headers = config.headers || {};
+    
+    // Injeta o cabeçalho dependendo de como os headers foram instanciados
+    if (config.headers instanceof Headers) {
+        if (!config.headers.has('X-Requested-With')) {
+            config.headers.append('X-Requested-With', 'XMLHttpRequest');
+        }
+    } else {
+        config.headers['X-Requested-With'] = 'XMLHttpRequest';
+    }
+    
+    // Repassa para o fetch nativo do navegador
+    return originalFetch(resource, config);
+};
+
 
 /**
  * Sistema Principal do Luft Control
  * Gerencia funcionalidades globais do sistema
  */
-class DRESystem {
+class LuftControl {
     constructor() {
         this.init();
     }
@@ -204,7 +229,6 @@ class ModalSystem {
 
 /**
  * Sistema de Notificações
- * Exibe notificações toast no sistema
  */
 class NotificationSystem {
     static container = null;
@@ -265,53 +289,22 @@ class NotificationSystem {
  * Utilitários de Formatação
  */
 class FormatUtils {
-    /**
-     * Formata valor monetário em R$
-     */
     static formatCurrency(value) {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(value || 0);
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
     }
-
-    /**
-     * Formata número
-     */
     static formatNumber(value) {
         return new Intl.NumberFormat('pt-BR').format(value || 0);
     }
-
-    /**
-     * Formata data
-     */
     static formatDate(dateString) {
         if (!dateString) return '-';
-        const date = new Date(dateString);
-        return new Intl.DateTimeFormat('pt-BR').format(date);
+        return new Intl.DateTimeFormat('pt-BR').format(new Date(dateString));
     }
-
-    /**
-     * Formata data e hora
-     */
     static formatDateTime(dateString) {
         if (!dateString) return '-';
-        const date = new Date(dateString);
-        return new Intl.DateTimeFormat('pt-BR', {
-            dateStyle: 'short',
-            timeStyle: 'short'
-        }).format(date);
+        return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(dateString));
     }
-
-    /**
-     * Formata porcentagem
-     */
     static formatPercent(value) {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'percent',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(value || 0);
+        return new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value || 0);
     }
 }
 
@@ -319,68 +312,45 @@ class FormatUtils {
  * Utilitários de Tabela
  */
 class TableUtils {
-    /**
-     * Adiciona busca a uma tabela
-     */
     static addSearch(tableId, searchInputId) {
         const table = document.getElementById(tableId);
         const searchInput = document.getElementById(searchInputId);
-
         if (!table || !searchInput) return;
-
         searchInput.addEventListener('input', (e) => {
             this.filterTable(table, e.target.value);
         });
     }
 
-    /**
-     * Filtra linhas da tabela
-     */
     static filterTable(table, searchTerm) {
         const rows = table.querySelectorAll('tbody tr');
         const term = searchTerm.toLowerCase();
-
         rows.forEach(row => {
             const text = row.textContent.toLowerCase();
             row.style.display = text.includes(term) ? '' : 'none';
         });
     }
 
-    /**
-     * Ordena tabela por coluna
-     */
     static sortTable(table, columnIndex, ascending = true) {
         const tbody = table.querySelector('tbody');
         const rows = Array.from(tbody.querySelectorAll('tr'));
-
         rows.sort((a, b) => {
             const aValue = a.cells[columnIndex].textContent;
             const bValue = b.cells[columnIndex].textContent;
-
-            if (ascending) {
-                return aValue.localeCompare(bValue, 'pt-BR', { numeric: true });
-            } else {
-                return bValue.localeCompare(aValue, 'pt-BR', { numeric: true });
-            }
+            return ascending 
+                ? aValue.localeCompare(bValue, 'pt-BR', { numeric: true })
+                : bValue.localeCompare(aValue, 'pt-BR', { numeric: true });
         });
-
         rows.forEach(row => tbody.appendChild(row));
     }
 }
 
 /**
- * Utilitários de API
+ * Utilitários de API (Agora mais limpos graças ao Interceptor)
  */
-// ==========================================
-// UTILS & API COMUNICATOR GLOBAL (LuftCore Padrão)
-// ==========================================
 class APIUtils {
     static async get(url) {
         const res = await fetch(url, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest', // O Passaporte para o @require_ajax
-                'Accept': 'application/json'
-            }
+            headers: { 'Accept': 'application/json' }
         });
         
         if (!res.ok && res.status !== 403 && res.status !== 400) {
@@ -389,22 +359,17 @@ class APIUtils {
         
         const json = await res.json();
         
-        // Trata os erros padronizados do LuftCore (api_error)
         if (json.status === 'error' || res.status === 403) {
             throw new Error(json.message || json.error || `Acesso Negado ou Erro (${res.status})`);
         }
         
-        // Desempacota o 'api_success' automaticamente
         return json.status === 'success' ? (json.data !== undefined ? json.data : json) : json;
     }
     
     static async post(url, data) {
         const res = await fetch(url, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest' // O Passaporte para o @require_ajax
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
         
@@ -426,14 +391,14 @@ class APIUtils {
 // INICIALIZAÇÃO
 // ============================================
 
-let dreSystem;
+let luftControl;
 
 document.addEventListener('DOMContentLoaded', () => {
-    dreSystem = new DRESystem();
+    luftControl = new LuftControl();
 });
 
 // Exportar para uso global
-window.DRESystem = DRESystem;
+window.LuftControl = LuftControl;
 window.ModalSystem = ModalSystem;
 window.NotificationSystem = NotificationSystem;
 window.FormatUtils = FormatUtils;
