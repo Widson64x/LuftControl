@@ -481,7 +481,7 @@ const ExcelGrid = {
         
         this.toggleLoader(true);
         try {
-            const logs = await APIUtils.post('/LuftControl/Adjustments/api/gerar-intergrupo', { ano: parseInt(ano), mes: parseInt(mes) });
+            const logs = await APIUtils.post('/api/gerar-intergrupo', { ano: parseInt(ano), mes: parseInt(mes) });
             this.showToast(`Concluído! ${logs ? logs.length : 0} logs gerados.`, "success");
             this.loadData();
         } catch(e) { 
