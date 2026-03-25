@@ -1,9 +1,19 @@
-# Services/SyncService.py
 from sqlalchemy import text
 from Utils.Logger import RegistrarLog
 
 class SyncService:
+    """
+    Serviço responsável por orquestrar a sincronização dos dados contábeis brutos
+    para a tabela consolidada. Efetua a limpeza de registros órfãos, carga de novos
+    lançamentos, aplicação de regras automáticas e estruturação das chaves de indexação.
+    """
     def __init__(self, session_db):
+        """
+        Inicializa o serviço estabelecendo o contexto transacional e mapeando as origens.
+        
+        Parâmetros:
+            session_db (Session): Sessão ativa do SQLAlchemy para conexão com o banco de dados.
+        """
         self.session = session_db
         self.schema = "Dre_Schema"
         
@@ -13,12 +23,14 @@ class SyncService:
             {"tabela": "Tb_CTL_Razao_Intec", "fonte": "INTEC", "origem_txt": "INTEC"}
         ]
 
-    def _AtualizarChaves(self):
+    def atualizarChaves(self):
         """
-        Recalcula as chaves compostas, mês por extenso e vínculos de cadastros.
-        Utiliza "IS DISTINCT FROM" para garantir que o banco de dados SÓ ATUALIZA 
-        as linhas que estão vazias ou que sofreram alguma edição manual.
-        Isso torna a query incrivelmente rápida para rodar a cada 10 segundos.
+        Recalcula as chaves compostas, mês por extenso e vínculos de cadastros de domínio (Filial e Cliente).
+        Opera utilizando CTEs (Common Table Expressions) para garantir performance e atualiza o banco
+        exclusivamente quando constata divergências, minimizando custos de I/O.
+        
+        Retorno:
+            None
         """
         query_chaves = text(f"""
             WITH Calc AS (
@@ -82,19 +94,33 @@ class SyncService:
                 
             FROM Calc c
             WHERE r."Id" = c."Id" AND r."Fonte" = c."Fonte"
-              -- Verifica se algo mudou, incluindo o Saldo!
+              -- Verifica todas as colunas mapeadas, garantindo atualização em caso de alteração no cadastro base
               AND (
                   r."Mes" IS DISTINCT FROM c.calc_mes OR
                   r."CC" IS DISTINCT FROM c.calc_cc OR
                   r."Nome CC" IS DISTINCT FROM c.calc_nome_cc OR
                   r."Cliente" IS DISTINCT FROM c.calc_cliente OR
+                  r."Filial Cliente" IS DISTINCT FROM c.calc_filial_cliente OR
                   r."Chv_Mes_Conta" IS DISTINCT FROM CONCAT(c.calc_mes, c.fmt_conta) OR
+                  r."Chv_Mes_Conta_CC" IS DISTINCT FROM CONCAT(c.calc_mes, c.fmt_conta, c.calc_cc) OR
+                  r."Chv_Mes_NomeCC_Conta" IS DISTINCT FROM CONCAT(c.calc_mes, c.calc_nome_cc, c.fmt_conta) OR
+                  r."Chv_Mes_NomeCC_Conta_CC" IS DISTINCT FROM CONCAT(c.calc_mes, c.calc_nome_cc, c.fmt_conta, c.calc_cc) OR
+                  r."Chv_Conta_Formatada" IS DISTINCT FROM c.fmt_conta OR
+                  r."Chv_Conta_CC" IS DISTINCT FROM CONCAT(c.calc_mes, c.calc_nome_cc, c.fmt_conta, r."Centro de Custo") OR
                   r."Saldo" IS DISTINCT FROM c.calc_saldo
               );
         """)
         self.session.execute(query_chaves)
 
-    def SincronizarDados(self):
+    def sincronizarDados(self):
+        """
+        Executa o pipeline completo de sincronização de dados das tabelas subjacentes para a consolidada.
+        Processa em lotes e emite commits sequenciais para mitigar bloqueios em nível de tabela (RowExclusiveLock),
+        liberando o banco de dados rapidamente para interações concorrentes, como a geração de intergrupos.
+        
+        Retorno:
+            None
+        """
         try:
             for config in self.tabelas_origem:
                 tabela_origem = config["tabela"]
@@ -108,8 +134,9 @@ class SyncService:
                     AND "Id" NOT IN (SELECT "Id" FROM "{self.schema}"."{tabela_origem}")
                 """)
                 self.session.execute(query_delete, {"fonte": fonte})
+                self.session.commit() # Libera o lock de exclusão
                 
-                # 2. INSERIR NOVOS REGISTOS (Entram automaticamente como Aprovados pelo Sistema)
+                # 2. INSERIR NOVOS REGISTROS (Processados automaticamente como Aprovados pelo Sistema)
                 query_insert = text(f"""
                     INSERT INTO "{self.schema}"."Tb_CTL_Razao_Consolidado" (
                         "Id", "Fonte", "origem", "Conta", "Título Conta", "Data", "Numero", "Descricao", 
@@ -128,8 +155,9 @@ class SyncService:
                     WHERE cons."Id" IS NULL
                 """)
                 self.session.execute(query_insert, {"fonte": fonte, "origem_txt": origem_txt})
+                self.session.commit() # Libera o lock de inserção
             
-            # 3. CORREÇÃO AUTOMÁTICA: Atualiza o que já estava na base para o novo padrão
+            # 3. CORREÇÃO AUTOMÁTICA: Padronização de status preexistentes
             query_limpeza = text(f"""
                 UPDATE "{self.schema}"."Tb_CTL_Razao_Consolidado"
                 SET "Status" = 'Aprovado',
@@ -138,8 +166,9 @@ class SyncService:
                 WHERE "Tipo_Operacao" = 'ORIGINAL' AND ("Status" IS NULL OR "Status" = 'Pendente')
             """)
             self.session.execute(query_limpeza)
+            self.session.commit() # Libera o lock de atualização estrutural
 
-            # 4. ATUALIZAR REGRA AUTOMÁTICA (Item 10190)
+            # 4. APLICAÇÃO DE REGRA AUTOMÁTICA (Item 10190)
             query_update_10190 = text(f"""
                 UPDATE "{self.schema}"."Tb_CTL_Razao_Consolidado"
                 SET "Tipo_Operacao" = 'NO-OPER_AUTO',
@@ -150,13 +179,11 @@ class SyncService:
                 WHERE "Item" = '10190' AND "Tipo_Operacao" != 'NO-OPER_AUTO'
             """)
             self.session.execute(query_update_10190)
+            self.session.commit() # Libera o lock de regra de negócios
             
-            # 5. ATUALIZAR CHAVES!
-            # Chama o método que acabámos de criar para preencher as colunas e formatar strings
-            self._AtualizarChaves()
-            
-            # Commit final de todas as operações
-            self.session.commit()
+            # 5. ATUALIZAR CHAVES
+            self.atualizarChaves()
+            self.session.commit() # Libera o lock de chaves relacionais
             
         except Exception as e:
             self.session.rollback()
