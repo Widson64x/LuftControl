@@ -7,6 +7,10 @@ Base = declarative_base()
 # Substitui a tua classe CtlRazaoConsolidado atual por esta:
 
 class CtlRazaoConsolidado(Base):
+    """
+    Modelo de dados para a tabela Consolidada do Razão.
+    Armazena todos os lançamentos contábeis unificados das diferentes origens.
+    """
     __tablename__ = 'Tb_CTL_Razao_Consolidado'
     __table_args__ = {'schema': 'Dre_Schema'}
     
@@ -14,10 +18,11 @@ class CtlRazaoConsolidado(Base):
     Id = Column('Id', Integer, primary_key=True)
     Fonte = Column('Fonte', Text, primary_key=True)
     
-    # --- COLUNAS DE CONTROLO DE AJUSTES (NOVAS) ---
+    # --- COLUNAS DE CONTROLO DE AJUSTES ---
     Tipo_Operacao = Column('Tipo_Operacao', String(20))
     Status = Column('Status', String(20), default='Pendente')
     Is_Nao_Operacional = Column('Is_Nao_Operacional', Boolean, default=False)
+    Is_Intergrupo = Column('Is_Intergrupo', Boolean, default=False)
     Exibir_Saldo = Column('Exibir_Saldo', Boolean, default=True)
     Invalido = Column('Invalido', Boolean, default=False)
     Criado_Por = Column('Criado_Por', String(100))
@@ -52,7 +57,7 @@ class CtlRazaoConsolidado(Base):
     Chv_Mes_NomeCC_Conta_CC = Column('Chv_Mes_NomeCC_Conta_CC', Text)
     Chv_Conta_Formatada = Column('Chv_Conta_Formatada', Text)
     Chv_Conta_CC = Column('Chv_Conta_CC', Text)
-
+    
 class CtlRazaoFarma(Base):
     __tablename__ = 'Tb_CTL_Razao_Farma'
     __table_args__ = {'schema': 'Dre_Schema'}

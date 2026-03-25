@@ -37,28 +37,39 @@ def Inicio():
 @RequerPermissao('AJUSTES_MANUAIS_RAZAO.INTERGRUPO.SINCRONIZAR')
 @require_ajax
 def GerarIntergrupo():
-    """Gera ajustes apenas para o Mês e Ano selecionados na tela."""
+    """
+    Rota da API para processar e gerar os lançamentos de intergrupo.
+    
+    Retorno:
+        Response: Objeto JSON contendo os dados gerados ou mensagem de erro estruturada.
+    """
     session_db = GetSession()
     try:
         data = request.get_json()
         ano = int(data.get('ano'))
         mes = int(data.get('mes'))
         
-        RegistrarLog(f"Rota API: Gerar Intergrupo. Comp: {mes}/{ano}", "HTTP")
+        RegistrarLog(f"Iniciando chamada da rota GerarIntergrupo. Competência: {mes}/{ano}", "HTTP")
         
         svc = AjustesManuaisService(session_db)
-        logs = svc.GerarIntergrupo(ano, mes)
+        RegistrarLog("Instância de AjustesManuaisService criada. Chamando gerarIntergrupo.", "HTTP")
         
+        # Chamada ao método em camelCase conforme padrão
+        logs = svc.gerarIntergrupo(ano, mes)
+        
+        RegistrarLog("Processamento do serviço concluído. Realizando commit no banco.", "HTTP")
         session_db.commit()
-        # Retorna o array de logs dentro do 'data' do LuftCore
+        
+        RegistrarLog(f"Commit realizado com sucesso. {len(logs)} logs retornados.", "HTTP")
         return api_success(data=logs, message=f"Intergrupo gerado com {len(logs)} lançamentos.")
 
     except Exception as e:
-        RegistrarLog("Erro API Gerar Intergrupo", "ERROR", e)
+        RegistrarLog("Erro crítico na rota GerarIntergrupo", "ERROR", e)
         session_db.rollback()
         return api_error(message="Falha ao gerar lançamentos intergrupo.", details=str(e), status=500)
     finally:
         session_db.close()
+        RegistrarLog("Sessão do banco de dados fechada na rota GerarIntergrupo.", "HTTP")
 
 @ajustes_bp.route('/api/razao/dados', methods=['GET'])
 @login_required

@@ -19,7 +19,7 @@ class DreConsolidado {
             selectedYear: new Date().getFullYear(),            
             sort: { col: null, dir: 'asc' }, 
             // AS NOVAS COLUNAS EM VEZ DE MESES
-            columnsOrder: ['INTEC', 'FARMA', 'FARMA_DIST', 'POLO', 'JANDIRA', 'CABREUVA', 'NAO_OPER_INTEC', 'NAO_OPER_FARMA', 'INTERGRUPO', 'Total_Geral'],            
+            columnsOrder: ['INTEC', 'FARMA', 'FARMA_DIST', 'POLO', 'JANDIRA', 'CABREUVA', 'NAO_OPER_INTEC', 'NAO_OPER_FARMA', 'INTERGRUPO'],            
             viewMode: 'TIPO',
             scaleMode: 'dre',
             selectedCCs: ['Todos'], 
@@ -70,7 +70,6 @@ class DreConsolidado {
             'FARMA_DIST': 'FARMA DIST',
             'NAO_OPER_INTEC': 'NÃO OPER INTEC',
             'NAO_OPER_FARMA': 'NÃO OPER FARMA',
-            'Total_Geral': 'Total Geral'
         };
         return names[col] || col;
     }

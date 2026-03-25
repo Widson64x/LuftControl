@@ -412,16 +412,31 @@ class AjustesManuaisService:
     # =========================================================================
     # PROCESSAMENTO DE INTERGRUPOS (Lançam direto na Consolidada)
     # =========================================================================
-    def ProcessarIntergrupoIntec(self, ano, mes, data_gravacao):
-        # A lógica de leitura do CSV mantém-se igual
+    def processarIntergrupoIntec(self, ano, mes, data_gravacao):
+        """
+        Processa e gera os lançamentos de intergrupo para a fonte INTEC com base no arquivo CSV.
+        Utiliza bloqueio de autoflush para prevenir deadlocks durante atualizações em lote.
+        
+        Parâmetros:
+            ano (int): Ano de competência.
+            mes (int): Mês de competência.
+            data_gravacao (datetime): Data de registro contábil.
+            
+        Retorno:
+            list: Lista contendo os logs detalhados das operações executadas.
+        """
+        RegistrarLog(f"processarIntergrupoIntec: Iniciando execução para {mes}/{ano}", "SERVICE")
         try:
             meses_map = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
             competencia_anomes = f"{ano}-{meses_map[mes]}"
             caminho_csv = os.path.join(BaseConfig().DataCSVPath(), "ValorFinanceiro.csv")
             
+            RegistrarLog("processarIntergrupoIntec: Validando existência do arquivo CSV.", "SERVICE")
             if not os.path.exists(caminho_csv):
-                 return ["Erro: Arquivo ValorFinanceiro.csv não encontrado."]
+                RegistrarLog("processarIntergrupoIntec: Arquivo ValorFinanceiro.csv não encontrado.", "WARNING")
+                return ["Erro: Arquivo ValorFinanceiro.csv não encontrado."]
 
+            RegistrarLog("processarIntergrupoIntec: Carregando CSV via Pandas.", "SERVICE")
             df_csv = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
             if len(df_csv.columns) <= 1: 
                 df_csv = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
@@ -429,12 +444,23 @@ class AjustesManuaisService:
             def limpar_coluna(col): return col.strip().replace('Ï»¿', '').replace('\ufeff', '').upper()
             df_csv.columns = [limpar_coluna(c) for c in df_csv.columns]
             
-            if 'INTERGROUP' not in df_csv.columns: return [f"Erro: Coluna INTERGROUP inexistente. Verifique o CSV."]
+            if 'INTERGROUP' not in df_csv.columns: 
+                return ["Erro: Coluna INTERGROUP inexistente. Verifique o CSV."]
 
+            RegistrarLog("processarIntergrupoIntec: Convertendo colunas de valores.", "SERVICE")
             if 'VALORFINANCEIRO' in df_csv.columns:
-                if df_csv['VALORFINANCEIRO'].dtype == object: df_csv['VALORFINANCEIRO'] = df_csv['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
+                if df_csv['VALORFINANCEIRO'].dtype == object: 
+                    df_csv['VALORFINANCEIRO'] = df_csv['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
                 df_csv['VALORFINANCEIRO'] = pd.to_numeric(df_csv['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
             
+            # Filtra os dados para INTEC e calcula os somatórios necessários para os lançamentos
+            """
+                Regra de Negócio:
+                - Para o modal Aéreo da Intec, só consideramos os registros que têm INTERGROUP S ou N (excluindo os vazios)
+                - Para os demais cálculos de Rodoviário e Aéreo, consideramos apenas os registros com INTERGROUP S
+                - Se os somatórios de Rodoviário, Aéreo ou do Aéreo específico da Intec forem todos zero, não faz sentido criar os lançamentos de intergrupo, então abortamos a operação.
+            """
+            RegistrarLog("processarIntergrupoIntec: Filtrando dataframes e calculando somatórios.", "SERVICE")
             df_novo_filtro = df_csv[(df_csv['MODAL'].str.upper() == 'AEREO') & (df_csv['EMPRESA'].str.upper() == 'INTEC') & (df_csv['INTERGROUP'].str.upper().isin(['S', 'N'])) & (df_csv['ANOMES'] == competencia_anomes)]
             v_aereo_intec_especifico = df_novo_filtro['VALORFINANCEIRO'].sum()
 
@@ -442,11 +468,15 @@ class AjustesManuaisService:
             v_rodoviario = df_filtrado_s[df_filtrado_s['MODAL'].str.upper() == 'RODOVIARIO']['VALORFINANCEIRO'].sum()
             v_aereo = df_filtrado_s[df_filtrado_s['MODAL'].str.upper() == 'AEREO']['VALORFINANCEIRO'].sum()
 
-            if v_rodoviario == 0 and v_aereo == 0 and v_aereo_intec_especifico == 0: return []
+            if v_rodoviario == 0 and v_aereo == 0 and v_aereo_intec_especifico == 0: 
+                RegistrarLog("processarIntergrupoIntec: Valores de somatório zerados. Abortando criação Intec.", "SERVICE")
+                return []
 
-            # Busca template na própria base consolidada
+            RegistrarLog("processarIntergrupoIntec: [QUERY DB] Buscando template Intec na base consolidada...", "SERVICE")
             template = self.session.query(CtlRazaoConsolidado).filter_by(origem='INTEC', Conta='60101010201').order_by(CtlRazaoConsolidado.Data.desc()).first()
-            if not template: return ["Template INTEC não encontrado"]
+            if not template: 
+                RegistrarLog("processarIntergrupoIntec: Template INTEC não encontrado no banco.", "WARNING")
+                return ["Template INTEC não encontrado"]
 
             logs_intec = []
             lancamentos = [
@@ -458,45 +488,70 @@ class AjustesManuaisService:
                 {'modal': 'AEREO', 'valor': v_aereo, 'conta': '60101010201C', 'tipo': 'C', 'sufixo': 'C'}
             ]
 
+            RegistrarLog("processarIntergrupoIntec: [QUERY DB] Consultando ID Máximo...", "SERVICE")
             max_id = self.session.query(func.max(CtlRazaoConsolidado.Id)).filter(CtlRazaoConsolidado.Fonte == 'INTERGRUPO_INTEC').scalar() or 0
 
-            for lanc in lancamentos:
-                if lanc['valor'] > 0:
-                    v_abs = round(abs(lanc['valor']), 2)
-                    val_debito = v_abs if lanc['tipo'] == 'D' else 0.0
-                    val_credito = v_abs if lanc['tipo'] == 'C' else 0.0
-                    desc_final = f"INTERGRUPO INTEC - {lanc['modal']} - {competencia_anomes} ({lanc['sufixo']})"
+            # Suspensão do Autoflush para evitar locks
+            with self.session.no_autoflush:
+                RegistrarLog("processarIntergrupoIntec: Iniciando loop de inserção/update com no_autoflush ativado.", "SERVICE")
+                for index, lanc in enumerate(lancamentos):
+                    if lanc['valor'] > 0:
+                        v_abs = round(abs(lanc['valor']), 2)
+                        val_debito = v_abs if lanc['tipo'] == 'D' else 0.0
+                        val_credito = v_abs if lanc['tipo'] == 'C' else 0.0
+                        desc_final = f"INTERGRUPO INTEC - {lanc['modal']} - {competencia_anomes} ({lanc['sufixo']})"
 
-                    # Procura se o registo já existe na consolidada
-                    reg_existente = self.session.query(CtlRazaoConsolidado).filter_by(
-                        Fonte='INTERGRUPO_INTEC', Conta=lanc['conta'], Descricao=desc_final, Data=data_gravacao
-                    ).first()
+                        RegistrarLog(f"processarIntergrupoIntec: [QUERY DB] Verificando existência (Item {index+1}/6) na conta {lanc['conta']}.", "SERVICE")
+                        reg_existente = self.session.query(CtlRazaoConsolidado).filter_by(
+                            Fonte='INTERGRUPO_INTEC', Conta=lanc['conta'], Descricao=desc_final, Data=data_gravacao
+                        ).first()
 
-                    if reg_existente:
-                        valor_atual = reg_existente.Debito if lanc['tipo'] == 'D' else reg_existente.Credito
-                        if abs(valor_atual - v_abs) > 0.01:
-                            if lanc['tipo'] == 'D': reg_existente.Debito = v_abs
-                            else: reg_existente.Credito = v_abs
-                            logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Atualizado para {v_abs}")
-                    else:
-                        max_id += 1
-                        novo_reg = CtlRazaoConsolidado(
-                            Id=max_id, Fonte='INTERGRUPO_INTEC', origem='INTEC',
-                            Conta=lanc['conta'], Titulo_Conta=template.Titulo_Conta or 'VENDA DE FRETES',
-                            Data=data_gravacao, Descricao=desc_final, Debito=val_debito, Credito=val_credito,
-                            Filial=template.Filial, Centro_Custo=template.Centro_Custo, Item='INTERGRUPO',
-                            Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Invalido=False,
-                            Criado_Por='SISTEMA_AUTO', Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
-                        )
-                        self.session.add(novo_reg)
-                        logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Criado {v_abs}")
+                        if reg_existente:
+                            RegistrarLog(f"processarIntergrupoIntec: Atualizando registro existente na memória (Conta {lanc['conta']}).", "SERVICE")
+                            reg_existente.Is_Intergrupo = True
+                            valor_atual = reg_existente.Debito if lanc['tipo'] == 'D' else reg_existente.Credito
+                            if abs(valor_atual - v_abs) > 0.01:
+                                if lanc['tipo'] == 'D': reg_existente.Debito = v_abs
+                                else: reg_existente.Credito = v_abs
+                                logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Atualizado para {v_abs}")
+                        else:
+                            max_id += 1
+                            RegistrarLog(f"processarIntergrupoIntec: Criando novo objeto na memória (Conta {lanc['conta']} ID {max_id}).", "SERVICE")
+                            novo_reg = CtlRazaoConsolidado(
+                                Id=max_id, Fonte='INTERGRUPO_INTEC', origem='INTEC',
+                                Conta=lanc['conta'], Titulo_Conta=template.Titulo_Conta or 'VENDA DE FRETES',
+                                Data=data_gravacao, Descricao=desc_final, Debito=val_debito, Credito=val_credito,
+                                Filial=template.Filial, Centro_Custo=template.Centro_Custo, Item='INTERGRUPO',
+                                Is_Intergrupo=True,
+                                Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Invalido=False,
+                                Criado_Por='SISTEMA_AUTO', Data_Aprovacao=datetime.datetime.now(), Exibir_Saldo=True
+                            )
+                            self.session.add(novo_reg)
+                            logs_intec.append(f"[{competencia_anomes}] {lanc['modal']} {lanc['sufixo']}: Criado {v_abs}")
             
+            RegistrarLog("processarIntergrupoIntec: Operação finalizada com sucesso.", "SERVICE")
             return logs_intec
 
         except Exception as e:
+            RegistrarLog(f"Erro Crítico Intec: {str(e)}", "ERROR")
             return [f"ERRO CRÍTICO INTEC: {str(e)}"]
         
-    def ProcessarIntergrupoFarma(self, ano, mes, data_inicio, data_fim, data_gravacao):
+    def processarIntergrupoFarma(self, ano, mes, data_inicio, data_fim, data_gravacao):
+        """
+        Calcula e aplica os lançamentos de intergrupo para a FARMA cruzando os dados do banco e CSV.
+        Implementa proteção contra leitura suja (autoflush lock) e define chaves de aprovação automáticas.
+        
+        Parâmetros:
+            ano (int): Ano de competência.
+            mes (int): Mês de competência.
+            data_inicio (datetime): Data de início da busca de movimentação.
+            data_fim (datetime): Data final da busca de movimentação.
+            data_gravacao (datetime): Data de registro contábil.
+            
+        Retorno:
+            list: Lista contendo os logs detalhados das operações executadas.
+        """
+        RegistrarLog(f"processarIntergrupoFarma: Iniciando execução para {mes}/{ano}", "SERVICE")
         logs_farma = []
         try:
             config_contas_banco = {
@@ -504,136 +559,179 @@ class AjustesManuaisService:
                 '60301020288': {'destino': '60301020288C', 'descricao': 'ajuste intergrupo ( fretes Aéreo)', 'titulo_origem': 'FRETES AEREO', 'titulo_destino': 'FRETES AEREO'}
             }
             
-            max_id = self.session.query(func.max(CtlRazaoConsolidado.Id)).filter(CtlRazaoConsolidado.Fonte == 'INTERGRUPO_FARMA').scalar() or 0
+            # Isolamento transacional de leitura
+            with self.session.no_autoflush:
+                RegistrarLog("processarIntergrupoFarma: [QUERY DB] Consultando ID Máximo Farma...", "SERVICE")
+                max_id = self.session.query(func.max(CtlRazaoConsolidado.Id)).filter(CtlRazaoConsolidado.Fonte == 'INTERGRUPO_FARMA').scalar() or 0
 
-            for conta_origem, config in config_contas_banco.items():
-                registros = self.session.query(CtlRazaoConsolidado).filter(
-                    CtlRazaoConsolidado.Conta == conta_origem,
-                    CtlRazaoConsolidado.Data >= data_inicio,
-                    CtlRazaoConsolidado.Data <= data_fim,
-                    CtlRazaoConsolidado.origem != 'INTEC'
-                ).all()
+                for conta_origem, config in config_contas_banco.items():
+                    RegistrarLog(f"processarIntergrupoFarma: [QUERY DB] Consultando registros base para conta {conta_origem}...", "SERVICE")
+                    registros = self.session.query(CtlRazaoConsolidado).filter(
+                        CtlRazaoConsolidado.Conta == conta_origem,
+                        CtlRazaoConsolidado.Data >= data_inicio,
+                        CtlRazaoConsolidado.Data <= data_fim,
+                        CtlRazaoConsolidado.origem != 'INTEC'
+                    ).all()
 
-                agrupado_por_origem = {}
+                    agrupado_por_origem = {}
+                    RegistrarLog(f"processarIntergrupoFarma: Agrupando origens em {len(registros)} registros...", "SERVICE")
 
-                for r in registros:
-                    descricao_texto = str(r.Descricao or '').upper()
-                    if "INTEC" in descricao_texto:
-                        orig = r.origem
-                        if orig not in agrupado_por_origem:
-                            agrupado_por_origem[orig] = { 'deb': 0.0, 'cred': 0.0, 'item': r.Item, 'filial': r.Filial, 'cc': r.Centro_Custo, 'origem': orig }
+                    for r in registros:
+                        descricao_texto = str(r.Descricao or '').upper()
+                        if "INTEC" in descricao_texto:
+                            orig = r.origem
+                            if orig not in agrupado_por_origem:
+                                agrupado_por_origem[orig] = { 'deb': 0.0, 'cred': 0.0, 'item': r.Item, 'filial': r.Filial, 'cc': r.Centro_Custo, 'origem': orig }
+                            
+                            agrupado_por_origem[orig]['deb'] += float(r.Debito or 0.0)
+                            agrupado_por_origem[orig]['cred'] += float(r.Credito or 0.0)
+                            
+                            if not agrupado_por_origem[orig]['filial'] and r.Filial: agrupado_por_origem[orig]['filial'] = r.Filial
+                            if not agrupado_por_origem[orig]['cc'] and r.Centro_Custo: agrupado_por_origem[orig]['cc'] = r.Centro_Custo
+                            if not agrupado_por_origem[orig]['item'] and r.Item: agrupado_por_origem[orig]['item'] = r.Item
+
+                    for orig, dados in agrupado_por_origem.items():
+                        if not dados['deb'] and not dados['cred']: continue
                         
-                        agrupado_por_origem[orig]['deb'] += float(r.Debito or 0.0)
-                        agrupado_por_origem[orig]['cred'] += float(r.Credito or 0.0)
+                        valor_ajuste = round(abs(dados['deb'] - dados['cred']), 2)
+                        if valor_ajuste <= 0: continue
                         
-                        if not agrupado_por_origem[orig]['filial'] and r.Filial: agrupado_por_origem[orig]['filial'] = r.Filial
-                        if not agrupado_por_origem[orig]['cc'] and r.Centro_Custo: agrupado_por_origem[orig]['cc'] = r.Centro_Custo
-                        if not agrupado_por_origem[orig]['item'] and r.Item: agrupado_por_origem[orig]['item'] = r.Item
+                        RegistrarLog(f"processarIntergrupoFarma: [QUERY DB] Verificando existência de destino {config['destino']} para filial {orig}...", "SERVICE")
+                        reg_destino_existente = self.session.query(CtlRazaoConsolidado).filter_by(
+                            Fonte='INTERGRUPO_FARMA', origem=dados['origem'], Conta=config['destino'], Data=data_gravacao
+                        ).first()
 
-                for orig, dados in agrupado_por_origem.items():
-                    if not dados['deb'] and not dados['cred']: continue
-                    
-                    valor_ajuste = round(abs(dados['deb'] - dados['cred']), 2)
-                    if valor_ajuste <= 0: continue
-                    
-                    # Procura se já existe na Tabela Consolidada o destino
-                    reg_destino_existente = self.session.query(CtlRazaoConsolidado).filter_by(
-                        Fonte='INTERGRUPO_FARMA', origem=dados['origem'], Conta=config['destino'], Data=data_gravacao
-                    ).first()
-
-                    if reg_destino_existente:
-                        if abs(reg_destino_existente.Debito - valor_ajuste) > 0.01:
-                             reg_destino_existente.Debito = valor_ajuste
-                             
-                             reg_origem_existente = self.session.query(CtlRazaoConsolidado).filter_by(
-                                 Fonte='INTERGRUPO_FARMA', origem=dados['origem'], Conta=conta_origem, Data=data_gravacao
-                             ).first()
-                             if reg_origem_existente: reg_origem_existente.Credito = valor_ajuste
-                             logs_farma.append(f"[{mes:02d}/{ano}] {dados['origem']}: Atualizado {config['destino']} v:{valor_ajuste}")
-                    else:
-                        max_id += 1
-                        aj_origem = CtlRazaoConsolidado(
-                            Id=max_id, Fonte='INTERGRUPO_FARMA', origem=dados['origem'],
-                            Conta=conta_origem, Titulo_Conta=config['titulo_origem'], Data=data_gravacao,
-                            Descricao=config['descricao'], Debito=0.0, Credito=valor_ajuste,
-                            Filial=dados['filial'], Centro_Custo=dados['cc'], Item=dados['item'],
-                            Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO', Exibir_Saldo=True
-                        )
-                        max_id += 1
-                        aj_destino = CtlRazaoConsolidado(
-                            Id=max_id, Fonte='INTERGRUPO_FARMA', origem=dados['origem'],
-                            Conta=config['destino'], Titulo_Conta=config['titulo_destino'], Data=data_gravacao,
-                            Descricao=config['descricao'], Debito=valor_ajuste, Credito=0.0,
-                            Filial=dados['filial'], Centro_Custo=dados['cc'], Item=dados['item'],
-                            Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO', Exibir_Saldo=True
-                        )
-                        self.session.add(aj_origem)
-                        self.session.add(aj_destino)
-                        logs_farma.append(f"[{mes:02d}/{ano}] {dados['origem']}: Criado {conta_origem} -> {config['destino']} v:{valor_ajuste}")
-
-            # PARTE 2: CSV
-            meses_map = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
-            competencia_anomes = f"{ano}-{meses_map[mes]}"
-            caminho_csv = os.path.join(BaseConfig().DataCSVPath(), "ValorFinanceiro.csv")
-            
-            if os.path.exists(caminho_csv):
-                df_csv = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
-                if len(df_csv.columns) <= 1: df_csv = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
-
-                def limpar_coluna(col): return col.strip().replace('Ï»¿', '').replace('\ufeff', '').upper()
-                df_csv.columns = [limpar_coluna(c) for c in df_csv.columns]
-                
-                if 'VALORFINANCEIRO' in df_csv.columns:
-                    if df_csv['VALORFINANCEIRO'].dtype == object: df_csv['VALORFINANCEIRO'] = df_csv['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
-                    df_csv['VALORFINANCEIRO'] = pd.to_numeric(df_csv['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
-
-                if all(c in df_csv.columns for c in ['MODAL', 'EMPRESA', 'ANOMES']):
-                    df_farma_aereo = df_csv[(df_csv['MODAL'].str.upper() == 'AEREO') & (df_csv['EMPRESA'].str.upper() == 'FARMA') & (df_csv['ANOMES'] == competencia_anomes)]
-                    valor_csv_farma = round(df_farma_aereo['VALORFINANCEIRO'].sum(), 2)
-                    
-                    if valor_csv_farma > 0:
-                        template = self.session.query(CtlRazaoConsolidado).filter_by(origem='FARMA', Conta='60101010201').first()
-                        desc_csv = 'VLR. CFE DIARIO AUXILIAR N/ DATA (aéreo)'
-
-                        lancamentos = [
-                            {'valor': valor_csv_farma, 'conta': '60101010201', 'tipo': 'D', 'sufixo': 'DEBITO'},
-                            {'valor': valor_csv_farma, 'conta': '60101010201A', 'tipo': 'C', 'sufixo': 'CREDITO'}
-                        ]
-
-                        for lanc in lancamentos:
-                            v_abs = round(abs(lanc['valor']), 2)
-                            val_debito = v_abs if lanc['tipo'] == 'D' else 0.0
-                            val_credito = v_abs if lanc['tipo'] == 'C' else 0.0
-
-                            reg_existente = self.session.query(CtlRazaoConsolidado).filter_by(
-                                Fonte='INTERGRUPO_FARMA', Conta=lanc['conta'], Descricao=desc_csv, Data=data_gravacao
+                        if reg_destino_existente:
+                            RegistrarLog("processarIntergrupoFarma: Atualizando destino e origem existentes na memória...", "SERVICE")
+                            
+                            # Correção 1: Ativando a flag na conta destino independente de mudança de valor
+                            reg_destino_existente.Is_Intergrupo = True
+                            
+                            # Correção 2: Buscando e ativando a flag na conta origem independente de mudança de valor
+                            reg_origem_existente = self.session.query(CtlRazaoConsolidado).filter_by(
+                                Fonte='INTERGRUPO_FARMA', origem=dados['origem'], Conta=conta_origem, Data=data_gravacao
                             ).first()
+                            
+                            if reg_origem_existente: 
+                                reg_origem_existente.Is_Intergrupo = True
+                                
+                            # Agora sim, se o valor for diferente, a gente ajusta a parte financeira
+                            if abs(reg_destino_existente.Debito - valor_ajuste) > 0.01:
+                                reg_destino_existente.Debito = valor_ajuste
+                                if reg_origem_existente:
+                                    reg_origem_existente.Credito = valor_ajuste
+                                logs_farma.append(f"[{mes:02d}/{ano}] {dados['origem']}: Atualizado {config['destino']} v:{valor_ajuste}")
+                        else:
+                            RegistrarLog("processarIntergrupoFarma: Criando novos ajustes de origem e destino na memória...", "SERVICE")
+                            max_id += 1
+                            aj_origem = CtlRazaoConsolidado(
+                                Id=max_id, Fonte='INTERGRUPO_FARMA', origem=dados['origem'],
+                                Conta=conta_origem, Titulo_Conta=config['titulo_origem'], Data=data_gravacao,
+                                Descricao=config['descricao'], Debito=0.0, Credito=valor_ajuste,
+                                Filial=dados['filial'], Centro_Custo=dados['cc'], Item=dados['item'],
+                                Is_Intergrupo=True,
+                                Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO', Exibir_Saldo=True,
+                                Data_Aprovacao=datetime.datetime.now() # <-- CORREÇÃO: Data Aprovacao Auto
+                            )
+                            max_id += 1
+                            aj_destino = CtlRazaoConsolidado(
+                                Id=max_id, Fonte='INTERGRUPO_FARMA', origem=dados['origem'],
+                                Conta=config['destino'], Titulo_Conta=config['titulo_destino'], Data=data_gravacao,
+                                Descricao=config['descricao'], Debito=valor_ajuste, Credito=0.0,
+                                Filial=dados['filial'], Centro_Custo=dados['cc'], Item=dados['item'],
+                                Is_Intergrupo=True,
+                                Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO', Exibir_Saldo=True,
+                                Data_Aprovacao=datetime.datetime.now() # <-- CORREÇÃO: Data Aprovacao Auto
+                            )
+                            self.session.add(aj_origem)
+                            self.session.add(aj_destino)
+                            logs_farma.append(f"[{mes:02d}/{ano}] {dados['origem']}: Criado {conta_origem} -> {config['destino']} v:{valor_ajuste}")
 
-                            if reg_existente:
-                                valor_atual = reg_existente.Debito if lanc['tipo'] == 'D' else reg_existente.Credito
-                                if abs(valor_atual - v_abs) > 0.01:
-                                    if lanc['tipo'] == 'D': reg_existente.Debito = v_abs
-                                    else: reg_existente.Credito = v_abs
-                                    logs_farma.append(f"[{mes:02d}/{ano}] FARMA (CSV) {lanc['sufixo']}: Atualizado {lanc['conta']} para {v_abs}")
-                            else:
-                                max_id += 1
-                                novo_ajuste = CtlRazaoConsolidado(
-                                    Id=max_id, Fonte='INTERGRUPO_FARMA', origem='FARMA',
-                                    Conta=lanc['conta'], Titulo_Conta='VENDA DE FRETES', Data=data_gravacao,
-                                    Descricao=desc_csv, Debito=val_debito, Credito=val_credito,
-                                    Filial=template.Filial if template else None, 
-                                    Centro_Custo=template.Centro_Custo if template else None, 
-                                    Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO_CSV', Exibir_Saldo=True
-                                )
-                                self.session.add(novo_ajuste)
-                                logs_farma.append(f"[{mes:02d}/{ano}] FARMA (CSV) {lanc['sufixo']}: Criado {lanc['conta']} v:{v_abs}")
+                # PARTE 2: CSV
+                RegistrarLog("processarIntergrupoFarma: Iniciando processamento de CSV Farma...", "SERVICE")
+                meses_map = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
+                competencia_anomes = f"{ano}-{meses_map[mes]}"
+                caminho_csv = os.path.join(BaseConfig().DataCSVPath(), "ValorFinanceiro.csv")
+                
+                if os.path.exists(caminho_csv):
+                    df_csv = pd.read_csv(caminho_csv, sep=';', encoding='utf-8-sig', low_memory=False)
+                    if len(df_csv.columns) <= 1: df_csv = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig', low_memory=False)
+
+                    def limpar_coluna(col): return col.strip().replace('Ï»¿', '').replace('\ufeff', '').upper()
+                    df_csv.columns = [limpar_coluna(c) for c in df_csv.columns]
+                    
+                    if 'VALORFINANCEIRO' in df_csv.columns:
+                        if df_csv['VALORFINANCEIRO'].dtype == object: 
+                            df_csv['VALORFINANCEIRO'] = df_csv['VALORFINANCEIRO'].astype(str).str.replace('.', '').str.replace(',', '.')
+                        df_csv['VALORFINANCEIRO'] = pd.to_numeric(df_csv['VALORFINANCEIRO'], errors='coerce').fillna(0.0)
+
+                    if all(c in df_csv.columns for c in ['MODAL', 'EMPRESA', 'ANOMES']):
+                        df_farma_aereo = df_csv[(df_csv['MODAL'].str.upper() == 'AEREO') & (df_csv['EMPRESA'].str.upper() == 'FARMA') & (df_csv['ANOMES'] == competencia_anomes)]
+                        valor_csv_farma = round(df_farma_aereo['VALORFINANCEIRO'].sum(), 2)
+                        
+                        if valor_csv_farma > 0:
+                            RegistrarLog("processarIntergrupoFarma: [QUERY DB] Buscando template Farma 60101010201...", "SERVICE")
+                            template = self.session.query(CtlRazaoConsolidado).filter_by(origem='FARMA', Conta='60101010201').first()
+                            desc_csv = 'VLR. CFE DIARIO AUXILIAR N/ DATA (aéreo)'
+
+                            lancamentos = [
+                                {'valor': valor_csv_farma, 'conta': '60101010201', 'tipo': 'D', 'sufixo': 'DEBITO'},
+                                {'valor': valor_csv_farma, 'conta': '60101010201A', 'tipo': 'C', 'sufixo': 'CREDITO'}
+                            ]
+
+                            for lanc in lancamentos:
+                                v_abs = round(abs(lanc['valor']), 2)
+                                val_debito = v_abs if lanc['tipo'] == 'D' else 0.0
+                                val_credito = v_abs if lanc['tipo'] == 'C' else 0.0
+
+                                RegistrarLog(f"processarIntergrupoFarma: [QUERY DB] Verificando destino CSV para conta {lanc['conta']}...", "SERVICE")
+                                reg_existente = self.session.query(CtlRazaoConsolidado).filter_by(
+                                    Fonte='INTERGRUPO_FARMA', Conta=lanc['conta'], Descricao=desc_csv, Data=data_gravacao
+                                ).first()
+
+                                if reg_existente:
+                                    RegistrarLog("processarIntergrupoFarma: Atualizando registro de CSV na memória...", "SERVICE")
+                                    reg_existente.Is_Intergrupo = True # <-- Ativando flag no update do CSV
+                                    valor_atual = reg_existente.Debito if lanc['tipo'] == 'D' else reg_existente.Credito
+                                    if abs(valor_atual - v_abs) > 0.01:
+                                        if lanc['tipo'] == 'D': reg_existente.Debito = v_abs
+                                        else: reg_existente.Credito = v_abs
+                                        logs_farma.append(f"[{mes:02d}/{ano}] FARMA (CSV) {lanc['sufixo']}: Atualizado {lanc['conta']} para {v_abs}")
+                                else:
+                                    RegistrarLog("processarIntergrupoFarma: Criando novo registro de CSV na memória...", "SERVICE")
+                                    max_id += 1
+                                    novo_ajuste = CtlRazaoConsolidado(
+                                        Id=max_id, Fonte='INTERGRUPO_FARMA', origem='FARMA',
+                                        Conta=lanc['conta'], Titulo_Conta='VENDA DE FRETES', Data=data_gravacao,
+                                        Descricao=desc_csv, Debito=val_debito, Credito=val_credito,
+                                        Filial=template.Filial if template else None, 
+                                        Centro_Custo=template.Centro_Custo if template else None, 
+                                        Is_Intergrupo=True,
+                                        Tipo_Operacao='INTERGRUPO_AUTO', Status='Aprovado', Criado_Por='SISTEMA_AUTO_CSV', Exibir_Saldo=True,
+                                        Data_Aprovacao=datetime.datetime.now() # <-- CORREÇÃO: Data Aprovacao Auto
+                                    )
+                                    self.session.add(novo_ajuste)
+                                    logs_farma.append(f"[{mes:02d}/{ano}] FARMA (CSV) {lanc['sufixo']}: Criado {lanc['conta']} v:{v_abs}")
+
+            RegistrarLog("processarIntergrupoFarma: Finalizado com sucesso.", "SERVICE")
             return logs_farma
             
         except Exception as e:
-            RegistrarLog(f"Erro no ProcessarIntergrupoFarma", "ERROR", e)
+            RegistrarLog(f"Erro no processarIntergrupoFarma", "ERROR", e)
             raise e
 
-    def GerarIntergrupo(self, ano, mes):
+    def gerarIntergrupo(self, ano, mes):
+        """
+        Orquestra a geração de intergrupos para INTEC e FARMA.
+        Efetua commits parciais no banco de dados para evitar gargalos e perdas de conexão.
+        
+        Parâmetros:
+            ano (int): Ano de competência.
+            mes (int): Mês de competência.
+            
+        Retorno:
+            list: Histórico consolidado das ações executadas.
+        """
         logs_totais = []
         ultimo_dia = calendar.monthrange(ano, mes)[1]
         data_inicio = datetime.datetime(ano, mes, 1)
@@ -641,13 +739,32 @@ class AjustesManuaisService:
         data_gravacao = datetime.datetime(ano, mes, ultimo_dia)
 
         try:
-            logs_intec = self.ProcessarIntergrupoIntec(ano, mes, data_gravacao)
-            logs_totais.extend(logs_intec)
-            logs_farma = self.ProcessarIntergrupoFarma(ano, mes, data_inicio, data_fim, data_gravacao)
-            logs_totais.extend(logs_farma)
-            self.session.commit()
+            RegistrarLog("gerarIntergrupo: Iniciando chamadas.", "SERVICE")
             
-            # Conta na base de dados quantos intergrupos existem (para validação)
+            # 1. Processa o Intec isoladamente
+            RegistrarLog("gerarIntergrupo: Chamando processarIntergrupoIntec...", "SERVICE")
+            logs_intec = self.processarIntergrupoIntec(ano, mes, data_gravacao)
+            logs_totais.extend(logs_intec)
+            RegistrarLog(f"gerarIntergrupo: Retornou do processarIntergrupoIntec com {len(logs_intec)} logs.", "SERVICE")
+            
+            # -> PONTO CRÍTICO DE AVALIAÇÃO DO LOCK
+            RegistrarLog("gerarIntergrupo: [ATENÇÃO] Solicitando COMMIT parcial do INTEC no banco de dados...", "SERVICE")
+            self.session.commit()
+            RegistrarLog("gerarIntergrupo: [SUCESSO] Commit do INTEC finalizado sem travar o banco.", "SERVICE")
+            
+            # 2. Processa e salva a Farma isoladamente
+            RegistrarLog("gerarIntergrupo: Chamando processarIntergrupoFarma...", "SERVICE")
+            logs_farma = self.processarIntergrupoFarma(ano, mes, data_inicio, data_fim, data_gravacao)
+            logs_totais.extend(logs_farma)
+            RegistrarLog(f"gerarIntergrupo: Retornou do processarIntergrupoFarma com {len(logs_farma)} logs.", "SERVICE")
+            
+            # -> SEGUNDO PONTO CRÍTICO
+            RegistrarLog("gerarIntergrupo: [ATENÇÃO] Solicitando COMMIT parcial da FARMA no banco de dados...", "SERVICE")
+            self.session.commit()
+            RegistrarLog("gerarIntergrupo: [SUCESSO] Commit da FARMA finalizado sem travar o banco.", "SERVICE")
+            
+            # 3. Validação final
+            RegistrarLog("gerarIntergrupo: [QUERY DB] Contando quantidade de registros gerados na Consolidada...", "SERVICE")
             qtd_registros = self.session.query(CtlRazaoConsolidado).filter(
                 CtlRazaoConsolidado.Tipo_Operacao == 'INTERGRUPO_AUTO',
                 text(f"EXTRACT(MONTH FROM \"Data\") = {mes}"),
@@ -657,11 +774,15 @@ class AjustesManuaisService:
             if qtd_registros < 12:
                 aviso = f"ATENÇÃO CRÍTICA: Processo gerou apenas {qtd_registros} registros. Esperado no mínimo 12."
                 logs_totais.append(aviso)
+                RegistrarLog(aviso, "WARNING")
             else:
-                logs_totais.append(f"Sucesso: {qtd_registros} registros intergrupo processados na Consolidada.")
+                sucesso_msg = f"Sucesso: {qtd_registros} registros intergrupo processados na Consolidada."
+                logs_totais.append(sucesso_msg)
+                RegistrarLog(sucesso_msg, "SERVICE")
 
             return logs_totais
 
         except Exception as e:
+            RegistrarLog("gerarIntergrupo: Erro detectado na orquestração. Realizando rollback.", "ERROR", e)
             self.session.rollback() 
             raise e
