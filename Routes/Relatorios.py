@@ -11,6 +11,7 @@ from luftcore.extensions.flask_extension import (
 
 # Importa o Serviço (Único ponto de contato com a lógica)
 from Modules.DRE.Services.RelatoriosService import RelatoriosService
+from Modules.BUDGET.Services.RelatoriosService import RelatoriosService as BudgetRelatoriosService
 from Modules.DRE.Services.PermissaoService import RequerPermissao
 # Import do Logger
 from Utils.Logger import RegistrarLog
@@ -154,7 +155,32 @@ def GerarDreOperacao():
     except Exception as e:
         RegistrarLog("Erro Crítico no Relatório DRE Operação", "ERROR", e)
         return api_error(message="Falha ao gerar o DRE Operação.", details=str(e), status=500)
+
+@reports_bp.route('/budget/gerencial', methods=['GET'])
+@login_required
+@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+@require_ajax
+def GerarRelatorioBudget():
+    """
+    API: Gera o relatório Gerencial de Budget (atualmente retornando dados simulados).
     
+    Retorno:
+        JSON estruturado pelo luftcore contendo os dados orçamentários solicitados.
+    """
+    try:
+        ano = request.args.get('ano', datetime.now().year)
+        
+        usuario_id = current_user.get_id() if current_user else "Anonimo"
+        RegistrarLog(f"Relatório de Budget solicitado por {usuario_id}. Ano: {ano}", "WEB_REPORT")
+        
+        svc = BudgetRelatoriosService()
+        dados = svc.gerarRelatorioFalso(ano)
+        
+        return api_success(data=dados, message="Relatório de Budget processado com sucesso.")
+    except Exception as e:
+        RegistrarLog("Erro Crítico no Relatório de Budget", "ERROR", e)
+        return api_error(message="Falha ao gerar o relatório de Budget.", details=str(e), status=500)
+            
 # ============================================================
 # ARQUIVOS E EXPORTAÇÕES (NÃO USA @require_ajax)
 # ============================================================

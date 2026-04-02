@@ -1,12 +1,10 @@
 from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+from .Base import SqlServerModel
 from flask_login import UserMixin
 
-# Cria a base para os modelos ORM
-Base = declarative_base()
-
 # Adicione UserMixin aqui nos parênteses
-class Usuario(Base, UserMixin): 
+class Usuario(SqlServerModel, UserMixin): 
     __tablename__ = "usuario"
 
     Codigo_Usuario = Column(Integer, primary_key=True, autoincrement=True)  # Chave primária
@@ -20,7 +18,7 @@ class Usuario(Base, UserMixin):
     def get_id(self):
         return str(self.Codigo_Usuario)
 
-class UsuarioGrupo(Base):
+class UsuarioGrupo(SqlServerModel):
     __tablename__ = "usuariogrupo"
 
     codigo_usuariogrupo = Column(Integer, primary_key=True, autoincrement=True)
@@ -32,14 +30,14 @@ class UsuarioGrupo(Base):
     Permite_Alterar = Column(Integer)  
     Permite_Excluir = Column(Integer)  
 
-class MenuAcesso(Base):
+class MenuAcesso(SqlServerModel):
     __tablename__ = "MenuAcesso"
 
     Codigo_MenuAcesso = Column(Integer, primary_key=True, autoincrement=True)
     Codigo_UsuarioGrupo = Column(Integer, ForeignKey("usuariogrupo.codigo_usuariogrupo"))
     Codigo_Menu = Column(Integer, ForeignKey("Menu.Codigo_Menu"))
     
-class Menu(Base):
+class Menu(SqlServerModel):
     __tablename__ = "Menu"
 
     Codigo_Menu = Column(Integer, primary_key=True)

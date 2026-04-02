@@ -44,6 +44,9 @@
         <button class="luft-category-pill" data-filter="estrategico">
             <i class="fas fa-chess-knight"></i> Estratégico
         </button>
+        <button class="luft-category-pill" data-filter="orcamento">
+            <i class="fas fa-wallet"></i> Orçamento
+        </button>
     </div>
 
     <div id="emptyState" class="luft-hub-empty" style="display: none;">
@@ -129,6 +132,25 @@
                 </button>
             </div>
         </div>
+
+        <div class="luft-hub-card" data-category="orcamento" data-search="budget orcamento despesas desvio gerencial">
+            <div class="luft-hub-card-header">
+                <div class="luft-hub-card-icon" style="background: var(--luft-primary-50); color: var(--luft-primary-600); border-color: var(--luft-primary-100);">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                {{ ui.badge('Orçamento', cor='primary') }}
+            </div>
+            <div class="luft-hub-card-body">
+                <h3>Budget Gerencial</h3>
+                <p>Acompanhamento do planejamento orçamentário. Análise de Previsto versus Realizado por Centro de Custo.</p>
+            </div>
+            <div class="luft-hub-card-footer">
+                <button class="luft-hub-btn" onclick="relatorioSystem.loadBudgetReport()">
+                    <span>Acessar Relatório</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -156,7 +178,8 @@
         getDreOperacaoData:     "{{ url_for('Relatorios.GerarDreOperacao') }}",
         getNosCalculados:       "{{ url_for('ConfiguracaoDre.ObterNosCalculados') }}",
         getRazaoDownload:       "{{ url_for('Relatorios.BaixarRazaoExcel') }}", 
-        getListaCCs:            "{{ url_for('Relatorios.ListarCentrosCusto') }}"      
+        getListaCCs:            "{{ url_for('Relatorios.ListarCentrosCusto') }}",
+        getBudgetData:          "{{ url_for('Relatorios.GerarRelatorioBudget') }}"
     };
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -210,4 +233,5 @@
 <script src="{{ url_for('static', filename='JS/Reports/DreGerencial.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/Reports/DreConsolidado.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/Reports/DreOperacao.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/Reports/RelatorioBudget.js') }}"></script>
 {% endblock %}
