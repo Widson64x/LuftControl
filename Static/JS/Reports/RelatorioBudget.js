@@ -61,6 +61,38 @@ const BUDGET_FILTER_CONFIG = {
         paramName: 'conta_contabil'
     }
 };
+const BUDGET_API_ROUTES = window.BUDGET_API_ROUTES || {
+    filtros: '/budget/filtros',
+    gerencial: '/budget/gerencial'
+};
+
+function construirUrlBudget(chaveRota, params = {}) {
+    const rota = BUDGET_API_ROUTES[chaveRota] || BUDGET_API_ROUTES.gerencial;
+    const url = new URL(rota, window.location.origin);
+
+    Object.entries(params).forEach(([chave, valor]) => {
+        url.searchParams.set(chave, valor);
+    });
+
+    return url.toString();
+}
+
+async function obterJsonBudget(url, opcoes = {}) {
+    const resposta = await fetch(url, opcoes);
+    const contentType = resposta.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+        const retorno = await resposta.json();
+
+        if (!resposta.ok) {
+            throw new Error(retorno.message || retorno.msg || `Falha HTTP ${resposta.status}`);
+        }
+
+        return retorno;
+    }
+
+    throw new Error(`Resposta inválida do servidor (${resposta.status}).`);
+}
 
 /**
  * Vincula os eventos e carrega os dados primários da tela.
@@ -313,18 +345,18 @@ function sincronizarFiltrosBudget() {
     const contaContabil = obterParametroFiltroBudget('contasContabeis', { ignorarVazio: true });
     const requestToken = ++budgetFilterState.requestToken;
 
-    return fetch(`/budget/filtros?ano=${encodeURIComponent(ano)}&empresa=${encodeURIComponent(empresa)}&centro_custo=${encodeURIComponent(centroCusto)}&conta_contabil=${encodeURIComponent(contaContabil)}`, {
+    return obterJsonBudget(construirUrlBudget('filtros', {
+        ano,
+        empresa,
+        centro_custo: centroCusto,
+        conta_contabil: contaContabil
+    }), {
         method: 'GET',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then((resposta) => resposta.json())
     .then((retorno) => {
         if (requestToken !== budgetFilterState.requestToken) {
             return;
-        }
-
-        if (retorno.status !== 'success') {
-            throw new Error(retorno.message || retorno.msg || 'Falha ao carregar os filtros do Budget.');
         }
 
         renderizarOpcoesFiltroBudget('centrosCusto', retorno.data?.centrosCusto || []);
@@ -528,22 +560,22 @@ function carregarDadosBudget() {
             </td>
         </tr>`;
 
-    fetch(`/budget/gerencial?ano=${encodeURIComponent(ano)}&empresa=${encodeURIComponent(empresa)}&centro_custo=${encodeURIComponent(ccParam)}&conta_contabil=${encodeURIComponent(conta)}`, {
+    obterJsonBudget(construirUrlBudget('gerencial', {
+        ano,
+        empresa,
+        centro_custo: ccParam,
+        conta_contabil: conta
+    }), {
         method: 'GET',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(resposta => resposta.json())
     .then(retorno => {
-        if (retorno.status === 'success') {
-            const meses = Array.isArray(retorno.data?.meses) ? retorno.data.meses : [];
-            renderizarTabelaBudget(meses, corpoTabela);
-        } else {
-            corpoTabela.innerHTML = `<tr><td colspan="${COLSPAN_TABELA_BUDGET}" class="text-center text-danger py-6 font-bold">Erro: ${retorno.msg}</td></tr>`;
-        }
+        const meses = Array.isArray(retorno.data?.meses) ? retorno.data.meses : [];
+        renderizarTabelaBudget(meses, corpoTabela);
     })
     .catch(erro => {
         console.error('Falha ao obter dados:', erro);
-        corpoTabela.innerHTML = `<tr><td colspan="${COLSPAN_TABELA_BUDGET}" class="text-center text-danger py-6 font-bold">Falha na comunicação com o servidor.</td></tr>`;
+        corpoTabela.innerHTML = `<tr><td colspan="${COLSPAN_TABELA_BUDGET}" class="text-center text-danger py-6 font-bold">${escaparHtml(erro.message || 'Falha na comunicação com o servidor.')}</td></tr>`;
     });
 }
 

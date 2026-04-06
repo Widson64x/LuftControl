@@ -185,5 +185,11 @@
 
 {% block extra_scripts %}
 {{ super() }}
+<script>
+    window.BUDGET_API_ROUTES = {
+        filtros: "{{ url_for('Relatorios.ObterFiltrosBudget') }}",
+        gerencial: "{{ url_for('Relatorios.GerarRelatorioBudget') }}"
+    };
+</script>
 <script src="{{ url_for('static', filename='JS/Reports/RelatorioBudget.js') }}" defer></script>
 {% endblock %}
