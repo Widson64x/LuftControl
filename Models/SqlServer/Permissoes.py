@@ -1,9 +1,9 @@
 # Arquivo: Luft-Control/Models/SqlServer/Permissoes.py
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text
 from datetime import datetime
-from Models.SqlServer.Usuario import Base
+from .Base import SqlServerModel
 
-class Tb_Sistema(Base):
+class Tb_Sistema(SqlServerModel):
     __tablename__ = "Tb_Sistema"
     __table_args__ = {"schema": "intec.dbo"}
 
@@ -12,7 +12,7 @@ class Tb_Sistema(Base):
     Descricao_Sistema = Column(String(255))
     Ativo = Column(Boolean, default=True)
 
-class Tb_Permissao(Base):
+class Tb_Permissao(SqlServerModel):
     __tablename__ = "Tb_Permissao"
     __table_args__ = {"schema": "intec.dbo"}
 
@@ -22,7 +22,7 @@ class Tb_Permissao(Base):
     Descricao_Permissao = Column(String(255))
     Categoria_Permissao = Column(String(50))
 
-class Tb_PermissaoGrupo(Base):
+class Tb_PermissaoGrupo(SqlServerModel):
     __tablename__ = "Tb_PermissaoGrupo"
     __table_args__ = {"schema": "intec.dbo"}
 
@@ -33,7 +33,7 @@ class Tb_PermissaoGrupo(Base):
     
     Id_Permissao = Column(Integer, ForeignKey("intec.dbo.Tb_Permissao.Id_Permissao"))
 
-class Tb_PermissaoUsuario(Base):
+class Tb_PermissaoUsuario(SqlServerModel):
     __tablename__ = "Tb_PermissaoUsuario"
     __table_args__ = {"schema": "intec.dbo"}
 
@@ -45,7 +45,7 @@ class Tb_PermissaoUsuario(Base):
     Id_Permissao = Column(Integer, ForeignKey("intec.dbo.Tb_Permissao.Id_Permissao"))
     Conceder = Column(Boolean, default=True)
 
-class Tb_LogAcesso(Base):
+class Tb_LogAcesso(SqlServerModel):
     __tablename__ = "Tb_LogAcesso"
     __table_args__ = {"schema": "intec.dbo"}
 

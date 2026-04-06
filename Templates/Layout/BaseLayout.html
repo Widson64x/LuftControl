@@ -20,12 +20,17 @@ href=url_for('Principal.MenuPrincipal'),
 ativo=(request.endpoint == 'Principal.MenuPrincipal'))
 }}
 
+{{ ui.nav_item('Módulo Relatórios',
+icone='ph-bold ph-presentation-chart',
+href=url_for('Relatorios.PaginaRelatorios'),
+ativo=(request.endpoint == 'Relatorios.PaginaRelatorios'))
+}}
+
 {# --- NOVO: ITEM COM SUBMENU (Módulo DRE) --- #}
 {% set dre_endpoints = ['Principal.HubDRE', 'Relatorios.PaginaRelatorios', 'AjustesManuais.Inicio', 'ConfiguracaoDre.VisualizarArvore', 'Importacao.Inicio'] %}
 {% call ui.nav_item('Módulo DRE', icone='ph-bold ph-chart-bar', ativo=(request.endpoint in dre_endpoints)) %}
 
 {{ ui.nav_item('Hub do DRE', href=url_for('Principal.HubDRE')) }}
-{{ ui.nav_item('Relatórios', href=url_for('Relatorios.PaginaRelatorios')) }}
 {{ ui.nav_item('Ajustes Manuais', href=url_for('AjustesManuais.Inicio')) }}
 {{ ui.nav_item('Importação de Dados', href=url_for('Importacao.Inicio')) }}
 {{ ui.nav_item('Configurações (Engine)', href=url_for('ConfiguracaoDre.VisualizarArvore')) }}

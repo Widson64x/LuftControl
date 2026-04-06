@@ -11,6 +11,7 @@ from luftcore.extensions.flask_extension import (
 
 # Importa o Serviço (Único ponto de contato com a lógica)
 from Modules.DRE.Services.RelatoriosService import RelatoriosService
+from Modules.BUDGET.Services.RelatoriosService import RelatoriosService as BudgetRelatoriosService
 from Modules.DRE.Services.PermissaoService import RequerPermissao
 # Import do Logger
 from Utils.Logger import RegistrarLog
@@ -154,6 +155,55 @@ def GerarDreOperacao():
     except Exception as e:
         RegistrarLog("Erro Crítico no Relatório DRE Operação", "ERROR", e)
         return api_error(message="Falha ao gerar o DRE Operação.", details=str(e), status=500)
+
+@reports_bp.route('/budget', methods=['GET'])
+@login_required
+#@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+def PaginaBudget():
+    """Renderiza a página HTML principal do relatório de acompanhamento de Budget."""
+    return render_template('Pages/Reports/RelatorioBudget.html')
+
+@reports_bp.route('/budget/filtros', methods=['GET'])
+@login_required
+#@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+@require_ajax
+def ObterFiltrosBudget():
+    """API: Retorna os dados para preencher as caixas de seleção da tela de Budget."""
+    try:
+        ano = int(request.args.get('ano', datetime.now().year))
+        centro_custo = request.args.get('centro_custo', 'Todos')
+        conta_contabil = request.args.get('conta_contabil', 'Todos')
+        empresa = request.args.get('empresa', 'Todos')
+
+        svc = BudgetRelatoriosService()
+        dados = svc.obterFiltrosDisponiveis(ano, centro_custo, conta_contabil, empresa)
+        return api_success(data=dados)
+    except Exception as e:
+        RegistrarLog("Erro ao buscar filtros do Budget", "ERROR", e)
+        return api_error(message="Falha ao carregar os filtros disponíveis.", details=str(e), status=500)
+
+@reports_bp.route('/budget/gerencial', methods=['GET'])
+@login_required
+#@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+@require_ajax
+def GerarRelatorioBudget():
+    """API: Gera o relatório Gerencial de Budget aplicando os filtros recebidos."""
+    try:
+        ano = request.args.get('ano', datetime.now().year)
+        centro_custo = request.args.get('centro_custo', 'Todos')
+        conta_contabil = request.args.get('conta_contabil', 'Todos')
+        empresa = request.args.get('empresa', 'Todos')
+        
+        usuario_id = current_user.get_id() if current_user else "Anonimo"
+        RegistrarLog(f"Relatório de Budget solicitado por {usuario_id}. Ano: {ano}, Empresa: {empresa}, CC: {centro_custo}, Conta: {conta_contabil}", "WEB_REPORT")
+        
+        svc = BudgetRelatoriosService()
+        dados = svc.gerarRelatorioBudget(int(ano), centro_custo, conta_contabil, empresa) 
+        
+        return api_success(data=dados, message="Relatório de Budget processado com sucesso.")
+    except Exception as e:
+        RegistrarLog("Erro Crítico no Relatório de Budget", "ERROR", e)
+        return api_error(message="Falha ao gerar o relatório de Budget.", details=str(e), status=500)
     
 # ============================================================
 # ARQUIVOS E EXPORTAÇÕES (NÃO USA @require_ajax)

@@ -40,7 +40,7 @@ class BaseConfig:
     SHOW_DB_LOGS = os.getenv("DB_CONNECT_LOGS", "True").lower() == "true"
 
     HOST = os.getenv("HOST", "127.0.0.1")
-    PORT = int(os.getenv("PORT", "9009"))
+    PORT = int(os.getenv("PORT", "9002"))
 
     def get_postgres_uri(self):
         pass_encoded = urllib.parse.quote_plus(self.PG_PASS)

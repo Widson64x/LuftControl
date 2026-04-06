@@ -119,6 +119,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             this.razao = null;
             this.dre = null;
             this.dreConsolidado = null;
+            this.relatorioBudget = null;
             
             // 1. ADICIONA AQUI A VARIÁVEL DO NOVO RELATÓRIO
             this.dreOperacao = null; 
@@ -154,9 +155,12 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 this.dreConsolidado = new DreConsolidado(this.modal);
             }
             
-            // 2. INSTANCIA O NOVO RELATÓRIO AQUI
             if (typeof DreOperacao !== 'undefined') {
                 this.dreOperacao = new DreOperacao(this.modal);
+            }
+
+            if (typeof RelatorioBudget !== 'undefined') {
+                this.relatorioBudget = new RelatorioBudget(this.modal);
             }
         }
 
@@ -177,9 +181,18 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             if (this.dreConsolidado) this.dreConsolidado.loadReport();
         }
 
-        // 3. ADICIONA O MÉTODO QUE O BOTÃO DO HTML VAI CHAMAR
         loadDreOperacaoReport() {
             if (this.dreOperacao) this.dreOperacao.loadReport();
+        }
+
+        loadBudgetReport(urlAlvo) {
+            if (urlAlvo && typeof urlAlvo === 'string') {
+                window.location.href = urlAlvo;
+            } else if (this.relatorioBudget) {
+                this.relatorioBudget.carregarRelatorio();
+            } else {
+                console.warn("Nenhuma URL de destino ou classe RelatorioBudget fornecida.");
+            }
         }
     }
 
