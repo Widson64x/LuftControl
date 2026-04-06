@@ -1,0 +1,189 @@
+{% extends "Layout/BaseLayout.html" %}
+{% import 'luftcore/components.html' as ui %}
+
+{% block title %}Relatório Gerencial - Budget{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Reports/RelatorioBudget.css') }}">
+{% endblock %}
+
+{% block page_content %}
+<div class="luft-content">
+    <div class="d-flex justify-content-between align-items-center mb-6">
+        <div>
+            <h2 class="text-2xl font-black text-main m-0 d-flex align-items-center gap-2">
+                <i class="ph-bold ph-wallet text-primary"></i> Acompanhamento de Budget
+            </h2>
+            <p class="text-muted text-sm mt-1 mb-0">Análise de execução orçamentária e performance financeira.</p>
+        </div>
+        <div>
+            {{ ui.btn('Exportar Relatório', tipo='outline', icone='ph-bold ph-download-simple', onclick="alert('Exportação em desenvolvimento!')") }}
+        </div>
+    </div>
+
+    <div class="d-grid grid-cols-4 gap-6 mb-6">
+        <div class="luft-card hover-lift d-flex align-items-center justify-content-between p-6">
+            <div>
+                <p class="text-muted text-xs font-bold mb-1 text-uppercase">Total Orçado</p>
+                <h3 class="text-xl font-black text-main m-0" id="kpiOrcado">R$ 0,00</h3>
+            </div>
+            <div class="d-flex align-items-center justify-content-center rounded-xl bg-info-light text-info" style="width: 50px; height: 50px; font-size: 1.5rem;">
+                <i class="ph-bold ph-target"></i>
+            </div>
+        </div>
+        
+        <div class="luft-card hover-lift d-flex align-items-center justify-content-between p-6">
+            <div>
+                <p class="text-muted text-xs font-bold mb-1 text-uppercase">Total</p>
+                <h3 class="text-xl font-black text-main m-0" id="kpiTotal">R$ 0,00</h3>
+            </div>
+            <div class="d-flex align-items-center justify-content-center rounded-xl bg-warning-light text-warning" style="width: 50px; height: 50px; font-size: 1.5rem;">
+                <i class="ph-bold ph-trend-up"></i>
+            </div>
+        </div>
+
+        <div class="luft-card hover-lift d-flex align-items-center justify-content-between p-6">
+            <div>
+                <p class="text-muted text-xs font-bold mb-1 text-uppercase">Saldo Global</p>
+                <h3 class="text-xl font-black text-main m-0" id="kpiSaldo">R$ 0,00</h3>
+            </div>
+            <div class="d-flex align-items-center justify-content-center rounded-xl bg-success-light text-success" style="width: 50px; height: 50px; font-size: 1.5rem;" id="iconeSaldoContainer">
+                <i class="ph-bold ph-piggy-bank" id="iconeSaldo"></i>
+            </div>
+        </div>
+
+        <div class="luft-card hover-lift d-flex align-items-center justify-content-between p-6">
+            <div>
+                <p class="text-muted text-xs font-bold mb-1 text-uppercase">Consumo</p>
+                <h3 class="text-xl font-black text-main m-0" id="kpiConsumo">0%</h3>
+            </div>
+            <div class="d-flex align-items-center justify-content-center rounded-xl bg-primary-light text-primary" style="width: 50px; height: 50px; font-size: 1.5rem;">
+                <i class="ph-bold ph-chart-pie-slice"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="luft-card luft-budget-filters-card p-6 mb-6 relative">
+        <div class="d-grid luft-budget-filters-grid gap-4 align-items-end">
+            <div class="form-group mb-0">
+                <label for="inputAnoBudget" class="form-label text-xs text-muted text-uppercase">Ano Base</label>
+                <input type="number" id="inputAnoBudget" class="form-control" value="2026" min="2000" max="2100">
+            </div>
+
+            <div class="form-group mb-0">
+                <label for="selectEmpresaBudget" class="form-label text-xs text-muted text-uppercase">Empresa</label>
+                <select id="selectEmpresaBudget" class="form-control">
+                    <option value="Todos">Todas as Empresas</option>
+                    <option value="1">Intec</option>
+                    <option value="2">Farma</option>
+                </select>
+            </div>
+            
+            <div class="form-group mb-0 relative" id="containerCentroCusto">
+                <label class="form-label text-xs text-muted text-uppercase">Centro de Custo</label>
+                <button type="button" class="form-control luft-budget-filter-trigger d-flex justify-content-between align-items-center cursor-pointer" id="btnToggleCentroCusto">
+                    <span id="labelCentroCusto" class="text-truncate">Todos Selecionados</span>
+                    <i class="ph-bold ph-caret-down text-muted"></i>
+                </button>
+                
+                <div class="absolute w-full d-none flex-col luft-budget-filter-panel" id="panelCentroCusto">
+                    <div class="luft-budget-filter-searchbar">
+                        <i class="ph-bold ph-magnifying-glass text-muted"></i>
+                        <input type="text" id="inputBuscaCentroCusto" class="luft-budget-filter-search-input" placeholder="Pesquisar por código ou nome">
+                    </div>
+                    <label class="luft-budget-filter-select-all d-flex align-items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-light mb-2">
+                        <input type="checkbox" id="checkTodosCentros" checked>
+                        <span class="font-bold text-main">Selecionar todos os centros</span>
+                    </label>
+                    <div id="listaCentrosCusto" class="luft-budget-filter-list"></div>
+                    <p id="emptyCentroCusto" class="luft-budget-filter-empty d-none">Nenhum centro de custo disponível.</p>
+                </div>
+            </div>
+
+            <div class="form-group mb-0 relative" id="containerContaContabil">
+                <label class="form-label text-xs text-muted text-uppercase">Conta Contábil</label>
+                <button type="button" class="form-control luft-budget-filter-trigger d-flex justify-content-between align-items-center cursor-pointer" id="btnToggleContaContabil">
+                    <span id="labelContaContabil" class="text-truncate">Todas Selecionadas</span>
+                    <i class="ph-bold ph-caret-down text-muted"></i>
+                </button>
+
+                <div class="absolute w-full d-none flex-col luft-budget-filter-panel" id="panelContaContabil">
+                    <div class="luft-budget-filter-searchbar">
+                        <i class="ph-bold ph-magnifying-glass text-muted"></i>
+                        <input type="text" id="inputBuscaContaContabil" class="luft-budget-filter-search-input" placeholder="Pesquisar por número ou descrição">
+                    </div>
+                    <label class="luft-budget-filter-select-all d-flex align-items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-light mb-2">
+                        <input type="checkbox" id="checkTodasContas" checked>
+                        <span class="font-bold text-main">Selecionar todas as contas</span>
+                    </label>
+                    <div id="listaContasContabeis" class="luft-budget-filter-list"></div>
+                    <p id="emptyContaContabil" class="luft-budget-filter-empty d-none">Nenhuma conta contábil disponível.</p>
+                </div>
+            </div>
+            <div class="form-group mb-0">
+                <label for="selectModoSaldoBudget" class="form-label text-xs text-muted text-uppercase">Saldo</label>
+                <select id="selectModoSaldoBudget" class="form-control">
+                    <option value="somente_budget">Somente itens com budget</option>
+                    <option value="todos_itens" selected>Todos os lançamentos</option>
+                </select>
+            </div>
+            <div class="form-group mb-0">
+                <button id="btnBuscarBudget" class="btn btn-primary w-full" style="height: 42px;">
+                    <i class="ph-bold ph-magnifying-glass"></i> Analisar Dados
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="luft-card luft-budget-table-card p-0 overflow-hidden relative">
+        <div class="luft-budget-table-toolbar">
+            <div>
+                <p class="luft-budget-table-toolbar-label">Visão Anual e Mensal</p>
+                <h3 class="luft-budget-table-toolbar-title">Ano por mês com detalhamento mensal por centro, conta e fornecedor</h3>
+                <p class="luft-budget-table-toolbar-status" id="budgetTreeStatus">Meses, centros e contas estão recolhidos.</p>
+            </div>
+            <div class="luft-budget-tree-actions">
+                <button type="button" class="luft-budget-tree-action" id="btnExpandirTodosBudget">
+                    <i class="ph-bold ph-arrows-out"></i>
+                    <span>Expandir</span>
+                </button>
+                <button type="button" class="luft-budget-tree-action" id="btnRecolherTodosBudget">
+                    <i class="ph-bold ph-arrows-in"></i>
+                    <span>Recolher</span>
+                </button>
+            </div>
+        </div>
+        <div class="w-full luft-budget-table-scroll" style="overflow-x: auto;">
+            <table class="luft-budget-table" id="tabelaBudget">
+                <thead>
+                    <tr>
+                        <th class="text-left">Mês</th>
+                        <th class="text-right">Orçado</th>
+                        <th class="text-right">Em Aprovação</th>
+                        <th class="text-right">Aprovado</th>
+                        <th class="text-right">Total</th>
+                        <th class="text-left">Progresso</th>
+                        <th class="text-right">Saldo Disponível</th>
+                        <th class="text-right">Saldo Acumulado</th>
+                    </tr>
+                </thead>
+                <tbody id="corpoTabelaBudget">
+                    <tr>
+                        <td colspan="8" class="text-center py-12">
+                            {{ ui.empty_state("Pronto para análise", "Selecione os filtros acima e clique em Analisar Dados para visualizar o orçamento.", "ph-funnel") }}
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot id="rodapeTabelaBudget"></tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="modalRelatorio" class="d-none"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='JS/Reports/RelatorioBudget.js') }}" defer></script>
+{% endblock %}

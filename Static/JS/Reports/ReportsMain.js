@@ -185,8 +185,14 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             if (this.dreOperacao) this.dreOperacao.loadReport();
         }
 
-        loadBudgetReport() {
-            if (this.relatorioBudget) this.relatorioBudget.carregarRelatorio();
+        loadBudgetReport(urlAlvo) {
+            if (urlAlvo && typeof urlAlvo === 'string') {
+                window.location.href = urlAlvo;
+            } else if (this.relatorioBudget) {
+                this.relatorioBudget.carregarRelatorio();
+            } else {
+                console.warn("Nenhuma URL de destino ou classe RelatorioBudget fornecida.");
+            }
         }
     }
 
