@@ -12,7 +12,7 @@ from luftcore.extensions.flask_extension import (
 # Importa o Serviço (Único ponto de contato com a lógica)
 from Modules.DRE.Services.RelatoriosService import RelatoriosService
 from Modules.BUDGET.Services.RelatoriosService import RelatoriosService as BudgetRelatoriosService
-from Modules.DRE.Services.PermissaoService import RequerPermissao
+from Modules.DRE.Services.PermissaoService import RequerPermissao, PermissaoService
 # Import do Logger
 from Utils.Logger import RegistrarLog
 
@@ -28,7 +28,25 @@ reports_bp = Blueprint('Relatorios', __name__)
 @RequerPermissao('RELATORIOS.VISUALIZAR')
 def PaginaRelatorios():
     """Renderiza a página HTML principal de relatórios."""
-    return render_template('Pages/Reports/ReportsDashboard.html')
+    permissoes = PermissaoService.VerificarPermissoes(current_user, [
+        'RELATORIOS.RAZAO.VISUALIZAR',
+        'RELATORIOS.DRE.VISUALIZAR',
+        'RELATORIOS.DRE_CONSOLIDADO.VISUALIZAR',
+        'RELATORIOS.DRE_OPERACAO.VISUALIZAR',
+        'RELATORIOS.BUDGET.VISUALIZAR',
+    ])
+    permissoes_relatorios = {
+        'razao': permissoes.get('RELATORIOS.RAZAO.VISUALIZAR', False),
+        'dre_gerencial': permissoes.get('RELATORIOS.DRE.VISUALIZAR', False),
+        'dre_consolidado': permissoes.get('RELATORIOS.DRE_CONSOLIDADO.VISUALIZAR', False),
+        'dre_operacao': permissoes.get('RELATORIOS.DRE_OPERACAO.VISUALIZAR', False),
+        'budget': permissoes.get('RELATORIOS.BUDGET.VISUALIZAR', False),
+    }
+    return render_template(
+        'Pages/Reports/ReportsDashboard.html',
+        PermissoesRelatorios=permissoes_relatorios,
+        TemRelatoriosDisponiveis=any(permissoes_relatorios.values()),
+    )
 
 # ============================================================
 # APIs DE DADOS (AJAX)
@@ -158,14 +176,26 @@ def GerarDreOperacao():
 
 @reports_bp.route('/budget', methods=['GET'])
 @login_required
-#@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
 def PaginaBudget():
     """Renderiza a página HTML principal do relatório de acompanhamento de Budget."""
     return render_template('Pages/Reports/RelatorioBudget.html')
 
+@reports_bp.route('/budget/analitico', methods=['GET'])
+@login_required
+@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+def PaginaBudgetAnalitico():
+    """Renderiza a página HTML do novo relatório analítico de Budget."""
+    agora = datetime.now()
+    return render_template(
+        'Pages/Reports/RelatorioBudgetAnalitico.html',
+        ano_padrao=agora.year,
+        mes_padrao=agora.month,
+    )
+
 @reports_bp.route('/budget/filtros', methods=['GET'])
 @login_required
-#@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
 @require_ajax
 def ObterFiltrosBudget():
     """API: Retorna os dados para preencher as caixas de seleção da tela de Budget."""
@@ -182,9 +212,27 @@ def ObterFiltrosBudget():
         RegistrarLog("Erro ao buscar filtros do Budget", "ERROR", e)
         return api_error(message="Falha ao carregar os filtros disponíveis.", details=str(e), status=500)
 
+@reports_bp.route('/budget/analitico/filtros', methods=['GET'])
+@login_required
+@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+@require_ajax
+def ObterFiltrosBudgetAnalitico():
+    """API: Retorna os filtros do relatório analítico de Budget."""
+    try:
+        ano = int(request.args.get('ano', datetime.now().year))
+        empresa = request.args.get('empresa', 'Todos')
+        centro_custo = request.args.get('centro_custo', 'Todos')
+
+        svc = BudgetRelatoriosService()
+        dados = svc.obterFiltrosAnalitico(ano, empresa, centro_custo)
+        return api_success(data=dados)
+    except Exception as e:
+        RegistrarLog("Erro ao buscar filtros do Budget Analítico", "ERROR", e)
+        return api_error(message="Falha ao carregar os filtros do relatório analítico.", details=str(e), status=500)
+
 @reports_bp.route('/budget/gerencial', methods=['GET'])
 @login_required
-#@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
 @require_ajax
 def GerarRelatorioBudget():
     """API: Gera o relatório Gerencial de Budget aplicando os filtros recebidos."""
@@ -204,6 +252,33 @@ def GerarRelatorioBudget():
     except Exception as e:
         RegistrarLog("Erro Crítico no Relatório de Budget", "ERROR", e)
         return api_error(message="Falha ao gerar o relatório de Budget.", details=str(e), status=500)
+
+@reports_bp.route('/budget/analitico/dados', methods=['GET'])
+@login_required
+@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+@require_ajax
+def GerarRelatorioBudgetAnalitico():
+    """API: Gera o relatório analítico de Budget por seleção de meses, grupo e conta contábil."""
+    try:
+        ano = int(request.args.get('ano', datetime.now().year))
+        mes = request.args.get('mes', str(datetime.now().month))
+        centro_custo = request.args.get('centro_custo', 'Todos')
+        empresa = request.args.get('empresa', 'Todos')
+        filial = request.args.get('filial', 'Todos')
+
+        usuario_id = current_user.get_id() if current_user else "Anonimo"
+        RegistrarLog(
+            f"Relatório Budget Analítico solicitado por {usuario_id}. Ano: {ano}, Mês: {mes}, Empresa: {empresa}, CC: {centro_custo}, Filial: {filial}",
+            "WEB_REPORT"
+        )
+
+        svc = BudgetRelatoriosService()
+        dados = svc.gerarRelatorioBudgetAnalitico(ano, mes, centro_custo, empresa, filial)
+
+        return api_success(data=dados, message="Relatório analítico de Budget processado com sucesso.")
+    except Exception as e:
+        RegistrarLog("Erro Crítico no Relatório de Budget Analítico", "ERROR", e)
+        return api_error(message="Falha ao gerar o relatório analítico de Budget.", details=str(e), status=500)
     
 # ============================================================
 # ARQUIVOS E EXPORTAÇÕES (NÃO USA @require_ajax)

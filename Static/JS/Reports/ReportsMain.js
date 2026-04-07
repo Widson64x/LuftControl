@@ -194,6 +194,14 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
                 console.warn("Nenhuma URL de destino ou classe RelatorioBudget fornecida.");
             }
         }
+
+        loadBudgetAnaliticoReport(urlAlvo) {
+            if (urlAlvo && typeof urlAlvo === 'string') {
+                window.location.href = urlAlvo;
+            } else {
+                console.warn("Nenhuma URL de destino fornecida para o Budget Analítico.");
+            }
+        }
     }
 
     // Instanciação Global

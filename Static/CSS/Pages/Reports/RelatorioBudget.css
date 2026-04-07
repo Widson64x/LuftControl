@@ -197,7 +197,7 @@
 .luft-budget-row-group td,
 .luft-budget-row-account td,
 .luft-budget-row-supplier td {
-    background: linear-gradient(180deg, var(--luft-bg-panel) 0%, var(--luft-bg-app) 100%);
+    background: var(--luft-bg-app);
 }
 
 .luft-budget-row-month {
@@ -205,7 +205,7 @@
 }
 
 .luft-budget-row-month td {
-    background: linear-gradient(180deg, var(--luft-bg-panel) 0%, var(--luft-bg-app) 100%);
+    background: var(--luft-bg-panel);
 }
 
 .luft-budget-row-month td:first-child {
@@ -213,11 +213,11 @@
 }
 
 .luft-budget-row-month.is-expanded td {
-    background: linear-gradient(180deg, var(--luft-primary-50, #eff6ff) 0%, var(--luft-bg-panel) 100%);
+    background: var(--luft-bg-panel-hover);
 }
 
 .luft-budget-row-month:hover td {
-    background: linear-gradient(180deg, var(--luft-primary-50, #eff6ff) 0%, var(--luft-bg-panel-hover) 100%);
+    background: var(--luft-bg-panel-hover);
 }
 
 .luft-budget-row-group td:first-child {
@@ -227,7 +227,7 @@
 .luft-budget-row-group:hover td,
 .luft-budget-row-account:hover td,
 .luft-budget-row-supplier:hover td {
-    background: linear-gradient(180deg, var(--luft-primary-50, #eff6ff) 0%, var(--luft-bg-panel-hover) 100%);
+    background: var(--luft-bg-panel-hover);
 }
 
 .luft-budget-structure-cell {
@@ -326,12 +326,12 @@
 }
 
 .luft-budget-row-empty td {
-    background: linear-gradient(180deg, var(--luft-bg-panel) 0%, var(--luft-bg-app) 100%);
+    background: var(--luft-bg-panel);
     border-left: 3px solid var(--luft-info-400, #38bdf8);
 }
 
 .luft-budget-row-empty:hover td {
-    background: linear-gradient(180deg, var(--luft-primary-50, #eff6ff) 0%, var(--luft-bg-panel-hover) 100%);
+    background: var(--luft-bg-panel-hover);
 }
 
 .luft-budget-row-footer td {

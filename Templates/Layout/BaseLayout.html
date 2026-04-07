@@ -27,7 +27,7 @@ ativo=(request.endpoint == 'Relatorios.PaginaRelatorios'))
 }}
 
 {# --- NOVO: ITEM COM SUBMENU (Módulo DRE) --- #}
-{% set dre_endpoints = ['Principal.HubDRE', 'Relatorios.PaginaRelatorios', 'AjustesManuais.Inicio', 'ConfiguracaoDre.VisualizarArvore', 'Importacao.Inicio'] %}
+{% set dre_endpoints = ['Principal.HubDRE', 'Relatorios.PaginaRelatorios', 'Relatorios.PaginaBudget', 'Relatorios.PaginaBudgetAnalitico', 'AjustesManuais.Inicio', 'ConfiguracaoDre.VisualizarArvore', 'Importacao.Inicio'] %}
 {% call ui.nav_item('Módulo DRE', icone='ph-bold ph-chart-bar', ativo=(request.endpoint in dre_endpoints)) %}
 
 {{ ui.nav_item('Hub do DRE', href=url_for('Principal.HubDRE')) }}

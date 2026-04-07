@@ -1,6 +1,7 @@
 from .Base import Base, SQLSERVER_SCHEMA, SqlServerModel, TemporarySqlServerModel
 from .Budget import Budget, BudgetClienteGrupo, BudgetGrupo, BudgetItem, BudgetItemRecHistorico
 from .ContaPagar import CentroCusto, ContaPagar, ContaPagarNotaFiscal, PlanoConta
+from .Empresa import Empresa, TbFilial
 from .Fornecedor import Fornecedor, FornecedorIntegracaoSistema
 from .TabelasTemporarias import (
 	ContaPagarAprovTempA,
@@ -28,6 +29,8 @@ __all__ = [
 	"CentroCusto",
 	"ContaPagar",
 	"ContaPagarNotaFiscal",
+	"Empresa",
+	"TbFilial",
 	"Fornecedor",
 	"FornecedorIntegracaoSistema",
 	"FornecedorMicrosigaTemp",

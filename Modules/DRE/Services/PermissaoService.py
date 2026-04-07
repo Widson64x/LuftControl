@@ -25,49 +25,84 @@ class PermissaoService:
                        if unicodedata.category(c) != 'Mn')
 
     @staticmethod
-    def VerificarPermissao(Usuario, ChavePermissao):
-        # BYPASS DE DEBUG: Se o modo debug estiver on, libera geral
-        if DEBUG_PERMISSIONS:
-            print(f"[DEBUG MODE] 🔓 Bypass ativado para a chave: {ChavePermissao.upper()}")
-            return True
+    def VerificarPermissoes(Usuario, ChavesPermissao):
+        chaves = []
+        for chave in ChavesPermissao or []:
+            chave_texto = str(chave or '').strip()
+            if chave_texto and chave_texto not in chaves:
+                chaves.append(chave_texto)
 
-        if not Usuario.is_authenticated: return False
-        if getattr(Usuario, 'Grupo', '') == 'ADM_SISTEMA': return True
+        if not chaves:
+            return {}
+
+        if DEBUG_PERMISSIONS:
+            return {chave: True for chave in chaves}
+
+        if not Usuario.is_authenticated:
+            return {chave: False for chave in chaves}
+
+        if getattr(Usuario, 'Grupo', '') == 'ADM_SISTEMA':
+            return {chave: True for chave in chaves}
 
         Sessao = GetSqlServerSession()
         try:
             id_usuario_logado = Usuario.get_id()
             user_db = Sessao.query(ModeloUsuario).filter_by(Codigo_Usuario=id_usuario_logado).first()
             
-            if not user_db: return False
+            if not user_db:
+                return {chave: False for chave in chaves}
 
             id_grupo = user_db.codigo_usuariogrupo
-            chave_procurada = PermissaoService._Normalizar(ChavePermissao)
+            chaves_normalizadas = {
+                PermissaoService._Normalizar(chave): chave
+                for chave in chaves
+            }
+            permissoes_por_id = {}
 
-            todas_perms = Sessao.query(Tb_Permissao).filter_by(Id_Sistema=SISTEMA_ID).all()
-            permissao_encontrada = next((p for p in todas_perms if PermissaoService._Normalizar(p.Chave_Permissao) == chave_procurada), None)
-            
-            if not permissao_encontrada: return False
+            for permissao in Sessao.query(Tb_Permissao).filter_by(Id_Sistema=SISTEMA_ID).all():
+                chave_normalizada = PermissaoService._Normalizar(permissao.Chave_Permissao)
+                chave_original = chaves_normalizadas.get(chave_normalizada)
+                if chave_original:
+                    permissoes_por_id[permissao.Id_Permissao] = chave_original
 
-            tem_acesso = False
+            resultado = {chave: False for chave in chaves}
+            if not permissoes_por_id:
+                return resultado
+
+            ids_permissoes = list(permissoes_por_id.keys())
+            permissoes_grupo = set()
             if id_grupo:
-                tem_acesso = Sessao.query(Tb_PermissaoGrupo).filter_by(
-                    Id_Permissao=permissao_encontrada.Id_Permissao,
-                    Codigo_UsuarioGrupo=id_grupo
-                ).count() > 0
+                permissoes_grupo = {
+                    registro.Id_Permissao
+                    for registro in Sessao.query(Tb_PermissaoGrupo.Id_Permissao).filter(
+                        Tb_PermissaoGrupo.Codigo_UsuarioGrupo == id_grupo,
+                        Tb_PermissaoGrupo.Id_Permissao.in_(ids_permissoes)
+                    ).all()
+                }
 
-            override = Sessao.query(Tb_PermissaoUsuario).filter_by(
-                Id_Permissao=permissao_encontrada.Id_Permissao,
-                Codigo_Usuario=id_usuario_logado
-            ).first()
+            overrides = {
+                registro.Id_Permissao: registro.Conceder
+                for registro in Sessao.query(Tb_PermissaoUsuario.Id_Permissao, Tb_PermissaoUsuario.Conceder).filter(
+                    Tb_PermissaoUsuario.Codigo_Usuario == id_usuario_logado,
+                    Tb_PermissaoUsuario.Id_Permissao.in_(ids_permissoes)
+                ).all()
+            }
 
-            return override.Conceder if override else tem_acesso
+            for id_permissao, chave in permissoes_por_id.items():
+                tem_acesso = id_permissao in permissoes_grupo
+                resultado[chave] = overrides[id_permissao] if id_permissao in overrides else tem_acesso
+
+            return resultado
 
         except Exception as e:
             print(f"[ERRO] {str(e)}")
-            return False
+            return {chave: False for chave in chaves}
         finally:
             Sessao.close()
+
+    @staticmethod
+    def VerificarPermissao(Usuario, ChavePermissao):
+        return PermissaoService.VerificarPermissoes(Usuario, [ChavePermissao]).get(ChavePermissao, False)
 
     @staticmethod
     def RegistrarLogAcesso(Usuario, Rota, Metodo, Ip, Chave, Permitido, Parametros=None, Retorno=None):

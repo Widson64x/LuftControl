@@ -49,14 +49,18 @@
         </button>
     </div>
 
+    {% if not TemRelatoriosDisponiveis %}
+    <div id="emptyState" class="luft-hub-empty" style="display: flex;">
+    {% else %}
     <div id="emptyState" class="luft-hub-empty" style="display: none;">
+    {% endif %}
         <i class="fas fa-search mb-3" style="font-size: 2.5rem; color: var(--luft-border-dark);"></i>
-        <h4>Nenhum relatório encontrado</h4>
-        <p>Tente ajustar sua busca ou trocar a categoria do filtro acima.</p>
+        <h4>{{ 'Nenhum relatório disponível' if not TemRelatoriosDisponiveis else 'Nenhum relatório encontrado' }}</h4>
+        <p>{{ 'Você não possui permissão para acessar os relatórios cadastrados nesta central.' if not TemRelatoriosDisponiveis else 'Tente ajustar sua busca ou trocar a categoria do filtro acima.' }}</p>
     </div>
 
     <div class="luft-hub-grid" id="reportsGrid">
-        
+        {% if PermissoesRelatorios['razao'] %}
         <div class="luft-hub-card" data-category="contabil" data-search="relatorio razao full base analitica contabil lancamento">
             <div class="luft-hub-card-header">
                 <div class="luft-hub-card-icon" style="background: var(--luft-primary-50); color: var(--luft-primary-600); border-color: var(--luft-primary-100);">
@@ -75,7 +79,9 @@
                 </button>
             </div>
         </div>
-        
+        {% endif %}
+
+        {% if PermissoesRelatorios['dre_gerencial'] %}
         <div class="luft-hub-card" data-category="gerencial" data-search="analise gerencial dre visao dinamica excel drill-down">
             <div class="luft-hub-card-header">
                 <div class="luft-hub-card-icon" style="background: var(--luft-success-50); color: var(--luft-success-600); border-color: var(--luft-success-100);">
@@ -94,7 +100,9 @@
                 </button>
             </div>
         </div>
+        {% endif %}
 
+        {% if PermissoesRelatorios['dre_consolidado'] %}
         <div class="luft-hub-card" data-category="estrategico" data-search="dre consolidado unidades negocio intec farma polo estrategico">
             <div class="luft-hub-card-header">
                 <div class="luft-hub-card-icon" style="background: var(--luft-warning-50); color: var(--luft-warning-700); border-color: var(--luft-warning-100);">
@@ -113,7 +121,9 @@
                 </button>
             </div>
         </div>
+        {% endif %}
 
+        {% if PermissoesRelatorios['dre_operacao'] %}
         <div class="luft-hub-card" data-category="estrategico" data-search="dre operacao resultado">
             <div class="luft-hub-card-header">
                 <div class="luft-hub-card-icon" style="background: var(--luft-info-50); color: var(--luft-info-600); border-color: var(--luft-info-100);">
@@ -132,7 +142,9 @@
                 </button>
             </div>
         </div>
+        {% endif %}
 
+        {% if PermissoesRelatorios['budget'] %}
         <div class="luft-hub-card" data-category="orcamento" data-search="budget orcamento despesas desvio gerencial">
             <div class="luft-hub-card-header">
                 <div class="luft-hub-card-icon" style="background: var(--luft-primary-50); color: var(--luft-primary-600); border-color: var(--luft-primary-100);">
@@ -145,12 +157,32 @@
                 <p>Acompanhamento do planejamento orçamentário. Análise de Previsto versus Realizado por Centro de Custo.</p>
             </div>
             <div class="luft-hub-card-footer">
-                <button class="luft-hub-btn" onclick="relatorioSystem.loadBudgetReport('{{ url_for('Relatorios.PaginaBudget') }}')">
+                <a class="luft-hub-btn" href="{{ url_for('Relatorios.PaginaBudget') }}">
                     <span>Acessar Relatório</span>
                     <i class="fas fa-arrow-right"></i>
-                </button>
+                </a>
             </div>
         </div>
+
+        <div class="luft-hub-card" data-category="orcamento" data-search="budget analitico orcamento mensal conta contabil grupo">
+            <div class="luft-hub-card-header">
+                <div class="luft-hub-card-icon" style="background: var(--luft-danger-50); color: var(--luft-danger-600); border-color: var(--luft-danger-100);">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                {{ ui.badge('Orçamento', cor='danger') }}
+            </div>
+            <div class="luft-hub-card-body">
+                <h3>Budget Analítico</h3>
+                <p>Leitura mensal do orçamento com agrupamento por grupo orçamentário e abertura das contas contábeis.</p>
+            </div>
+            <div class="luft-hub-card-footer">
+                <a class="luft-hub-btn" href="{{ url_for('Relatorios.PaginaBudgetAnalitico') }}">
+                    <span>Acessar Relatório</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 

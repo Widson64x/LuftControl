@@ -18,10 +18,26 @@ class RelatoriosService:
         finally:
             sessao.close()
 
+    def obterFiltrosAnalitico(self, ano, filtroEmpresa='Todos', filtroCentroCusto='Todos'):
+        sessao = self._ObterSessao()
+        try:
+            relatorio = RelatorioBudget(sessao)
+            return relatorio.obterFiltrosAnalitico(ano, filtroEmpresa, filtroCentroCusto)
+        finally:
+            sessao.close()
+
     def gerarRelatorioBudget(self, ano, filtroCentroCusto='Todos', filtroContaContabil='Todos', filtroEmpresa='Todos'):
         sessao = self._ObterSessao()
         try:
             relatorio = RelatorioBudget(sessao)
             return relatorio.gerarRelatorioBudget(ano, filtroCentroCusto, filtroContaContabil, filtroEmpresa)
+        finally:
+            sessao.close()
+
+    def gerarRelatorioBudgetAnalitico(self, ano, mes, filtroCentroCusto='Todos', filtroEmpresa='Todos', filtroFilial='Todos'):
+        sessao = self._ObterSessao()
+        try:
+            relatorio = RelatorioBudget(sessao)
+            return relatorio.gerarRelatorioBudgetAnalitico(ano, mes, filtroCentroCusto, filtroEmpresa, filtroFilial)
         finally:
             sessao.close()
