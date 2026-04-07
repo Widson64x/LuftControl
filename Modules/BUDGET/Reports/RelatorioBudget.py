@@ -1,7 +1,7 @@
 from sqlalchemy import and_, case, extract, func, or_
 
 from Models.SqlServer.Budget import BudgetItem, Budget
-from Models.SqlServer.ContaPagar import ContaPagar, CentroCusto, PlanoConta
+from Models.SqlServer.ContaPagar import ContaPagar, ContaPagarNotaFiscal, CentroCusto, PlanoConta
 from Models.SqlServer.Fornecedor import Fornecedor
 
 
@@ -80,6 +80,29 @@ class RelatorioBudget:
     def _obterCondicaoValorOrcado(self):
         return or_(
             *[func.coalesce(coluna, 0) != 0 for _, _, _, _, coluna in self.MESES_RELATORIO]
+        )
+
+    def _obterSubconsultaDataDigitacaoNotaFiscal(self):
+        return (
+            self.session.query(
+                ContaPagarNotaFiscal.Codigo_ContaPagar.label('codigoContaPagar'),
+                func.max(ContaPagarNotaFiscal.Data_Digitacao).label('dataDigitacaoNotaFiscal'),
+            )
+            .group_by(ContaPagarNotaFiscal.Codigo_ContaPagar)
+            .subquery()
+        )
+
+    def _obterDataDigitacaoEfetivaContaPagar(self, subconsultaDataDigitacaoNotaFiscal):
+        return func.coalesce(
+            subconsultaDataDigitacaoNotaFiscal.c.dataDigitacaoNotaFiscal,
+            ContaPagar.Data_Digitacao,
+        )
+
+    def _obterValorEfetivoContaPagar(self):
+        return func.coalesce(
+            func.nullif(ContaPagar.Valor_RecebidoNotaFiscal, 0),
+            ContaPagar.Valor_ContaPagar,
+            0,
         )
 
     def _montarDescricaoComposta(self, codigo, descricao, padrao):
@@ -162,17 +185,20 @@ class RelatorioBudget:
         )
 
     def _obterConsultaStatusMensal(self, ano, idsCentros, idsContasContabeis, codigoEmpresaMatriz):
-        mesCompetencia = extract('month', ContaPagar.Data_Digitacao)
+        subconsultaDataDigitacaoNotaFiscal = self._obterSubconsultaDataDigitacaoNotaFiscal()
+        dataDigitacaoEfetiva = self._obterDataDigitacaoEfetivaContaPagar(subconsultaDataDigitacaoNotaFiscal)
+        valorEfetivoContaPagar = self._obterValorEfetivoContaPagar()
+        mesCompetencia = extract('month', dataDigitacaoEfetiva)
         valorEmAprovacao = case(
-            (ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_EM_APROVACAO), ContaPagar.Valor_RecebidoNotaFiscal),
+            (ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_EM_APROVACAO), valorEfetivoContaPagar),
             else_=0,
         )
         valorAprovado = case(
-            (ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_APROVADO), ContaPagar.Valor_RecebidoNotaFiscal),
+            (ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_APROVADO), valorEfetivoContaPagar),
             else_=0,
         )
         valorComBudget = case(
-            (ContaPagar.Codigo_BudgetItem.isnot(None), ContaPagar.Valor_RecebidoNotaFiscal),
+            (ContaPagar.Codigo_BudgetItem.isnot(None), valorEfetivoContaPagar),
             else_=0,
         )
         valorEmAprovacaoComBudget = case(
@@ -181,7 +207,7 @@ class RelatorioBudget:
                     ContaPagar.Codigo_BudgetItem.isnot(None),
                     ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_EM_APROVACAO),
                 ),
-                ContaPagar.Valor_RecebidoNotaFiscal,
+                valorEfetivoContaPagar,
             ),
             else_=0,
         )
@@ -191,7 +217,7 @@ class RelatorioBudget:
                     ContaPagar.Codigo_BudgetItem.isnot(None),
                     ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_APROVADO),
                 ),
-                ContaPagar.Valor_RecebidoNotaFiscal,
+                valorEfetivoContaPagar,
             ),
             else_=0,
         )
@@ -209,16 +235,20 @@ class RelatorioBudget:
                 Fornecedor.Nome_Fornecedor.label('nomeFornecedor'),
                 func.sum(valorEmAprovacao).label('emAprovacao'),
                 func.sum(valorAprovado).label('aprovado'),
-                func.sum(ContaPagar.Valor_RecebidoNotaFiscal).label('total'),
+                func.sum(valorEfetivoContaPagar).label('total'),
                 func.sum(valorEmAprovacaoComBudget).label('emAprovacaoComBudget'),
                 func.sum(valorAprovadoComBudget).label('aprovadoComBudget'),
                 func.sum(valorComBudget).label('totalComBudget'),
             )
             .select_from(ContaPagar)
+            .outerjoin(
+                subconsultaDataDigitacaoNotaFiscal,
+                ContaPagar.Codigo_ContaPagar == subconsultaDataDigitacaoNotaFiscal.c.codigoContaPagar,
+            )
             .outerjoin(CentroCusto, ContaPagar.Codigo_CentroCusto == CentroCusto.Codigo_CentroCusto)
             .outerjoin(PlanoConta, ContaPagar.Codigo_ContaContabil == PlanoConta.Codigo_ContaContabil)
             .outerjoin(Fornecedor, ContaPagar.Codigo_Fornecedor == Fornecedor.Codigo_Fornecedor)
-            .filter(extract('year', ContaPagar.Data_Digitacao) == ano)
+            .filter(extract('year', dataDigitacaoEfetiva) == ano)
             .filter(ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_CONSIDERADOS))
         )
 
@@ -314,6 +344,9 @@ class RelatorioBudget:
         return query.distinct()
 
     def _obterConsultaRelacionamentosStatus(self, ano, idsCentros, idsContasContabeis, codigoEmpresaMatriz):
+        subconsultaDataDigitacaoNotaFiscal = self._obterSubconsultaDataDigitacaoNotaFiscal()
+        dataDigitacaoEfetiva = self._obterDataDigitacaoEfetivaContaPagar(subconsultaDataDigitacaoNotaFiscal)
+        valorEfetivoContaPagar = self._obterValorEfetivoContaPagar()
         query = (
             self.session.query(
                 CentroCusto.Codigo_CentroCusto.label('codigoCentroCusto'),
@@ -324,11 +357,15 @@ class RelatorioBudget:
                 PlanoConta.Descricao_ContaContabil.label('descricaoContaContabil'),
             )
             .select_from(ContaPagar)
+            .outerjoin(
+                subconsultaDataDigitacaoNotaFiscal,
+                ContaPagar.Codigo_ContaPagar == subconsultaDataDigitacaoNotaFiscal.c.codigoContaPagar,
+            )
             .outerjoin(CentroCusto, ContaPagar.Codigo_CentroCusto == CentroCusto.Codigo_CentroCusto)
             .outerjoin(PlanoConta, ContaPagar.Codigo_ContaContabil == PlanoConta.Codigo_ContaContabil)
-            .filter(extract('year', ContaPagar.Data_Emissao) == ano)
+            .filter(extract('year', dataDigitacaoEfetiva) == ano)
             .filter(ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_CONSIDERADOS))
-            .filter(func.coalesce(ContaPagar.Valor_RecebidoNotaFiscal, 0) != 0)
+            .filter(valorEfetivoContaPagar != 0)
         )
 
         query = self._aplicarFiltrosComuns(
