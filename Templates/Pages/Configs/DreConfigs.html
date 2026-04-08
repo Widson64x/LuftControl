@@ -7,6 +7,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Configs/DreConfigs.css') }}">
 {% endblock %}
 
+{% block breadcrumb %}
+<span class="luft-breadcrumb-item d-flex align-items-center gap-1"><a href="{{ url_for('Principal.MenuPrincipal') }}" class="text-muted text-decoration-none"><i class="ph-fill ph-house"></i> Home</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item"><a href="{{ url_for('Principal.HubDRE') }}" class="text-muted text-decoration-none">Módulo DRE</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item active">Configurações DRE</span>
+{% endblock %}
+
 {% block content %}
 <div class="luft-dre-layout-wrapper">
     
