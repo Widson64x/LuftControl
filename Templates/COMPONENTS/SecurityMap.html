@@ -423,6 +423,16 @@
 </style>
 {% endblock %}
 
+{% block breadcrumb %}
+<span class="luft-breadcrumb-item d-flex align-items-center gap-1"><a href="{{ url_for('Principal.MenuPrincipal') }}" class="text-muted text-decoration-none"><i class="ph-fill ph-house"></i> Home</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item"><a href="{{ url_for('Principal.MenuConfiguracoes') }}" class="text-muted text-decoration-none">Configurações Globais</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item"><a href="{{ url_for('Seguranca.VisualizarGerenciador') }}" class="text-muted text-decoration-none">Segurança e Permissões</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item active">Mapa de Segurança</span>
+{% endblock %}
+
 {% block content %}
 
 

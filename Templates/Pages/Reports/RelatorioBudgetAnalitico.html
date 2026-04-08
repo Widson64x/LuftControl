@@ -5,13 +5,26 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Reports/RelatorioBudget.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Reports/RelatorioBudgetAnalitico.css') }}">
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="luft-breadcrumb-item d-flex align-items-center gap-1"><a href="{{ url_for('Principal.MenuPrincipal') }}" class="text-muted text-decoration-none"><i class="ph-fill ph-house"></i> Home</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item">
+    <a href="{{ url_for('Relatorios.PaginaRelatorios') }}" class="text-muted text-decoration-none">Relatórios</a>
+</span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item">
+    <a href="{{ url_for('Relatorios.PaginaBudget') }}" class="text-muted text-decoration-none">Budget</a>
+</span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item active">Analítico</span>
 {% endblock %}
 
 {% block page_content %}
-<div class="luft-content luft-budget-analytic-page">
-    <div class="d-flex justify-content-between align-items-center mb-6">
-        <div>
+<div class="luft-content luft-budget-page luft-budget-analytic-page">
+    <div class="luft-budget-page-header mb-6">
+        <div class="luft-budget-page-heading">
             <h2 class="text-2xl font-black text-main m-0 d-flex align-items-center gap-2">
                 <i class="ph-bold ph-wallet text-primary"></i>
                 Budget Analítico
@@ -20,44 +33,44 @@
         </div>
     </div>
 
-    <div class="d-grid grid-cols-4 gap-6 mb-6">
+    <div class="luft-budget-kpi-grid mb-6">
 
-        <div class="luft-card hover-lift d-flex align-items-center justify-content-between p-6">
+        <div class="luft-card hover-lift luft-budget-kpi-card">
             <div>
                 <p class="text-muted text-xs font-bold mb-1 text-uppercase">Budget</p>
                 <h3 class="text-xl font-black text-main m-0" id="kpiBudgetAnaliticoOrcado">R$ 0,00</h3>
             </div>
-            <div class="d-flex align-items-center justify-content-center rounded-xl bg-info-light text-info" style="width: 50px; height: 50px; font-size: 1.5rem;">
+            <div class="luft-budget-kpi-icon bg-info-light text-info">
                 <i class="ph-bold ph-target"></i>
             </div>
         </div>
 
-        <div class="luft-card hover-lift d-flex align-items-center justify-content-between p-6">
+        <div class="luft-card hover-lift luft-budget-kpi-card">
             <div>
                 <p class="text-muted text-xs font-bold mb-1 text-uppercase">Realizado</p>
                 <h3 class="text-xl font-black text-main m-0" id="kpiBudgetAnaliticoRealizado">R$ 0,00</h3>
             </div>
-            <div class="d-flex align-items-center justify-content-center rounded-xl bg-warning-light text-warning" style="width: 50px; height: 50px; font-size: 1.5rem;">
+            <div class="luft-budget-kpi-icon bg-warning-light text-warning">
                 <i class="ph-bold ph-receipt"></i>
             </div>
         </div>
 
-        <div class="luft-card hover-lift d-flex align-items-center justify-content-between p-6">
+        <div class="luft-card hover-lift luft-budget-kpi-card">
             <div>
                 <p class="text-muted text-xs font-bold mb-1 text-uppercase">Saldo Global</p>
                 <h3 class="text-xl font-black text-main m-0" id="kpiBudgetAnaliticoDiferenca">R$ 0,00</h3>
             </div>
-            <div class="d-flex align-items-center justify-content-center rounded-xl bg-success-light text-success" style="width: 50px; height: 50px; font-size: 1.5rem;" id="kpiBudgetAnaliticoDiferencaIcon">
+            <div class="luft-budget-kpi-icon bg-success-light text-success" id="kpiBudgetAnaliticoDiferencaIcon">
                 <i class="ph-bold ph-piggy-bank"></i>
             </div>
         </div>
 
-        <div class="luft-card hover-lift d-flex align-items-center justify-content-between p-6">
+        <div class="luft-card hover-lift luft-budget-kpi-card">
             <div>
                 <p class="text-muted text-xs font-bold mb-1 text-uppercase">Consumo</p>
                 <h3 class="text-xl font-black text-main m-0" id="kpiBudgetAnaliticoConsumo">0%</h3>
             </div>
-            <div class="d-flex align-items-center justify-content-center rounded-xl bg-primary-light text-primary" style="width: 50px; height: 50px; font-size: 1.5rem;">
+            <div class="luft-budget-kpi-icon bg-primary-light text-primary">
                 <i class="ph-bold ph-chart-pie-slice"></i>
             </div>
         </div>
@@ -65,14 +78,14 @@
 
     <div class="luft-card luft-budget-filters-card luft-budget-analytic-filters-card p-6 mb-6 relative">
         <div class="d-grid luft-budget-filters-grid luft-budget-analytic-filters-grid gap-4 align-items-end">
-            <div class="form-group mb-0">
+            <div class="form-group mb-0 luft-budget-filter-field">
                 <label for="inputAnoBudgetAnalitico" class="form-label text-xs text-muted text-uppercase">Ano Base</label>
-                <input type="number" id="inputAnoBudgetAnalitico" class="form-control" min="2000" max="2100" value="{{ ano_padrao }}">
+                <input type="number" id="inputAnoBudgetAnalitico" class="form-control luft-budget-filter-control" min="2000" max="2100" value="{{ ano_padrao }}">
             </div>
 
-            <div class="form-group mb-0 relative" id="containerMesBudgetAnalitico">
+            <div class="form-group mb-0 relative luft-budget-filter-field" id="containerMesBudgetAnalitico">
                 <label class="form-label text-xs text-muted text-uppercase">Mês</label>
-                <button type="button" id="btnToggleMesBudgetAnalitico" class="form-control luft-budget-filter-trigger d-flex justify-content-between align-items-center cursor-pointer">
+                <button type="button" id="btnToggleMesBudgetAnalitico" class="form-control luft-budget-filter-control luft-budget-filter-trigger d-flex justify-content-between align-items-center cursor-pointer">
                     <span id="labelMesBudgetAnalitico" class="text-truncate">Carregando meses...</span>
                     <i class="ph-bold ph-caret-down text-muted"></i>
                 </button>
@@ -92,14 +105,14 @@
                     <p id="emptyMesBudgetAnalitico" class="luft-budget-filter-empty d-none">Nenhum mês disponível.</p>
                 </div>
             </div>
-            <div class="form-group mb-0">
+            <div class="form-group mb-0 luft-budget-filter-field">
                 <label for="selectEmpresaBudgetAnalitico" class="form-label text-xs text-muted text-uppercase">Empresa</label>
-                <select id="selectEmpresaBudgetAnalitico" class="form-control"></select>
+                <select id="selectEmpresaBudgetAnalitico" class="form-control luft-budget-filter-control"></select>
             </div>
 
-            <div class="form-group mb-0 relative" id="containerCentroCustoBudgetAnalitico">
+            <div class="form-group mb-0 relative luft-budget-filter-field" id="containerCentroCustoBudgetAnalitico">
                 <label class="form-label text-xs text-muted text-uppercase">Centro de Custo</label>
-                <button type="button" id="btnToggleCentroCustoBudgetAnalitico" class="form-control luft-budget-filter-trigger d-flex justify-content-between align-items-center cursor-pointer">
+                <button type="button" id="btnToggleCentroCustoBudgetAnalitico" class="form-control luft-budget-filter-control luft-budget-filter-trigger d-flex justify-content-between align-items-center cursor-pointer">
                     <span id="labelCentroCustoBudgetAnalitico" class="text-truncate">Carregando centros...</span>
                     <i class="ph-bold ph-caret-down text-muted"></i>
                 </button>
@@ -120,23 +133,23 @@
                 </div>
             </div>
 
-            <div class="form-group mb-0">
+            <div class="form-group mb-0 luft-budget-filter-field">
                 <label for="selectFilialBudgetAnalitico" class="form-label text-xs text-muted text-uppercase">Filial</label>
-                <select id="selectFilialBudgetAnalitico" class="form-control">
+                <select id="selectFilialBudgetAnalitico" class="form-control luft-budget-filter-control">
                     <option value="Todos">Carregando filiais...</option>
                 </select>
             </div>
 
-            <div class="form-group mb-0">
+            <div class="form-group mb-0 luft-budget-filter-field">
                 <label for="selectModoSaldoBudgetAnalitico" class="form-label text-xs text-muted text-uppercase">Saldo</label>
-                <select id="selectModoSaldoBudgetAnalitico" class="form-control">
+                <select id="selectModoSaldoBudgetAnalitico" class="form-control luft-budget-filter-control">
                     <option value="todos_itens">Todos os Itens</option>
                     <option value="somente_budget">Somente Budget</option>
                 </select>
             </div>
 
-            <div class="form-group mb-0 d-flex align-items-end">
-                <button id="btnBuscarBudgetAnalitico" class="btn btn-primary w-full luft-budget-analytic-submit">
+            <div class="form-group mb-0 d-flex align-items-end luft-budget-filter-field luft-budget-filter-field--action">
+                <button id="btnBuscarBudgetAnalitico" class="btn btn-primary w-full luft-budget-filter-submit luft-budget-analytic-submit">
                     <i class="ph-bold ph-magnifying-glass"></i>
                     Atualizar visão
                 </button>

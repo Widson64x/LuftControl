@@ -25,7 +25,7 @@ const BUDGET_ANALITICO_FILTER_CONFIG = {
         allLabel: 'Todos os meses',
         noneLabel: 'Nenhum mês selecionado',
         multipleLabel: 'meses selecionados',
-        requireSelection: true,
+        requireSelection: false,
         defaultMode: 'default-month',
         syncOnChange: false
     },
@@ -411,6 +411,10 @@ function preencherSelectBudgetAnalitico(select, itens, valorAtual, valorPadrao, 
 
     (Array.isArray(itens) ? itens : []).forEach((item) => {
         const opcao = mapearItem(item);
+        if (valoresDisponiveis.has(String(opcao.value))) {
+            return;
+        }
+
         valoresDisponiveis.add(String(opcao.value));
         opcoes.push(`<option value="${escapeHtml(String(opcao.value))}">${escapeHtml(opcao.label)}</option>`);
     });
@@ -448,7 +452,7 @@ function renderizarOpcoesFiltroBudgetAnalitico(chaveFiltro, listaOpcoes) {
                 Array.from(estado.selectedIds).filter((idSelecionado) => idsDisponiveis.has(idSelecionado))
             );
 
-            if (selecionados.size === 0) {
+            if (selecionados.size === 0 && config.requireSelection) {
                 selecionados = obterSelecaoInicialFiltroBudgetAnalitico(chaveFiltro, opcoes);
             }
         }
@@ -675,13 +679,27 @@ async function carregarDadosBudgetAnalitico() {
     const inputAno = document.getElementById('inputAnoBudgetAnalitico');
     const selectEmpresa = document.getElementById('selectEmpresaBudgetAnalitico');
     const selectFilial = document.getElementById('selectFilialBudgetAnalitico');
+    const parametroMes = obterParametroFiltroBudgetAnalitico('meses');
+
+    if (parametroMes === '-999') {
+        budgetAnaliticoState.data = null;
+        budgetAnaliticoState.renderData = {
+            grupos: [],
+            resumo: criarResumoVazioBudgetAnalitico()
+        };
+        atualizarKpisBudgetAnalitico();
+        atualizarCabecalhoBudgetAnalitico();
+        atualizarChipsBudgetAnalitico();
+        renderizarErroBudgetAnalitico('Selecione ao menos um mês para carregar a visão analítica.');
+        return;
+    }
 
     renderizarLoadingBudgetAnalitico();
 
     try {
         const retorno = await obterJsonBudgetAnalitico(construirUrlBudgetAnalitico('dados', {
             ano: inputAno?.value || BUDGET_ANALITICO_DEFAULTS.ano,
-            mes: obterParametroFiltroBudgetAnalitico('meses'),
+            mes: parametroMes,
             empresa: selectEmpresa?.value || 'Todos',
             centro_custo: obterParametroFiltroBudgetAnalitico('centrosCusto'),
             filial: selectFilial?.value || 'Todos'
