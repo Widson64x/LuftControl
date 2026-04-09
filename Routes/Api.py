@@ -15,7 +15,9 @@ def GetSession():
 
 @api_bp.route('/sincronizar-consolidado', methods=['POST'])
 @login_required
-@RequerPermissao('API.CONSOLIDAR.SINCRONIZAR')
+#@RequerPermissao('API.CONSOLIDAR.SINCRONIZAR')
+# Enquanto eu não descobrir uma forma de não gerar LOG para esta rota, vou deixar a permissão comentada, 
+# para evitar que o LOG fique poluído com mensagens de sincronização.
 @require_ajax
 def SincronizarConsolidado():
     """
