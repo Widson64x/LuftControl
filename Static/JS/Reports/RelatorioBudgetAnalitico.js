@@ -94,6 +94,11 @@ function inicializarBudgetAnalitico() {
         return;
     }
 
+    // Inicia com os grupos recolhidos na primeira carga.
+    budgetAnaliticoState.expandedGroups = new Set();
+    budgetAnaliticoState.expansionInitialized = false;
+
+
     inputAno.value = BUDGET_ANALITICO_DEFAULTS.ano;
     budgetAnaliticoState.modoSaldo = selectModoSaldo?.value || 'todos_itens';
 
@@ -822,7 +827,8 @@ function sincronizarExpansaoGruposBudgetAnalitico() {
     const ids = grupos.map((grupo) => grupo.id);
 
     if (!budgetAnaliticoState.expansionInitialized) {
-        budgetAnaliticoState.expandedGroups = new Set(ids);
+        // Primeira renderização: mantém todos recolhidos por padrão.
+        budgetAnaliticoState.expandedGroups = new Set();
         budgetAnaliticoState.expansionInitialized = true;
         return;
     }
