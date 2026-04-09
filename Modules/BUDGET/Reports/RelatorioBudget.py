@@ -39,19 +39,37 @@ class RelatorioBudget:
         (12, 'Dezembro', 'Dez', 'orcadoDezembro', BudgetItem.Valor_DezembroO),
     )
 
+    MESES_POR_NUMERO = {
+        numero: {
+            'mes': numero,
+            'nome': nome,
+            'abreviacao': abreviacao,
+            'coluna': coluna,
+        }
+        for numero, nome, abreviacao, _, coluna in MESES_RELATORIO
+    }
+
     def __init__(self, session):
+        """Inicializa o serviço de relatório com a sessão de banco ativa."""
         self.session = session
 
     def _resolverCodigoEmpresaMatriz(self, filtroEmpresa):
-        chave = str(filtroEmpresa or 'Todos').strip().upper()
+        """Converte o filtro lógico de empresa para o código da empresa matriz."""
+        chave = str(filtroEmpresa or 'Todos').strip().upper() # Garanti que 'None' seja tratado como 'Todos' e 
+                                                              # normalizar a chave
         if chave not in self.EMPRESAS_MATRIZ:
+        # Se a chave não for reconhecida, levanta um erro para evitar consultas inválidas
             raise ValueError(f"Filtro de empresa inválido: {filtroEmpresa}")
+        # Se a chave for válida, retorna o código da empresa matriz correspondente (ou None para 'Todos')
         return self.EMPRESAS_MATRIZ[chave]
 
     def _extrairIdsNumericos(self, filtro):
+        """Extrai IDs numéricos de filtros textuais/listas, ignorando a opção 'Todos'."""
         if filtro is None:
             return None
 
+        # Se o filtro já for uma coleção ex: (Uma lista, tupla ou conjunto), 
+        # usamos diretamente; caso contrário, processamos a string
         if isinstance(filtro, (list, tuple, set)):
             valores = filtro
         else:
@@ -68,6 +86,7 @@ class RelatorioBudget:
         return ids or None
 
     def _formatarIdFiltro(self, valor):
+        """Normaliza um identificador para string, removendo casas decimais desnecessárias."""
         if valor is None:
             return None
 
@@ -79,11 +98,13 @@ class RelatorioBudget:
         return str(int(numero)) if numero.is_integer() else str(numero)
 
     def _extrairIdsInteiros(self, filtro, minimo=None, maximo=None):
+        """Extrai IDs inteiros válidos de um filtro, com limites opcionais."""
         ids = self._extrairIdsNumericos(filtro)
         if ids is None:
             return None
 
         inteiros = []
+        vistos = set()
         for valor in ids:
             inteiro = int(valor)
             if inteiro != valor:
@@ -95,12 +116,14 @@ class RelatorioBudget:
             if maximo is not None and inteiro > maximo:
                 raise ValueError(f"Valor inválido para filtro: {inteiro}")
 
-            if inteiro not in inteiros:
+            if inteiro not in vistos:
+                vistos.add(inteiro)
                 inteiros.append(inteiro)
 
         return inteiros or None
 
     def _extrairValoresTexto(self, filtro):
+        """Extrai valores textuais únicos de um filtro, preservando a ordem original."""
         if filtro is None:
             return None
 
@@ -123,7 +146,9 @@ class RelatorioBudget:
         return textos or None
 
     def _obterDocumentoNormalizadoSql(self, campo):
+        """Gera expressão SQL para normalizar documentos removendo pontuações."""
         return func.replace(
+            # Remove pontos e barras, substituindo por string vazia, e depois remove hífens
             func.replace(
                 func.replace(func.coalesce(campo, ''), '.', ''),
                 '/',
@@ -134,9 +159,12 @@ class RelatorioBudget:
         )
 
     def _obterSubconsultaFiliais(self):
+        """Monta subconsulta de filiais por empresa a partir do CNPJ normalizado."""
         cnpjNormalizado = self._obterDocumentoNormalizadoSql(Empresa.CNPJ_Empresa)
 
         return (
+            # SELECT que traz o código da empresa e o nome da filial, juntando as tabelas Empresa e 
+            # TbFilial pelo CNPJ normalizado
             self.session.query(
                 Empresa.Codigo_Empresa.label('codigoEmpresa'),
                 TbFilial.nomefilial.label('nomeFilial'),
@@ -151,14 +179,20 @@ class RelatorioBudget:
         )
 
     def _obterSubconsultaFiliaisConsolidadas(self):
+        """Consolida filiais por empresa, marcando múltiplas ocorrências quando necessário."""
         subconsultaFiliais = self._obterSubconsultaFiliais()
         quantidadeFiliais = func.count(subconsultaFiliais.c.nomeFilial)
+
+        # AQUI É FEITA A CONSOLIDAÇÃO: SE HOUVER MAIS DE UMA FILIAL PARA A MESMA EMPRESA, O NOME VIRA 'Multiplas filiais', 
+        # SENÃO FICA O NOME DA FILIAL
         nomeFilialConsolidado = case(
             (quantidadeFiliais > 1, literal('Multiplas filiais')),
             else_=func.min(subconsultaFiliais.c.nomeFilial),
         )
 
         return (
+            # SELECT que traz o código da empresa e o nome da filial consolidado, agrupando por código da empresa para 
+            # identificar múltiplas filiais
             self.session.query(
                 subconsultaFiliais.c.codigoEmpresa.label('codigoEmpresa'),
                 nomeFilialConsolidado.label('nomeFilial'),
@@ -168,8 +202,11 @@ class RelatorioBudget:
         )
 
     def _aplicarFiltroFilial(self, query, campoCodigoEmpresa, filiaisSelecionadas):
+        """Aplica o filtro de filial em uma consulta com base no código de empresa."""
         if filiaisSelecionadas:
             subconsultaFiliais = self._obterSubconsultaFiliais()
+            # SELECT que traz os códigos das empresas que possuem as filiais selecionadas, filtrando pela lista de filiais e 
+            # garantindo que sejam distintas
             empresasFiltradas = (
                 self.session.query(subconsultaFiliais.c.codigoEmpresa)
                 .filter(subconsultaFiliais.c.nomeFilial.in_(filiaisSelecionadas))
@@ -179,19 +216,29 @@ class RelatorioBudget:
         return query
 
     def _construirExpressaoSomaColunas(self, colunas):
+        """Cria expressão SQL de soma para múltiplas colunas com coalesce."""
         expressao = None
         for coluna in colunas:
             trecho = func.coalesce(coluna, 0)
             expressao = trecho if expressao is None else expressao + trecho
+        # Está função soma as colunas de orçamento dos meses selecionados, tratando valores nulos como zero, 
+        # para garantir que a soma seja correta mesmo quando alguns meses não tiverem valores preenchidos. 
+        # O resultado é uma expressão SQL que pode ser usada diretamente nas consultas para calcular o total orçado no período selecionado.
         return expressao
 
     def _obterCondicaoValorOrcado(self):
+        """Retorna condição SQL para identificar linhas com orçamento diferente de zero."""
         return or_(
-            *[func.coalesce(coluna, 0) != 0 for _, _, _, _, coluna in self.MESES_RELATORIO]
+            # Se pelo menos uma das colunas de orçamento dos meses tiver valor diferente de zero, a condição será verdadeira,
+            # e a linha será considerada no relatório. Caso contrário, se todas as colunas forem zero ou nulas, a linha será ignorada.
+            *(func.coalesce(coluna, 0) != 0 for _, _, _, _, coluna in self.MESES_RELATORIO)
         )
 
     def _obterSubconsultaDataDigitacaoNotaFiscal(self):
+        """Monta subconsulta com a última data de digitação por conta a pagar."""
         return (
+            # Agrupa por conta a pagar para obter a data mais recente de digitação da nota fiscal.
+            # Essa data é usada como prioridade no cálculo de competência do realizado.
             self.session.query(
                 ContaPagarNotaFiscal.Codigo_ContaPagar.label('codigoContaPagar'),
                 func.max(ContaPagarNotaFiscal.Data_Digitacao).label('dataDigitacaoNotaFiscal'),
@@ -201,12 +248,14 @@ class RelatorioBudget:
         )
 
     def _obterDataDigitacaoEfetivaContaPagar(self, subconsultaDataDigitacaoNotaFiscal):
+        """Retorna expressão SQL da data efetiva de digitação da conta a pagar."""
         return func.coalesce(
             subconsultaDataDigitacaoNotaFiscal.c.dataDigitacaoNotaFiscal,
             ContaPagar.Data_Digitacao,
         )
 
     def _obterValorEfetivoContaPagar(self):
+        """Retorna expressão SQL do valor efetivo da conta a pagar."""
         return func.coalesce(
             func.nullif(ContaPagar.Valor_RecebidoNotaFiscal, 0),
             ContaPagar.Valor_ContaPagar,
@@ -214,6 +263,7 @@ class RelatorioBudget:
         )
 
     def _montarDescricaoComposta(self, codigo, descricao, padrao):
+        """Combina código e descrição em uma representação textual única."""
         codigo_texto = str(codigo).strip() if codigo is not None else ''
         descricao_texto = str(descricao).strip() if descricao is not None else ''
 
@@ -221,13 +271,23 @@ class RelatorioBudget:
             return f"{codigo_texto} - {descricao_texto}"
         return codigo_texto or descricao_texto or padrao
 
-    def _montarChaveLinha(self, codigoCentroCusto, centroCusto, codigoContaContabil, contaContabil, codigoFornecedor, fornecedor):
+    def _montarChaveLinha(
+        self,
+        codigoCentroCusto,
+        centroCusto,
+        codigoContaContabil,
+        contaContabil,
+        codigoFornecedor,
+        fornecedor,
+    ):
+        """Monta chave estável de agrupamento para o consolidado mensal."""
         chave_cc = str(codigoCentroCusto) if codigoCentroCusto is not None else f"cc::{centroCusto}"
         chave_conta = str(codigoContaContabil) if codigoContaContabil is not None else f"conta::{contaContabil}"
         chave_fornecedor = str(codigoFornecedor) if codigoFornecedor is not None else f"fornecedor::{fornecedor}"
         return (chave_cc, chave_conta, chave_fornecedor)
 
     def _obterEstruturaMeses(self):
+        """Inicializa a estrutura base de retorno para os 12 meses do relatório."""
         return {
             numero: {
                 'mes': numero,
@@ -248,23 +308,20 @@ class RelatorioBudget:
         }
 
     def _resolverMesRelatorio(self, mes):
+        """Resolve metadados de um mês válido para uso em consultas e payload."""
         try:
             numeroMes = int(mes)
         except (TypeError, ValueError):
             raise ValueError(f"Mês inválido: {mes}")
 
-        for numero, nome, abreviacao, _, coluna in self.MESES_RELATORIO:
-            if numero == numeroMes:
-                return {
-                    'mes': numero,
-                    'nome': nome,
-                    'abreviacao': abreviacao,
-                    'coluna': coluna,
-                }
+        dadosMes = self.MESES_POR_NUMERO.get(numeroMes)
+        if dadosMes:
+            return dadosMes
 
         raise ValueError(f"Mês inválido: {mes}")
 
     def _resolverMesesRelatorio(self, filtroMes):
+        """Resolve a lista final de meses a considerar no relatório analítico."""
         mesesSelecionados = self._extrairIdsInteiros(filtroMes, 1, 12)
 
         if not mesesSelecionados:
@@ -276,6 +333,7 @@ class RelatorioBudget:
         return [self._resolverMesRelatorio(numero) for numero in mesesSelecionados]
 
     def _descreverSelecaoMeses(self, mesesInfo):
+        """Gera descrição legível da seleção de meses para o payload de referência."""
         if len(mesesInfo) == 1:
             return mesesInfo[0]['nome']
 
@@ -285,7 +343,10 @@ class RelatorioBudget:
         return f"{len(mesesInfo)} meses selecionados"
 
     def _obterConsultaOrcadoMensal(self, ano, idsCentros, idsContasContabeis, codigoEmpresaMatriz):
+        """Monta consulta SQL de valores orçados agrupados por dimensão contábil."""
         query = (
+            # Consulta base do orçamento: agrega os 12 meses por centro, conta e fornecedor.
+            # joins com CentroCusto/PlanoConta/Fornecedor são left join para não perder linhas sem vínculo cadastral.
             self.session.query(
                 CentroCusto.Codigo_CentroCusto.label('codigoCentroCusto'),
                 CentroCusto.Numero_CentroCusto.label('numeroCentroCusto'),
@@ -308,6 +369,7 @@ class RelatorioBudget:
             .filter(Budget.Ano_Vigencia == ano)
         )
 
+        # Aplica os filtros de centro, conta e empresa matriz de forma padronizada.
         query = self._aplicarFiltrosComuns(
             query,
             BudgetItem.Codigo_CentroCusto,
@@ -330,6 +392,7 @@ class RelatorioBudget:
         )
 
     def _obterConsultaStatusMensal(self, ano, idsCentros, idsContasContabeis, codigoEmpresaMatriz):
+        """Monta consulta SQL de realizado mensal por status e vínculo com budget."""
         subconsultaDataDigitacaoNotaFiscal = self._obterSubconsultaDataDigitacaoNotaFiscal()
         dataDigitacaoEfetiva = self._obterDataDigitacaoEfetivaContaPagar(subconsultaDataDigitacaoNotaFiscal)
         valorEfetivoContaPagar = self._obterValorEfetivoContaPagar()
@@ -368,6 +431,10 @@ class RelatorioBudget:
         )
 
         query = (
+            # Consulta base do realizado:
+            # - usa data efetiva (nota fiscal quando existir, senão data da conta);
+            # - separa valores por status (em aprovação/aprovado);
+            # - calcula também os totais vinculados a budget.
             self.session.query(
                 mesCompetencia.label('mesCompetencia'),
                 CentroCusto.Codigo_CentroCusto.label('codigoCentroCusto'),
@@ -397,6 +464,7 @@ class RelatorioBudget:
             .filter(ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_CONSIDERADOS))
         )
 
+        # Reaproveita a mesma regra de filtros do orçamento para manter coerência entre visões.
         query = self._aplicarFiltrosComuns(
             query,
             ContaPagar.Codigo_CentroCusto,
@@ -420,7 +488,11 @@ class RelatorioBudget:
         )
 
     def _obterSubconsultaMapeamentoGrupoAnalitico(self, ano, idsCentros, codigoEmpresaMatriz, filiaisSelecionadas):
+        """Monta mapeamento auxiliar para vincular contas realizadas a grupo orçamentário."""
         query = (
+            # Mapa de fallback para descobrir grupo orçamentário por combinação
+            # empresa matriz + empresa + centro de custo + conta contábil.
+            # min(...) é usado para garantir um único grupo quando houver duplicidades.
             self.session.query(
                 BudgetItem.Codigo_EmpresaMatriz.label('codigoEmpresaMatriz'),
                 BudgetItem.Codigo_Empresa.label('codigoEmpresa'),
@@ -435,6 +507,7 @@ class RelatorioBudget:
             .filter(Budget.Ano_Vigencia == ano)
         )
 
+        # Filtra o mapeamento pela mesma janela de dados usada no relatório analítico.
         query = self._aplicarFiltrosComuns(
             query,
             BudgetItem.Codigo_CentroCusto,
@@ -444,6 +517,7 @@ class RelatorioBudget:
             None,
             codigoEmpresaMatriz,
         )
+        # Quando filial é informada, restringe apenas empresas daquela(s) filial(is).
         query = self._aplicarFiltroFilial(query, BudgetItem.Codigo_Empresa, filiaisSelecionadas)
 
         return query.group_by(
@@ -454,11 +528,15 @@ class RelatorioBudget:
         ).subquery()
 
     def _obterConsultaOrcadoAnalitico(self, ano, mesesInfo, idsCentros, codigoEmpresaMatriz, filiaisSelecionadas):
+        """Monta consulta do orçamento analítico consolidado por grupo/conta/filial."""
         colunasMes = [mes['coluna'] for mes in mesesInfo]
         expressaoOrcado = self._construirExpressaoSomaColunas(colunasMes)
         subconsultaFiliaisConsolidadas = self._obterSubconsultaFiliaisConsolidadas()
 
         query = (
+            # Orçado analítico:
+            # soma os meses selecionados e agrupa por grupo orçamentário, filial, centro e conta.
+            # A filial vem da subconsulta consolidada para refletir "Multiplas filiais" quando aplicável.
             self.session.query(
                 BudgetGrupo.Codigo_BudgetGrupo.label('codigoGrupo'),
                 BudgetGrupo.Descricao_BudgetGrupo.label('descricaoGrupo'),
@@ -480,6 +558,7 @@ class RelatorioBudget:
             .filter(Budget.Ano_Vigencia == ano)
         )
 
+        # Filtros comuns (centro/empresa) e filtro opcional de filial.
         query = self._aplicarFiltrosComuns(
             query,
             BudgetItem.Codigo_CentroCusto,
@@ -504,6 +583,7 @@ class RelatorioBudget:
         )
 
     def _obterConsultaRealizadoAnalitico(self, ano, mesesInfo, idsCentros, codigoEmpresaMatriz, filiaisSelecionadas):
+        """Monta consulta do realizado analítico no período informado."""
         subconsultaDataDigitacaoNotaFiscal = self._obterSubconsultaDataDigitacaoNotaFiscal()
         dataDigitacaoEfetiva = self._obterDataDigitacaoEfetivaContaPagar(subconsultaDataDigitacaoNotaFiscal)
         valorEfetivoContaPagar = self._obterValorEfetivoContaPagar()
@@ -524,6 +604,9 @@ class RelatorioBudget:
         mesesSelecionados = [mes['mes'] for mes in mesesInfo]
 
         query = (
+            # Realizado analítico:
+            # 1) tenta obter grupo pelo vínculo direto BudgetItem->BudgetGrupo;
+            # 2) se não houver vínculo direto, usa o mapeamento auxiliar por dimensões contábeis.
             self.session.query(
                 grupoCodigo.label('codigoGrupo'),
                 grupoDescricao.label('descricaoGrupo'),
@@ -546,6 +629,7 @@ class RelatorioBudget:
             .outerjoin(BudgetGrupo, BudgetItem.Codigo_BudgetGrupo == BudgetGrupo.Codigo_BudgetGrupo)
             .outerjoin(
                 subconsultaMapeamentoGrupo,
+                # Junção por chave de negócio para encontrar grupo quando o título não está ligado ao budget item.
                 and_(
                     subconsultaMapeamentoGrupo.c.codigoEmpresaMatriz == ContaPagar.Codigo_EmpresaMatriz,
                     subconsultaMapeamentoGrupo.c.codigoEmpresa == ContaPagar.Codigo_Empresa,
@@ -562,6 +646,7 @@ class RelatorioBudget:
             .filter(valorEfetivoContaPagar != 0)
         )
 
+        # Reaplica os filtros padronizados e o filtro opcional de filial.
         query = self._aplicarFiltrosComuns(
             query,
             ContaPagar.Codigo_CentroCusto,
@@ -586,6 +671,7 @@ class RelatorioBudget:
         )
 
     def _obterRegistroConsolidado(self, acumulador, linha):
+        """Obtém/cria registro acumulador para o relatório mensal consolidado."""
         centroCusto = self._montarDescricaoComposta(
             linha.numeroCentroCusto,
             linha.nomeCentroCusto,
@@ -625,6 +711,7 @@ class RelatorioBudget:
         return acumulador[chave]
 
     def _obterRegistroAnalitico(self, acumulador, linha):
+        """Obtém/cria registro acumulador para o relatório analítico por grupo e conta."""
         grupo = (str(getattr(linha, 'descricaoGrupo', '') or '').strip()) or 'Sem grupo orçamentário'
         filial = (str(getattr(linha, 'nomeFilial', '') or '').strip()) or 'Sem filial vinculada'
         numeroConta = str(getattr(linha, 'numeroContaContabil', '') or '').strip()
@@ -660,16 +747,20 @@ class RelatorioBudget:
         return acumulador[chave]
 
     def _obterOpcoesFiliaisAnalitico(self, ano, idsCentros, codigoEmpresaMatriz):
+        """Lista filiais disponíveis no analítico com base em orçamento e realizado."""
         subconsultaFiliais = self._obterSubconsultaFiliais()
         filiais = set()
 
         queryOrcado = (
+            # Busca filiais que aparecem no ORÇADO dentro do recorte informado.
             self.session.query(subconsultaFiliais.c.nomeFilial.label('nomeFilial'))
             .select_from(BudgetItem)
             .join(Budget, BudgetItem.Codigo_Budget == Budget.Codigo_Budget)
             .join(subconsultaFiliais, BudgetItem.Codigo_Empresa == subconsultaFiliais.c.codigoEmpresa)
             .filter(Budget.Ano_Vigencia == ano)
         )
+
+        # Aplica os filtros de centro/empresa no conjunto de filiais vindas do orçamento.
         queryOrcado = self._aplicarFiltrosComuns(
             queryOrcado,
             BudgetItem.Codigo_CentroCusto,
@@ -688,6 +779,7 @@ class RelatorioBudget:
         dataDigitacaoEfetiva = self._obterDataDigitacaoEfetivaContaPagar(subconsultaDataDigitacaoNotaFiscal)
 
         queryStatus = (
+            # Busca filiais que aparecem no REALIZADO (contas a pagar) para o mesmo recorte.
             self.session.query(subconsultaFiliais.c.nomeFilial.label('nomeFilial'))
             .select_from(ContaPagar)
             .outerjoin(
@@ -698,6 +790,8 @@ class RelatorioBudget:
             .filter(extract('year', dataDigitacaoEfetiva) == ano)
             .filter(ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_CONSIDERADOS))
         )
+
+        # Aplica os filtros de centro/empresa no conjunto de filiais vindas do realizado.
         queryStatus = self._aplicarFiltrosComuns(
             queryStatus,
             ContaPagar.Codigo_CentroCusto,
@@ -715,7 +809,10 @@ class RelatorioBudget:
         return sorted(filiais, key=lambda valor: valor.lower())
 
     def _obterConsultaRelacionamentosOrcados(self, ano, idsCentros, idsContasContabeis, codigoEmpresaMatriz):
+        """Monta consulta de relacionamentos válidos com base em dados orçados."""
         query = (
+            # Relacionamentos possíveis entre centro e conta no ORÇADO.
+            # Apenas linhas com algum valor de orçamento diferente de zero entram no resultado.
             self.session.query(
                 CentroCusto.Codigo_CentroCusto.label('codigoCentroCusto'),
                 CentroCusto.Numero_CentroCusto.label('numeroCentroCusto'),
@@ -732,6 +829,7 @@ class RelatorioBudget:
             .filter(self._obterCondicaoValorOrcado())
         )
 
+        # Filtros do contexto atual (empresa, centros e contas selecionadas).
         query = self._aplicarFiltrosComuns(
             query,
             BudgetItem.Codigo_CentroCusto,
@@ -745,10 +843,13 @@ class RelatorioBudget:
         return query.distinct()
 
     def _obterConsultaRelacionamentosStatus(self, ano, idsCentros, idsContasContabeis, codigoEmpresaMatriz):
+        """Monta consulta de relacionamentos válidos com base em dados realizados."""
         subconsultaDataDigitacaoNotaFiscal = self._obterSubconsultaDataDigitacaoNotaFiscal()
         dataDigitacaoEfetiva = self._obterDataDigitacaoEfetivaContaPagar(subconsultaDataDigitacaoNotaFiscal)
         valorEfetivoContaPagar = self._obterValorEfetivoContaPagar()
         query = (
+            # Relacionamentos possíveis entre centro e conta no REALIZADO.
+            # Considera apenas títulos em status válidos e com valor efetivo diferente de zero.
             self.session.query(
                 CentroCusto.Codigo_CentroCusto.label('codigoCentroCusto'),
                 CentroCusto.Numero_CentroCusto.label('numeroCentroCusto'),
@@ -769,6 +870,7 @@ class RelatorioBudget:
             .filter(valorEfetivoContaPagar != 0)
         )
 
+        # Filtros do contexto atual (empresa, centros e contas selecionadas).
         query = self._aplicarFiltrosComuns(
             query,
             ContaPagar.Codigo_CentroCusto,
@@ -782,6 +884,7 @@ class RelatorioBudget:
         return query.distinct()
 
     def _construirOpcoesFiltros(self, linhasRelacionamento):
+        """Converte relacionamentos em opções de filtros de centro de custo e conta."""
         centros = {}
         contas = {}
 
@@ -822,6 +925,7 @@ class RelatorioBudget:
         return centrosOrdenados, contasOrdenadas
 
     def _obterOpcoesFiltros(self, ano, idsCentros, idsContasContabeis, codigoEmpresaMatriz):
+        """Reúne opções de filtros combinando fontes de orçamento e realizado."""
         relacionamentos = []
         relacionamentos.extend(
             self._obterConsultaRelacionamentosOrcados(
@@ -843,6 +947,7 @@ class RelatorioBudget:
         return self._construirOpcoesFiltros(relacionamentos)
 
     def _consolidarDetalhesMensais(self, ano, idsCentros, idsContasContabeis, codigoEmpresaMatriz):
+        """Consolida os detalhes mensais do relatório base em memória."""
         detalhesPorMes = {
             numero: {}
             for numero, _, _, _, _ in self.MESES_RELATORIO
@@ -883,17 +988,33 @@ class RelatorioBudget:
         return detalhesPorMes
 
     def _montarRetornoMensal(self, detalhesPorMes):
+        """Transforma os acumuladores mensais no payload final do relatório consolidado."""
         meses = self._obterEstruturaMeses()
 
         for numeroMes, linhasMes in detalhesPorMes.items():
             detalhes = []
             centrosCustoMes = set()
+            totalOrcado = 0.0
+            totalEmAprovacao = 0.0
+            totalAprovado = 0.0
+            totalRealizado = 0.0
+            totalEmAprovacaoComBudget = 0.0
+            totalAprovadoComBudget = 0.0
+            totalComBudget = 0.0
 
             for linha in linhasMes.values():
                 linha['saldo'] = linha['orcado'] - linha['total']
                 linha['saldoComBudget'] = linha['orcado'] - linha['totalComBudget']
                 detalhes.append(linha)
                 centrosCustoMes.add(linha['centroCusto'])
+
+                totalOrcado += linha['orcado']
+                totalEmAprovacao += linha['emAprovacao']
+                totalAprovado += linha['aprovado']
+                totalRealizado += linha['total']
+                totalEmAprovacaoComBudget += linha['emAprovacaoComBudget']
+                totalAprovadoComBudget += linha['aprovadoComBudget']
+                totalComBudget += linha['totalComBudget']
 
             detalhes.sort(key=lambda item: (
                 item['centroCusto'],
@@ -902,22 +1023,32 @@ class RelatorioBudget:
             ))
 
             meses[numeroMes]['detalhes'] = detalhes
-            meses[numeroMes]['orcado'] = sum(linha['orcado'] for linha in detalhes)
-            meses[numeroMes]['emAprovacao'] = sum(linha['emAprovacao'] for linha in detalhes)
-            meses[numeroMes]['aprovado'] = sum(linha['aprovado'] for linha in detalhes)
-            meses[numeroMes]['total'] = sum(linha['total'] for linha in detalhes)
-            meses[numeroMes]['emAprovacaoComBudget'] = sum(linha['emAprovacaoComBudget'] for linha in detalhes)
-            meses[numeroMes]['aprovadoComBudget'] = sum(linha['aprovadoComBudget'] for linha in detalhes)
-            meses[numeroMes]['totalComBudget'] = sum(linha['totalComBudget'] for linha in detalhes)
-            meses[numeroMes]['saldo'] = meses[numeroMes]['orcado'] - meses[numeroMes]['total']
-            meses[numeroMes]['saldoComBudget'] = meses[numeroMes]['orcado'] - meses[numeroMes]['totalComBudget']
+            meses[numeroMes]['orcado'] = totalOrcado
+            meses[numeroMes]['emAprovacao'] = totalEmAprovacao
+            meses[numeroMes]['aprovado'] = totalAprovado
+            meses[numeroMes]['total'] = totalRealizado
+            meses[numeroMes]['emAprovacaoComBudget'] = totalEmAprovacaoComBudget
+            meses[numeroMes]['aprovadoComBudget'] = totalAprovadoComBudget
+            meses[numeroMes]['totalComBudget'] = totalComBudget
+            meses[numeroMes]['saldo'] = totalOrcado - totalRealizado
+            meses[numeroMes]['saldoComBudget'] = totalOrcado - totalComBudget
             meses[numeroMes]['centrosCusto'] = len(centrosCustoMes)
 
         return {
             'meses': [meses[numero] for numero, _, _, _, _ in self.MESES_RELATORIO]
         }
 
-    def _aplicarFiltrosComuns(self, query, campoCentroCusto, campoContaContabil, campoEmpresaMatriz, idsCentros, idsContasContabeis, codigoEmpresaMatriz):
+    def _aplicarFiltrosComuns(
+        self,
+        query,
+        campoCentroCusto,
+        campoContaContabil,
+        campoEmpresaMatriz,
+        idsCentros,
+        idsContasContabeis,
+        codigoEmpresaMatriz,
+    ):
+        """Aplica filtros compartilhados por múltiplas consultas do relatório."""
         if idsCentros:
             query = query.filter(campoCentroCusto.in_(idsCentros))
 
@@ -965,6 +1096,7 @@ class RelatorioBudget:
         }
 
     def obterFiltrosAnalitico(self, ano, filtroEmpresa='Todos', filtroCentroCusto='Todos'):
+        """Retorna filtros disponíveis para a visão analítica do orçamento."""
         codigoEmpresaMatriz = self._resolverCodigoEmpresaMatriz(filtroEmpresa)
         idsCentros = self._extrairIdsNumericos(filtroCentroCusto)
         centrosDisponiveis, _ = self._obterOpcoesFiltros(
@@ -1032,6 +1164,19 @@ class RelatorioBudget:
         return self._montarRetornoMensal(detalhesPorMes)
 
     def gerarRelatorioBudgetAnalitico(self, ano, mes, filtroCentroCusto='Todos', filtroEmpresa='Todos', filtroFilial='Todos'):
+        """
+        Gera o relatório analítico por grupo e conta contábil para um ou mais meses.
+
+        Args:
+            ano (int): Ano de referência para os dados.
+            mes (str | int | list): Mês, lista de meses ou 'Todos'.
+            filtroCentroCusto (str): IDs de centros de custo separados por vírgula ou 'Todos'.
+            filtroEmpresa (str): Código lógico da empresa matriz ('1', '2' ou 'Todos').
+            filtroFilial (str): Nome(s) de filial separados por vírgula ou 'Todos'.
+
+        Returns:
+            dict: Payload analítico com referência, filtros, resumo e agrupamento por grupo.
+        """
         mesesInfo = self._resolverMesesRelatorio(mes)
         codigoEmpresaMatriz = self._resolverCodigoEmpresaMatriz(filtroEmpresa)
         idsCentros = self._extrairIdsNumericos(filtroCentroCusto)
