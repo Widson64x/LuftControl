@@ -1,22 +1,23 @@
-# Routes/Api.py
-from flask import Blueprint, jsonify
+from flask import jsonify
 from sqlalchemy.orm import sessionmaker
-from Db.Connections import GetPostgresEngine
-from Modules.DRE.Services.SyncService import SyncService
 from flask_login import login_required
-from Modules.DRE.Services.PermissaoService import RequerPermissao
+
+from Db.Connections import GetPostgresEngine
+from Modules.RAZAO.Services.SincronizacaoConsolidadoRazaoService import SincronizacaoConsolidadoRazaoService
 from luftcore.extensions.flask_extension import require_ajax
 
-api_bp = Blueprint('Api', __name__)
+from . import api_bp
+
 
 def GetSession():
     engine = GetPostgresEngine()
     return sessionmaker(bind=engine)()
 
+
 @api_bp.route('/sincronizar-consolidado', methods=['POST'])
 @login_required
-#@RequerPermissao('API.CONSOLIDAR.SINCRONIZAR')
-# Enquanto eu não descobrir uma forma de não gerar LOG para esta rota, vou deixar a permissão comentada, 
+# @RequerPermissao('API.CONSOLIDAR.SINCRONIZAR')
+# Enquanto eu não descobrir uma forma de não gerar LOG para esta rota, vou deixar a permissão comentada,
 # para evitar que o LOG fique poluído com mensagens de sincronização.
 @require_ajax
 def SincronizarConsolidado():
@@ -26,7 +27,7 @@ def SincronizarConsolidado():
     """
     session_db = GetSession()
     try:
-        servico = SyncService(session_db)
+        servico = SincronizacaoConsolidadoRazaoService(session_db)
         servico.sincronizarDados()
         return jsonify({'status': 'success', 'msg': 'Sincronização concluída com sucesso!'}), 200
     except Exception as e:

@@ -1,7 +1,7 @@
 {% extends "Layout/BaseLayout.html" %}
 {% import 'luftcore/components.html' as ui %}
 
-{% block title %}Importação de Dados | Luft Control{% endblock %}
+{% block title %}Importação de Dados do Razão | Luft Control{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -55,7 +55,7 @@
 <i class="ph-bold ph-caret-right"></i>
 <span class="luft-breadcrumb-item"><a href="{{ url_for('Principal.HubDRE') }}" class="text-muted text-decoration-none">Módulo DRE</a></span>
 <i class="ph-bold ph-caret-right"></i>
-<span class="luft-breadcrumb-item active">Importação de Dados</span>
+<span class="luft-breadcrumb-item active">Importação de Dados do Razão</span>
 {% endblock %}
 
 {% block content %}
@@ -63,14 +63,14 @@
     
     <div class="luft-page-header">
         <div>
-            <h2 class="m-0 font-bold" style="font-size: var(--luft-text-3xl); color: var(--luft-text-main);">Nova Importação</h2>
+            <h2 class="m-0 font-bold" style="font-size: var(--luft-text-3xl); color: var(--luft-text-main);">Nova Importação do Razão</h2>
             <p class="text-muted mt-2 mb-0">Carregamento de dados para Razão Analítico.</p>
         </div>
-        {{ ui.btn('Ver Logs / Reversão', tipo='secondary', icone='fas fa-history', href=url_for('Importacao.Historico')) }}
+        {{ ui.btn('Ver Logs / Reversão', tipo='secondary', icone='fas fa-history', href=url_for('ImportacaoDadosRazao.Historico')) }}
     </div>
 
     <div class="luft-import-card">
-        <form action="{{ url_for('Importacao.Analisar') }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ url_for('ImportacaoDadosRazao.Analisar') }}" method="POST" enctype="multipart/form-data">
             
             <div style="margin-bottom: var(--luft-space-8);">
                 <label for="sourceSelect" class="luft-form-label">

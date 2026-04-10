@@ -10,13 +10,13 @@ from Utils.ExcelUtils import (
     analyze_excel_sample, generate_preview_value, process_and_save_dynamic, 
     delete_records_by_competencia, apply_transformations, get_competencia_from_df 
 )
-from Utils.Logger import RegistrarLog 
+from Utils.Logger import RegistrarLog
 from Db.Connections import GetPostgresEngine
 
 # --- NOVOS IMPORTS DE SISTEMA ---
 from Models.Postgress.CTL_Sistema import CtlSysHistImportacao, CtlSysConfigImportacao
 
-class ImportacaoDadosService:
+class ImportacaoDadosRazaoService:
     PASTA_TEMPORARIA = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..', 'Data', 'Temp'))
     
     # ATUALIZADO: Usando os novos nomes das tabelas de Razão

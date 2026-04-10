@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from Utils.Logger import RegistrarLog
 
-class SyncService:
+class SincronizacaoConsolidadoRazaoService:
     """
     Serviço responsável por orquestrar a sincronização dos dados contábeis brutos
     para a tabela consolidada. Efetua a limpeza de registros órfãos, carga de novos

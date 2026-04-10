@@ -1,16 +1,16 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from luftcore.extensions.flask_extension import require_ajax
-from Modules.DRE.Services.PermissaoService import RequerPermissao
+from Modules.SISTEMA.Services.PermissaoService import RequerPermissao
 
 # Importa a Classe de Serviço
-from Modules.DRE.Services.ImportacaoDadosService import ImportacaoDadosService
+from Modules.RAZAO.Services.ImportacaoDadosRazaoService import ImportacaoDadosRazaoService
 
 # --- Import do Logger ---
 from Utils.Logger import RegistrarLog
 
 # Cria o Blueprint
-import_bp = Blueprint('Importacao', __name__)
+importacao_dados_razao_bp = Blueprint('ImportacaoDadosRazao', __name__)
 
 # Colunas Padrão que o sistema espera receber (Meta-dados)
 DB_COLUMNS_PADRAO = {
@@ -28,57 +28,57 @@ DB_COLUMNS_PADRAO = {
     'Credito': 'Valor Crédito'
 }
 
-@import_bp.route('/importacao', methods=['GET'])
+@importacao_dados_razao_bp.route('/importacao', methods=['GET'])
 @login_required
 @RequerPermissao('IMPORTACAO.VISUALIZAR')
 def Inicio():
     """
     Tela Inicial: Mostra as opções de tabelas disponíveis para importar.
     """
-    svc = ImportacaoDadosService()
+    svc = ImportacaoDadosRazaoService()
     return render_template('Pages/Import/ImportIndex.html', sources=svc.TABELAS_PERMITIDAS)
 
-@import_bp.route('/importacao/analise', methods=['POST'])
+@importacao_dados_razao_bp.route('/importacao/analise', methods=['POST'])
 @login_required
-@RequerPermissao('IMPORTACAO.CRIAR') # Formulário envia arquivo inteiro (Sem AJAX)
+@RequerPermissao('IMPORTACAO.CRIAR')
 def Analisar():
     """
     Recebe o arquivo, salva temporariamente e analisa as colunas para o usuário mapear.
     """
     if 'file' not in request.files:
         flash('Nenhum ficheiro selecionado.', 'danger')
-        return redirect(url_for('Importacao.Inicio'))
-    
+        return redirect(url_for('ImportacaoDadosRazao.Inicio'))
+
     arquivo = request.files['file']
     origem = request.form.get('source')
 
-    id_usuario = current_user.get_id() if current_user else "Anonimo"
-    
-    svc = ImportacaoDadosService()
+    id_usuario = current_user.get_id() if current_user else 'Anonimo'
+
+    svc = ImportacaoDadosRazaoService()
 
     if not origem or origem not in svc.TABELAS_PERMITIDAS:
-        RegistrarLog(f"Tentativa de upload para origem inválida: {origem} por {id_usuario}", "WARNING")
+        RegistrarLog(f"Tentativa de upload para origem inválida: {origem} por {id_usuario}", 'WARNING')
         flash('Origem inválida.', 'danger')
-        return redirect(url_for('Importacao.Inicio'))
+        return redirect(url_for('ImportacaoDadosRazao.Inicio'))
 
     if arquivo.filename == '':
         flash('Nenhum ficheiro selecionado.', 'danger')
-        return redirect(url_for('Importacao.Inicio'))
+        return redirect(url_for('ImportacaoDadosRazao.Inicio'))
 
     try:
-        RegistrarLog(f"Recebendo arquivo {arquivo.filename} para análise ({origem}) - Usuário: {id_usuario}", "WEB")
-        
+        RegistrarLog(f"Recebendo arquivo {arquivo.filename} para análise ({origem}) - Usuário: {id_usuario}", 'WEB')
+
         # Salva o arquivo no disco (pasta Temp) usando o serviço
         caminho_completo, nome_unico = svc.SalvarArquivoTemporario(arquivo)
-        
+
         # 1. Analisa estrutura do Excel
         colunas_excel, tipos, linha_amostra = svc.ObterAmostraAnalise(nome_unico)
-        
+
         # 2. Busca na memória se já existe mapeamento prévio para essa tabela
         mapeamento_salvo, transformacoes_salvas = svc.CarregarUltimaConfiguracao(origem)
-        
+
         return render_template(
-            'Pages/Import/MapColumns.html', 
+            'Pages/Import/MapColumns.html',
             filename=nome_unico,
             source=origem,
             excel_columns=colunas_excel,
@@ -90,11 +90,11 @@ def Analisar():
         )
 
     except Exception as e:
-        RegistrarLog(f"Erro na rota de análise para {arquivo.filename}", "ERROR", e)
+        RegistrarLog(f"Erro na rota de análise para {arquivo.filename}", 'ERROR', e)
         flash(f'Erro ao processar arquivo: {str(e)}', 'danger')
-        return redirect(url_for('Importacao.Inicio'))
-    
-@import_bp.route('/importacao/api/previa', methods=['POST'])
+        return redirect(url_for('ImportacaoDadosRazao.Inicio'))
+
+@importacao_dados_razao_bp.route('/importacao/api/previa', methods=['POST'])
 @login_required
 @RequerPermissao('IMPORTACAO.VISUALIZAR')
 @require_ajax
@@ -106,19 +106,19 @@ def ObterPrevia():
     nome_arquivo = dados.get('filename')
     mapeamento = dados.get('mapping')
     transformacoes = dados.get('transforms')
-    
-    svc = ImportacaoDadosService()
-    
+
+    svc = ImportacaoDadosRazaoService()
+
     try:
         resultado = svc.ObterPreviaTransformacao(nome_arquivo, mapeamento, transformacoes)
         return jsonify(resultado), 200
     except Exception as e:
-        RegistrarLog("Erro na API de Preview", "ERROR", e)
-        return jsonify({"error": str(e)}), 500
+        RegistrarLog('Erro na API de Preview', 'ERROR', e)
+        return jsonify({'error': str(e)}), 500
 
-@import_bp.route('/importacao/confirmar', methods=['POST'])
+@importacao_dados_razao_bp.route('/importacao/confirmar', methods=['POST'])
 @login_required
-@RequerPermissao('IMPORTACAO.CRIAR') # Submissão de Form
+@RequerPermissao('IMPORTACAO.CRIAR')
 def Confirmar():
     """
     Processa o formulário de mapeamento e dispara a importação real.
@@ -126,60 +126,60 @@ def Confirmar():
     try:
         nome_arquivo = request.form.get('filename')
         origem = request.form.get('source')
-        nome_usuario = current_user.get_id() or "Usuario_Sistema"
-        
-        RegistrarLog(f"Usuário {nome_usuario} confirmou mapeamento para {origem}", "WEB")
+        nome_usuario = current_user.get_id() or 'Usuario_Sistema'
+
+        RegistrarLog(f"Usuário {nome_usuario} confirmou mapeamento para {origem}", 'WEB')
 
         mapeamento = {}
         transformacoes = {}
-        
+
         # Varre o formulário separando o que é Mapeamento e o que é Transformação
         for key in request.form:
             if key.startswith('map_'):
-                coluna_excel = key[4:] 
+                coluna_excel = key[4:]
                 val = request.form.get(key)
-                if val and val != 'IGNORE': 
+                if val and val != 'IGNORE':
                     mapeamento[coluna_excel] = val
-            
+
             if key.startswith('trans_'):
-                coluna_excel = key[6:] 
+                coluna_excel = key[6:]
                 val = request.form.get(key)
-                if val and val != 'none': 
+                if val and val != 'none':
                     transformacoes[coluna_excel] = val
 
         if not mapeamento:
             flash('Nenhuma coluna foi mapeada.', 'warning')
-            return redirect(url_for('Importacao.Inicio'))
-        
-        svc = ImportacaoDadosService()
-        
+            return redirect(url_for('ImportacaoDadosRazao.Inicio'))
+
+        svc = ImportacaoDadosRazaoService()
+
         # Executa a transação completa via serviço
         linhas, competencia = svc.ExecutarTransacaoImportacao(
-            nome_arquivo, mapeamento, origem, 
+            nome_arquivo, mapeamento, origem,
             nome_usuario,
             transformacoes=transformacoes
         )
         flash(f'Sucesso! {linhas} registos importados em {origem} (Competência: {competencia}).', 'success')
-        return redirect(url_for('Importacao.Historico'))
+        return redirect(url_for('ImportacaoDadosRazao.Historico'))
     except Exception as e:
-        RegistrarLog(f"Erro fatal na rota Confirmar para {origem}", "ERROR", e)
+        RegistrarLog(f"Erro fatal na rota Confirmar para {origem}", 'ERROR', e)
         flash(f'Erro na importação: {str(e)}', 'danger')
-        return redirect(url_for('Importacao.Inicio'))
+        return redirect(url_for('ImportacaoDadosRazao.Inicio'))
 
-@import_bp.route('/importacao/historico', methods=['GET'])
+@importacao_dados_razao_bp.route('/importacao/historico', methods=['GET'])
 @login_required
 @RequerPermissao('IMPORTACAO.HISTORICO.VISUALIZAR')
 def Historico():
     """
     Exibe o log de todas as importações feitas e permite Reversão.
     """
-    svc = ImportacaoDadosService()
+    svc = ImportacaoDadosRazaoService()
     logs = svc.ObterHistoricoImportacao()
     return render_template('Pages/Import/ImportHistory.html', logs=logs)
 
-@import_bp.route('/importacao/reverter', methods=['POST'])
+@importacao_dados_razao_bp.route('/importacao/reverter', methods=['POST'])
 @login_required
-@RequerPermissao('IMPORTACAO.REVERTER') # Form submit normal com redirect
+@RequerPermissao('IMPORTACAO.REVERTER')
 def Reverter():
     """
     Ação de deletar uma importação feita erroneamente (Rollback).
@@ -190,15 +190,15 @@ def Reverter():
 
     if not motivo:
         flash('Motivo obrigatório.', 'warning')
-        return redirect(url_for('Importacao.Historico'))
-    
-    svc = ImportacaoDadosService()
-    
+        return redirect(url_for('ImportacaoDadosRazao.Historico'))
+
+    svc = ImportacaoDadosRazaoService()
+
     try:
-        RegistrarLog(f"Rota Reverter acionada por {nome_usuario}. ID: {id_log}", "WEB")
+        RegistrarLog(f"Rota Reverter acionada por {nome_usuario}. ID: {id_log}", 'WEB')
         qtd, tabela = svc.ExecutarReversao(id_log, nome_usuario, motivo)
         flash(f'Reversão concluída. {qtd} registros removidos de {tabela}.', 'warning')
     except Exception as e:
-        RegistrarLog(f"Erro na interface de Reversão ID {id_log}", "ERROR", e)
+        RegistrarLog(f"Erro na interface de Reversão ID {id_log}", 'ERROR', e)
         flash(f'Falha na reversão: {str(e)}', 'danger')
-    return redirect(url_for('Importacao.Historico'))
+    return redirect(url_for('ImportacaoDadosRazao.Historico'))

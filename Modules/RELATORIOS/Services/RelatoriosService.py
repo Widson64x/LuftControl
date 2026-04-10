@@ -6,7 +6,7 @@ import io
 from Db.Connections import GetPostgresEngine
 
 # --- Imports dos Relatórios (Novos Nomes) ---
-from Modules.DRE.Reports.RazaoContabil import RazaoContabil
+from Modules.RAZAO.Reports.RazaoContabil import RazaoContabil
 from Modules.DRE.Reports.DreGerencial import DreGerencial
 from Modules.DRE.Reports.DreConsolidado import DreConsolidado
 

@@ -12,10 +12,10 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 from Utils.Common import parse_bool
-from Utils.Logger import RegistrarLog 
+from Utils.Logger import RegistrarLog
 from Db.Connections import GetPostgresEngine
 
-class AjustesManuaisService:
+class AjustesManuaisRazaoService:
     def __init__(self, session_db):
         self.session = session_db
         self.engine = GetPostgresEngine()

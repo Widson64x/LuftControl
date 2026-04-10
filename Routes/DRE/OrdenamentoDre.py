@@ -1,12 +1,12 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
 from luftcore.extensions.flask_extension import require_ajax
-from Modules.DRE.Services.PermissaoService import RequerPermissao
+from Modules.SISTEMA.Services.PermissaoService import RequerPermissao
 from Modules.DRE.Services.OrdenamentoDreService import OrdenamentoDreService
 
-dre_ordem_bp = Blueprint('OrdenamentoDre', __name__)
+ordem_dre_bp = Blueprint('OrdenamentoDre', __name__)
 
-@dre_ordem_bp.route('/ordenamento/inicializar', methods=['POST'])
+@ordem_dre_bp.route('/ordenamento/inicializar', methods=['POST'])
 @login_required
 @RequerPermissao('ORDENAMENTO_DRE.EDITAR')
 @require_ajax
@@ -14,15 +14,15 @@ def InicializarOrdenamento():
     """Rota para popular a tabela de ordenamento."""
     try:
         limpar = request.json.get('limpar', False) if request.json else False
-        
+
         svc = OrdenamentoDreService()
         resultado = svc.InicializarOrdenamento(limpar)
-        
+
         return jsonify(resultado), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/ordenamento/obter-ordem', methods=['POST'])
+@ordem_dre_bp.route('/ordenamento/obter-ordem', methods=['POST'])
 @login_required
 @RequerPermissao('ORDENAMENTO_DRE.VISUALIZAR')
 @require_ajax
@@ -32,15 +32,15 @@ def ObterOrdem():
         data = request.json
         svc = OrdenamentoDreService()
         res = svc.ObterOrdemEspecifica(
-            data.get('tipo_no'), 
-            data.get('id_referencia'), 
+            data.get('tipo_no'),
+            data.get('id_referencia'),
             data.get('contexto_pai', 'root')
         )
         return jsonify(res), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/ordenamento/obter-filhos', methods=['POST'])
+@ordem_dre_bp.route('/ordenamento/obter-filhos', methods=['POST'])
 @login_required
 @RequerPermissao('ORDENAMENTO_DRE.VISUALIZAR')
 @require_ajax
@@ -54,7 +54,7 @@ def ObterFilhosOrdenados():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/ordenamento/obter-arvore', methods=['GET'])
+@ordem_dre_bp.route('/ordenamento/obter-arvore', methods=['GET'])
 @login_required
 @RequerPermissao('ORDENAMENTO_DRE.VISUALIZAR')
 @require_ajax
@@ -63,18 +63,18 @@ def ObterArvoreOrdenada():
     try:
         svc = OrdenamentoDreService()
         arvore = svc.ObterArvoreOrdenada()
-        
+
         if arvore is None:
             return jsonify({
                 "error": "Ordenamento não inicializado",
                 "msg": "Execute POST /ordenamento/inicializar primeiro"
             }), 400
-            
+
         return jsonify(arvore), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/ordenamento/mover', methods=['POST'])
+@ordem_dre_bp.route('/ordenamento/mover', methods=['POST'])
 @login_required
 @RequerPermissao('ORDENAMENTO_DRE.EDITAR')
 @require_ajax
@@ -96,7 +96,7 @@ def MoverNo():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/ordenamento/reordenar-lote', methods=['POST'])
+@ordem_dre_bp.route('/ordenamento/reordenar-lote', methods=['POST'])
 @login_required
 @RequerPermissao('ORDENAMENTO_DRE.EDITAR')
 @require_ajax
@@ -113,7 +113,7 @@ def ReordenarLote():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/ordenamento/normalizar', methods=['POST'])
+@ordem_dre_bp.route('/ordenamento/normalizar', methods=['POST'])
 @login_required
 @RequerPermissao('ORDENAMENTO_DRE.EDITAR')
 @require_ajax
@@ -126,7 +126,7 @@ def NormalizarContexto():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/ordenamento/sincronizar-novo', methods=['POST'])
+@ordem_dre_bp.route('/ordenamento/sincronizar-novo', methods=['POST'])
 @login_required
 @RequerPermissao('ORDENAMENTO_DRE.EDITAR')
 @require_ajax
@@ -145,7 +145,7 @@ def SincronizarNovoElemento():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/ordenamento/remover-elemento', methods=['POST'])
+@ordem_dre_bp.route('/ordenamento/remover-elemento', methods=['POST'])
 @login_required
 @RequerPermissao('ORDENAMENTO_DRE.EXCLUIR')
 @require_ajax
@@ -163,7 +163,7 @@ def RemoverDoOrdenamento():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@dre_ordem_bp.route('/ordenamento/reordenar-massa', methods=['POST'])
+@ordem_dre_bp.route('/ordenamento/reordenar-massa', methods=['POST'])
 @login_required
 @RequerPermissao('ORDENAMENTO_DRE.EDITAR')
 @require_ajax

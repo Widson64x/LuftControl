@@ -1,6 +1,6 @@
 """
 Módulo de Rotas para Configuração da Árvore DRE (Demonstração do Resultado do Exercício)
-Provê as interfaces de rede (endpoints) para comunicação com o frontend, 
+Provê as interfaces de rede (endpoints) para comunicação com o frontend,
 despachando toda a lógica de negócio para a respectiva classe de serviço.
 """
 
@@ -9,7 +9,7 @@ from flask_login import login_required
 
 # Assumindo o caminho padrão para os seus decoradores customizados
 from luftcore.extensions.flask_extension import require_ajax
-from Modules.DRE.Services.PermissaoService import RequerPermissao
+from Modules.SISTEMA.Services.PermissaoService import RequerPermissao
 from Modules.DRE.Services.ConfiguracaoDreService import ConfiguracaoDreService
 
 configuracao_dre_bp = Blueprint('ConfiguracaoDre', __name__)
