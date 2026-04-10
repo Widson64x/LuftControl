@@ -45,6 +45,268 @@
     flex-shrink: 0;
 }
 
+.luft-budget-filter-launcher {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--luft-space-4);
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--luft-border-light);
+    border-radius: var(--luft-radius-xl);
+    background: var(--luft-bg-panel);
+    box-shadow: var(--luft-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.08));
+}
+
+.luft-budget-filter-launcher-copy {
+    max-width: 30rem;
+}
+
+.luft-budget-filter-launcher-title {
+    margin: 0;
+    color: var(--luft-text-main);
+    font-size: clamp(1rem, 1.6vw, 1.15rem);
+    font-weight: 800;
+}
+
+.luft-budget-filter-launcher-text {
+    margin: var(--luft-space-2) 0 0 0;
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-sm);
+    line-height: 1.6;
+}
+
+.luft-budget-filter-launcher-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.luft-budget-filter-launcher-button {
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--luft-space-2);
+}
+
+.luft-budget-filter-launcher--analytic {
+    align-items: center;
+    background:
+        linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, transparent 42%),
+        var(--luft-bg-panel);
+}
+
+.luft-budget-filter-launcher--analytic .luft-budget-filter-launcher-copy {
+    max-width: 36rem;
+}
+
+.luft-budget-filter-modal-shell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--luft-space-5);
+}
+
+.luft-budget-filter-modal-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.luft-budget-filter-card {
+    grid-column: span 4;
+    display: flex;
+    flex-direction: column;
+    gap: var(--luft-space-3);
+    min-width: 0;
+    min-height: 100%;
+    padding: 1rem;
+    border: 1px solid var(--luft-border-light);
+    border-radius: var(--luft-radius-xl);
+    background: var(--luft-bg-app);
+    box-shadow: var(--luft-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.08));
+}
+
+.luft-budget-filter-card--wide {
+    grid-column: span 6;
+}
+
+.luft-budget-filter-card--list {
+    overflow: hidden;
+}
+
+.luft-budget-filter-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.luft-budget-filter-card-label {
+    margin: 0 0 0.2rem 0;
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.luft-budget-filter-card-title {
+    margin: 0;
+    color: var(--luft-text-main);
+    font-size: 0.98rem;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.luft-budget-filter-card-note {
+    margin: 0;
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-sm);
+    line-height: 1.55;
+}
+
+.luft-budget-filter-mode-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 1.8rem;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--luft-border-light);
+    border-radius: 999px;
+    background: var(--luft-bg-panel);
+    color: var(--luft-text-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.luft-budget-filter-card .luft-budget-filter-control {
+    height: 44px;
+    max-height: 44px;
+}
+
+.luft-budget-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--luft-space-3);
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--luft-border-light);
+}
+.luft-budget-modal-actions.luft-budget-modal-actions--analytic{
+    z-index: 2;
+}
+.luft-budget-analytic-filter-section {
+    display: flex;
+    z-index: 1;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 1rem;
+    border: 1px solid var(--luft-border-light);
+    border-radius: var(--luft-radius-xl);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 100%),
+        var(--luft-bg-panel);
+}
+
+.luft-budget-analytic-filter-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.luft-budget-analytic-filter-section-title {
+    margin: 0;
+    color: var(--luft-text-main);
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.luft-budget-analytic-filter-section-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 1.8rem;
+    padding: 0.22rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(14, 165, 233, 0.08);
+    color: var(--luft-info-700, #0369a1);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.luft-budget-analytic-filter-context-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem 0.9rem;
+    align-items: start;
+}
+
+.luft-budget-analytic-filter-selection-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+    align-items: start;
+}
+
+.luft-budget-analytic-filter-context-grid > *,
+.luft-budget-analytic-filter-selection-grid > * {
+    min-width: 0;
+}
+
+.luft-budget-filter-card--analytic-compact {
+    grid-column: span 1;
+    min-height: unset;
+    padding: 0.95rem;
+    background: var(--luft-bg-app);
+    box-shadow: none;
+}
+
+.luft-budget-filter-card--analytic-months,
+.luft-budget-filter-card--analytic-centers {
+    grid-column: span 1;
+    min-height: 100%;
+    padding: 1rem;
+    background: var(--luft-bg-app);
+    box-shadow: none;
+}
+
+.luft-budget-filter-card--analytic-months .luft-budget-filter-list--cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.luft-budget-filter-card--analytic-months .luft-budget-filter-option {
+    min-height: 64px;
+}
+
+.luft-budget-filter-card--analytic-months .luft-budget-filter-option-title {
+    font-size: 0.84rem;
+}
+
+.luft-budget-filter-card--analytic-centers .luft-budget-filter-list--cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.luft-budget-filter-card--analytic-centers .luft-budget-filter-option {
+    min-height: 76px;
+}
+
+.luft-budget-modal-actions--analytic {
+    position: sticky;
+    bottom: 0;
+    padding-top: 1rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--luft-bg-panel) 26%);
+}
+
 /* Ajustes da Tabela de Orçamento */
 .luft-budget-filters-card {
     position: relative;
@@ -415,13 +677,17 @@
     background: var(--luft-bg-panel-hover);
 }
 
-.luft-budget-row-footer td {
+.luft-budget-sticky-total-row td {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
     background: var(--luft-bg-app);
     border-top: 2px solid var(--luft-border-dark, #cbd5e1);
-    font-weight: 700;
+    box-shadow: 0 -10px 20px rgba(15, 23, 42, 0.06);
+    font-weight: 900;
 }
 
-.luft-budget-row-footer:hover td {
+.luft-budget-sticky-total-row:hover td {
     background: var(--luft-bg-app);
 }
 
@@ -572,9 +838,9 @@
 .luft-budget-filter-searchbar {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
-    margin-bottom: 0.75rem;
-    padding: 0.7rem 0.85rem;
+    gap: 0.55rem;
+    margin-bottom: 0.65rem;
+    padding: 0.65rem 0.8rem;
     border: 1px solid var(--luft-border);
     border-radius: var(--luft-radius-lg);
     background: var(--luft-bg-panel);
@@ -602,19 +868,23 @@
 
 .luft-budget-filter-select-all {
     margin-bottom: 0.6rem;
-    padding: 0.75rem;
+    padding: 0.65rem 0.75rem;
     border-radius: var(--luft-radius-lg);
-    background: var(--luft-bg-panel);
-    box-shadow: var(--luft-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.08));
+    background: transparent;
+    box-shadow: none;
 }
 
 .luft-budget-filter-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    max-height: 15rem;
+    max-height: 18rem;
     overflow-y: auto;
     padding-right: 0.2rem;
+}
+
+.luft-budget-filter-list--cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.6rem;
+    align-content: start;
 }
 
 .luft-budget-filter-list::-webkit-scrollbar {
@@ -634,27 +904,84 @@
 
 .luft-budget-filter-option {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.65rem;
-    min-height: 40px;
-    padding: 0.55rem 0.75rem;
-    border: 1px solid var(--luft-border-light);
+    min-height: 76px;
+    height: 76px;
+    padding: 0.75rem;
+    border: 1px solid var(--luft-border);
     border-radius: var(--luft-radius-lg);
     background: var(--luft-bg-panel);
     color: var(--luft-text-main);
     cursor: pointer;
-    transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+    overflow: hidden;
+    transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .luft-budget-filter-option:hover {
-    border-color: var(--luft-primary-200, #bfdbfe);
-    background: var(--luft-primary-50, #eff6ff);
+    border-color: var(--luft-border-dark, #cbd5e1);
+    background: var(--luft-bg-app);
+}
+
+.luft-budget-filter-option.is-selected {
+    border-color: var(--luft-primary-400, #60a5fa);
+    background: var(--luft-primary-50);
+    color: var(--luft-gray-950);
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
 }
 
 .luft-budget-filter-option span {
     color: inherit;
     font-size: var(--luft-text-sm);
     line-height: 1.35;
+}
+
+.luft-budget-filter-option-body {
+    display: grid;
+    grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+    align-content: start;
+    gap: 0.28rem;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+
+.luft-budget-filter-option-code {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.05);
+    color: var(--luft-text-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.luft-budget-filter-option-title {
+    display: block;
+    color: var(--luft-text-main);
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.3;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.luft-budget-filter-option-meta {
+    display: block;
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-xs);
+    line-height: 1.45;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .luft-budget-filter-empty {
@@ -697,12 +1024,13 @@
     gap: var(--luft-space-2);
     min-width: 0;
     max-width: 100%;
-    padding: 0.45rem 0.8rem;
+    padding: 0.38rem 0.72rem;
     border-radius: 999px;
-    background: var(--luft-primary-50, #eff6ff);
-    color: var(--luft-primary-700, #1d4ed8);
+    background: var(--luft-bg-app);
+    color: var(--luft-text-main);
     font-size: var(--luft-text-xs);
     font-weight: 700;
+    border: 1px solid var(--luft-border-light);
 }
 
 .luft-budget-analytic-table {
@@ -790,14 +1118,6 @@
     font-weight: 700;
 }
 
-.luft-budget-analytic-total-row td {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    background: var(--luft-bg-app);
-    border-top: 2px solid var(--luft-border-dark, #cbd5e1);
-    font-weight: 900;
-}
 
 .luft-budget-analytic-loading,
 .luft-budget-analytic-empty {
@@ -809,6 +1129,33 @@
 @media (max-width: 1280px) {
     .luft-budget-kpi-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .luft-budget-filter-launcher {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .luft-budget-filter-launcher-actions {
+        justify-content: flex-start;
+    }
+
+    .luft-budget-filter-modal-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .luft-budget-analytic-filter-context-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .luft-budget-filter-card--analytic-months .luft-budget-filter-list--cards,
+    .luft-budget-filter-card--analytic-centers .luft-budget-filter-list--cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .luft-budget-filter-card,
+    .luft-budget-filter-card--wide {
+        grid-column: span 1;
     }
 
     .luft-budget-filters-grid {
@@ -878,9 +1225,58 @@
     }
 }
 
+@media (max-width: 980px) {
+    .luft-budget-analytic-filter-context-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .luft-budget-analytic-filter-selection-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 768px) {
     .luft-budget-page-header {
         flex-direction: column;
+        align-items: stretch;
+    }
+
+    .luft-budget-filter-modal-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .luft-budget-analytic-filter-section {
+        padding: 0.85rem;
+    }
+
+    .luft-budget-analytic-filter-section-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .luft-budget-analytic-filter-context-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .luft-budget-filter-card,
+    .luft-budget-filter-card--wide {
+        grid-column: auto;
+    }
+
+    .luft-budget-filter-list--cards {
+        grid-template-columns: 1fr;
+    }
+
+    .luft-budget-filter-card--analytic-months .luft-budget-filter-list--cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .luft-budget-filter-card--analytic-centers .luft-budget-filter-list--cards {
+        grid-template-columns: 1fr;
+    }
+
+    .luft-budget-modal-actions {
+        flex-direction: column-reverse;
         align-items: stretch;
     }
 
