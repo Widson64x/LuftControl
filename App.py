@@ -15,6 +15,7 @@ from Routes.SISTEMA.ConfiguracaoSeguranca import security_bp
 from Routes.RELATORIOS.Relatorios import relatorios_bp
 from Routes.DRE.ConfiguracaoDre import configuracao_dre_bp
 from Routes.DRE.OrdenamentoDre import ordem_dre_bp
+from Routes.BUDGET.AtualizacaoDespesasFixas import atualizacao_despesas_fixas_bp
 from Routes.RAZAO.AjustesManuaisRazao import ajustes_manuais_razao_bp
 from Routes.RAZAO.ImportacaoDadosRazao import importacao_dados_razao_bp
 
@@ -100,6 +101,7 @@ app.register_blueprint(api_bp)
 app.register_blueprint(relatorios_bp)
 app.register_blueprint(configuracao_dre_bp)
 app.register_blueprint(ordem_dre_bp)
+app.register_blueprint(atualizacao_despesas_fixas_bp)
 app.register_blueprint(ajustes_manuais_razao_bp)
 app.register_blueprint(security_bp)
 app.register_blueprint(importacao_dados_razao_bp)

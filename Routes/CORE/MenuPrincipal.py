@@ -13,7 +13,7 @@ def MenuPrincipal():
     return render_template('Pages/HomeDashboard.html', user=current_user)
 
 
-@main_bp.route('/dre')
+@main_bp.route('/dre-hub')
 @login_required
 # @RequerPermissao('DRE.VISUALIZAR')  # Ajuste para a permissão correta do seu sistema
 def HubDRE():
@@ -22,6 +22,17 @@ def HubDRE():
     Dá acesso a relatórios, ajustes, importação e configurações do DRE.
     """
     return render_template('Pages/DreHub.html')
+
+
+@main_bp.route('/budget-hub')
+@login_required
+@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+def HubBudget():
+    """
+    Painel central do Módulo Budget.
+    Concentra os processos e atalhos operacionais do orçamento.
+    """
+    return render_template('Pages/BudgetHub.html')
 
 
 @main_bp.route('/configuracoes')

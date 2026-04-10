@@ -27,7 +27,7 @@ ativo=(request.endpoint == 'Relatorios.PaginaRelatorios'))
 }}
 
 {# --- NOVO: ITEM COM SUBMENU (Módulo DRE) --- #}
-{% set dre_endpoints = ['Principal.HubDRE', 'Relatorios.PaginaRelatorios', 'Relatorios.PaginaBudget', 'Relatorios.PaginaBudgetAnalitico'] %}
+{% set dre_endpoints = ['Principal.HubDRE', 'Relatorios.PaginaRelatorios'] %}
 {% set dre_blueprints = ['AjustesManuaisRazao', 'ConfiguracaoDre', 'ImportacaoDadosRazao', 'OrdenamentoDre'] %}
 {% call ui.nav_item('Módulo DRE', icone='ph-bold ph-chart-bar', ativo=(request.endpoint in dre_endpoints or request.blueprint in dre_blueprints)) %}
 
@@ -35,6 +35,17 @@ ativo=(request.endpoint == 'Relatorios.PaginaRelatorios'))
 {{ ui.nav_item('Ajustes Manuais do Razão', href=url_for('AjustesManuaisRazao.Inicio')) }}
 {{ ui.nav_item('Importação de Dados do Razão', href=url_for('ImportacaoDadosRazao.Inicio')) }}
 {{ ui.nav_item('Configurações (Engine)', href=url_for('ConfiguracaoDre.VisualizarArvore')) }}
+
+{% endcall %}
+
+{% set budget_endpoints = ['Principal.HubBudget', 'Relatorios.PaginaBudget', 'Relatorios.PaginaBudgetAnalitico'] %}
+{% set budget_blueprints = ['AtualizacaoDespesasFixas'] %}
+{% call ui.nav_item('Módulo Budget', icone='ph-bold ph-wallet', ativo=(request.endpoint in budget_endpoints or request.blueprint in budget_blueprints)) %}
+
+{{ ui.nav_item('Hub do Budget', href=url_for('Principal.HubBudget')) }}
+{{ ui.nav_item('Atualização de Despesas Fixas', href=url_for('AtualizacaoDespesasFixas.PaginaAtualizacaoDespesasFixas')) }}
+{{ ui.nav_item('Relatório Budget x Real', href=url_for('Relatorios.PaginaBudget')) }}
+{{ ui.nav_item('Relatório Budget Analítico', href=url_for('Relatorios.PaginaBudgetAnalitico')) }}
 
 {% endcall %}
 
