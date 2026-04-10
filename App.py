@@ -10,6 +10,7 @@ from luftcore.extensions.flask_extension import LuftCorePackages, LuftUser
 from Routes.CORE.MenuPrincipal import main_bp
 from Routes.CORE.Autenticacao import auth_bp, CarregarUsuarioFlask
 from Routes.SISTEMA.ConfiguracaoSeguranca import security_bp
+from Routes.SISTEMA.GestoresCentroCusto import gestores_cc_bp
 
 # --- Rotas de Módulos ---
 from Routes.RELATORIOS.Relatorios import relatorios_bp
@@ -104,6 +105,7 @@ app.register_blueprint(ordem_dre_bp)
 app.register_blueprint(atualizacao_despesas_fixas_bp)
 app.register_blueprint(ajustes_manuais_razao_bp)
 app.register_blueprint(security_bp)
+app.register_blueprint(gestores_cc_bp)
 app.register_blueprint(importacao_dados_razao_bp)
 
 @app.route('/')

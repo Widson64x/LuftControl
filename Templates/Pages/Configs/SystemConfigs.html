@@ -130,6 +130,22 @@
             </div>
         </a>
 
+        <a href="{{ url_for('GestoresCentroCusto.VisualizarGestoresCentroCusto') }}" class="luft-settings-card">
+            <div class="luft-card-icon" style="background: var(--luft-primary-50); color: var(--luft-primary-600); border: 1px solid var(--luft-primary-100);">
+                <i class="ph-bold ph-users-three"></i>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="luft-card-title text-xl font-bold text-main m-0">Gestores de Centro de Custo</h3>
+                {{ ui.badge('JSON', 'primary', 'ph-bold ph-file-code') }}
+            </div>
+            <p class="luft-card-desc text-muted text-sm mb-6 flex-grow">
+                Defina quais usuários são gestores de quais centros de custo. Essa configuração é global e servirá de base para a nova ferramenta operacional do Budget.
+            </p>
+            <div class="font-bold text-sm text-primary">
+                <span>Abrir Configuração</span> <i class="ph-bold ph-arrow-right"></i>
+            </div>
+        </a>
+
         <div class="luft-settings-card disabled">
             <div class="luft-card-icon" style="background: var(--luft-slate-100); color: var(--luft-slate-600); border: 1px solid var(--luft-slate-200);">
                 <i class="ph-bold ph-sliders-horizontal"></i>

@@ -50,10 +50,12 @@ ativo=(request.endpoint == 'Relatorios.PaginaRelatorios'))
 {% endcall %}
 
 {# --- ITEM COM SUBMENU (Administração Global) --- #}
-{% set sys_endpoints = ['Principal.MenuConfiguracoes', 'Seguranca.VisualizarGerenciador'] %}
-{% call ui.nav_item('Sistema', icone='ph-bold ph-gear', ativo=(request.endpoint in sys_endpoints)) %}
+{% set sys_endpoints = ['Principal.MenuConfiguracoes', 'Seguranca.VisualizarGerenciador', 'GestoresCentroCusto.VisualizarGestoresCentroCusto'] %}
+{% set sys_blueprints = ['Seguranca', 'GestoresCentroCusto'] %}
+{% call ui.nav_item('Sistema', icone='ph-bold ph-gear', ativo=(request.endpoint in sys_endpoints or request.blueprint in sys_blueprints)) %}
 
 {{ ui.nav_item('Configurações Gerais', href=url_for('Principal.MenuConfiguracoes')) }}
+{{ ui.nav_item('Gestores de Centro de Custo', href=url_for('GestoresCentroCusto.VisualizarGestoresCentroCusto')) }}
 {{ ui.nav_item('Segurança e Permissões', href=url_for('Seguranca.VisualizarGerenciador')) }}
 
 {% endcall %}
