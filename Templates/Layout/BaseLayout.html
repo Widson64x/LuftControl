@@ -38,11 +38,12 @@ ativo=(request.endpoint == 'Relatorios.PaginaRelatorios'))
 
 {% endcall %}
 
-{% set budget_endpoints = ['Principal.HubBudget', 'Relatorios.PaginaBudget', 'Relatorios.PaginaBudgetAnalitico'] %}
-{% set budget_blueprints = ['AtualizacaoDespesasFixas'] %}
+{% set budget_endpoints = ['Principal.HubBudget', 'Relatorios.PaginaBudget', 'Relatorios.PaginaBudgetAnalitico', 'AcompanhamentoMensalBudget.PaginaAcompanhamentoMensal'] %}
+{% set budget_blueprints = ['AtualizacaoDespesasFixas', 'AcompanhamentoMensalBudget'] %}
 {% call ui.nav_item('Módulo Budget', icone='ph-bold ph-wallet', ativo=(request.endpoint in budget_endpoints or request.blueprint in budget_blueprints)) %}
 
 {{ ui.nav_item('Hub do Budget', href=url_for('Principal.HubBudget')) }}
+{{ ui.nav_item('Acompanhamento Mensal', href=url_for('AcompanhamentoMensalBudget.PaginaAcompanhamentoMensal')) }}
 {{ ui.nav_item('Atualização de Despesas Fixas', href=url_for('AtualizacaoDespesasFixas.PaginaAtualizacaoDespesasFixas')) }}
 {{ ui.nav_item('Relatório Budget x Real', href=url_for('Relatorios.PaginaBudget')) }}
 {{ ui.nav_item('Relatório Budget Analítico', href=url_for('Relatorios.PaginaBudgetAnalitico')) }}

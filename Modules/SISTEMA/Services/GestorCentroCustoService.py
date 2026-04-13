@@ -206,6 +206,18 @@ class GestorCentroCustoService:
                 return [centro['codigo'] for centro in gestor.get('centros_custo', [])]
         return []
 
+    def obterGestorConfigurado(self, codigo_usuario):
+        codigo_usuario_normalizado = self._normalizar_codigo_usuario(codigo_usuario)
+        if codigo_usuario_normalizado is None:
+            return None
+
+        configuracao = self.carregarConfiguracao()
+        for gestor in configuracao.get('gestores', []):
+            if gestor.get('codigo_usuario') == codigo_usuario_normalizado:
+                return gestor
+
+        return None
+
     def _garantir_arquivo_configuracao(self):
         os.makedirs(self.PASTA_CONFIGURACAO, exist_ok=True)
         if not os.path.exists(self.ARQUIVO_CONFIGURACAO):
