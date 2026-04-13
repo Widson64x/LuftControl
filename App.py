@@ -6,19 +6,27 @@ from dotenv import load_dotenv
 import os
 from luftcore.extensions.flask_extension import LuftCorePackages, LuftUser
 
-# --- Imports das Rotas ---
-# Importando a função auxiliar que também foi renomeada
-from Routes.Autenticacao import auth_bp, CarregarUsuarioFlask
-from Routes.MenuPrincipal import main_bp
-from Routes.Relatorios import reports_bp
-from Routes.ConfiguracaoDre import configuracao_dre_bp
-from Routes.OrdenamentoDre import dre_ordem_bp
-from Routes.ConfiguracaoSeguranca import security_bp
-from Routes.AjustesManuais import ajustes_bp
-from Routes.ImportacaoDados import import_bp
-from Routes.Api import api_bp
+# --- Rotas Bases ---
+from Routes.CORE.MenuPrincipal import main_bp
+from Routes.CORE.Autenticacao import auth_bp, CarregarUsuarioFlask
+from Routes.SISTEMA.ConfiguracaoSeguranca import security_bp
+from Routes.SISTEMA.GestoresCentroCusto import gestores_cc_bp
 
-# --- Imports Banco de Dados ---
+# --- Rotas de Módulos ---
+from Routes.RELATORIOS.Relatorios import relatorios_bp
+from Routes.DRE.ConfiguracaoDre import configuracao_dre_bp
+from Routes.DRE.OrdenamentoDre import ordem_dre_bp
+from Routes.BUDGET.AcompanhamentoMensal import acompanhamento_mensal_bp
+from Routes.BUDGET.AtualizacaoDespesasFixas import atualizacao_despesas_fixas_bp
+from Routes.RAZAO.AjustesManuaisRazao import ajustes_manuais_razao_bp
+from Routes.RAZAO.ImportacaoDadosRazao import importacao_dados_razao_bp
+
+# Rotas de API (AJAX)
+from Routes.API import api_bp
+
+
+
+# --- Imports Banco de Dados e Logs ---
 from Db.Connections import PG_DATABASE_URL, CheckConnections
 from Models.Postgress.CTL_Dre_Estrutura import Base as DreBase
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -92,12 +100,15 @@ luftcore_app = LuftCorePackages(
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(api_bp)
-app.register_blueprint(reports_bp)
+app.register_blueprint(relatorios_bp)
 app.register_blueprint(configuracao_dre_bp)
-app.register_blueprint(dre_ordem_bp)
-app.register_blueprint(ajustes_bp)
+app.register_blueprint(ordem_dre_bp)
+app.register_blueprint(acompanhamento_mensal_bp)
+app.register_blueprint(atualizacao_despesas_fixas_bp)
+app.register_blueprint(ajustes_manuais_razao_bp)
 app.register_blueprint(security_bp)
-app.register_blueprint(import_bp)
+app.register_blueprint(gestores_cc_bp)
+app.register_blueprint(importacao_dados_razao_bp)
 
 @app.route('/')
 def Index(): # Até o index merece um PascalCase

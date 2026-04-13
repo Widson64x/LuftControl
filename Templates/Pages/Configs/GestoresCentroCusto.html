@@ -1,0 +1,1560 @@
+{% extends "Layout/BaseLayout.html" %}
+{% import 'luftcore/components.html' as ui %}
+
+{% block title %}Gestores de Centros de Custo - Luft Control{% endblock %}
+
+{% block extra_css %}
+<style>
+    .luft-gestor-page {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding-bottom: var(--luft-space-12);
+        animation: luftFadeIn 0.35s ease-out;
+    }
+
+    @keyframes luftFadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .luft-gestor-hero {
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border);
+        border-radius: var(--luft-radius-2xl);
+        padding: var(--luft-space-8);
+        margin-bottom: var(--luft-space-6);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--luft-space-6);
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--luft-shadow-sm);
+    }
+
+    .luft-gestor-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at top right, var(--luft-primary-50) 0%, transparent 60%);
+        pointer-events: none;
+    }
+
+    .luft-gestor-hero-body,
+    .luft-gestor-hero-action {
+        position: relative;
+        z-index: 1;
+    }
+
+    .luft-gestor-title {
+        margin: 0;
+        color: var(--luft-text-main);
+        font-size: clamp(1.95rem, 3vw, 2.6rem);
+        font-weight: 900;
+        letter-spacing: -0.03em;
+    }
+
+    .luft-gestor-subtitle {
+        margin: var(--luft-space-3) 0 0 0;
+        color: var(--luft-text-muted);
+        font-size: var(--luft-text-base);
+        line-height: 1.65;
+        max-width: 760px;
+    }
+
+    .luft-gestor-hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: var(--luft-space-4);
+    }
+
+    .luft-gestor-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.95fr);
+        gap: var(--luft-space-7);
+        align-items: start;
+    }
+
+    .luft-gestor-column {
+        display: grid;
+        gap: var(--luft-space-6);
+        min-width: 0;
+        padding: 3px;
+    }
+
+    .luft-gestor-card {
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border);
+        border-radius: var(--luft-radius-2xl);
+        padding: clamp(22px, 2.4vw, 30px);
+        box-shadow: 0 26px 50px -34px rgba(15, 23, 42, 0.28), var(--luft-shadow-sm);
+        overflow: hidden;
+    }
+
+    .luft-gestor-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--luft-space-4);
+        margin-bottom: var(--luft-space-5);
+    }
+
+    .luft-gestor-card-title {
+        margin: 0;
+        color: var(--luft-text-main);
+        font-size: var(--luft-text-xl);
+        font-weight: 900;
+    }
+
+    .luft-gestor-card-desc {
+        margin: 6px 0 0 0;
+        color: var(--luft-text-muted);
+        font-size: var(--luft-text-sm);
+        line-height: 1.55;
+    }
+
+    .luft-gestor-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--luft-space-4);
+        margin-bottom: var(--luft-space-4);
+        align-items: start;
+    }
+
+    .luft-gestor-field {
+        display: grid;
+        gap: 8px;
+    }
+
+    .luft-gestor-label {
+        color: var(--luft-text-main);
+        font-size: var(--luft-text-sm);
+        font-weight: 700;
+    }
+
+    .luft-gestor-input,
+    .luft-gestor-select,
+    .luft-gestor-textarea {
+        width: 100%;
+        border: 1px solid var(--luft-border-dark);
+        border-radius: var(--luft-radius-lg);
+        padding: 13px 14px;
+        background: var(--luft-bg-base);
+        color: var(--luft-text-main);
+        font-size: var(--luft-text-sm);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .luft-gestor-input:focus,
+    .luft-gestor-select:focus,
+    .luft-gestor-textarea:focus {
+        outline: none;
+        border-color: var(--luft-primary-500);
+        box-shadow: 0 0 0 3px var(--luft-primary-100);
+    }
+
+    .luft-gestor-help {
+        margin-top: 6px;
+        color: var(--luft-text-muted);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .luft-gestor-user-picker {
+        position: relative;
+    }
+
+    .luft-gestor-user-shell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px;
+        border: 1px solid var(--luft-border-dark);
+        border-radius: 20px;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.98) 100%),
+            var(--luft-bg-base);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 18px 38px -32px rgba(15, 23, 42, 0.35);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .luft-gestor-user-picker.is-open .luft-gestor-user-shell,
+    .luft-gestor-user-shell:focus-within {
+        border-color: var(--luft-primary-500);
+        box-shadow: 0 0 0 4px var(--luft-primary-100), 0 22px 42px -34px rgba(37, 99, 235, 0.42);
+        transform: translateY(-1px);
+    }
+
+    .luft-gestor-user-icon {
+        color: var(--luft-primary-600);
+        font-size: 16px;
+        flex: 0 0 auto;
+    }
+
+    .luft-gestor-user-input {
+        border: none;
+        background: transparent;
+        box-shadow: none;
+        padding: 15px 0;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .luft-gestor-user-input:focus {
+        border: none;
+        box-shadow: none;
+    }
+
+    .luft-gestor-user-clear {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        border: none;
+        background: transparent;
+        color: var(--luft-text-muted);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .luft-gestor-user-clear:hover {
+        background: rgba(148, 163, 184, 0.14);
+        color: var(--luft-text-main);
+    }
+
+    .luft-gestor-user-clear[hidden] {
+        display: none;
+    }
+
+    .luft-gestor-user-dropdown {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        right: 0;
+        z-index: 30;
+        display: none;
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 10px;
+        border: 1px solid var(--luft-border);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 28px 55px -34px rgba(15, 23, 42, 0.42);
+        backdrop-filter: blur(10px);
+    }
+
+    .luft-gestor-user-picker.is-open .luft-gestor-user-dropdown {
+        display: grid;
+        gap: 8px;
+    }
+
+    .luft-gestor-user-option {
+        width: 100%;
+        border: 1px solid transparent;
+        border-radius: 16px;
+        background: transparent;
+        color: inherit;
+        padding: 12px 14px;
+        text-align: left;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+
+    .luft-gestor-user-option:hover {
+        border-color: var(--luft-primary-100);
+        background: var(--luft-primary-50);
+        transform: translateY(-1px);
+    }
+
+    .luft-gestor-user-option.is-active {
+        border-color: var(--luft-primary-200);
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.09) 0%, rgba(255, 255, 255, 0.95) 100%);
+    }
+
+    .luft-gestor-user-option-title {
+        display: block;
+        color: var(--luft-text-main);
+        font-size: var(--luft-text-sm);
+        font-weight: 800;
+        margin-bottom: 3px;
+    }
+
+    .luft-gestor-user-option-meta {
+        display: block;
+        color: var(--luft-text-muted);
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .luft-gestor-user-empty {
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px dashed var(--luft-border-dark);
+        background: rgba(248, 250, 252, 0.92);
+        color: var(--luft-text-muted);
+        font-size: 12px;
+        text-align: center;
+    }
+
+    .luft-gestor-selected-user {
+        margin-top: 10px;
+        min-height: 28px;
+    }
+
+    .luft-gestor-selected-user-card {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 100%;
+        padding: 10px 12px;
+        border-radius: 16px;
+        border: 1px solid var(--luft-primary-100);
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.08) 0%, rgba(255, 255, 255, 0.95) 100%);
+    }
+
+    .luft-gestor-selected-user-card i {
+        color: var(--luft-primary-600);
+    }
+
+    .luft-gestor-selected-user-title {
+        display: block;
+        color: var(--luft-text-main);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .luft-gestor-selected-user-meta {
+        display: block;
+        color: var(--luft-text-muted);
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    .luft-gestor-selection-shell {
+        margin-top: var(--luft-space-4);
+        border: 1px solid var(--luft-border-light);
+        border-radius: var(--luft-radius-xl);
+        background: var(--luft-bg-base);
+        overflow: hidden;
+        padding: 10px;
+    }
+
+    .luft-gestor-selection-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--luft-space-3);
+        padding: 12px 14px;
+        border: 1px solid var(--luft-border-light);
+        border-radius: 18px;
+        background: var(--luft-bg-panel);
+        margin-bottom: 10px;
+    }
+
+    .luft-gestor-selection-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .luft-gestor-counter {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: var(--luft-primary-50);
+        color: var(--luft-primary-700);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .luft-gestor-toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .luft-gestor-btn-primary,
+    .luft-gestor-btn-secondary,
+    .luft-gestor-btn-danger,
+    .luft-gestor-btn-ghost {
+        border-radius: var(--luft-radius-lg);
+        padding: 12px 18px;
+        font-weight: 700;
+        font-size: var(--luft-text-sm);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        border: 1px solid transparent;
+    }
+
+    .luft-gestor-btn-primary {
+        background: var(--luft-primary-600);
+        color: white;
+        border-color: var(--luft-primary-700);
+    }
+
+    .luft-gestor-btn-primary:hover {
+        background: var(--luft-primary-700);
+        transform: translateY(-1px);
+    }
+
+    .luft-gestor-btn-secondary,
+    .luft-gestor-btn-ghost {
+        background: var(--luft-bg-base);
+        color: var(--luft-text-main);
+        border-color: var(--luft-border-dark);
+    }
+
+    .luft-gestor-btn-secondary:hover,
+    .luft-gestor-btn-danger:hover,
+    .luft-gestor-btn-ghost:hover {
+        background: var(--luft-border-light);
+    }
+
+    .luft-gestor-btn-danger {
+        background: rgba(220, 38, 38, 0.05);
+        color: #b91c1c;
+        border-color: rgba(220, 38, 38, 0.16);
+    }
+
+    .luft-gestor-btn-ghost {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .luft-gestor-btn-primary:disabled,
+    .luft-gestor-btn-secondary:disabled,
+    .luft-gestor-btn-danger:disabled,
+    .luft-gestor-btn-ghost:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .luft-gestor-center-list {
+        max-height: 340px;
+        overflow-y: auto;
+        display: grid;
+        gap: 10px;
+        padding: 4px;
+    }
+
+    .luft-gestor-center-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: var(--luft-radius-xl);
+        border: 1px solid var(--luft-border-light);
+        background: var(--luft-bg-panel);
+        cursor: pointer;
+        transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    }
+
+    .luft-gestor-center-item:hover {
+        border-color: var(--luft-primary-300);
+        transform: translateY(-1px);
+    }
+
+    .luft-gestor-center-item.is-selected {
+        border-color: var(--luft-primary-400);
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.06) 0%, transparent 100%), var(--luft-bg-panel);
+    }
+
+    .luft-gestor-center-item input {
+        margin-top: 3px;
+        accent-color: var(--luft-primary-600);
+    }
+
+    .luft-gestor-center-body {
+        min-width: 0;
+    }
+
+    .luft-gestor-center-title {
+        display: block;
+        color: var(--luft-text-main);
+        font-size: var(--luft-text-sm);
+        font-weight: 800;
+        margin-bottom: 2px;
+    }
+
+    .luft-gestor-center-text {
+        display: block;
+        color: var(--luft-text-muted);
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .luft-gestor-center-empty {
+        padding: 18px;
+        border: 1px dashed var(--luft-border-dark);
+        border-radius: var(--luft-radius-xl);
+        text-align: center;
+        color: var(--luft-text-muted);
+        background: var(--luft-bg-panel);
+        font-size: 13px;
+    }
+
+    .luft-gestor-selected-wrap {
+        margin-top: var(--luft-space-4);
+    }
+
+    .luft-gestor-selected-label {
+        display: block;
+        color: var(--luft-text-main);
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .luft-gestor-selected-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .luft-gestor-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: var(--luft-slate-100);
+        color: var(--luft-slate-700);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .luft-gestor-chip.is-primary {
+        background: var(--luft-primary-50);
+        color: var(--luft-primary-700);
+    }
+
+    .luft-gestor-chip.is-success {
+        background: rgba(22, 163, 74, 0.12);
+        color: #166534;
+    }
+
+    .luft-gestor-status {
+        display: none;
+        margin: var(--luft-space-5) 0;
+        padding: 14px 16px;
+        border-radius: var(--luft-radius-xl);
+        font-size: var(--luft-text-sm);
+        line-height: 1.55;
+    }
+
+    .luft-gestor-status.is-visible {
+        display: block;
+    }
+
+    .luft-gestor-status.is-success {
+        background: rgba(22, 163, 74, 0.08);
+        border: 1px solid rgba(22, 163, 74, 0.18);
+        color: #166534;
+    }
+
+    .luft-gestor-status.is-error {
+        background: rgba(220, 38, 38, 0.08);
+        border: 1px solid rgba(220, 38, 38, 0.18);
+        color: #b91c1c;
+    }
+
+    .luft-gestor-status.is-info {
+        background: var(--luft-primary-50);
+        border: 1px solid var(--luft-primary-100);
+        color: var(--luft-primary-700);
+    }
+
+    .luft-gestor-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .luft-gestor-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--luft-space-4);
+        margin-bottom: var(--luft-space-5);
+    }
+
+    .luft-gestor-stat {
+        padding: var(--luft-space-4);
+        border-radius: var(--luft-radius-xl);
+        background: var(--luft-bg-base);
+        border: 1px solid var(--luft-border-light);
+    }
+
+    .luft-gestor-stat-value {
+        color: var(--luft-text-main);
+        font-size: var(--luft-text-2xl);
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    .luft-gestor-stat-label {
+        margin-top: 6px;
+        color: var(--luft-text-muted);
+        font-size: 12px;
+    }
+
+    .luft-gestor-info-box {
+        padding: 14px 16px;
+        border-radius: var(--luft-radius-xl);
+        border: 1px solid var(--luft-border-light);
+        background: var(--luft-bg-base);
+        margin-bottom: var(--luft-space-5);
+    }
+
+    .luft-gestor-info-title {
+        display: block;
+        color: var(--luft-text-main);
+        font-size: 12px;
+        font-weight: 800;
+        margin-bottom: 4px;
+    }
+
+    .luft-gestor-info-text {
+        color: var(--luft-text-muted);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .luft-gestor-help-list {
+        display: grid;
+        gap: 10px;
+        margin-bottom: var(--luft-space-5);
+        padding: 2px;
+    }
+
+    .luft-gestor-help-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: var(--luft-radius-xl);
+        background: var(--luft-bg-base);
+        border: 1px solid var(--luft-border-light);
+        color: var(--luft-text-muted);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .luft-gestor-help-item strong {
+        display: block;
+        color: var(--luft-text-main);
+        margin-bottom: 2px;
+    }
+
+    .luft-gestor-help-item i {
+        color: var(--luft-primary-600);
+        margin-top: 2px;
+    }
+
+    .luft-gestor-list {
+        display: grid;
+        gap: var(--luft-space-4);
+        padding: 2px;
+    }
+
+    .luft-gestor-item {
+        border: 1px solid var(--luft-border-light);
+        border-radius: var(--luft-radius-xl);
+        padding: var(--luft-space-5);
+        background: var(--luft-bg-base);
+    }
+
+    .luft-gestor-item-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--luft-space-4);
+        margin-bottom: var(--luft-space-4);
+    }
+
+    .luft-gestor-item-title {
+        margin: 0;
+        color: var(--luft-text-main);
+        font-size: var(--luft-text-base);
+        font-weight: 800;
+    }
+
+    .luft-gestor-item-subtitle {
+        margin: 4px 0 0 0;
+        color: var(--luft-text-muted);
+        font-size: 12px;
+    }
+
+    .luft-gestor-item-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: var(--luft-space-4);
+    }
+
+    .luft-gestor-centros {
+        display: grid;
+        gap: 8px;
+    }
+
+    .luft-gestor-centro {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: var(--luft-radius-lg);
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border-light);
+        color: var(--luft-text-muted);
+        font-size: 12px;
+    }
+
+    .luft-gestor-centro strong {
+        display: block;
+        color: var(--luft-text-main);
+        margin-bottom: 2px;
+    }
+
+    .luft-gestor-empty {
+        padding: var(--luft-space-6);
+        border: 1px dashed var(--luft-border-dark);
+        border-radius: var(--luft-radius-xl);
+        text-align: center;
+        color: var(--luft-text-muted);
+        background: var(--luft-bg-base);
+        margin: 2px;
+    }
+
+    .luft-gestor-json-box {
+        margin-top: var(--luft-space-5);
+        border: 1px solid var(--luft-border-light);
+        border-radius: var(--luft-radius-xl);
+        background: var(--luft-bg-base);
+        overflow: hidden;
+    }
+
+    .luft-gestor-json-box summary {
+        cursor: pointer;
+        padding: 14px 16px;
+        font-weight: 800;
+        color: var(--luft-text-main);
+        list-style: none;
+    }
+
+    .luft-gestor-json-box summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .luft-gestor-textarea {
+        min-height: 260px;
+        resize: vertical;
+        font-family: Consolas, 'Courier New', monospace;
+        line-height: 1.45;
+        border: none;
+        border-top: 1px solid var(--luft-border-light);
+        border-radius: 0;
+        background: transparent;
+    }
+
+    @media (max-width: 1100px) {
+        .luft-gestor-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 820px) {
+        .luft-gestor-hero,
+        .luft-gestor-form-grid,
+        .luft-gestor-stats,
+        .luft-gestor-selection-toolbar,
+        .luft-gestor-card-header,
+        .luft-gestor-item-head {
+            grid-template-columns: 1fr;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .luft-gestor-toolbar-actions,
+        .luft-gestor-actions {
+            width: 100%;
+        }
+
+        .luft-gestor-btn-primary,
+        .luft-gestor-btn-secondary,
+        .luft-gestor-btn-danger {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="luft-breadcrumb-item d-flex align-items-center gap-1"><a href="{{ url_for('Principal.MenuPrincipal') }}" class="text-muted text-decoration-none"><i class="ph-fill ph-house"></i> Home</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item d-flex align-items-center gap-1"><a href="{{ url_for('Principal.MenuConfiguracoes') }}" class="text-muted text-decoration-none">Configurações Globais</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item active">Gestores de Centros de Custo</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="luft-gestor-page" id="gestor-cc-app" data-save-url="{{ url_for('GestoresCentroCusto.SalvarConfiguracaoGestoresCentroCusto') }}">
+    <section class="luft-gestor-hero">
+        <div class="luft-gestor-hero-body">
+            <h1 class="luft-gestor-title">Gestores de Centros de Custo</h1>
+            <p class="luft-gestor-subtitle">Defina quem responde por cada centro de custo e qual é o cargo ou função desse usuário. Essa configuração é global e depois será consumida pela nova ferramenta do Budget.</p>
+            <div class="luft-gestor-hero-meta">
+                {{ ui.badge('Global', cor='primary') }}
+                {{ ui.badge('JSON', cor='success') }}
+                {{ ui.badge('Base para o Budget', cor='info') }}
+            </div>
+        </div>
+
+        <div class="luft-gestor-hero-action">
+            <a href="{{ url_for('Principal.MenuConfiguracoes') }}" class="luft-gestor-btn-secondary">
+                <i class="ph-bold ph-arrow-left"></i>
+                <span>Voltar</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="luft-gestor-layout">
+        <div class="luft-gestor-column">
+            <div class="luft-gestor-card">
+                <div class="luft-gestor-card-header">
+                    <div>
+                        <h2 class="luft-gestor-card-title">Vincular gestor</h2>
+                        <p class="luft-gestor-card-desc">Escolha o usuário, informe o cargo e marque os centros de custo sob responsabilidade dele.</p>
+                    </div>
+                    <span class="luft-gestor-chip is-primary"><i class="ph-bold ph-sliders"></i>Seleção guiada</span>
+                </div>
+
+                <div class="luft-gestor-form-grid">
+                    <div class="luft-gestor-field">
+                        <label class="luft-gestor-label" for="gestor-usuario-search">Usuário gestor</label>
+                        <div class="luft-gestor-user-picker" id="gestor-usuario-picker">
+                            <div class="luft-gestor-user-shell">
+                                <i class="ph-bold ph-magnifying-glass luft-gestor-user-icon"></i>
+                                <input class="luft-gestor-input luft-gestor-user-input" id="gestor-usuario-search" type="text" placeholder="Buscar por nome, login ou código" autocomplete="off">
+                                <button type="button" class="luft-gestor-user-clear" id="gestor-usuario-clear" aria-label="Limpar usuário" hidden>
+                                    <i class="ph-bold ph-x"></i>
+                                </button>
+                            </div>
+                            <div class="luft-gestor-user-dropdown" id="gestor-usuarios-dropdown"></div>
+                        </div>
+                        <div class="luft-gestor-help" id="gestor-usuarios-counter">Digite para buscar o gestor em um único campo.</div>
+                        <div class="luft-gestor-selected-user" id="gestor-usuario-atual"></div>
+                    </div>
+
+                    <div class="luft-gestor-field">
+                        <label class="luft-gestor-label" for="gestor-cargo-input">Cargo / Função</label>
+                        <input class="luft-gestor-input" id="gestor-cargo-input" type="text" placeholder="Ex.: Gerente, Coordenador, Controller">
+                    </div>
+                </div>
+
+                <div class="luft-gestor-field">
+                    <label class="luft-gestor-label" for="gestor-centro-search">Buscar centro de custo</label>
+                    <input class="luft-gestor-input" id="gestor-centro-search" type="text" placeholder="Filtrar por código, número ou nome">
+                    <div class="luft-gestor-help">A lista abaixo reage ao filtro e mantém os itens já marcados.</div>
+                </div>
+
+                <div class="luft-gestor-selection-shell">
+                    <div class="luft-gestor-selection-toolbar">
+                        <div class="luft-gestor-selection-info">
+                            <span class="luft-gestor-counter" id="gestor-centros-counter"><i class="ph-bold ph-check-square-offset"></i>0 centro(s) selecionado(s)</span>
+                        </div>
+                        <div class="luft-gestor-toolbar-actions">
+                            <button type="button" class="luft-gestor-btn-ghost" id="gestor-selecionar-filtrados-btn">Selecionar filtrados</button>
+                            <button type="button" class="luft-gestor-btn-ghost" id="gestor-limpar-filtrados-btn">Limpar filtrados</button>
+                        </div>
+                    </div>
+
+                    <div class="luft-gestor-center-list" id="gestor-centros-lista"></div>
+                </div>
+
+                <div class="luft-gestor-selected-wrap">
+                    <span class="luft-gestor-selected-label">Centros selecionados</span>
+                    <div class="luft-gestor-selected-chips" id="gestor-centros-selecionados"></div>
+                </div>
+
+                <div class="luft-gestor-status" id="gestor-status"></div>
+
+                <div class="luft-gestor-actions">
+                    <button type="button" class="luft-gestor-btn-primary" id="gestor-aplicar-btn">
+                        <i class="ph-bold ph-floppy-disk"></i>
+                        <span>Adicionar ou Atualizar</span>
+                    </button>
+                    <button type="button" class="luft-gestor-btn-secondary" id="gestor-limpar-btn">
+                        <i class="ph-bold ph-eraser"></i>
+                        <span>Limpar seleção</span>
+                    </button>
+                    <button type="button" class="luft-gestor-btn-primary" id="gestor-salvar-btn">
+                        <i class="ph-bold ph-check-circle"></i>
+                        <span>Salvar configuração</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="luft-gestor-column">
+            <div class="luft-gestor-card">
+                <div class="luft-gestor-card-header">
+                    <div>
+                        <h2 class="luft-gestor-card-title">Resumo</h2>
+                        <p class="luft-gestor-card-desc">Visão rápida da parametrização atual.</p>
+                    </div>
+                </div>
+
+                <div class="luft-gestor-stats">
+                    <div class="luft-gestor-stat">
+                        <div class="luft-gestor-stat-value" id="gestor-total-usuarios">0</div>
+                        <div class="luft-gestor-stat-label">Gestores configurados</div>
+                    </div>
+                    <div class="luft-gestor-stat">
+                        <div class="luft-gestor-stat-value" id="gestor-total-centros">0</div>
+                        <div class="luft-gestor-stat-label">Vínculos de centros</div>
+                    </div>
+                </div>
+
+                <div class="luft-gestor-info-box">
+                    <span class="luft-gestor-info-title">Última atualização</span>
+                    <div class="luft-gestor-info-text" id="gestor-atualizacao-resumo">Ainda não houve gravação dessa configuração.</div>
+                </div>
+
+                <div class="luft-gestor-help-list">
+                    <div class="luft-gestor-help-item">
+                        <i class="ph-bold ph-user-switch"></i>
+                        <div>
+                            <strong>Por usuário</strong>
+                            Cada usuário pode assumir vários centros de custo.
+                        </div>
+                    </div>
+                    <div class="luft-gestor-help-item">
+                        <i class="ph-bold ph-identification-card"></i>
+                        <div>
+                            <strong>Cargo definido</strong>
+                            O cargo ou função fica salvo junto da configuração e já pode ser usado na próxima etapa.
+                        </div>
+                    </div>
+                    <div class="luft-gestor-help-item">
+                        <i class="ph-bold ph-database"></i>
+                        <div>
+                            <strong>Persistência JSON</strong>
+                            A configuração é global e não fica acoplada ao módulo Budget.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="luft-gestor-card">
+                <div class="luft-gestor-card-header">
+                    <div>
+                        <h2 class="luft-gestor-card-title">Gestores configurados</h2>
+                        <p class="luft-gestor-card-desc">Edite ou remova rapidamente os vínculos já montados.</p>
+                    </div>
+                </div>
+
+                <div class="luft-gestor-list" id="gestores-lista"></div>
+
+                <details class="luft-gestor-json-box">
+                    <summary>Ver JSON salvo</summary>
+                    <textarea class="luft-gestor-textarea" id="gestor-json-preview" readonly></textarea>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <script id="gestor-cc-usuarios" type="application/json">{{ UsuariosDisponiveis | tojson }}</script>
+    <script id="gestor-cc-centros" type="application/json">{{ CentrosCustoDisponiveis | tojson }}</script>
+    <script id="gestor-cc-configuracao" type="application/json">{{ ConfiguracaoAtual | tojson }}</script>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        const app = document.getElementById('gestor-cc-app');
+        if (!app) {
+            return;
+        }
+
+        const parseJson = (id) => {
+            const element = document.getElementById(id);
+            if (!element) {
+                return null;
+            }
+
+            try {
+                return JSON.parse(element.textContent || 'null');
+            } catch (error) {
+                return null;
+            }
+        };
+
+        const usuariosDisponiveis = Array.isArray(parseJson('gestor-cc-usuarios')) ? parseJson('gestor-cc-usuarios') : [];
+        const centrosDisponiveis = Array.isArray(parseJson('gestor-cc-centros')) ? parseJson('gestor-cc-centros') : [];
+        const configuracaoInicial = parseJson('gestor-cc-configuracao') || { gestores: [] };
+
+        const usuarioPicker = document.getElementById('gestor-usuario-picker');
+        const usuarioSearch = document.getElementById('gestor-usuario-search');
+        const usuarioClearBtn = document.getElementById('gestor-usuario-clear');
+        const usuariosDropdown = document.getElementById('gestor-usuarios-dropdown');
+        const usuariosCounter = document.getElementById('gestor-usuarios-counter');
+        const usuarioAtual = document.getElementById('gestor-usuario-atual');
+        const cargoInput = document.getElementById('gestor-cargo-input');
+        const centroSearch = document.getElementById('gestor-centro-search');
+        const centrosLista = document.getElementById('gestor-centros-lista');
+        const centrosSelecionadosBox = document.getElementById('gestor-centros-selecionados');
+        const centrosCounter = document.getElementById('gestor-centros-counter');
+        const selecionarFiltradosBtn = document.getElementById('gestor-selecionar-filtrados-btn');
+        const limparFiltradosBtn = document.getElementById('gestor-limpar-filtrados-btn');
+        const aplicarBtn = document.getElementById('gestor-aplicar-btn');
+        const limparBtn = document.getElementById('gestor-limpar-btn');
+        const salvarBtn = document.getElementById('gestor-salvar-btn');
+        const statusBox = document.getElementById('gestor-status');
+        const gestoresLista = document.getElementById('gestores-lista');
+        const jsonPreview = document.getElementById('gestor-json-preview');
+        const totalUsuarios = document.getElementById('gestor-total-usuarios');
+        const totalCentros = document.getElementById('gestor-total-centros');
+        const atualizacaoResumo = document.getElementById('gestor-atualizacao-resumo');
+
+        const state = {
+            configuracao: normalizeConfig(configuracaoInicial),
+            codigoUsuarioSelecionado: null,
+            filtroUsuario: '',
+            filtroCentro: '',
+            centrosSelecionados: new Set(),
+        };
+
+        function normalizeConfig(config) {
+            const gestores = Array.isArray(config?.gestores) ? config.gestores : [];
+            return {
+                version: config?.version || 1,
+                atualizado_em: config?.atualizado_em || null,
+                atualizado_por: config?.atualizado_por || {},
+                gestores: gestores.map((gestor) => ({
+                    codigo_usuario: Number(gestor.codigo_usuario),
+                    nome_usuario: gestor.nome_usuario || `Usuário ${gestor.codigo_usuario}`,
+                    login_usuario: gestor.login_usuario || '',
+                    cargo: gestor.cargo || 'Gestor',
+                    centros_custo: Array.isArray(gestor.centros_custo) ? gestor.centros_custo.map((centro) => ({
+                        codigo: String(centro.codigo),
+                        numero: centro.numero || String(centro.codigo),
+                        nome: centro.nome || 'Sem nome',
+                    })) : [],
+                })).sort((a, b) => a.nome_usuario.localeCompare(b.nome_usuario)),
+            };
+        }
+
+        function setStatus(message, type) {
+            statusBox.textContent = message;
+            statusBox.className = 'luft-gestor-status is-visible';
+            if (type) {
+                statusBox.classList.add(`is-${type}`);
+            }
+        }
+
+        function clearStatus() {
+            statusBox.textContent = '';
+            statusBox.className = 'luft-gestor-status';
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function getUsuarioPorCodigo(codigoUsuario) {
+            return usuariosDisponiveis.find((usuario) => Number(usuario.codigo_usuario) === Number(codigoUsuario)) || null;
+        }
+
+        function formatarUsuario(usuario) {
+            return `${usuario.nome_usuario}${usuario.login_usuario ? ` (${usuario.login_usuario})` : ''}`;
+        }
+
+        function abrirDropdownUsuarios() {
+            usuarioPicker.classList.add('is-open');
+        }
+
+        function fecharDropdownUsuarios() {
+            usuarioPicker.classList.remove('is-open');
+        }
+
+        function getFilteredUsuarios() {
+            const filtro = state.filtroUsuario.trim().toLowerCase();
+            if (!filtro) {
+                const selecionado = state.codigoUsuarioSelecionado ? getUsuarioPorCodigo(state.codigoUsuarioSelecionado) : null;
+                const sugestoes = usuariosDisponiveis.slice(0, 8);
+                if (selecionado && !sugestoes.some((usuario) => Number(usuario.codigo_usuario) === Number(selecionado.codigo_usuario))) {
+                    return [selecionado, ...sugestoes].slice(0, 8);
+                }
+                return sugestoes;
+            }
+
+            return usuariosDisponiveis.filter((usuario) => {
+                const alvo = `${usuario.codigo_usuario} ${usuario.nome_usuario || ''} ${usuario.login_usuario || ''}`.toLowerCase();
+                return alvo.includes(filtro);
+            });
+        }
+
+        function renderUsuarios() {
+            const usuariosFiltrados = getFilteredUsuarios();
+            const usuariosExibidos = usuariosFiltrados.slice(0, 12);
+            const usuarioSelecionado = state.codigoUsuarioSelecionado ? getUsuarioPorCodigo(state.codigoUsuarioSelecionado) : null;
+
+            if (usuarioSelecionado) {
+                usuarioAtual.innerHTML = `
+                    <div class="luft-gestor-selected-user-card">
+                        <i class="ph-bold ph-user-circle"></i>
+                        <div>
+                            <span class="luft-gestor-selected-user-title">${escapeHtml(usuarioSelecionado.nome_usuario)}</span>
+                            <span class="luft-gestor-selected-user-meta">${escapeHtml(usuarioSelecionado.login_usuario || 'Sem login')} • Código ${escapeHtml(String(usuarioSelecionado.codigo_usuario))}</span>
+                        </div>
+                    </div>
+                `;
+                usuarioClearBtn.hidden = false;
+            } else {
+                usuarioAtual.innerHTML = '';
+                usuarioClearBtn.hidden = true;
+            }
+
+            if (!usuariosExibidos.length) {
+                usuariosDropdown.innerHTML = '<div class="luft-gestor-user-empty">Nenhum usuário encontrado para esse filtro.</div>';
+            } else {
+                usuariosDropdown.innerHTML = usuariosExibidos.map((usuario) => {
+                    const ativo = Number(usuario.codigo_usuario) === Number(state.codigoUsuarioSelecionado);
+                    return `
+                        <button type="button" class="luft-gestor-user-option ${ativo ? 'is-active' : ''}" data-user="${escapeHtml(String(usuario.codigo_usuario))}">
+                            <span class="luft-gestor-user-option-title">${escapeHtml(usuario.nome_usuario)}</span>
+                            <span class="luft-gestor-user-option-meta">${escapeHtml(usuario.login_usuario || 'Sem login')} • Código ${escapeHtml(String(usuario.codigo_usuario))}</span>
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            if (state.filtroUsuario.trim()) {
+                usuariosCounter.textContent = usuariosFiltrados.length > usuariosExibidos.length
+                    ? `${usuariosFiltrados.length} usuário(s) encontrados. Mostrando os ${usuariosExibidos.length} primeiros.`
+                    : `${usuariosFiltrados.length} usuário(s) encontrados para o filtro.`;
+            } else if (usuarioSelecionado) {
+                usuariosCounter.textContent = 'Usuário selecionado. Digite para trocar ou clique no X para limpar.';
+            } else {
+                usuariosCounter.textContent = `${usuariosDisponiveis.length} usuário(s) carregados. Digite para buscar.`;
+            }
+        }
+
+        function selecionarUsuario(codigoUsuario, opcoes = {}) {
+            const usuario = getUsuarioPorCodigo(codigoUsuario);
+            if (!usuario) {
+                return;
+            }
+
+            state.codigoUsuarioSelecionado = Number(usuario.codigo_usuario);
+            state.filtroUsuario = '';
+            usuarioSearch.value = formatarUsuario(usuario);
+            renderUsuarios();
+            fecharDropdownUsuarios();
+
+            const gestor = state.configuracao.gestores.find((item) => item.codigo_usuario === Number(usuario.codigo_usuario));
+            state.centrosSelecionados = new Set(gestor ? gestor.centros_custo.map((centro) => String(centro.codigo)) : []);
+            cargoInput.value = gestor ? (gestor.cargo || '') : '';
+            renderCentros();
+
+            if (opcoes.mostrarStatusEdicao) {
+                setStatus(`Editando a configuração de ${usuario.nome_usuario}.`, 'info');
+            } else {
+                clearStatus();
+            }
+        }
+
+        function getFilteredCentros() {
+            const filtro = state.filtroCentro.trim().toLowerCase();
+            if (!filtro) {
+                return centrosDisponiveis;
+            }
+
+            return centrosDisponiveis.filter((centro) => {
+                const alvo = `${centro.codigo} ${centro.numero} ${centro.nome}`.toLowerCase();
+                return alvo.includes(filtro);
+            });
+        }
+
+        function getCentrosSelecionadosOrdenados() {
+            return centrosDisponiveis
+                .filter((centro) => state.centrosSelecionados.has(String(centro.codigo)))
+                .sort((a, b) => `${a.numero} ${a.nome}`.localeCompare(`${b.numero} ${b.nome}`));
+        }
+
+        function renderSelectedCentros() {
+            const centrosSelecionados = getCentrosSelecionadosOrdenados();
+
+            centrosCounter.innerHTML = `<i class="ph-bold ph-check-square-offset"></i>${centrosSelecionados.length} centro(s) selecionado(s)`;
+
+            if (!centrosSelecionados.length) {
+                centrosSelecionadosBox.innerHTML = '<span class="luft-gestor-chip">Nenhum centro selecionado</span>';
+                return;
+            }
+
+            centrosSelecionadosBox.innerHTML = centrosSelecionados.map((centro) => `
+                <span class="luft-gestor-chip is-success">
+                    <i class="ph-bold ph-check"></i>
+                    ${escapeHtml(centro.numero)}
+                </span>
+            `).join('');
+        }
+
+        function renderCentros() {
+            const centrosFiltrados = getFilteredCentros();
+
+            if (!centrosFiltrados.length) {
+                centrosLista.innerHTML = '<div class="luft-gestor-center-empty">Nenhum centro de custo encontrado para o filtro informado.</div>';
+                renderSelectedCentros();
+                return;
+            }
+
+            centrosLista.innerHTML = centrosFiltrados.map((centro) => {
+                const codigo = String(centro.codigo);
+                const selecionado = state.centrosSelecionados.has(codigo);
+                return `
+                    <label class="luft-gestor-center-item ${selecionado ? 'is-selected' : ''}">
+                        <input type="checkbox" value="${escapeHtml(codigo)}" ${selecionado ? 'checked' : ''}>
+                        <div class="luft-gestor-center-body">
+                            <span class="luft-gestor-center-title">${escapeHtml(centro.numero)}</span>
+                            <span class="luft-gestor-center-text">${escapeHtml(centro.nome)}</span>
+                            <span class="luft-gestor-center-text">Código ${escapeHtml(codigo)}</span>
+                        </div>
+                    </label>
+                `;
+            }).join('');
+
+            renderSelectedCentros();
+        }
+
+        function renderResumo() {
+            totalUsuarios.textContent = String(state.configuracao.gestores.length);
+            totalCentros.textContent = String(
+                state.configuracao.gestores.reduce((total, gestor) => total + gestor.centros_custo.length, 0)
+            );
+
+            const atualizadoEm = state.configuracao.atualizado_em;
+            const atualizadoPor = state.configuracao.atualizado_por || {};
+            if (atualizadoEm) {
+                const partes = [atualizadoEm];
+                if (atualizadoPor.nome) {
+                    partes.push(`por ${atualizadoPor.nome}`);
+                }
+                if (atualizadoPor.login) {
+                    partes.push(`(${atualizadoPor.login})`);
+                }
+                atualizacaoResumo.textContent = partes.join(' ');
+            } else {
+                atualizacaoResumo.textContent = 'Ainda não houve gravação dessa configuração.';
+            }
+
+            jsonPreview.value = JSON.stringify(
+                {
+                    version: state.configuracao.version,
+                    atualizado_em: state.configuracao.atualizado_em,
+                    atualizado_por: state.configuracao.atualizado_por,
+                    gestores: state.configuracao.gestores,
+                },
+                null,
+                2
+            );
+        }
+
+        function renderGestores() {
+            if (!state.configuracao.gestores.length) {
+                gestoresLista.innerHTML = `
+                    <div class="luft-gestor-empty">
+                        Nenhum gestor configurado ainda. Monte o vínculo ao lado e depois salve a configuração.
+                    </div>
+                `;
+                renderResumo();
+                return;
+            }
+
+            gestoresLista.innerHTML = state.configuracao.gestores.map((gestor) => `
+                <article class="luft-gestor-item">
+                    <div class="luft-gestor-item-head">
+                        <div>
+                            <h3 class="luft-gestor-item-title">${escapeHtml(gestor.nome_usuario)}</h3>
+                            <p class="luft-gestor-item-subtitle">ID ${escapeHtml(String(gestor.codigo_usuario))}${gestor.login_usuario ? ` • ${escapeHtml(gestor.login_usuario)}` : ''}</p>
+                        </div>
+                        <div class="luft-gestor-toolbar-actions">
+                            <button type="button" class="luft-gestor-btn-ghost" data-action="edit" data-user="${escapeHtml(String(gestor.codigo_usuario))}">
+                                <i class="ph-bold ph-pencil-simple"></i>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="luft-gestor-btn-ghost" data-action="remove" data-user="${escapeHtml(String(gestor.codigo_usuario))}">
+                                <i class="ph-bold ph-trash"></i>
+                                <span>Remover</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="luft-gestor-item-meta">
+                        <span class="luft-gestor-chip is-primary"><i class="ph-bold ph-identification-card"></i>${escapeHtml(gestor.cargo || 'Gestor')}</span>
+                        <span class="luft-gestor-chip"><i class="ph-bold ph-buildings"></i>${escapeHtml(String(gestor.centros_custo.length))} centro(s)</span>
+                    </div>
+
+                    <div class="luft-gestor-centros">
+                        ${gestor.centros_custo.map((centro) => `
+                            <div class="luft-gestor-centro">
+                                <i class="ph-bold ph-map-pin-line"></i>
+                                <div>
+                                    <strong>${escapeHtml(centro.numero)}</strong>
+                                    <span>${escapeHtml(centro.nome)} • Código ${escapeHtml(centro.codigo)}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </article>
+            `).join('');
+
+            renderResumo();
+        }
+
+        function limparSelecao() {
+            usuarioSearch.value = '';
+            state.codigoUsuarioSelecionado = null;
+            cargoInput.value = '';
+            centroSearch.value = '';
+            state.filtroUsuario = '';
+            state.filtroCentro = '';
+            state.centrosSelecionados = new Set();
+            renderUsuarios();
+            renderCentros();
+            fecharDropdownUsuarios();
+            clearStatus();
+        }
+
+        function selecionarGestor(codigoUsuario) {
+            const gestor = state.configuracao.gestores.find((item) => item.codigo_usuario === Number(codigoUsuario));
+            if (!gestor) {
+                return;
+            }
+
+            selecionarUsuario(gestor.codigo_usuario, { mostrarStatusEdicao: true });
+        }
+
+        function aplicarConfiguracao() {
+            clearStatus();
+
+            const codigoUsuario = Number(state.codigoUsuarioSelecionado);
+            const cargo = (cargoInput.value || '').trim();
+            const codigosCentros = Array.from(state.centrosSelecionados);
+
+            if (!codigoUsuario) {
+                setStatus('Selecione um usuário para continuar.', 'error');
+                return;
+            }
+
+            if (!cargo) {
+                setStatus('Informe o cargo ou função desse gestor.', 'error');
+                return;
+            }
+
+            if (!codigosCentros.length) {
+                setStatus('Selecione ao menos um centro de custo.', 'error');
+                return;
+            }
+
+            const usuario = getUsuarioPorCodigo(codigoUsuario);
+            if (!usuario) {
+                setStatus('Usuário inválido.', 'error');
+                return;
+            }
+
+            const centros = getCentrosSelecionadosOrdenados().map((centro) => ({
+                codigo: String(centro.codigo),
+                numero: centro.numero,
+                nome: centro.nome,
+            }));
+
+            const indiceAtual = state.configuracao.gestores.findIndex((item) => item.codigo_usuario === codigoUsuario);
+            const novoGestor = {
+                codigo_usuario: codigoUsuario,
+                nome_usuario: usuario.nome_usuario,
+                login_usuario: usuario.login_usuario,
+                cargo,
+                centros_custo: centros,
+            };
+
+            if (indiceAtual >= 0) {
+                state.configuracao.gestores[indiceAtual] = novoGestor;
+            } else {
+                state.configuracao.gestores.push(novoGestor);
+            }
+
+            state.configuracao.gestores.sort((a, b) => a.nome_usuario.localeCompare(b.nome_usuario));
+            renderGestores();
+            setStatus(`Configuração preparada para ${usuario.nome_usuario}. Agora clique em salvar.`, 'success');
+        }
+
+        async function salvarConfiguracao() {
+            clearStatus();
+            salvarBtn.disabled = true;
+
+            try {
+                const payload = {
+                    gestores: state.configuracao.gestores.map((gestor) => ({
+                        codigo_usuario: gestor.codigo_usuario,
+                        cargo: gestor.cargo,
+                        centros_custo: gestor.centros_custo.map((centro) => centro.codigo),
+                    })),
+                };
+
+                const response = await fetch(app.dataset.saveUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') {
+                    throw new Error(data.message || 'Não foi possível salvar a configuração.');
+                }
+
+                state.configuracao = normalizeConfig(data.data?.configuracao || { gestores: [] });
+                renderGestores();
+                setStatus(data.message || 'Configuração salva com sucesso.', 'success');
+            } catch (error) {
+                setStatus(error.message || 'Não foi possível salvar a configuração.', 'error');
+            } finally {
+                salvarBtn.disabled = false;
+            }
+        }
+
+        function atualizarSelecaoFiltrada(marcar) {
+            getFilteredCentros().forEach((centro) => {
+                const codigo = String(centro.codigo);
+                if (marcar) {
+                    state.centrosSelecionados.add(codigo);
+                } else {
+                    state.centrosSelecionados.delete(codigo);
+                }
+            });
+            renderCentros();
+        }
+
+        usuarioSearch.addEventListener('input', () => {
+            state.filtroUsuario = usuarioSearch.value || '';
+            state.codigoUsuarioSelecionado = null;
+            abrirDropdownUsuarios();
+            renderUsuarios();
+        });
+
+        usuarioSearch.addEventListener('focus', () => {
+            abrirDropdownUsuarios();
+            renderUsuarios();
+            if (state.codigoUsuarioSelecionado) {
+                requestAnimationFrame(() => usuarioSearch.select());
+            }
+        });
+
+        usuarioSearch.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                fecharDropdownUsuarios();
+                usuarioSearch.blur();
+            }
+        });
+
+        usuarioClearBtn.addEventListener('click', () => {
+            usuarioSearch.value = '';
+            state.filtroUsuario = '';
+            state.codigoUsuarioSelecionado = null;
+            renderUsuarios();
+            abrirDropdownUsuarios();
+            usuarioSearch.focus();
+        });
+
+        usuariosDropdown.addEventListener('click', (event) => {
+            const botao = event.target.closest('[data-user]');
+            if (!botao) {
+                return;
+            }
+
+            selecionarUsuario(Number(botao.dataset.user));
+        });
+
+        centroSearch.addEventListener('input', () => {
+            state.filtroCentro = centroSearch.value || '';
+            renderCentros();
+        });
+
+        centrosLista.addEventListener('change', (event) => {
+            const checkbox = event.target.closest('input[type="checkbox"]');
+            if (!checkbox) {
+                return;
+            }
+
+            if (checkbox.checked) {
+                state.centrosSelecionados.add(checkbox.value);
+            } else {
+                state.centrosSelecionados.delete(checkbox.value);
+            }
+
+            renderCentros();
+        });
+
+        selecionarFiltradosBtn.addEventListener('click', () => atualizarSelecaoFiltrada(true));
+        limparFiltradosBtn.addEventListener('click', () => atualizarSelecaoFiltrada(false));
+        aplicarBtn.addEventListener('click', aplicarConfiguracao);
+        limparBtn.addEventListener('click', limparSelecao);
+        salvarBtn.addEventListener('click', salvarConfiguracao);
+
+        document.addEventListener('click', (event) => {
+            if (!usuarioPicker.contains(event.target)) {
+                fecharDropdownUsuarios();
+            }
+        });
+
+        gestoresLista.addEventListener('click', (event) => {
+            const botao = event.target.closest('[data-action]');
+            if (!botao) {
+                return;
+            }
+
+            const codigoUsuario = Number(botao.dataset.user);
+            if (!codigoUsuario) {
+                return;
+            }
+
+            if (botao.dataset.action === 'edit') {
+                selecionarGestor(codigoUsuario);
+                return;
+            }
+
+            if (botao.dataset.action === 'remove') {
+                state.configuracao.gestores = state.configuracao.gestores.filter((item) => item.codigo_usuario !== codigoUsuario);
+                if (Number(state.codigoUsuarioSelecionado) === codigoUsuario) {
+                    limparSelecao();
+                }
+                renderGestores();
+                setStatus('Gestor removido da configuração local. Salve para persistir a alteração.', 'info');
+            }
+        });
+
+        renderUsuarios();
+        renderCentros();
+        renderGestores();
+    })();
+</script>
+{% endblock %}

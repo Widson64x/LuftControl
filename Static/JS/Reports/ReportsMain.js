@@ -141,7 +141,7 @@ if (typeof window.relatorioSystemInitialized === 'undefined') {
             if (modalElement) {
                 this.modal = new LuftModalWrapper('modalRelatorio');
             } else {
-                console.warn("Elemento HTML 'modalRelatorio' não foi encontrado na tela.");
+                return;
             }
 
             // Instancia os submódulos passando o modal formatado para eles

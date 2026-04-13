@@ -68,75 +68,17 @@
         </div>
     </div>
 
-    <div class="luft-card luft-budget-filters-card p-6 mb-6 relative">
-        <div class="d-grid luft-budget-filters-grid gap-4 align-items-end">
-            <div class="form-group mb-0 luft-budget-filter-field">
-                <label for="inputAnoBudget" class="form-label text-xs text-muted text-uppercase">Ano Base</label>
-                <input type="number" id="inputAnoBudget" class="form-control luft-budget-filter-control" value="2026" min="2000" max="2100">
-            </div>
-
-            <div class="form-group mb-0 luft-budget-filter-field">
-                <label for="selectEmpresaBudget" class="form-label text-xs text-muted text-uppercase">Empresa</label>
-                <select id="selectEmpresaBudget" class="form-control luft-budget-filter-control">
-                    <option value="Todos">Todas as Empresas</option>
-                    <option value="1">Intec</option>
-                    <option value="2">Farma</option>
-                </select>
-            </div>
-            
-            <div class="form-group mb-0 relative luft-budget-filter-field" id="containerCentroCusto">
-                <label class="form-label text-xs text-muted text-uppercase">Centro de Custo</label>
-                <button type="button" class="form-control luft-budget-filter-control luft-budget-filter-trigger d-flex justify-content-between align-items-center cursor-pointer" id="btnToggleCentroCusto">
-                    <span id="labelCentroCusto" class="text-truncate">Todos Selecionados</span>
-                    <i class="ph-bold ph-caret-down text-muted"></i>
-                </button>
-                
-                <div class="absolute w-full d-none flex-col luft-budget-filter-panel" id="panelCentroCusto">
-                    <div class="luft-budget-filter-searchbar">
-                        <i class="ph-bold ph-magnifying-glass text-muted"></i>
-                        <input type="text" id="inputBuscaCentroCusto" class="luft-budget-filter-search-input" placeholder="Pesquisar por código ou nome">
-                    </div>
-                    <label class="luft-budget-filter-select-all d-flex align-items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-light mb-2">
-                        <input type="checkbox" id="checkTodosCentros" checked>
-                        <span class="font-bold text-main">Selecionar todos os centros</span>
-                    </label>
-                    <div id="listaCentrosCusto" class="luft-budget-filter-list"></div>
-                    <p id="emptyCentroCusto" class="luft-budget-filter-empty d-none">Nenhum centro de custo disponível.</p>
-                </div>
-            </div>
-
-            <div class="form-group mb-0 relative luft-budget-filter-field" id="containerContaContabil">
-                <label class="form-label text-xs text-muted text-uppercase">Conta Contábil</label>
-                <button type="button" class="form-control luft-budget-filter-control luft-budget-filter-trigger d-flex justify-content-between align-items-center cursor-pointer" id="btnToggleContaContabil">
-                    <span id="labelContaContabil" class="text-truncate">Todas Selecionadas</span>
-                    <i class="ph-bold ph-caret-down text-muted"></i>
-                </button>
-
-                <div class="absolute w-full d-none flex-col luft-budget-filter-panel" id="panelContaContabil">
-                    <div class="luft-budget-filter-searchbar">
-                        <i class="ph-bold ph-magnifying-glass text-muted"></i>
-                        <input type="text" id="inputBuscaContaContabil" class="luft-budget-filter-search-input" placeholder="Pesquisar por número ou descrição">
-                    </div>
-                    <label class="luft-budget-filter-select-all d-flex align-items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-light mb-2">
-                        <input type="checkbox" id="checkTodasContas" checked>
-                        <span class="font-bold text-main">Selecionar todas as contas</span>
-                    </label>
-                    <div id="listaContasContabeis" class="luft-budget-filter-list"></div>
-                    <p id="emptyContaContabil" class="luft-budget-filter-empty d-none">Nenhuma conta contábil disponível.</p>
-                </div>
-            </div>
-            <div class="form-group mb-0 luft-budget-filter-field">
-                <label for="selectModoSaldoBudget" class="form-label text-xs text-muted text-uppercase">Saldo</label>
-                <select id="selectModoSaldoBudget" class="form-control luft-budget-filter-control">
-                    <option value="somente_budget">Somente itens com budget</option>
-                    <option value="todos_itens" selected>Todos os lançamentos</option>
-                </select>
-            </div>
-            <div class="form-group mb-0 luft-budget-filter-field luft-budget-filter-field--action">
-                <button id="btnBuscarBudget" class="btn btn-primary w-full luft-budget-filter-submit">
-                    <i class="ph-bold ph-magnifying-glass"></i> Analisar Dados
-                </button>
-            </div>
+    <div class="luft-card luft-budget-filter-launcher luft-budget-filter-launcher--analytic mb-6">
+        <div class="luft-budget-filter-launcher-copy">
+            <p class="luft-budget-table-toolbar-label">Filtros</p>
+            <h3 class="luft-budget-filter-launcher-title">Refinar visão analítica</h3>
+            <p class="luft-budget-filter-launcher-text">Conta Contábil, Centro de Custo, Empresa e etc... </p>
+        </div>
+        <div class="luft-budget-filter-launcher-actions">
+            <button type="button" class="btn btn-primary luft-budget-filter-launcher-button" id="btnAbrirModalFiltrosBudget">
+                <i class="ph-bold ph-funnel"></i>
+                Abrir filtros
+            </button>
         </div>
     </div>
 
@@ -158,6 +100,13 @@
                 </button>
             </div>
         </div>
+        <div class="luft-budget-analytic-active-filters" id="budgetFiltrosAtivos">
+            <span class="luft-budget-analytic-chip" id="chipAnoBudget">Ano base</span>
+            <span class="luft-budget-analytic-chip" id="chipEmpresaBudget">Empresa</span>
+            <span class="luft-budget-analytic-chip" id="chipCentroBudget">Centro de custo</span>
+            <span class="luft-budget-analytic-chip" id="chipContaBudget">Conta contábil</span>
+            <span class="luft-budget-analytic-chip" id="chipModoSaldoBudget">Modo de saldo</span>
+        </div>
         <div class="w-full luft-budget-table-scroll" style="overflow-x: auto;">
             <table class="luft-budget-table" id="tabelaBudget">
                 <thead>
@@ -175,7 +124,7 @@
                 <tbody id="corpoTabelaBudget">
                     <tr>
                         <td colspan="8" class="text-center py-12">
-                            {{ ui.empty_state("Pronto para análise", "Selecione os filtros acima e clique em Analisar Dados para visualizar o orçamento.", "ph-funnel") }}
+                            {{ ui.empty_state("Pronto para análise", "Abra o painel de filtros, ajuste o recorte desejado e aplique a seleção para visualizar o orçamento.", "ph-funnel") }}
                         </td>
                     </tr>
                 </tbody>
@@ -184,6 +133,96 @@
         </div>
     </div>
 </div>
+
+{% call ui.modal('modalFiltrosBudget', 'Filtros do Budget Gerencial', 'xl', 'ph-funnel') %}
+<div class="luft-budget-filter-modal-shell">
+    <div class="luft-budget-filter-modal-grid">
+        <section class="luft-budget-filter-card">
+            <div class="luft-budget-filter-card-head">
+                <div>
+                    <p class="luft-budget-filter-card-label">Ano Base</p>
+                    <h4 class="luft-budget-filter-card-title">Ano</h4>
+                </div>
+            </div>
+            <input type="number" id="inputAnoBudget" class="form-control luft-budget-filter-control" value="2026" min="2000" max="2100">
+        </section>
+
+        <section class="luft-budget-filter-card">
+            <div class="luft-budget-filter-card-head">
+                <div>
+                    <p class="luft-budget-filter-card-label">Empresa</p>
+                    <h4 class="luft-budget-filter-card-title">Empresa</h4>
+                </div>
+            </div>
+            <select id="selectEmpresaBudget" class="form-control luft-budget-filter-control">
+                <option value="Todos">Todas as Empresas</option>
+                <option value="1">Intec</option>
+                <option value="2">Farma</option>
+            </select>
+        </section>
+
+        <section class="luft-budget-filter-card">
+            <div class="luft-budget-filter-card-head">
+                <div>
+                    <p class="luft-budget-filter-card-label">Saldo</p>
+                    <h4 class="luft-budget-filter-card-title">Saldo</h4>
+                </div>
+            </div>
+            <select id="selectModoSaldoBudget" class="form-control luft-budget-filter-control">
+                <option value="somente_budget">Somente itens com budget</option>
+                <option value="todos_itens" selected>Todos os lançamentos</option>
+            </select>
+        </section>
+
+        <section class="luft-budget-filter-card luft-budget-filter-card--list luft-budget-filter-card--wide" id="containerCentroCusto">
+            <div class="luft-budget-filter-card-head">
+                <div>
+                    <p class="luft-budget-filter-card-label">Centro de Custo</p>
+                    <h4 class="luft-budget-filter-card-title" id="labelCentroCusto">Todos os centros</h4>
+                </div>
+                <span class="luft-budget-filter-mode-tag">Único</span>
+            </div>
+            <div class="luft-budget-filter-searchbar">
+                <i class="ph-bold ph-magnifying-glass text-muted"></i>
+                <input type="text" id="inputBuscaCentroCusto" class="luft-budget-filter-search-input" placeholder="Pesquisar por código ou nome">
+            </div>
+            <label class="luft-budget-filter-select-all d-flex align-items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-light mb-2 d-none" id="wrapCheckTodosCentros">
+                <input type="checkbox" id="checkTodosCentros">
+                <span class="font-bold text-main">Selecionar todos os centros</span>
+            </label>
+            <div id="listaCentrosCusto" class="luft-budget-filter-list luft-budget-filter-list--cards"></div>
+            <p id="emptyCentroCusto" class="luft-budget-filter-empty d-none">Nenhum centro de custo disponível.</p>
+        </section>
+
+        <section class="luft-budget-filter-card luft-budget-filter-card--list luft-budget-filter-card--wide" id="containerContaContabil">
+            <div class="luft-budget-filter-card-head">
+                <div>
+                    <p class="luft-budget-filter-card-label">Conta Contábil</p>
+                    <h4 class="luft-budget-filter-card-title" id="labelContaContabil">Todas as contas</h4>
+                </div>
+                <span class="luft-budget-filter-mode-tag">Múltiplo</span>
+            </div>
+            <div class="luft-budget-filter-searchbar">
+                <i class="ph-bold ph-magnifying-glass text-muted"></i>
+                <input type="text" id="inputBuscaContaContabil" class="luft-budget-filter-search-input" placeholder="Pesquisar por número ou descrição">
+            </div>
+            <label class="luft-budget-filter-select-all d-flex align-items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-light mb-2" id="wrapCheckTodasContas">
+                <input type="checkbox" id="checkTodasContas" checked>
+                <span class="font-bold text-main">Selecionar todas as contas</span>
+            </label>
+            <div id="listaContasContabeis" class="luft-budget-filter-list luft-budget-filter-list--cards"></div>
+            <p id="emptyContaContabil" class="luft-budget-filter-empty d-none">Nenhuma conta contábil disponível.</p>
+        </section>
+    </div>
+
+    <div class="luft-budget-modal-actions">
+        <button type="button" class="btn btn-outline" onclick="LuftCore.fecharModal('modalFiltrosBudget')">Fechar</button>
+        <button id="btnBuscarBudget" class="btn btn-primary luft-budget-filter-submit" type="button">
+            <i class="ph-bold ph-magnifying-glass"></i> Aplicar filtros
+        </button>
+    </div>
+</div>
+{% endcall %}
 
 <div id="modalRelatorio" class="d-none"></div>
 {% endblock %}

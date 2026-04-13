@@ -1,4 +1,4 @@
-# No topo do ImportacaoDadosService.py, adicione o import:
+# No topo do ImportacaoDadosRazaoService.py, adicione o import:
 import os
 import sys
 
@@ -11,11 +11,11 @@ from Settings import BaseConfig
 """
     Código para realizar o fluxo de Intergrupo da INTEC.
     Passo 1: Carregar o QVD de Valor Financeiro.
-    Passo 2: (a ser implementado) Processar os dados conforme a lógica de negócio. Foi feito na classe AjustesManuaisService.
+    Passo 2: (a ser implementado) Processar os dados conforme a lógica de negócio. Foi feito na classe AjustesManuaisRazaoService.
 """
-class ImportacaoDadosService:
+class ImportacaoDadosRazaoService:
     # ... outros métodos e inicializadores ...
-    # Dentro da classe ImportacaoDadosService:
+    # Dentro da classe ImportacaoDadosRazaoService:
     def ProcessarIntergrupoIntec(self):
         """
         Método específico para tratar o Intergrupo da INTEC.
@@ -33,7 +33,7 @@ class ImportacaoDadosService:
             raise e
         
 def main():
-    service = ImportacaoDadosService()
+    service = ImportacaoDadosRazaoService()
     df = service.ProcessarIntergrupoIntec()
     
     if df is not None:

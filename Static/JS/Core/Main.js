@@ -65,14 +65,27 @@ class LuftControl {
         // Smooth scroll para links internos
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', (e) => {
-                e.preventDefault();
-                const target = document.querySelector(anchor.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
+                const href = anchor.getAttribute('href');
+                if (!href || href === '#' || !href.startsWith('#')) {
+                    return;
                 }
+
+                let target = null;
+                try {
+                    target = document.querySelector(href);
+                } catch (error) {
+                    return;
+                }
+
+                if (!target) {
+                    return;
+                }
+
+                e.preventDefault();
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
             });
         });
     }

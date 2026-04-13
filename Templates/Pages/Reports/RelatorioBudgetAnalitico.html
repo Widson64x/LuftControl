@@ -29,7 +29,7 @@
                 <i class="ph-bold ph-wallet text-primary"></i>
                 Budget Analítico
             </h2>
-            <p class="text-muted text-sm mt-1 mb-0">Comparativo analítico entre realizado e budget, com leitura por grupo orçamentário, conta contábil e seleção múltipla de competência e centro de custo.</p>
+            <p class="text-muted text-sm mt-1 mb-0">Comparativo analítico entre realizado e budget, com leitura por grupo orçamentário, conta contábil, competência em multiseleção e centro de custo travado em seleção única por JavaScript.</p>
         </div>
     </div>
 
@@ -76,89 +76,17 @@
         </div>
     </div>
 
-    <div class="luft-card luft-budget-filters-card luft-budget-analytic-filters-card p-6 mb-6 relative">
-        <div class="d-grid luft-budget-filters-grid luft-budget-analytic-filters-grid gap-4 align-items-end">
-            <div class="form-group mb-0 luft-budget-filter-field">
-                <label for="inputAnoBudgetAnalitico" class="form-label text-xs text-muted text-uppercase">Ano Base</label>
-                <input type="number" id="inputAnoBudgetAnalitico" class="form-control luft-budget-filter-control" min="2000" max="2100" value="{{ ano_padrao }}">
-            </div>
-
-            <div class="form-group mb-0 relative luft-budget-filter-field" id="containerMesBudgetAnalitico">
-                <label class="form-label text-xs text-muted text-uppercase">Mês</label>
-                <button type="button" id="btnToggleMesBudgetAnalitico" class="form-control luft-budget-filter-control luft-budget-filter-trigger d-flex justify-content-between align-items-center cursor-pointer">
-                    <span id="labelMesBudgetAnalitico" class="text-truncate">Carregando meses...</span>
-                    <i class="ph-bold ph-caret-down text-muted"></i>
-                </button>
-
-                <div id="panelMesBudgetAnalitico" class="absolute w-full d-none flex-col luft-budget-filter-panel">
-                    <div class="luft-budget-filter-searchbar">
-                        <i class="ph-bold ph-magnifying-glass text-muted"></i>
-                        <input type="search" id="inputBuscaMesBudgetAnalitico" class="luft-budget-filter-search-input" placeholder="Pesquisar mês">
-                    </div>
-
-                    <label class="luft-budget-filter-select-all d-flex align-items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-light mb-2">
-                        <input type="checkbox" id="checkTodosMesesBudgetAnalitico">
-                        <span class="font-bold text-main">Selecionar todos os meses</span>
-                    </label>
-
-                    <div id="listaMesBudgetAnalitico" class="luft-budget-filter-list"></div>
-                    <p id="emptyMesBudgetAnalitico" class="luft-budget-filter-empty d-none">Nenhum mês disponível.</p>
-                </div>
-            </div>
-            <div class="form-group mb-0 luft-budget-filter-field">
-                <label for="selectEmpresaBudgetAnalitico" class="form-label text-xs text-muted text-uppercase">Empresa</label>
-                <select id="selectEmpresaBudgetAnalitico" class="form-control luft-budget-filter-control"></select>
-            </div>
-
-            <div class="form-group mb-0 relative luft-budget-filter-field" id="containerCentroCustoBudgetAnalitico">
-                <label class="form-label text-xs text-muted text-uppercase">Centro de Custo</label>
-                <button type="button" id="btnToggleCentroCustoBudgetAnalitico" class="form-control luft-budget-filter-control luft-budget-filter-trigger d-flex justify-content-between align-items-center cursor-pointer">
-                    <span id="labelCentroCustoBudgetAnalitico" class="text-truncate">Carregando centros...</span>
-                    <i class="ph-bold ph-caret-down text-muted"></i>
-                </button>
-
-                <div id="panelCentroCustoBudgetAnalitico" class="absolute w-full d-none flex-col luft-budget-filter-panel">
-                    <div class="luft-budget-filter-searchbar">
-                        <i class="ph-bold ph-magnifying-glass text-muted"></i>
-                        <input type="search" id="inputBuscaCentroCustoBudgetAnalitico" class="luft-budget-filter-search-input" placeholder="Pesquisar por código ou nome">
-                    </div>
-
-                    <label class="luft-budget-filter-select-all d-flex align-items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-light mb-2">
-                        <input type="checkbox" id="checkTodosCentrosBudgetAnalitico">
-                        <span class="font-bold text-main">Selecionar todos os centros</span>
-                    </label>
-
-                    <div id="listaCentroCustoBudgetAnalitico" class="luft-budget-filter-list"></div>
-                    <p id="emptyCentroCustoBudgetAnalitico" class="luft-budget-filter-empty d-none">Nenhum centro de custo disponível.</p>
-                </div>
-            </div>
-
-            <div class="form-group mb-0 luft-budget-filter-field">
-                <label for="selectFilialBudgetAnalitico" class="form-label text-xs text-muted text-uppercase">Filial</label>
-                <select id="selectFilialBudgetAnalitico" class="form-control luft-budget-filter-control">
-                    <option value="Todos">Carregando filiais...</option>
-                </select>
-            </div>
-
-            <div class="form-group mb-0 luft-budget-filter-field">
-                <label for="selectModoSaldoBudgetAnalitico" class="form-label text-xs text-muted text-uppercase">Saldo</label>
-                <select id="selectModoSaldoBudgetAnalitico" class="form-control luft-budget-filter-control">
-                    <option value="todos_itens">Todos os Itens</option>
-                    <option value="somente_budget">Somente Budget</option>
-                </select>
-            </div>
-
-            <div class="form-group mb-0 d-flex align-items-end luft-budget-filter-field luft-budget-filter-field--action">
-                <button id="btnBuscarBudgetAnalitico" class="btn btn-primary w-full luft-budget-filter-submit luft-budget-analytic-submit">
-                    <i class="ph-bold ph-magnifying-glass"></i>
-                    Atualizar visão
-                </button>
-            </div>
+    <div class="luft-card luft-budget-filter-launcher luft-budget-filter-launcher--analytic mb-6">
+        <div class="luft-budget-filter-launcher-copy">
+            <p class="luft-budget-table-toolbar-label">Filtros</p>
+            <h3 class="luft-budget-filter-launcher-title">Refinar visão analítica</h3>
+            <p class="luft-budget-filter-launcher-text">Competência, centro, empresa, filial e saldo em um único painel.</p>
         </div>
-
-        <div class="luft-budget-analytic-filter-note">
-            <i class="ph-bold ph-info"></i>
-            Mês e Centro de Custo aceitam múltiplas seleções. O modo de saldo acompanha a mesma regra do Budget gerencial.
+        <div class="luft-budget-filter-launcher-actions">
+            <button type="button" class="btn btn-primary luft-budget-filter-launcher-button" id="btnAbrirModalFiltrosBudgetAnalitico">
+                <i class="ph-bold ph-funnel"></i>
+                Abrir filtros
+            </button>
         </div>
     </div>
 
@@ -204,7 +132,7 @@
                 <tbody id="corpoTabelaBudgetAnalitico">
                     <tr>
                         <td colspan="5" class="text-center py-12">
-                            {{ ui.empty_state("Preparando a visão analítica", "Os dados do mês selecionado vão aparecer aqui assim que a carga terminar.", "ph-chart-bar") }}
+                            {{ ui.empty_state("Preparando a visão analítica", "Abra o painel de filtros, selecione a competência desejada e aplique a visão para montar o comparativo.", "ph-chart-bar") }}
                         </td>
                     </tr>
                 </tbody>
@@ -213,6 +141,127 @@
         </div>
     </div>
 </div>
+
+{% call ui.modal('modalFiltrosBudgetAnalitico', 'Filtros do Budget Analítico', 'xl', 'ph-funnel') %}
+<div class="luft-budget-filter-modal-shell">
+    <section class="luft-budget-analytic-filter-section">
+        <div class="luft-budget-analytic-filter-section-head">
+            <div>
+                <p class="luft-budget-table-toolbar-label">Contexto</p>
+                <h4 class="luft-budget-analytic-filter-section-title">Base da análise</h4>
+            </div>
+            <span class="luft-budget-analytic-filter-section-hint">4 campos</span>
+        </div>
+
+        <div class="luft-budget-analytic-filter-context-grid">
+            <section class="luft-budget-filter-card luft-budget-filter-card--analytic-compact">
+                <div class="luft-budget-filter-card-head">
+                    <div>
+                        <p class="luft-budget-filter-card-label">Ano Base</p>
+                        <h4 class="luft-budget-filter-card-title">Ano</h4>
+                    </div>
+                </div>
+                <input type="number" id="inputAnoBudgetAnalitico" class="form-control luft-budget-filter-control" min="2000" max="2100" value="{{ ano_padrao }}">
+            </section>
+
+            <section class="luft-budget-filter-card luft-budget-filter-card--analytic-compact">
+                <div class="luft-budget-filter-card-head">
+                    <div>
+                        <p class="luft-budget-filter-card-label">Empresa</p>
+                        <h4 class="luft-budget-filter-card-title">Empresa</h4>
+                    </div>
+                </div>
+                <select id="selectEmpresaBudgetAnalitico" class="form-control luft-budget-filter-control"></select>
+            </section>
+
+            <section class="luft-budget-filter-card luft-budget-filter-card--analytic-compact">
+                <div class="luft-budget-filter-card-head">
+                    <div>
+                        <p class="luft-budget-filter-card-label">Filial</p>
+                        <h4 class="luft-budget-filter-card-title">Filial</h4>
+                    </div>
+                </div>
+                <select id="selectFilialBudgetAnalitico" class="form-control luft-budget-filter-control">
+                    <option value="Todos">Carregando filiais...</option>
+                </select>
+            </section>
+
+            <section class="luft-budget-filter-card luft-budget-filter-card--analytic-compact">
+                <div class="luft-budget-filter-card-head">
+                    <div>
+                        <p class="luft-budget-filter-card-label">Saldo</p>
+                        <h4 class="luft-budget-filter-card-title">Modo</h4>
+                    </div>
+                </div>
+                <select id="selectModoSaldoBudgetAnalitico" class="form-control luft-budget-filter-control">
+                    <option value="todos_itens">Todos os Itens</option>
+                    <option value="somente_budget">Somente Budget</option>
+                </select>
+            </section>
+        </div>
+    </section>
+
+    <section class="luft-budget-analytic-filter-section">
+        <div class="luft-budget-analytic-filter-section-head">
+            <div>
+                <p class="luft-budget-table-toolbar-label">Seleção</p>
+                <h4 class="luft-budget-analytic-filter-section-title">Competência e centro</h4>
+            </div>
+            <span class="luft-budget-analytic-filter-section-hint">recorte principal</span>
+        </div>
+
+        <div class="luft-budget-analytic-filter-selection-grid">
+            <section class="luft-budget-filter-card luft-budget-filter-card--list luft-budget-filter-card--analytic-months" id="containerMesBudgetAnalitico">
+                <div class="luft-budget-filter-card-head">
+                    <div>
+                        <p class="luft-budget-filter-card-label">Competência</p>
+                        <h4 class="luft-budget-filter-card-title" id="labelMesBudgetAnalitico">Carregando meses...</h4>
+                    </div>
+                    <span class="luft-budget-filter-mode-tag">Múltiplo</span>
+                </div>
+                <div class="luft-budget-filter-searchbar">
+                    <i class="ph-bold ph-magnifying-glass text-muted"></i>
+                    <input type="search" id="inputBuscaMesBudgetAnalitico" class="luft-budget-filter-search-input" placeholder="Pesquisar mês">
+                </div>
+                <label class="luft-budget-filter-select-all d-flex align-items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-light mb-2" id="wrapCheckTodosMesesBudgetAnalitico">
+                    <input type="checkbox" id="checkTodosMesesBudgetAnalitico">
+                    <span class="font-bold text-main">Selecionar todos os meses</span>
+                </label>
+                <div id="listaMesBudgetAnalitico" class="luft-budget-filter-list luft-budget-filter-list--cards"></div>
+                <p id="emptyMesBudgetAnalitico" class="luft-budget-filter-empty d-none">Nenhum mês disponível.</p>
+            </section>
+
+            <section class="luft-budget-filter-card luft-budget-filter-card--list luft-budget-filter-card--analytic-centers" id="containerCentroCustoBudgetAnalitico">
+                <div class="luft-budget-filter-card-head">
+                    <div>
+                        <p class="luft-budget-filter-card-label">Centro de Custo</p>
+                        <h4 class="luft-budget-filter-card-title" id="labelCentroCustoBudgetAnalitico">Carregando centros...</h4>
+                    </div>
+                    <span class="luft-budget-filter-mode-tag">Único</span>
+                </div>
+                <div class="luft-budget-filter-searchbar">
+                    <i class="ph-bold ph-magnifying-glass text-muted"></i>
+                    <input type="search" id="inputBuscaCentroCustoBudgetAnalitico" class="luft-budget-filter-search-input" placeholder="Pesquisar por código ou nome">
+                </div>
+                <label class="luft-budget-filter-select-all d-flex align-items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-light mb-2 d-none" id="wrapCheckTodosCentrosBudgetAnalitico">
+                    <input type="checkbox" id="checkTodosCentrosBudgetAnalitico">
+                    <span class="font-bold text-main">Selecionar todos os centros</span>
+                </label>
+                <div id="listaCentroCustoBudgetAnalitico" class="luft-budget-filter-list luft-budget-filter-list--cards"></div>
+                <p id="emptyCentroCustoBudgetAnalitico" class="luft-budget-filter-empty d-none">Nenhum centro de custo disponível.</p>
+            </section>
+        </div>
+    </section>
+
+    <div class="luft-budget-modal-actions luft-budget-modal-actions--analytic">
+        <button type="button" class="btn btn-outline" onclick="LuftCore.fecharModal('modalFiltrosBudgetAnalitico')">Fechar</button>
+        <button id="btnBuscarBudgetAnalitico" class="btn btn-primary luft-budget-filter-submit luft-budget-analytic-submit" type="button">
+            <i class="ph-bold ph-magnifying-glass"></i>
+            Aplicar filtros
+        </button>
+    </div>
+</div>
+{% endcall %}
 {% endblock %}
 
 {% block extra_scripts %}

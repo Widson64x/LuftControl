@@ -1,6 +1,6 @@
 {% extends "Layout/BaseLayout.html" %}
 
-{% block title %}Contabilidade - Ajustes Razão{% endblock %}
+{% block title %}Contabilidade - Ajustes Manuais do Razão{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Adjustments/LedgerAdjustments.css') }}">
@@ -11,7 +11,7 @@
 <i class="ph-bold ph-caret-right"></i>
 <span class="luft-breadcrumb-item"><a href="{{ url_for('Principal.HubDRE') }}" class="text-muted text-decoration-none">Módulo DRE</a></span>
 <i class="ph-bold ph-caret-right"></i>
-<span class="luft-breadcrumb-item active">Ajustes Manuais</span>
+<span class="luft-breadcrumb-item active">Ajustes Manuais do Razão</span>
 {% endblock %}
 
 {% block content %}
@@ -104,13 +104,13 @@
 {% block extra_js %}
 <script>
     const API = {
-        getDados: "{{ url_for('AjustesManuais.ObterDados') }}",
-        salvar: "{{ url_for('AjustesManuais.SalvarAjuste') }}",
-        criar: "{{ url_for('AjustesManuais.CriarAjuste') }}",
-        aprovar: "{{ url_for('AjustesManuais.AprovarAjuste') }}",
-        statusInvalido: "{{ url_for('AjustesManuais.AlterarStatusInvalido') }}",
-        historico: "{{ url_for('AjustesManuais.ObterHistorico') }}",
-        intergrupo: "{{ url_for('AjustesManuais.GerarIntergrupo') }}"
+        getDados: "{{ url_for('AjustesManuaisRazao.ObterDados') }}",
+        salvar: "{{ url_for('AjustesManuaisRazao.SalvarAjuste') }}",
+        criar: "{{ url_for('AjustesManuaisRazao.CriarAjuste') }}",
+        aprovar: "{{ url_for('AjustesManuaisRazao.AprovarAjuste') }}",
+        statusInvalido: "{{ url_for('AjustesManuaisRazao.AlterarStatusInvalido') }}",
+        historico: "{{ url_for('AjustesManuaisRazao.ObterHistorico') }}",
+        intergrupo: "{{ url_for('AjustesManuaisRazao.GerarIntergrupo') }}"
     };
 </script>
 <script src="{{ url_for('static', filename='JS/Adjustments/LedgerAdjustments.js') }}"></script>

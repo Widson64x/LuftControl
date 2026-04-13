@@ -1,0 +1,1 @@
+"""Rotas centrais da aplicação."""

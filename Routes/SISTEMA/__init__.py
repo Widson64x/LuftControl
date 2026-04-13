@@ -1,0 +1,1 @@
+"""Rotas administrativas e de sistema."""

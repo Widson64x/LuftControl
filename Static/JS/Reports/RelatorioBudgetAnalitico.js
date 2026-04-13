@@ -6,6 +6,10 @@ const BUDGET_ANALITICO_API = window.BUDGET_ANALITICO_API_ROUTES || {
     filtros: '/budget/analitico/filtros',
     dados: '/budget/analitico/dados'
 };
+const BUDGET_ANALITICO_FILTER_MODAL_ID = 'modalFiltrosBudgetAnalitico';
+const BUDGET_ANALITICO_FILTER_RULES = {
+    singleCentroCusto: true
+};
 
 const BUDGET_ANALITICO_DEFAULTS = window.BUDGET_ANALITICO_DEFAULTS || {
     ano: new Date().getFullYear(),
@@ -14,35 +18,37 @@ const BUDGET_ANALITICO_DEFAULTS = window.BUDGET_ANALITICO_DEFAULTS || {
 
 const BUDGET_ANALITICO_FILTER_CONFIG = {
     meses: {
-        buttonId: 'btnToggleMesBudgetAnalitico',
-        panelId: 'panelMesBudgetAnalitico',
         labelId: 'labelMesBudgetAnalitico',
         searchInputId: 'inputBuscaMesBudgetAnalitico',
         listId: 'listaMesBudgetAnalitico',
         selectAllId: 'checkTodosMesesBudgetAnalitico',
+        selectAllWrapperId: 'wrapCheckTodosMesesBudgetAnalitico',
         emptyId: 'emptyMesBudgetAnalitico',
         emptyMessage: 'Nenhum mês disponível.',
         allLabel: 'Todos os meses',
         noneLabel: 'Nenhum mês selecionado',
         multipleLabel: 'meses selecionados',
+        allowMultiple: true,
+        emptyMeansAll: false,
         requireSelection: false,
         defaultMode: 'default-month',
         syncOnChange: false
     },
     centrosCusto: {
-        buttonId: 'btnToggleCentroCustoBudgetAnalitico',
-        panelId: 'panelCentroCustoBudgetAnalitico',
         labelId: 'labelCentroCustoBudgetAnalitico',
         searchInputId: 'inputBuscaCentroCustoBudgetAnalitico',
         listId: 'listaCentroCustoBudgetAnalitico',
         selectAllId: 'checkTodosCentrosBudgetAnalitico',
+        selectAllWrapperId: 'wrapCheckTodosCentrosBudgetAnalitico',
         emptyId: 'emptyCentroCustoBudgetAnalitico',
         emptyMessage: 'Nenhum centro de custo disponível.',
         allLabel: 'Todos os centros',
         noneLabel: 'Nenhum centro selecionado',
         multipleLabel: 'centros selecionados',
+        allowMultiple: !BUDGET_ANALITICO_FILTER_RULES.singleCentroCusto,
+        emptyMeansAll: true,
         requireSelection: false,
-        defaultMode: 'all',
+        defaultMode: 'none',
         syncOnChange: true
     }
 };
@@ -58,7 +64,6 @@ const budgetAnaliticoState = {
     modoSaldo: 'todos_itens',
     requestToken: 0,
     syncTimer: null,
-    documentClickBound: false,
     filtros: {
         meses: {
             items: [],
@@ -121,16 +126,22 @@ function inicializarBudgetAnalitico() {
 
 function configurarEventosBudgetAnalitico() {
     const btnBuscar = document.getElementById('btnBuscarBudgetAnalitico');
+    const btnAbrirModal = document.getElementById('btnAbrirModalFiltrosBudgetAnalitico');
     const inputAno = document.getElementById('inputAnoBudgetAnalitico');
     const selectEmpresa = document.getElementById('selectEmpresaBudgetAnalitico');
-    const selectFilial = document.getElementById('selectFilialBudgetAnalitico');
-    const selectModoSaldo = document.getElementById('selectModoSaldoBudgetAnalitico');
     const corpoTabela = document.getElementById('corpoTabelaBudgetAnalitico');
     const btnExpandir = document.getElementById('btnExpandirGruposBudgetAnalitico');
     const btnRecolher = document.getElementById('btnRecolherGruposBudgetAnalitico');
 
     if (btnBuscar) {
-        btnBuscar.addEventListener('click', () => carregarDadosBudgetAnalitico());
+        btnBuscar.addEventListener('click', () => aplicarFiltrosBudgetAnalitico());
+    }
+
+    if (btnAbrirModal && !btnAbrirModal.dataset.bound) {
+        btnAbrirModal.addEventListener('click', () => {
+            abrirModalFiltrosBudgetAnalitico();
+        });
+        btnAbrirModal.dataset.bound = 'true';
     }
 
     if (inputAno) {
@@ -142,19 +153,6 @@ function configurarEventosBudgetAnalitico() {
     if (selectEmpresa) {
         selectEmpresa.addEventListener('change', () => {
             carregarFiltrosBudgetAnalitico();
-        });
-    }
-
-    if (selectFilial) {
-        selectFilial.addEventListener('change', () => {
-            atualizarChipsBudgetAnalitico();
-        });
-    }
-
-    if (selectModoSaldo) {
-        selectModoSaldo.addEventListener('change', (event) => {
-            budgetAnaliticoState.modoSaldo = event.target.value || 'todos_itens';
-            atualizarApresentacaoBudgetAnalitico();
         });
     }
 
@@ -186,49 +184,34 @@ function configurarEventosBudgetAnalitico() {
     }
 }
 
+function abrirModalFiltrosBudgetAnalitico() {
+    if (typeof LuftCore !== 'undefined') {
+        LuftCore.abrirModal(BUDGET_ANALITICO_FILTER_MODAL_ID);
+    }
+}
+
+function fecharModalFiltrosBudgetAnalitico() {
+    if (typeof LuftCore !== 'undefined') {
+        LuftCore.fecharModal(BUDGET_ANALITICO_FILTER_MODAL_ID);
+    }
+}
+
+function aplicarFiltrosBudgetAnalitico() {
+    carregarDadosBudgetAnalitico();
+    fecharModalFiltrosBudgetAnalitico();
+}
+
 function configurarFiltrosBudgetAnalitico() {
     Object.keys(BUDGET_ANALITICO_FILTER_CONFIG).forEach((chaveFiltro) => {
         configurarFiltroBudgetAnalitico(chaveFiltro);
     });
-
-    if (!budgetAnaliticoState.documentClickBound) {
-        document.addEventListener('click', (event) => {
-            Object.keys(BUDGET_ANALITICO_FILTER_CONFIG).forEach((chaveFiltro) => {
-                const config = obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro);
-                const botao = document.getElementById(config.buttonId);
-                const painel = document.getElementById(config.panelId);
-
-                if (!botao || !painel) {
-                    return;
-                }
-
-                if (painel.contains(event.target) || botao.contains(event.target)) {
-                    return;
-                }
-
-                fecharPainelFiltroBudgetAnalitico(chaveFiltro);
-            });
-        });
-
-        budgetAnaliticoState.documentClickBound = true;
-    }
 }
 
 function configurarFiltroBudgetAnalitico(chaveFiltro) {
     const config = obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro);
-    const botao = document.getElementById(config.buttonId);
     const campoBusca = document.getElementById(config.searchInputId);
     const lista = document.getElementById(config.listId);
     const checkboxTodos = document.getElementById(config.selectAllId);
-
-    if (botao && !botao.dataset.bound) {
-        botao.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            alternarPainelFiltroBudgetAnalitico(chaveFiltro);
-        });
-        botao.dataset.bound = 'true';
-    }
 
     if (campoBusca && !campoBusca.dataset.bound) {
         campoBusca.addEventListener('input', () => {
@@ -263,67 +246,6 @@ function obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro) {
 
 function obterEstadoFiltroBudgetAnalitico(chaveFiltro) {
     return budgetAnaliticoState.filtros[chaveFiltro];
-}
-
-function alternarPainelFiltroBudgetAnalitico(chaveFiltro) {
-    const config = obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro);
-    const painel = document.getElementById(config.panelId);
-
-    if (!painel) {
-        return;
-    }
-
-    const estaOculto = painel.classList.contains('d-none');
-    fecharTodosPaineisFiltroBudgetAnalitico(estaOculto ? chaveFiltro : null);
-
-    if (estaOculto) {
-        abrirPainelFiltroBudgetAnalitico(chaveFiltro);
-        return;
-    }
-
-    fecharPainelFiltroBudgetAnalitico(chaveFiltro);
-}
-
-function abrirPainelFiltroBudgetAnalitico(chaveFiltro) {
-    const config = obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro);
-    const painel = document.getElementById(config.panelId);
-    const botao = document.getElementById(config.buttonId);
-    const campoBusca = document.getElementById(config.searchInputId);
-
-    if (!painel || !botao) {
-        return;
-    }
-
-    painel.classList.remove('d-none');
-    botao.classList.add('is-open');
-
-    if (campoBusca) {
-        campoBusca.focus();
-        campoBusca.select();
-    }
-}
-
-function fecharPainelFiltroBudgetAnalitico(chaveFiltro) {
-    const config = obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro);
-    const painel = document.getElementById(config.panelId);
-    const botao = document.getElementById(config.buttonId);
-
-    if (!painel || !botao) {
-        return;
-    }
-
-    painel.classList.add('d-none');
-    botao.classList.remove('is-open');
-}
-
-function fecharTodosPaineisFiltroBudgetAnalitico(excecao = null) {
-    Object.keys(BUDGET_ANALITICO_FILTER_CONFIG).forEach((chaveFiltro) => {
-        if (chaveFiltro === excecao) {
-            return;
-        }
-
-        fecharPainelFiltroBudgetAnalitico(chaveFiltro);
-    });
 }
 
 function construirUrlBudgetAnalitico(chave, parametros = {}) {
@@ -402,8 +324,6 @@ async function carregarFiltrosBudgetAnalitico() {
         'Todas as Filiais',
         (item) => ({ value: item.id, label: item.nome })
     );
-
-    atualizarChipsBudgetAnalitico();
 }
 
 function preencherSelectBudgetAnalitico(select, itens, valorAtual, valorPadrao, labelPadrao, mapearItem) {
@@ -450,12 +370,16 @@ function renderizarOpcoesFiltroBudgetAnalitico(chaveFiltro, listaOpcoes) {
     if (opcoes.length > 0) {
         if (!estado.loaded) {
             selecionados = obterSelecaoInicialFiltroBudgetAnalitico(chaveFiltro, opcoes);
-        } else if (estado.allSelected) {
+        } else if (config.allowMultiple && estado.allSelected) {
             selecionados = new Set(opcoes.map((item) => item.id));
         } else {
             selecionados = new Set(
                 Array.from(estado.selectedIds).filter((idSelecionado) => idsDisponiveis.has(idSelecionado))
             );
+
+            if (!config.allowMultiple && selecionados.size > 1) {
+                selecionados = new Set([Array.from(selecionados)[0]]);
+            }
 
             if (selecionados.size === 0 && config.requireSelection) {
                 selecionados = obterSelecaoInicialFiltroBudgetAnalitico(chaveFiltro, opcoes);
@@ -466,17 +390,26 @@ function renderizarOpcoesFiltroBudgetAnalitico(chaveFiltro, listaOpcoes) {
     estado.items = opcoes;
     estado.selectedIds = selecionados;
     estado.loaded = true;
-    estado.allSelected = opcoes.length > 0 && selecionados.size === opcoes.length;
+    estado.allSelected = config.allowMultiple && opcoes.length > 0 && selecionados.size === opcoes.length;
 
     lista.innerHTML = opcoes.map((item) => {
         const texto = formatarTextoOpcaoFiltroBudgetAnalitico(chaveFiltro, item);
-        const textoBusca = normalizarTextoBudgetAnalitico(`${item.id} ${item.nome || ''} ${item.codigo || ''} ${texto}`);
+        const titulo = obterTituloOpcaoFiltroBudgetAnalitico(chaveFiltro, item);
+        const codigo = obterCodigoOpcaoFiltroBudgetAnalitico(chaveFiltro, item);
+        const textoBusca = normalizarTextoBudgetAnalitico(`${item.id} ${item.nome || ''} ${item.codigo || ''} ${item.abreviacao || ''} ${texto} ${titulo} codigo ${item.codigo || ''}`);
         const marcado = estado.selectedIds.has(item.id) ? 'checked' : '';
+        const classeSelecionado = estado.selectedIds.has(item.id) ? 'is-selected' : '';
+        const blocoCodigo = codigo
+            ? `<span class="luft-budget-filter-option-code">${escapeHtml(codigo)}</span>`
+            : '';
 
         return `
-            <label class="luft-budget-filter-option" data-search="${escapeHtml(textoBusca)}">
+            <label class="luft-budget-filter-option ${classeSelecionado}" data-search="${escapeHtml(textoBusca)}">
                 <input type="checkbox" class="luft-budget-filter-checkbox" value="${escapeHtml(item.id)}" ${marcado}>
-                <span>${escapeHtml(texto)}</span>
+                <div class="luft-budget-filter-option-body">
+                    ${blocoCodigo}
+                    <span class="luft-budget-filter-option-title">${escapeHtml(titulo)}</span>
+                </div>
             </label>`;
     }).join('');
 
@@ -497,7 +430,7 @@ function obterSelecaoInicialFiltroBudgetAnalitico(chaveFiltro, opcoes) {
         return new Set([existeMesPadrao ? mesPadrao : opcoes[0].id]);
     }
 
-    return new Set(opcoes.map((item) => item.id));
+    return config.allowMultiple ? new Set(opcoes.map((item) => item.id)) : new Set();
 }
 
 function formatarTextoOpcaoFiltroBudgetAnalitico(chaveFiltro, item) {
@@ -510,6 +443,22 @@ function formatarTextoOpcaoFiltroBudgetAnalitico(chaveFiltro, item) {
     }
 
     return item.nome || item.id;
+}
+
+function obterTituloOpcaoFiltroBudgetAnalitico(chaveFiltro, item) {
+    if (chaveFiltro === 'meses') {
+        return item.nome || item.id;
+    }
+
+    return item.nome || item.id;
+}
+
+function obterCodigoOpcaoFiltroBudgetAnalitico(chaveFiltro, item) {
+    if (chaveFiltro === 'meses') {
+        return '';
+    }
+
+    return item.codigo ? `CC ${item.codigo}` : '';
 }
 
 function normalizarTextoBudgetAnalitico(texto) {
@@ -529,13 +478,18 @@ function atualizarSelecaoFiltroBudgetAnalitico(chaveFiltro, checkbox) {
         return;
     }
 
-    if (checkbox.checked) {
-        estado.selectedIds.add(idItem);
+    if (config.allowMultiple) {
+        if (checkbox.checked) {
+            estado.selectedIds.add(idItem);
+        } else {
+            estado.selectedIds.delete(idItem);
+        }
     } else {
-        estado.selectedIds.delete(idItem);
+        estado.selectedIds = checkbox.checked ? new Set([idItem]) : new Set();
     }
 
-    estado.allSelected = estado.items.length > 0 && estado.selectedIds.size === estado.items.length;
+    estado.allSelected = config.allowMultiple && estado.items.length > 0 && estado.selectedIds.size === estado.items.length;
+    sincronizarMarcacaoFiltroBudgetAnalitico(chaveFiltro);
     atualizarResumoFiltroBudgetAnalitico(chaveFiltro);
 
     if (config.syncOnChange) {
@@ -546,6 +500,10 @@ function atualizarSelecaoFiltroBudgetAnalitico(chaveFiltro, checkbox) {
 function atualizarSelecaoTotalFiltroBudgetAnalitico(chaveFiltro, checkboxTodos) {
     const config = obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro);
     const estado = obterEstadoFiltroBudgetAnalitico(chaveFiltro);
+
+    if (!config.allowMultiple) {
+        return;
+    }
 
     if (!checkboxTodos.checked && config.requireSelection) {
         checkboxTodos.checked = true;
@@ -558,18 +516,29 @@ function atualizarSelecaoTotalFiltroBudgetAnalitico(chaveFiltro, checkboxTodos) 
         : new Set();
     estado.allSelected = checkboxTodos.checked && estado.items.length > 0;
 
-    const lista = document.getElementById(config.listId);
-    if (lista) {
-        lista.querySelectorAll('.luft-budget-filter-checkbox').forEach((checkbox) => {
-            checkbox.checked = checkboxTodos.checked;
-        });
-    }
+    sincronizarMarcacaoFiltroBudgetAnalitico(chaveFiltro);
 
     atualizarResumoFiltroBudgetAnalitico(chaveFiltro);
 
     if (config.syncOnChange) {
         agendarSincronizacaoFiltrosBudgetAnalitico();
     }
+}
+
+function sincronizarMarcacaoFiltroBudgetAnalitico(chaveFiltro) {
+    const config = obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro);
+    const estado = obterEstadoFiltroBudgetAnalitico(chaveFiltro);
+    const lista = document.getElementById(config.listId);
+
+    if (!lista) {
+        return;
+    }
+
+    lista.querySelectorAll('.luft-budget-filter-checkbox').forEach((checkbox) => {
+        const marcado = estado.selectedIds.has(String(checkbox.value));
+        checkbox.checked = marcado;
+        checkbox.closest('.luft-budget-filter-option')?.classList.toggle('is-selected', marcado);
+    });
 }
 
 function aplicarBuscaFiltroBudgetAnalitico(chaveFiltro) {
@@ -605,7 +574,7 @@ function atualizarResumoFiltroBudgetAnalitico(chaveFiltro) {
     const estado = obterEstadoFiltroBudgetAnalitico(chaveFiltro);
     const label = document.getElementById(config.labelId);
     const checkboxTodos = document.getElementById(config.selectAllId);
-    const botao = document.getElementById(config.buttonId);
+    const wrapper = document.getElementById(config.selectAllWrapperId);
     const total = estado.items.length;
     const selecionados = estado.selectedIds.size;
 
@@ -613,16 +582,15 @@ function atualizarResumoFiltroBudgetAnalitico(chaveFiltro) {
         label.textContent = obterDescricaoSelecaoFiltroBudgetAnalitico(chaveFiltro);
     }
 
+    if (wrapper) {
+        wrapper.classList.toggle('d-none', !config.allowMultiple || total === 0);
+    }
+
     if (checkboxTodos) {
-        checkboxTodos.checked = total > 0 && selecionados === total;
-        checkboxTodos.indeterminate = selecionados > 0 && selecionados < total;
+        checkboxTodos.checked = config.allowMultiple && total > 0 && selecionados === total;
+        checkboxTodos.indeterminate = config.allowMultiple && selecionados > 0 && selecionados < total;
+        checkboxTodos.disabled = !config.allowMultiple || total === 0;
     }
-
-    if (botao) {
-        botao.disabled = total === 0;
-    }
-
-    atualizarChipsBudgetAnalitico();
 }
 
 function obterDescricaoSelecaoFiltroBudgetAnalitico(chaveFiltro) {
@@ -635,12 +603,12 @@ function obterDescricaoSelecaoFiltroBudgetAnalitico(chaveFiltro) {
         return 'Sem opções';
     }
 
-    if (selecionados === total) {
+    if (config.allowMultiple && selecionados === total) {
         return config.allLabel;
     }
 
     if (selecionados === 0) {
-        return config.noneLabel;
+        return config.emptyMeansAll ? config.allLabel : config.noneLabel;
     }
 
     if (selecionados === 1) {
@@ -652,6 +620,7 @@ function obterDescricaoSelecaoFiltroBudgetAnalitico(chaveFiltro) {
 }
 
 function obterParametroFiltroBudgetAnalitico(chaveFiltro, { ignorarVazio = false } = {}) {
+    const config = obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro);
     const estado = obterEstadoFiltroBudgetAnalitico(chaveFiltro);
 
     if (!estado.loaded) {
@@ -659,14 +628,14 @@ function obterParametroFiltroBudgetAnalitico(chaveFiltro, { ignorarVazio = false
     }
 
     if (estado.items.length === 0) {
-        return '-999';
+        return config.emptyMeansAll || ignorarVazio ? 'Todos' : '-999';
     }
 
     if (estado.selectedIds.size === 0) {
-        return ignorarVazio ? 'Todos' : '-999';
+        return config.emptyMeansAll || ignorarVazio ? 'Todos' : '-999';
     }
 
-    if (estado.selectedIds.size === estado.items.length) {
+    if (config.allowMultiple && estado.selectedIds.size === estado.items.length) {
         return 'Todos';
     }
 
@@ -684,7 +653,10 @@ async function carregarDadosBudgetAnalitico() {
     const inputAno = document.getElementById('inputAnoBudgetAnalitico');
     const selectEmpresa = document.getElementById('selectEmpresaBudgetAnalitico');
     const selectFilial = document.getElementById('selectFilialBudgetAnalitico');
+    const selectModoSaldo = document.getElementById('selectModoSaldoBudgetAnalitico');
     const parametroMes = obterParametroFiltroBudgetAnalitico('meses');
+
+    budgetAnaliticoState.modoSaldo = selectModoSaldo?.value || 'todos_itens';
 
     if (parametroMes === '-999') {
         budgetAnaliticoState.data = null;
@@ -938,7 +910,7 @@ function renderizarTabelaBudgetAnalitico() {
 
     corpo.innerHTML = html;
     rodape.innerHTML = `
-        <tr class="luft-budget-analytic-total-row">
+        <tr class="luft-budget-sticky-total-row">
             <td>Total consolidado</td>
             <td class="text-right">${formatarMoedaBudgetAnalitico(resumo.realizado || 0)}</td>
             <td class="text-right">${formatarMoedaBudgetAnalitico(resumo.orcado || 0)}</td>
