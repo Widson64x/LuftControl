@@ -31,12 +31,14 @@ def GerarArquivoAcompanhamentoMensal():
         payload = request.get_json(silent=True) or {}
         ano = payload.get('ano')
         codigo_centro_custo = payload.get('codigoCentroCusto')
+        contas_contabeis = payload.get('contasContabeis')
 
         svc = AcompanhamentoMensalService()
         dados = svc.gerarArquivo(
             codigo_usuario=current_user.get_id() if current_user else None,
             ano=ano,
             codigo_centro_custo=codigo_centro_custo,
+            codigos_conta_contabil=contas_contabeis,
         )
         dados['downloadUrl'] = url_for(
             'AcompanhamentoMensalBudget.BaixarArquivoAcompanhamentoMensal',

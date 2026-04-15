@@ -1,500 +1,8 @@
 {% extends "Layout/BaseLayout.html" %}
-{% import 'luftcore/components.html' as ui %}
-
 {% block title %}Acompanhamento Mensal - Budget{% endblock %}
 
 {% block extra_css %}
-<style>
-    .luft-budget-track-page {
-        max-width: 1240px;
-        margin: 0 auto;
-        padding-bottom: var(--luft-space-12);
-        animation: luftFadeIn 0.28s ease-out;
-    }
-
-    @keyframes luftFadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .luft-budget-track-header {
-        display: grid;
-        grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.9fr);
-        gap: var(--luft-space-6);
-        align-items: start;
-        margin-bottom: var(--luft-space-6);
-        padding: clamp(24px, 2.4vw, 32px);
-        background: var(--luft-bg-panel);
-        border: 1px solid var(--luft-border);
-        border-top: 4px solid var(--luft-primary-600);
-        border-radius: var(--luft-radius-2xl);
-        box-shadow: var(--luft-shadow-sm);
-    }
-
-    .luft-budget-track-header-main,
-    .luft-budget-track-header-side {
-        min-width: 0;
-    }
-
-    .luft-budget-track-header-side {
-        display: grid;
-        gap: 12px;
-        align-content: start;
-    }
-
-    .luft-budget-track-kicker {
-        display: inline-flex;
-        align-items: center;
-        padding: 6px 10px;
-        border-radius: 999px;
-        border: 1px solid var(--luft-border-light);
-        background: var(--luft-bg-base);
-        color: var(--luft-text-muted);
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-
-    .luft-budget-track-title {
-        margin: 14px 0 0 0;
-        color: var(--luft-text-main);
-        font-size: clamp(1.95rem, 3vw, 2.55rem);
-        font-weight: 900;
-        letter-spacing: -0.03em;
-    }
-
-    .luft-budget-track-subtitle {
-        margin: 12px 0 0 0;
-        color: var(--luft-text-muted);
-        font-size: var(--luft-text-base);
-        line-height: 1.6;
-        max-width: 700px;
-    }
-
-    .luft-budget-track-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: var(--luft-space-4);
-    }
-
-    .luft-budget-track-summary-item {
-        padding: 14px 16px;
-        border-radius: var(--luft-radius-xl);
-        border: 1px solid var(--luft-border-light);
-        background: var(--luft-bg-base);
-    }
-
-    .luft-budget-track-summary-item strong {
-        display: block;
-        color: var(--luft-text-main);
-        font-size: var(--luft-text-lg);
-        font-weight: 900;
-    }
-
-    .luft-budget-track-summary-item span {
-        display: block;
-        margin-top: 4px;
-        color: var(--luft-text-muted);
-        font-size: 12px;
-        line-height: 1.45;
-    }
-
-    .luft-budget-track-layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-        gap: var(--luft-space-6);
-        align-items: start;
-    }
-
-    .luft-budget-track-column {
-        display: grid;
-        gap: var(--luft-space-6);
-        min-width: 0;
-    }
-
-    .luft-budget-track-card {
-        background: var(--luft-bg-panel);
-        border: 1px solid var(--luft-border);
-        border-radius: var(--luft-radius-2xl);
-        padding: clamp(22px, 2.1vw, 28px);
-        box-shadow: var(--luft-shadow-sm);
-    }
-
-    .luft-budget-track-section-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 16px;
-    }
-
-    .luft-budget-track-inline-tag {
-        display: inline-flex;
-        align-items: center;
-        padding: 7px 12px;
-        border-radius: 999px;
-        border: 1px solid var(--luft-border-light);
-        background: var(--luft-bg-base);
-        color: var(--luft-text-muted);
-        font-size: 12px;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-
-    .luft-budget-track-card-title {
-        margin: 0;
-        color: var(--luft-text-main);
-        font-size: var(--luft-text-xl);
-        font-weight: 900;
-    }
-
-    .luft-budget-track-card-desc {
-        margin: 8px 0 0 0;
-        color: var(--luft-text-muted);
-        font-size: var(--luft-text-sm);
-        line-height: 1.55;
-    }
-
-    .luft-budget-track-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--luft-space-4);
-        margin-top: var(--luft-space-5);
-    }
-
-    .luft-budget-track-field {
-        display: grid;
-        gap: 8px;
-    }
-
-    .luft-budget-track-field.is-full {
-        grid-column: 1 / -1;
-    }
-
-    .luft-budget-track-label {
-        color: var(--luft-text-main);
-        font-size: var(--luft-text-sm);
-        font-weight: 700;
-    }
-
-    .luft-budget-track-select {
-        width: 100%;
-        padding: 13px 14px;
-        border: 1px solid var(--luft-border-light);
-        border-radius: var(--luft-radius-lg);
-        background: var(--luft-bg-panel);
-        color: var(--luft-text-main);
-        font-size: var(--luft-text-sm);
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .luft-budget-track-select:focus {
-        outline: none;
-        border-color: var(--luft-primary-500);
-        box-shadow: 0 0 0 3px var(--luft-primary-100);
-    }
-
-    .luft-budget-track-static {
-        padding: 14px 16px;
-        border-radius: var(--luft-radius-xl);
-        border: 1px solid var(--luft-border-light);
-        background: var(--luft-bg-base);
-    }
-
-    .luft-budget-track-static strong {
-        display: block;
-        color: var(--luft-text-main);
-        font-size: var(--luft-text-sm);
-        font-weight: 800;
-    }
-
-    .luft-budget-track-static span {
-        display: block;
-        margin-top: 4px;
-        color: var(--luft-text-muted);
-        font-size: 12px;
-        line-height: 1.45;
-    }
-
-    .luft-budget-track-help {
-        margin-top: 2px;
-        color: var(--luft-text-muted);
-        font-size: 12px;
-        line-height: 1.55;
-    }
-
-    .luft-budget-track-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: var(--luft-space-5);
-    }
-
-    .luft-budget-track-btn-primary,
-    .luft-budget-track-btn-secondary {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        min-height: 46px;
-        padding: 0 18px;
-        border-radius: var(--luft-radius-lg);
-        border: 1px solid transparent;
-        cursor: pointer;
-        text-decoration: none;
-        font-size: var(--luft-text-sm);
-        font-weight: 700;
-        transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-    }
-
-    .luft-budget-track-btn-primary {
-        background: var(--luft-primary-600);
-        border-color: var(--luft-primary-700);
-        color: white;
-    }
-
-    .luft-budget-track-btn-primary:hover {
-        background: var(--luft-primary-700);
-    }
-
-    .luft-budget-track-btn-secondary {
-        background: var(--luft-bg-base);
-        border-color: var(--luft-border-light);
-        color: var(--luft-text-main);
-    }
-
-    .luft-budget-track-btn-secondary:hover {
-        border-color: var(--luft-primary-300);
-        color: var(--luft-primary-700);
-    }
-
-    .luft-budget-track-btn-primary:disabled,
-    .luft-budget-track-btn-secondary:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-    }
-
-    .luft-budget-track-status {
-        display: none;
-        margin-top: var(--luft-space-5);
-        padding: 14px 16px;
-        border-radius: var(--luft-radius-xl);
-        font-size: var(--luft-text-sm);
-        line-height: 1.55;
-    }
-
-    .luft-budget-track-status.is-visible {
-        display: block;
-    }
-
-    .luft-budget-track-status.is-success {
-        background: rgba(22, 163, 74, 0.08);
-        border: 1px solid rgba(22, 163, 74, 0.18);
-        color: #166534;
-    }
-
-    .luft-budget-track-status.is-error {
-        background: rgba(220, 38, 38, 0.08);
-        border: 1px solid rgba(220, 38, 38, 0.18);
-        color: #b91c1c;
-    }
-
-    .luft-budget-track-status.is-info {
-        background: rgba(59, 130, 246, 0.08);
-        border: 1px solid var(--luft-primary-100);
-        color: var(--luft-primary-700);
-    }
-
-    .luft-budget-track-warning {
-        margin-top: var(--luft-space-5);
-        padding: 16px 18px;
-        border-radius: var(--luft-radius-xl);
-        border: 1px solid rgba(245, 158, 11, 0.18);
-        border-left: 4px solid rgba(245, 158, 11, 0.9);
-        background: rgba(245, 158, 11, 0.08);
-        color: #92400e;
-        line-height: 1.55;
-    }
-
-    .luft-budget-track-warning strong {
-        display: block;
-        margin-bottom: 4px;
-        color: #78350f;
-    }
-
-    .luft-budget-track-highlight-list {
-        display: grid;
-        gap: 12px;
-        margin-top: var(--luft-space-5);
-    }
-
-    .luft-budget-track-highlight-item {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 12px;
-        padding: 14px 16px;
-        border-radius: var(--luft-radius-xl);
-        border: 1px solid var(--luft-border-light);
-        background: var(--luft-bg-base);
-    }
-
-    .luft-budget-track-highlight-index {
-        width: 32px;
-        height: 32px;
-        display: grid;
-        place-items: center;
-        border-radius: 10px;
-        border: 1px solid var(--luft-border-light);
-        background: var(--luft-bg-panel);
-        color: var(--luft-primary-700);
-        font-size: 12px;
-        font-weight: 900;
-    }
-
-    .luft-budget-track-highlight-item strong {
-        display: block;
-        color: var(--luft-text-main);
-        font-size: var(--luft-text-sm);
-        font-weight: 800;
-    }
-
-    .luft-budget-track-highlight-item span {
-        display: block;
-        margin-top: 3px;
-        color: var(--luft-text-muted);
-        font-size: 13px;
-        line-height: 1.5;
-    }
-
-    .luft-budget-track-callout {
-        margin-top: var(--luft-space-5);
-        padding: 16px 18px;
-        border-radius: var(--luft-radius-xl);
-        border: 1px solid var(--luft-border-light);
-        border-left: 4px solid var(--luft-primary-600);
-        background: var(--luft-bg-base);
-    }
-
-    .luft-budget-track-callout strong {
-        display: block;
-        color: var(--luft-text-main);
-        font-size: var(--luft-text-sm);
-        font-weight: 800;
-    }
-
-    .luft-budget-track-callout p {
-        margin: 6px 0 0 0;
-        color: var(--luft-text-muted);
-        font-size: 13px;
-        line-height: 1.55;
-    }
-
-    .luft-budget-track-pills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: var(--luft-space-5);
-    }
-
-    .luft-budget-track-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border-radius: 999px;
-        background: var(--luft-bg-base);
-        border: 1px solid var(--luft-border-light);
-        color: var(--luft-primary-700);
-        font-size: 12px;
-        font-weight: 700;
-    }
-
-    .luft-budget-track-result {
-        display: none;
-        margin-top: var(--luft-space-5);
-        padding: 18px;
-        border-radius: var(--luft-radius-xl);
-        border: 1px solid var(--luft-border-light);
-        background: var(--luft-bg-base);
-    }
-
-    .luft-budget-track-result.is-visible {
-        display: block;
-    }
-
-    .luft-budget-track-result-title {
-        margin: 0;
-        color: var(--luft-text-main);
-        font-size: var(--luft-text-lg);
-        font-weight: 900;
-    }
-
-    .luft-budget-track-result-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        margin-top: 14px;
-    }
-
-    .luft-budget-track-result-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 14px;
-    }
-
-    .luft-budget-track-result-item {
-        padding: 12px 14px;
-        border-radius: var(--luft-radius-lg);
-        background: var(--luft-bg-panel);
-        border: 1px solid var(--luft-border-light);
-    }
-
-    .luft-budget-track-result-item strong {
-        display: block;
-        color: var(--luft-text-main);
-        font-size: 12px;
-        font-weight: 800;
-    }
-
-    .luft-budget-track-result-item span {
-        display: block;
-        margin-top: 4px;
-        color: var(--luft-text-muted);
-        font-size: 12px;
-        line-height: 1.45;
-    }
-
-    @media (max-width: 980px) {
-        .luft-budget-track-header,
-        .luft-budget-track-layout {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @media (max-width: 760px) {
-        .luft-budget-track-grid,
-        .luft-budget-track-result-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .luft-budget-track-section-head {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .luft-budget-track-actions,
-        .luft-budget-track-result-actions {
-            width: 100%;
-        }
-
-        .luft-budget-track-btn-primary,
-        .luft-budget-track-btn-secondary {
-            width: 100%;
-        }
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Budget/AcompanhamentoMensal.css') }}">
 {% endblock %}
 
 {% block breadcrumb %}
@@ -510,17 +18,12 @@
     class="luft-budget-track-page"
     id="budget-track-app"
     data-generate-url="{{ url_for('AcompanhamentoMensalBudget.GerarArquivoAcompanhamentoMensal') }}"
+    data-filters-url="{{ url_for('Relatorios.ObterFiltrosBudget') }}"
 >
     <section class="luft-budget-track-header">
         <div class="luft-budget-track-header-main">
-            <span class="luft-budget-track-kicker">Budget</span>
             <h1 class="luft-budget-track-title">Acompanhamento Mensal</h1>
-            <p class="luft-budget-track-subtitle">Escolha o ano, confirme o centro de custo e gere a planilha já preenchida com budget e lançamentos do ERP.</p>
-            <div class="luft-budget-track-meta">
-                {{ ui.badge('1 arquivo por centro', cor='primary') }}
-                {{ ui.badge('Dados automáticos', cor='success') }}
-                {{ ui.badge('Download imediato', cor='info') }}
-            </div>
+            <p class="luft-budget-track-subtitle">Escolha o ano e o centro de custo. Quando a geração terminar, o download começa automaticamente.</p>
         </div>
 
         <div class="luft-budget-track-header-side">
@@ -531,146 +34,95 @@
         </div>
     </section>
 
-    <section class="luft-budget-track-layout">
-        <div class="luft-budget-track-column">
-            <div class="luft-budget-track-card">
-                <div class="luft-budget-track-section-head">
-                    <div>
-                        <h2 class="luft-budget-track-card-title">Gerar arquivo</h2>
-                        <p class="luft-budget-track-card-desc">Preencha só o essencial para liberar a planilha.</p>
-                    </div>
-                    <span class="luft-budget-track-inline-tag">{{ centros_custo|length }} centro(s)</span>
-                </div>
+    <section class="luft-budget-track-card">
+        <h2 class="luft-budget-track-card-title">Gerar planilha</h2>
+        <p class="luft-budget-track-card-desc">Preencha só o necessário para iniciar o download.</p>
 
-                {% if not template_disponivel %}
-                <div class="luft-budget-track-warning">
-                    <strong>Template ausente</strong>
-                    Template não encontrado em Data/Base/Template - budget - MENSAL.xlsx. Copie o arquivo para liberar a geração.
+        {% if not template_disponivel %}
+        <div class="luft-budget-track-warning">
+            <strong>Template ausente</strong>
+            Template não encontrado em Data/Base/Template - budget - MENSAL.xlsx. Copie o arquivo para liberar a geração.
+        </div>
+        {% elif not gestor %}
+        <div class="luft-budget-track-warning">
+            <strong>Gestor sem centro configurado</strong>
+            Vincule ao menos um centro de custo ao seu usuário antes de continuar.
+        </div>
+        {% else %}
+        <div class="luft-budget-track-grid">
+            <div class="luft-budget-track-field">
+                <label class="luft-budget-track-label">Responsável</label>
+                <div class="luft-budget-track-static">
+                    <strong>{{ gestor.nome_usuario }}</strong>
+                    <span>{{ gestor.cargo or 'Gestor' }}</span>
                 </div>
-                {% elif not gestor %}
-                <div class="luft-budget-track-warning">
-                    <strong>Gestor sem centro configurado</strong>
-                    Vincule ao menos um centro de custo ao seu usuário antes de continuar.
+            </div>
+
+            <div class="luft-budget-track-field">
+                <label class="luft-budget-track-label" for="budget-track-year">Ano de referência</label>
+                <select class="luft-budget-track-select" id="budget-track-year">
+                    {% for ano in ano_opcoes %}
+                    <option value="{{ ano }}" {% if ano == ano_padrao %}selected{% endif %}>{{ ano }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="luft-budget-track-field is-full">
+                <label class="luft-budget-track-label" for="budget-track-center">Centro de custo</label>
+                {% if centros_custo|length == 1 %}
+                <div class="luft-budget-track-static" id="budget-track-center-static">
+                    <strong>{{ centros_custo[0].numero }}</strong>
+                    <span>{{ centros_custo[0].nome }}</span>
                 </div>
+                <input type="hidden" id="budget-track-center" value="{{ centros_custo[0].codigo }}">
                 {% else %}
-                <div class="luft-budget-track-grid">
-                    <div class="luft-budget-track-field">
-                        <label class="luft-budget-track-label">Responsável</label>
-                        <div class="luft-budget-track-static">
-                            <strong>{{ gestor.nome_usuario }}</strong>
-                            <span>{{ gestor.cargo or 'Gestor' }}</span>
-                        </div>
-                    </div>
-
-                    <div class="luft-budget-track-field">
-                        <label class="luft-budget-track-label" for="budget-track-year">Ano de referência</label>
-                        <select class="luft-budget-track-select" id="budget-track-year">
-                            {% for ano in ano_opcoes %}
-                            <option value="{{ ano }}" {% if ano == ano_padrao %}selected{% endif %}>{{ ano }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="luft-budget-track-field is-full">
-                        <label class="luft-budget-track-label" for="budget-track-center">Centro de custo</label>
-                        {% if centros_custo|length == 1 %}
-                        <div class="luft-budget-track-static" id="budget-track-center-static">
-                            <strong>{{ centros_custo[0].numero }}</strong>
-                            <span>{{ centros_custo[0].nome }}</span>
-                        </div>
-                        <input type="hidden" id="budget-track-center" value="{{ centros_custo[0].codigo }}">
-                        {% else %}
-                        <select class="luft-budget-track-select" id="budget-track-center">
-                            <option value="">Selecione o centro de custo</option>
-                            {% for centro in centros_custo %}
-                            <option value="{{ centro.codigo }}">{{ centro.numero }} - {{ centro.nome }}</option>
-                            {% endfor %}
-                        </select>
-                        {% endif %}
-                        <div class="luft-budget-track-help">A geração respeita um arquivo por centro de custo.</div>
-                    </div>
-                </div>
-
-                <div class="luft-budget-track-actions">
-                    <button type="button" class="luft-budget-track-btn-primary" id="budget-track-generate-btn">
-                        <i class="ph-bold ph-file-xls"></i>
-                        <span>Gerar planilha</span>
-                    </button>
-                </div>
-
-                <div class="luft-budget-track-status" id="budget-track-status"></div>
-
-                <div class="luft-budget-track-result" id="budget-track-result">
-                    <h3 class="luft-budget-track-result-title">Arquivo pronto</h3>
-                    <p class="luft-budget-track-card-desc">O download já está liberado.</p>
-                    <div class="luft-budget-track-result-grid" id="budget-track-result-grid"></div>
-                    <div class="luft-budget-track-result-actions">
-                        <a href="#" class="luft-budget-track-btn-secondary" id="budget-track-download-btn" hidden>
-                            <i class="ph-bold ph-download-simple"></i>
-                            <span>Baixar arquivo</span>
-                        </a>
-                    </div>
-                </div>
+                <select class="luft-budget-track-select" id="budget-track-center">
+                    <option value="">Selecione o centro de custo</option>
+                    {% for centro in centros_custo %}
+                    <option value="{{ centro.codigo }}">{{ centro.numero }} - {{ centro.nome }}</option>
+                    {% endfor %}
+                </select>
                 {% endif %}
+                <div class="luft-budget-track-help">Um arquivo por centro de custo.</div>
+            </div>
+
+            <div class="luft-budget-track-field is-full">
+                <label class="luft-budget-track-label" for="budget-track-accounts-toggle">Contas contábeis</label>
+                <div class="luft-budget-track-multiselect" id="budget-track-accounts-field">
+                    <button type="button" class="luft-budget-track-multiselect-toggle" id="budget-track-accounts-toggle" aria-expanded="false" disabled>
+                        <span class="luft-budget-track-multiselect-label" id="budget-track-accounts-label">Selecione o centro de custo</span>
+                        <i class="ph-bold ph-caret-down"></i>
+                    </button>
+
+                    <div class="luft-budget-track-multiselect-panel luft-budget-track-hidden" id="budget-track-accounts-panel">
+                        <div class="luft-budget-track-searchbar">
+                            <i class="ph-bold ph-magnifying-glass"></i>
+                            <input type="text" id="budget-track-accounts-search" placeholder="Pesquisar conta contábil">
+                        </div>
+
+                        <label class="luft-budget-track-multiselect-selectall" id="budget-track-accounts-select-all-wrap">
+                            <input type="checkbox" id="budget-track-accounts-select-all">
+                            <span>Selecionar todas</span>
+                        </label>
+
+                        <div class="luft-budget-track-multiselect-options" id="budget-track-accounts-options"></div>
+                        <p class="luft-budget-track-multiselect-empty" id="budget-track-accounts-empty">Selecione o centro de custo para carregar as contas.</p>
+                    </div>
+                </div>
+                <div class="luft-budget-track-help">A lista mostra apenas as contas do centro selecionado. A busca procura pelo nome e pelo número da conta.</div>
             </div>
         </div>
 
-        <div class="luft-budget-track-column">
-            <div class="luft-budget-track-card">
-                <div class="luft-budget-track-section-head">
-                    <div>
-                        <h2 class="luft-budget-track-card-title">O que já sai pronto</h2>
-                        <p class="luft-budget-track-card-desc">Resumo direto do preenchimento automático.</p>
-                    </div>
-                    <span class="luft-budget-track-inline-tag">Pronto para revisão</span>
-                </div>
-
-                <div class="luft-budget-track-highlight-list">
-                    <div class="luft-budget-track-highlight-item">
-                        <div class="luft-budget-track-highlight-index">01</div>
-                        <div>
-                            <strong>Meses preenchidos</strong>
-                            <span>O ano é montado mês a mês com base no que já existe no ERP.</span>
-                        </div>
-                    </div>
-
-                    <div class="luft-budget-track-highlight-item">
-                        <div class="luft-budget-track-highlight-index">02</div>
-                        <div>
-                            <strong>Budget anual e mensal</strong>
-                            <span>Cada aba recebe o total do ano e o orçamento do mês do centro selecionado.</span>
-                        </div>
-                    </div>
-
-                    <div class="luft-budget-track-highlight-item">
-                        <div class="luft-budget-track-highlight-index">03</div>
-                        <div>
-                            <strong>Lançamentos existentes</strong>
-                            <span>Conta, fornecedor, descrição, datas e valores já entram na grade mensal.</span>
-                        </div>
-                    </div>
-
-                    <div class="luft-budget-track-highlight-item">
-                        <div class="luft-budget-track-highlight-index">04</div>
-                        <div>
-                            <strong>Complemento manual</strong>
-                            <span>Você acrescenta apenas o que ainda não foi lançado no sistema.</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="luft-budget-track-callout">
-                    <strong>Próximo passo</strong>
-                    <p>Depois da geração, revise o arquivo, complete as linhas pendentes e encaminhe para a Controladoria.</p>
-                </div>
-
-                <div class="luft-budget-track-pills">
-                    <span class="luft-budget-track-pill"><i class="ph-bold ph-clock"></i>{{ meses_preenchidos }} mes(es) no ano atual</span>
-                    <span class="luft-budget-track-pill"><i class="ph-bold ph-buildings"></i>{{ centros_custo|length }} centro(s) configurado(s)</span>
-                    <span class="luft-budget-track-pill"><i class="ph-bold ph-file"></i>Template em Data/Base</span>
-                </div>
-            </div>
+        <div class="luft-budget-track-actions">
+            <button type="button" class="luft-budget-track-btn-primary" id="budget-track-generate-btn">
+                <i class="ph-bold ph-file-xls"></i>
+                <span>Gerar planilha</span>
+            </button>
         </div>
+
+        <p class="luft-budget-track-note">O download começa automaticamente quando a geração terminar.</p>
+        <div class="luft-budget-track-status" id="budget-track-status"></div>
+        {% endif %}
     </section>
 
     <script id="budget-track-gestor" type="application/json">{{ gestor | tojson }}</script>
