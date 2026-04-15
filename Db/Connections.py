@@ -1,8 +1,10 @@
 import sys
 import os
 import time
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker # <-- NOVO IMPORT AQUI
+from decimal import Decimal, InvalidOperation
+
+from sqlalchemy import create_engine, event, or_, text
+from sqlalchemy.orm import Session, sessionmaker, with_loader_criteria
 from sqlalchemy.pool import NullPool
 
 # ==========================================
@@ -19,6 +21,68 @@ from Settings import settings, ProductionConfig
 # Carregamos as strings de conexão logo de cara para não ter surpresa depois
 PG_DATABASE_URL = settings.get_postgres_uri()
 SQL_DATABASE_URL = settings.get_sqlserver_uri()
+
+
+class SqlServerSession(Session):
+    pass
+
+
+def _obter_codigos_centros_off():
+    try:
+        from Modules.SISTEMA.Services.CentroCustoConfigService import CentroCustoConfigService
+
+        codigos = CentroCustoConfigService.listarCodigosCentrosOff()
+    except Exception:
+        return ()
+
+    codigos_normalizados = []
+    for codigo in codigos:
+        try:
+            codigos_normalizados.append(Decimal(str(codigo).strip()))
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+
+    return tuple(codigos_normalizados)
+
+
+@event.listens_for(SqlServerSession, 'do_orm_execute')
+def _aplicar_filtro_centros_off(execute_state):
+    if not execute_state.is_select:
+        return
+
+    if execute_state.session.info.get('ignore_centro_custo_off'):
+        return
+
+    codigos_off = _obter_codigos_centros_off()
+    if not codigos_off:
+        return
+
+    from Models.SqlServer.Budget import BudgetItem
+    from Models.SqlServer.ContaPagar import CentroCusto, ContaPagar
+
+    execute_state.statement = execute_state.statement.options(
+        with_loader_criteria(
+            CentroCusto,
+            lambda cls: cls.Codigo_CentroCusto.notin_(codigos_off),
+            include_aliases=True,
+        ),
+        with_loader_criteria(
+            BudgetItem,
+            lambda cls: or_(
+                cls.Codigo_CentroCusto.is_(None),
+                cls.Codigo_CentroCusto.notin_(codigos_off),
+            ),
+            include_aliases=True,
+        ),
+        with_loader_criteria(
+            ContaPagar,
+            lambda cls: or_(
+                cls.Codigo_CentroCusto.is_(None),
+                cls.Codigo_CentroCusto.notin_(codigos_off),
+            ),
+            include_aliases=True,
+        ),
+    )
 
 # ==========================================
 # FUNÇÕES DE ENGINE E SESSÃO (Core)
@@ -84,10 +148,13 @@ def GetSqlServerEngine():
     """
     return create_engine(SQL_DATABASE_URL, pool_pre_ping=True, poolclass=NullPool)
 
-def GetSqlServerSession():
+def GetSqlServerSession(ignore_centro_custo_off=False):
     """Retorna uma Sessão ORM pronta para o SQL Server (LuftInforma)"""
     engine = GetSqlServerEngine()
-    return sessionmaker(bind=engine)()
+    sessao = sessionmaker(bind=engine, class_=SqlServerSession)()
+    if ignore_centro_custo_off:
+        sessao.info['ignore_centro_custo_off'] = True
+    return sessao
 
 # ==========================================
 # FUNÇÃO DE DIAGNÓSTICO

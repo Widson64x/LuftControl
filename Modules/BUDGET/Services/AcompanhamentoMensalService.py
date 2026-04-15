@@ -11,7 +11,7 @@ from Db.Connections import GetSqlServerSession
 from Models.SqlServer.Budget import Budget, BudgetItem
 from Models.SqlServer.ContaPagar import ContaPagar, ContaPagarNotaFiscal, PlanoConta
 from Models.SqlServer.Fornecedor import Fornecedor
-from Modules.SISTEMA.Services.GestorCentroCustoService import GestorCentroCustoService
+from Modules.SISTEMA.Services.CentroCustoConfigService import CentroCustoConfigService
 
 
 class AcompanhamentoMensalService:
@@ -21,7 +21,9 @@ class AcompanhamentoMensalService:
         os.path.join(os.path.dirname(__file__), '../../..', 'Data', 'Temp', 'BudgetAcompanhamentoMensal')
     )
 
-    STATUS_CONSIDERADOS = (1, 2, 3, 5)
+    STATUS_EM_APROVACAO = (1, 2)
+    STATUS_APROVADO = (3, 5)
+    STATUS_CONSIDERADOS = STATUS_EM_APROVACAO + STATUS_APROVADO
     LINHA_INTRO_DETALHE = 18
     LINHA_INICIAL_DETALHE = 19
     QUANTIDADE_MINIMA_LINHAS = 9
@@ -45,7 +47,7 @@ class AcompanhamentoMensalService:
     )
 
     def __init__(self):
-        self._gestor_service = GestorCentroCustoService()
+        self._gestor_service = CentroCustoConfigService()
         self._garantirEstrutura()
 
     def obterContextoGestor(self, codigo_usuario):
@@ -61,17 +63,28 @@ class AcompanhamentoMensalService:
             'template_disponivel': os.path.exists(self.ARQUIVO_TEMPLATE),
         }
 
-    def gerarArquivo(self, codigo_usuario, ano=None, codigo_centro_custo=None):
+    def gerarArquivo(self, codigo_usuario, ano=None, codigo_centro_custo=None, codigos_conta_contabil=None):
         agora = datetime.now()
         ano_referencia = self._normalizarAno(ano or agora.year, agora.year)
         gestor = self._obterGestorObrigatorio(codigo_usuario)
         centro = self._resolverCentroSelecionado(gestor, codigo_centro_custo)
+        contas_contabeis = self._normalizarContasContabeis(codigos_conta_contabil)
 
         sessao = GetSqlServerSession()
         try:
             codigo_centro_decimal = self._converterCodigoDecimal(centro['codigo'])
-            totais_budget = self._obterTotaisBudget(sessao, ano_referencia, codigo_centro_decimal)
-            lancamentos_mensais = self._obterLancamentosMensais(sessao, ano_referencia, codigo_centro_decimal)
+            totais_budget = self._obterTotaisBudget(
+                sessao,
+                ano_referencia,
+                codigo_centro_decimal,
+                contas_contabeis,
+            )
+            lancamentos_mensais = self._obterLancamentosMensais(
+                sessao,
+                ano_referencia,
+                codigo_centro_decimal,
+                contas_contabeis,
+            )
         finally:
             sessao.close()
 
@@ -195,20 +208,61 @@ class AcompanhamentoMensalService:
         except (InvalidOperation, AttributeError, ValueError):
             raise ValueError('Codigo de centro de custo invalido para gerar a planilha.')
 
-    def _obterTotaisBudget(self, sessao, ano, codigo_centro_custo):
+    def _normalizarContasContabeis(self, codigos_conta_contabil):
+        if codigos_conta_contabil is None:
+            return None
+
+        if isinstance(codigos_conta_contabil, (list, tuple, set)):
+            valores = list(codigos_conta_contabil)
+        else:
+            texto = str(codigos_conta_contabil).strip()
+            if not texto or texto.upper() == 'TODOS':
+                return None
+            valores = texto.split(',')
+
+        contas = []
+        contas_vistas = set()
+
+        for valor in valores:
+            texto = str(valor or '').strip()
+            if not texto:
+                continue
+
+            if texto.upper() == 'TODOS':
+                return None
+
+            try:
+                conta_decimal = self._converterCodigoDecimal(texto)
+            except ValueError:
+                raise ValueError('Codigo de conta contabil invalido para gerar a planilha.')
+
+            chave = str(conta_decimal)
+            if chave in contas_vistas:
+                continue
+
+            contas_vistas.add(chave)
+            contas.append(conta_decimal)
+
+        return contas or None
+
+    def _obterTotaisBudget(self, sessao, ano, codigo_centro_custo, codigos_conta_contabil=None):
         colunas_mes = [
             func.coalesce(func.sum(coluna), 0).label(f'mes_{numero}')
             for numero, _, _, coluna in self.MESES
         ]
 
-        registro = (
+        query = (
             sessao.query(*colunas_mes)
             .select_from(BudgetItem)
             .join(Budget, BudgetItem.Codigo_Budget == Budget.Codigo_Budget)
             .filter(Budget.Ano_Vigencia == ano)
             .filter(BudgetItem.Codigo_CentroCusto == codigo_centro_custo)
-            .one()
         )
+
+        if codigos_conta_contabil:
+            query = query.filter(BudgetItem.Codigo_ContaContabil.in_(codigos_conta_contabil))
+
+        registro = query.one()
 
         meses = {
             numero: float(getattr(registro, f'mes_{numero}') or 0.0)
@@ -219,7 +273,7 @@ class AcompanhamentoMensalService:
             'total_ano': sum(meses.values()),
         }
 
-    def _obterLancamentosMensais(self, sessao, ano, codigo_centro_custo):
+    def _obterLancamentosMensais(self, sessao, ano, codigo_centro_custo, codigos_conta_contabil=None):
         subconsulta_data_nota = (
             sessao.query(
                 ContaPagarNotaFiscal.Codigo_ContaPagar.label('codigoContaPagar'),
@@ -244,8 +298,8 @@ class AcompanhamentoMensalService:
                 Fornecedor.Nome_Fornecedor.label('nomeFornecedor'),
                 ContaPagar.Descricao_Item.label('descricaoItem'),
                 ContaPagar.Numero_Documento.label('numeroDocumento'),
+                ContaPagar.Opcao_StatusContaPagar.label('codigoStatusContaPagar'),
                 ContaPagar.Data_Emissao.label('dataEmissao'),
-                data_efetiva.label('dataEntrega'),
                 valor_efetivo.label('valor'),
             )
             .select_from(ContaPagar)
@@ -266,8 +320,12 @@ class AcompanhamentoMensalService:
                 PlanoConta.Numero_ContaContabil,
                 Fornecedor.Nome_Fornecedor,
             )
-            .all()
         )
+
+        if codigos_conta_contabil:
+            registros = registros.filter(ContaPagar.Codigo_ContaContabil.in_(codigos_conta_contabil))
+
+        registros = registros.all()
 
         lancamentos_por_mes = {
             numero: []
@@ -281,19 +339,18 @@ class AcompanhamentoMensalService:
 
             conta = self._montarTextoConta(registro.numeroContaContabil, registro.descricaoContaContabil)
             fornecedor = self._normalizarTexto(registro.nomeFornecedor) or 'Sem fornecedor vinculado'
-            descricao = (
-                self._normalizarTexto(registro.descricaoItem)
-                or self._normalizarTexto(registro.numeroDocumento)
-                or 'Sem descricao'
-            )
+            numero_documento = self._normalizarTexto(registro.numeroDocumento) or 'Sem documento informado'
+            status = self._descreverStatusContaPagar(registro.codigoStatusContaPagar)
+            descricao = self._normalizarTexto(registro.descricaoItem) or 'Sem descricao'
 
             lancamentos_por_mes[numero_mes].append(
                 {
                     'conta_contabil': conta,
                     'fornecedor': fornecedor,
+                    'numero_documento': numero_documento,
+                    'status': status,
                     'descricao': descricao,
                     'data_emissao': registro.dataEmissao,
-                    'data_entrega': registro.dataEntrega,
                     'valor': float(registro.valor or 0.0),
                 }
             )
@@ -301,21 +358,23 @@ class AcompanhamentoMensalService:
         return lancamentos_por_mes
 
     def _montarTextoConta(self, numero, descricao):
-        numero_texto = self._normalizarTexto(numero)
-
-        """ 
-        - Comentado para evitar que a descrição da conta contabil 
-        seja omitida quando o número for preenchido, mas a descrição 
-        estiver vazia ou nula.
-
-
         descricao_texto = self._normalizarTexto(descricao)
-        if numero_texto and descricao_texto:
-            return f'{numero_texto} - {descricao_texto}'
-        return numero_texto or descricao_texto or 'Sem conta contabil vinculada'
-        """
+        numero_texto = self._normalizarTexto(numero)
+        return descricao_texto or numero_texto or 'Sem conta contabil vinculada'
 
-        return numero_texto or 'Sem conta contabil vinculada'
+    def _descreverStatusContaPagar(self, codigo_status):
+        try:
+            status_normalizado = int(codigo_status)
+        except (TypeError, ValueError):
+            return 'Status nao mapeado'
+
+        if status_normalizado in self.STATUS_EM_APROVACAO:
+            return 'Em Aprovação'
+
+        if status_normalizado in self.STATUS_APROVADO:
+            return 'Aprovado'
+
+        return 'Status nao mapeado'
 
     def _atualizarAbaLista(self, planilha, ano, centro):
         for indice, (_, _, abreviacao, _) in enumerate(self.MESES, start=2):
@@ -327,6 +386,79 @@ class AcompanhamentoMensalService:
 
         planilha.cell(row=2, column=4).value = self._normalizarNumero(centro['codigo'])
         planilha.cell(row=2, column=5).value = centro['nome']
+
+    def _configurarCabecalhosAbaMensal(self, planilha):
+        planilha.cell(row=17, column=5).value = 'NÚMERO DOCUMENTO'
+        planilha.cell(row=17, column=6).value = 'STATUS'
+        planilha.cell(row=17, column=7).value = 'DESCRIÇÃO'
+        planilha.cell(row=17, column=8).value = 'DATA DE EMISSÃO'
+        planilha.cell(row=17, column=9)._style = copy(planilha.cell(row=17, column=8)._style)
+        planilha.cell(row=17, column=9).value = 'VALOR'
+
+        planilha.column_dimensions['E'].width = 18
+        planilha.column_dimensions['F'].width = 16
+        planilha.column_dimensions['G'].width = 30
+        planilha.column_dimensions['H'].width = 15
+        planilha.column_dimensions['I'].width = 14
+
+    def _limparCelulaSemFormato(self, planilha, numero_linha, indice_coluna, coluna_referencia=10):
+        celula = planilha.cell(row=numero_linha, column=indice_coluna)
+        celula.value = None
+        celula._style = copy(planilha.cell(row=numero_linha, column=coluna_referencia)._style)
+
+    def _configurarResumoSuperior(self, planilha):
+        estilo_rotulo_11 = copy(planilha.cell(row=11, column=7)._style)
+        estilo_valor_11 = copy(planilha.cell(row=11, column=8)._style)
+        planilha.cell(row=11, column=8)._style = copy(estilo_rotulo_11)
+        planilha.cell(row=11, column=8).value = 'BUDGET/ANO'
+        planilha.cell(row=11, column=9)._style = copy(estilo_valor_11)
+        self._limparCelulaSemFormato(planilha, 11, 7)
+
+        estilo_rotulo_13 = copy(planilha.cell(row=13, column=7)._style)
+        estilo_valor_13 = copy(planilha.cell(row=13, column=8)._style)
+        planilha.cell(row=13, column=8)._style = copy(estilo_rotulo_13)
+        planilha.cell(row=13, column=8).value = 'BUDGET/MÊS'
+        planilha.cell(row=13, column=9)._style = copy(estilo_valor_13)
+        self._limparCelulaSemFormato(planilha, 13, 7)
+
+        if 'F15:G15' in [str(faixa) for faixa in planilha.merged_cells.ranges]:
+            planilha.unmerge_cells('F15:G15')
+
+        estilo_rotulo_15 = copy(planilha.cell(row=15, column=6)._style)
+        estilo_valor_15 = copy(planilha.cell(row=15, column=8)._style)
+        planilha.cell(row=15, column=7)._style = copy(estilo_rotulo_15)
+        planilha.cell(row=15, column=7).value = 'CONSUMO ACUMULADO ATÉ O MÊS ANTERIOR'
+        planilha.cell(row=15, column=8)._style = copy(estilo_rotulo_15)
+        self._limparCelulaSemFormato(planilha, 15, 6)
+        planilha.cell(row=15, column=9)._style = copy(estilo_valor_15)
+        planilha.merge_cells(start_row=15, start_column=7, end_row=15, end_column=8)
+
+    def _configurarLinhasResumo(
+        self,
+        planilha,
+        linha_total,
+        linha_saldo_mensal,
+        linha_percentual_mensal,
+        linha_acumulado,
+        linha_saldo_acumulado,
+        linha_percentual_ano,
+    ):
+        linhas_resumo = (
+            (linha_total, 'TOTAL DO MÊS'),
+            (linha_saldo_mensal, 'SALDO DO BUDGET MENSAL'),
+            (linha_percentual_mensal, '%BUDGET CONSUMIDO / MÊS'),
+            (linha_acumulado, 'CONSUMO ACUMULADO ATUAL'),
+            (linha_saldo_acumulado, 'SALDO DO BUDGET ACUMULADO'),
+            (linha_percentual_ano, '% BUDGET CONSUMIDO / ANO'),
+        )
+
+        for numero_linha, rotulo in linhas_resumo:
+            estilo_rotulo = copy(planilha.cell(row=numero_linha, column=6)._style)
+            self._limparCelulaSemFormato(planilha, numero_linha, 6)
+            planilha.cell(row=numero_linha, column=7)._style = copy(estilo_rotulo)
+            planilha.cell(row=numero_linha, column=7).value = rotulo
+            planilha.cell(row=numero_linha, column=8).value = None
+            planilha.cell(row=numero_linha, column=9)._style = copy(planilha.cell(row=numero_linha, column=8)._style)
 
     def _preencherAbaMensal(
         self,
@@ -342,6 +474,8 @@ class AcompanhamentoMensalService:
         nome_aba_anterior,
         linha_acumulada_anterior,
     ):
+        self._configurarResumoSuperior(planilha)
+        self._configurarCabecalhosAbaMensal(planilha)
         modelos = self._capturarModelosLinha(planilha)
         quantidade_linhas = max(self.QUANTIDADE_MINIMA_LINHAS, len(lancamentos))
 
@@ -376,6 +510,15 @@ class AcompanhamentoMensalService:
         self._aplicarModeloLinha(planilha, linha_aprovador, modelos['aprovador'])
         self._aplicarModeloLinha(planilha, linha_data, modelos['data'])
 
+        self._configurarLinhasResumo(
+            planilha,
+            linha_total=linha_total,
+            linha_saldo_mensal=linha_saldo_mensal,
+            linha_percentual_mensal=linha_percentual_mensal,
+            linha_acumulado=linha_acumulado,
+            linha_saldo_acumulado=linha_saldo_acumulado,
+            linha_percentual_ano=linha_percentual_ano,
+        )
         self._aplicarMesclagens(
             planilha,
             quantidade_linhas=quantidade_linhas,
@@ -390,44 +533,53 @@ class AcompanhamentoMensalService:
         planilha['C6'] = f'{abreviacao_mes}/{ano}'
         planilha['C7'] = self._montarResponsavel(gestor)
         planilha['C8'] = f"{centro['nome']}"
-        planilha['H11'] = total_ano
-        planilha['H13'] = total_mes
-        planilha['H11'].number_format = self.FORMATO_MOEDA
-        planilha['H13'].number_format = self.FORMATO_MOEDA
+        planilha['I11'] = total_ano
+        planilha['I13'] = total_mes
+        planilha['I11'].number_format = self.FORMATO_MOEDA
+        planilha['I13'].number_format = self.FORMATO_MOEDA
 
         if numero_mes == 1:
-            planilha['H15'] = 0
+            planilha['I15'] = 0
         else:
-            planilha['H15'] = f"='{nome_aba_anterior}'!H{linha_acumulada_anterior}"
-        planilha['H15'].number_format = self.FORMATO_MOEDA
+            planilha['I15'] = f"='{nome_aba_anterior}'!I{linha_acumulada_anterior}"
+        planilha['I15'].number_format = self.FORMATO_MOEDA
 
         for indice in range(quantidade_linhas):
             linha_atual = self.LINHA_INICIAL_DETALHE + indice
             lancamento = lancamentos[indice] if indice < len(lancamentos) else None
+
+            estilo_texto = copy(planilha.cell(row=linha_atual, column=5)._style)
+            estilo_data = copy(planilha.cell(row=linha_atual, column=6)._style)
+            estilo_moeda = copy(planilha.cell(row=linha_atual, column=8)._style)
+            planilha.cell(row=linha_atual, column=6)._style = copy(estilo_texto)
+            planilha.cell(row=linha_atual, column=7)._style = copy(estilo_texto)
+            planilha.cell(row=linha_atual, column=8)._style = copy(estilo_data)
+            planilha.cell(row=linha_atual, column=9)._style = copy(estilo_moeda)
+
             planilha.cell(row=linha_atual, column=2).value = lancamento['conta_contabil'] if lancamento else None
             planilha.cell(row=linha_atual, column=3).value = lancamento['fornecedor'] if lancamento else None
-            planilha.cell(row=linha_atual, column=5).value = lancamento['descricao'] if lancamento else None
-            planilha.cell(row=linha_atual, column=6).value = lancamento['data_emissao'] if lancamento else None
-            planilha.cell(row=linha_atual, column=7).value = lancamento['data_entrega'] if lancamento else None
-            planilha.cell(row=linha_atual, column=8).value = lancamento['valor'] if lancamento else None
-            planilha.cell(row=linha_atual, column=6).number_format = self.FORMATO_DATA
-            planilha.cell(row=linha_atual, column=7).number_format = self.FORMATO_DATA
-            planilha.cell(row=linha_atual, column=8).number_format = self.FORMATO_MOEDA
+            planilha.cell(row=linha_atual, column=5).value = lancamento['numero_documento'] if lancamento else None
+            planilha.cell(row=linha_atual, column=6).value = lancamento['status'] if lancamento else None
+            planilha.cell(row=linha_atual, column=7).value = lancamento['descricao'] if lancamento else None
+            planilha.cell(row=linha_atual, column=8).value = lancamento['data_emissao'] if lancamento else None
+            planilha.cell(row=linha_atual, column=9).value = lancamento['valor'] if lancamento else None
+            planilha.cell(row=linha_atual, column=8).number_format = self.FORMATO_DATA
+            planilha.cell(row=linha_atual, column=9).number_format = self.FORMATO_MOEDA
 
-        planilha.cell(row=linha_total, column=8).value = (
-            f'=SUM(H{self.LINHA_INICIAL_DETALHE}:H{linha_total - 1})'
+        planilha.cell(row=linha_total, column=9).value = (
+            f'=SUM(I{self.LINHA_INICIAL_DETALHE}:I{linha_total - 1})'
         )
-        planilha.cell(row=linha_total, column=8).number_format = self.FORMATO_MOEDA
-        planilha.cell(row=linha_saldo_mensal, column=8).value = f'=IF(H13=0,0,H13-H{linha_total})'
-        planilha.cell(row=linha_saldo_mensal, column=8).number_format = self.FORMATO_MOEDA
-        planilha.cell(row=linha_percentual_mensal, column=8).value = f'=IF(H13=0,0,H{linha_total}/H13)'
-        planilha.cell(row=linha_percentual_mensal, column=8).number_format = '0.00%'
-        planilha.cell(row=linha_acumulado, column=8).value = f'=H15+H{linha_total}'
-        planilha.cell(row=linha_acumulado, column=8).number_format = self.FORMATO_MOEDA
-        planilha.cell(row=linha_saldo_acumulado, column=8).value = f'=H11-H{linha_acumulado}'
-        planilha.cell(row=linha_saldo_acumulado, column=8).number_format = self.FORMATO_MOEDA
-        planilha.cell(row=linha_percentual_ano, column=8).value = f'=IFERROR(H{linha_acumulado}/H11,0)'
-        planilha.cell(row=linha_percentual_ano, column=8).number_format = '0.00%'
+        planilha.cell(row=linha_total, column=9).number_format = self.FORMATO_MOEDA
+        planilha.cell(row=linha_saldo_mensal, column=9).value = f'=IF(I13=0,0,I13-I{linha_total})'
+        planilha.cell(row=linha_saldo_mensal, column=9).number_format = self.FORMATO_MOEDA
+        planilha.cell(row=linha_percentual_mensal, column=9).value = f'=IF(I13=0,0,I{linha_total}/I13)'
+        planilha.cell(row=linha_percentual_mensal, column=9).number_format = '0.00%'
+        planilha.cell(row=linha_acumulado, column=9).value = f'=I15+I{linha_total}'
+        planilha.cell(row=linha_acumulado, column=9).number_format = self.FORMATO_MOEDA
+        planilha.cell(row=linha_saldo_acumulado, column=9).value = f'=I11-I{linha_acumulado}'
+        planilha.cell(row=linha_saldo_acumulado, column=9).number_format = self.FORMATO_MOEDA
+        planilha.cell(row=linha_percentual_ano, column=9).value = f'=IFERROR(I{linha_acumulado}/I11,0)'
+        planilha.cell(row=linha_percentual_ano, column=9).number_format = '0.00%'
 
         return linha_acumulado
 
@@ -488,19 +640,19 @@ class AcompanhamentoMensalService:
         linha_aprovador,
         linha_data,
     ):
-        planilha.merge_cells(start_row=18, start_column=2, end_row=18, end_column=8)
+        planilha.merge_cells(start_row=18, start_column=2, end_row=18, end_column=9)
 
         for deslocamento in range(quantidade_linhas):
             linha_atual = self.LINHA_INICIAL_DETALHE + deslocamento
             planilha.merge_cells(start_row=linha_atual, start_column=3, end_row=linha_atual, end_column=4)
 
-        planilha.merge_cells(start_row=linha_total, start_column=6, end_row=linha_total, end_column=7)
-        planilha.merge_cells(start_row=linha_saldo_mensal, start_column=6, end_row=linha_saldo_mensal, end_column=7)
-        planilha.merge_cells(start_row=linha_saldo_mensal + 1, start_column=6, end_row=linha_saldo_mensal + 1, end_column=7)
-        planilha.merge_cells(start_row=linha_saldo_mensal + 4, start_column=6, end_row=linha_saldo_mensal + 4, end_column=7)
-        planilha.merge_cells(start_row=linha_saldo_mensal + 5, start_column=6, end_row=linha_saldo_mensal + 5, end_column=7)
+        planilha.merge_cells(start_row=linha_total, start_column=7, end_row=linha_total, end_column=8)
+        planilha.merge_cells(start_row=linha_saldo_mensal, start_column=7, end_row=linha_saldo_mensal, end_column=8)
+        planilha.merge_cells(start_row=linha_saldo_mensal + 1, start_column=7, end_row=linha_saldo_mensal + 1, end_column=8)
+        planilha.merge_cells(start_row=linha_saldo_mensal + 4, start_column=7, end_row=linha_saldo_mensal + 4, end_column=8)
+        planilha.merge_cells(start_row=linha_saldo_mensal + 5, start_column=7, end_row=linha_saldo_mensal + 5, end_column=8)
         planilha.merge_cells(start_row=linha_percentual_ano, start_column=2, end_row=linha_percentual_ano, end_column=3)
-        planilha.merge_cells(start_row=linha_percentual_ano, start_column=6, end_row=linha_percentual_ano, end_column=7)
+        planilha.merge_cells(start_row=linha_percentual_ano, start_column=7, end_row=linha_percentual_ano, end_column=8)
         planilha.merge_cells(start_row=linha_percentual_ano + 1, start_column=2, end_row=linha_percentual_ano + 1, end_column=3)
         planilha.merge_cells(start_row=linha_aprovador, start_column=2, end_row=linha_aprovador, end_column=3)
         planilha.merge_cells(start_row=linha_data, start_column=2, end_row=linha_data, end_column=3)

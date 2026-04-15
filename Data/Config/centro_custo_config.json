@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "atualizado_em": "2026-04-15T14:47:07",
+  "atualizado_por": {
+    "id": 2351,
+    "nome": "widson.araujo",
+    "login": "widson.araujo@luftlogistics.com"
+  },
+  "centros_custo_off": [
+    {
+      "codigo": "25210401",
+      "numero": "25210401",
+      "nome": "CONTROLADORIA"
+    }
+  ],
+  "gestores": [
+    {
+      "codigo_usuario": 58,
+      "nome_usuario": "Tania Oliveira Neves Guimarães",
+      "login_usuario": "tania.guimaraes",
+      "cargo": "Gerente",
+      "centros_custo": [
+        {
+          "codigo": "25110503",
+          "numero": "25110503",
+          "nome": "CONTROLADORIA"
+        }
+      ]
+    },
+    {
+      "codigo_usuario": 545,
+      "nome_usuario": "Teste TI",
+      "login_usuario": "teste.ti",
+      "cargo": "Gerente",
+      "centros_custo": [
+        {
+          "codigo": "21120107",
+          "numero": "21120107",
+          "nome": "ADEQUACAO/FRACIONAMENTO"
+        }
+      ]
+    },
+    {
+      "codigo_usuario": 2351,
+      "nome_usuario": "Widson Rodrigues da Araujo",
+      "login_usuario": "widson.araujo",
+      "cargo": "Gerente",
+      "centros_custo": [
+        {
+          "codigo": "25111001",
+          "numero": "25111001",
+          "nome": "TI - DIVISAO DE NEGOCIO"
+        }
+      ]
+    }
+  ]
+}
