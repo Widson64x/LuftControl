@@ -1,0 +1,121 @@
+{% extends "Layout/BaseLayout.html" %}
+{% import 'luftcore/components.html' as ui %}
+
+{% block title %}Configuração de Centros de Custo - Luft Control{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/Pages/Configs/CentroCustoConfig.css') }}">
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="luft-breadcrumb-item d-flex align-items-center gap-1"><a href="{{ url_for('Principal.MenuPrincipal') }}" class="text-muted text-decoration-none"><i class="ph-fill ph-house"></i> Home</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item d-flex align-items-center gap-1"><a href="{{ url_for('Principal.MenuConfiguracoes') }}" class="text-muted text-decoration-none">Configurações Globais</a></span>
+<i class="ph-bold ph-caret-right"></i>
+<span class="luft-breadcrumb-item active">Centros de Custo</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="luft-cc-config-page" id="cc-config-app" data-save-url="{{ url_for('CentroCustoConfig.SalvarConfiguracaoCentroCusto') }}">
+    <section class="luft-cc-toolbar">
+        <div>
+            <h1 class="luft-cc-title">Centros de Custo</h1>
+            <div class="luft-cc-stats">
+                <div class="luft-cc-stat"><strong id="cc-manager-count">0</strong><span>Gestores</span></div>
+                <div class="luft-cc-stat"><strong id="cc-link-count">0</strong><span>Vínculos</span></div>
+                <div class="luft-cc-stat"><strong id="cc-off-count">0</strong><span>Inativos</span></div>
+            </div>
+        </div>
+
+        <div class="luft-cc-toolbar-actions">
+            <button type="button" class="luft-cc-btn luft-cc-btn-secondary" id="cc-open-off">
+                <i class="ph-bold ph-power"></i>
+                <span>Inativos</span>
+            </button>
+            <button type="button" class="luft-cc-btn luft-cc-btn-secondary" id="cc-open-manager">
+                <i class="ph-bold ph-user-plus"></i>
+                <span>Gestor</span>
+            </button>
+            <button type="button" class="luft-cc-btn luft-cc-btn-primary" id="cc-save">
+                <i class="ph-bold ph-check-circle"></i>
+                <span>Salvar</span>
+            </button>
+            <a href="{{ url_for('Principal.MenuConfiguracoes') }}" class="luft-cc-btn luft-cc-btn-secondary">
+                <i class="ph-bold ph-arrow-left"></i>
+                <span>Voltar</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="luft-cc-workspace">
+        <article class="luft-cc-panel">
+            <div class="luft-cc-panel-head">
+                <h2 class="luft-cc-panel-title">Gestores</h2>
+                <input class="luft-cc-input luft-cc-input-search" id="cc-manager-filter" type="text" placeholder="Buscar gestor">
+            </div>
+            <div class="luft-cc-panel-body luft-cc-panel-body-list" id="cc-manager-list"></div>
+        </article>
+
+        <aside class="luft-cc-panel luft-cc-panel-side">
+            <div class="luft-cc-panel-head">
+                <h2 class="luft-cc-panel-title">Centros Inativos</h2>
+                <button type="button" class="luft-cc-btn luft-cc-btn-secondary luft-cc-btn-sm" data-open-off>
+                    <i class="ph-bold ph-pencil-simple"></i>
+                    <span>Editar</span>
+                </button>
+            </div>
+            <div class="luft-cc-panel-body luft-cc-panel-body-list" id="cc-off-list-compact"></div>
+        </aside>
+    </section>
+
+    <script id="cc-config-users" type="application/json">{{ UsuariosDisponiveis | tojson }}</script>
+    <script id="cc-config-centers" type="application/json">{{ CentrosCustoDisponiveis | tojson }}</script>
+    <script id="cc-config-data" type="application/json">{{ ConfiguracaoAtual | tojson }}</script>
+</div>
+
+{% call ui.modal('modalCentroCustoGestor', 'Gestor', 'xl', 'ph-user-circle-gear') %}
+<div class="cc-mgr-shell">
+    <div class="cc-mgr-top">
+        <input class="luft-cc-input" id="cc-user-search" type="text" placeholder="Buscar usuário">
+        <input class="luft-cc-input cc-mgr-role" id="cc-role-input" type="text" placeholder="Cargo">
+    </div>
+    <div class="cc-mgr-body">
+        <div class="cc-mgr-col">
+            <div class="cc-mgr-list" id="cc-user-results"></div>
+        </div>
+        <div class="cc-mgr-col">
+            <input class="luft-cc-input" id="cc-manager-center-search" type="text" placeholder="Filtrar centros">
+            <div class="cc-mgr-list" id="cc-manager-center-list"></div>
+        </div>
+    </div>
+    <div class="cc-mgr-bar">
+        <div class="cc-mgr-bar-chips">
+            <div id="cc-user-current"></div>
+            <div id="cc-manager-center-selected"></div>
+        </div>
+        <div class="cc-mgr-actions">
+            <button type="button" class="luft-cc-btn luft-cc-btn-secondary" onclick="LuftCore.fecharModal('modalCentroCustoGestor')">Cancelar</button>
+            <button type="button" class="luft-cc-btn luft-cc-btn-primary" id="cc-manager-apply">Aplicar</button>
+        </div>
+    </div>
+</div>
+{% endcall %}
+
+{% call ui.modal('modalCentroCustoOff', 'Centros Inativos', 'lg', 'ph-power') %}
+<div class="cc-off-shell">
+    <input class="luft-cc-input" id="cc-off-search" type="text" placeholder="Filtrar centros">
+    <div class="cc-off-list" id="cc-off-list"></div>
+    <div class="cc-mgr-bar">
+        <div id="cc-off-selected" class="cc-mgr-bar-chips"></div>
+        <div class="cc-mgr-actions">
+            <button type="button" class="luft-cc-btn luft-cc-btn-secondary" onclick="LuftCore.fecharModal('modalCentroCustoOff')">Cancelar</button>
+            <button type="button" class="luft-cc-btn luft-cc-btn-primary" id="cc-off-apply">Aplicar</button>
+        </div>
+    </div>
+</div>
+{% endcall %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/Configs/CentroCustoConfig.js') }}" defer></script>
+{% endblock %}

@@ -245,6 +245,57 @@ class ModalSystem {
  */
 class NotificationSystem {
     static container = null;
+    static _stylesInjected = false;
+
+    static _injectStyles() {
+        if (this._stylesInjected) return;
+        this._stylesInjected = true;
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes luft-toast-in {
+                from { opacity: 0; transform: translateX(24px); }
+                to   { opacity: 1; transform: translateX(0); }
+            }
+            .luft-toast {
+                display: flex;
+                align-items: flex-start;
+                gap: 10px;
+                min-width: 300px;
+                max-width: 420px;
+                padding: 12px 16px;
+                border-radius: var(--luft-radius-xl);
+                border: 1px solid;
+                font-size: 0.8125rem;
+                font-weight: 500;
+                line-height: 1.45;
+                box-shadow: var(--luft-shadow-md);
+                animation: luft-toast-in 0.25s ease forwards;
+                transition: opacity 0.25s ease, transform 0.25s ease;
+            }
+            .luft-toast i { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+            .luft-toast.is-success {
+                background: var(--luft-success-50);
+                border-color: var(--luft-success-200);
+                color: var(--luft-success-700);
+            }
+            .luft-toast.is-danger {
+                background: var(--luft-danger-50);
+                border-color: var(--luft-danger-200);
+                color: var(--luft-danger-700);
+            }
+            .luft-toast.is-warning {
+                background: var(--luft-warning-50);
+                border-color: var(--luft-warning-200);
+                color: var(--luft-warning-700);
+            }
+            .luft-toast.is-info {
+                background: var(--luft-primary-50);
+                border-color: var(--luft-primary-100);
+                color: var(--luft-primary-700);
+            }
+        `;
+        document.head.appendChild(style);
+    }
 
     static init() {
         if (!this.container) {
@@ -258,43 +309,40 @@ class NotificationSystem {
                 display: flex;
                 flex-direction: column;
                 gap: 10px;
+                align-items: flex-end;
             `;
             document.body.appendChild(this.container);
         }
+        this._injectStyles();
     }
 
-    static show(message, type = 'info', duration = 3000) {
+    static show(message, type = 'info', duration = 3500) {
         this.init();
 
-        const notification = document.createElement('div');
-        notification.className = `alert alert-${type} slide-in-down`;
-        notification.style.cssText = `
-            min-width: 300px;
-            animation: slideInRight 0.3s ease;
-        `;
-        
-        notification.innerHTML = `
-            <i class="fas fa-${this.getIcon(type)}"></i>
+        const toast = document.createElement('div');
+        toast.className = `luft-toast is-${type}`;
+        toast.innerHTML = `
+            <i class="ph-bold ${this.getIcon(type)}"></i>
             <span>${message}</span>
         `;
 
-        this.container.appendChild(notification);
+        this.container.appendChild(toast);
 
         setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(100px)';
-            setTimeout(() => notification.remove(), 300);
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(24px)';
+            setTimeout(() => toast.remove(), 300);
         }, duration);
     }
 
     static getIcon(type) {
         const icons = {
-            success: 'check-circle',
-            danger: 'exclamation-circle',
-            warning: 'exclamation-triangle',
-            info: 'info-circle'
+            success: 'ph-check-circle',
+            danger:  'ph-warning-circle',
+            warning: 'ph-warning',
+            info:    'ph-info',
         };
-        return icons[type] || 'info-circle';
+        return icons[type] || 'ph-info';
     }
 }
 

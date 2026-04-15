@@ -11,7 +11,7 @@ from Db.Connections import GetSqlServerSession
 from Models.SqlServer.Budget import Budget, BudgetItem
 from Models.SqlServer.ContaPagar import ContaPagar, ContaPagarNotaFiscal, PlanoConta
 from Models.SqlServer.Fornecedor import Fornecedor
-from Modules.SISTEMA.Services.GestorCentroCustoService import GestorCentroCustoService
+from Modules.SISTEMA.Services.CentroCustoConfigService import CentroCustoConfigService
 
 
 class AcompanhamentoMensalService:
@@ -47,7 +47,7 @@ class AcompanhamentoMensalService:
     )
 
     def __init__(self):
-        self._gestor_service = GestorCentroCustoService()
+        self._gestor_service = CentroCustoConfigService()
         self._garantirEstrutura()
 
     def obterContextoGestor(self, codigo_usuario):
