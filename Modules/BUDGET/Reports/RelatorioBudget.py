@@ -697,6 +697,9 @@ class RelatorioBudget:
                 'centroCusto': centroCusto,
                 'contaContabil': contaContabil,
                 'fornecedor': fornecedor,
+                'codigoCentroCusto': str(int(linha.codigoCentroCusto)) if getattr(linha, 'codigoCentroCusto', None) is not None else None,
+                'codigoContaContabil': str(int(linha.codigoContaContabil)) if getattr(linha, 'codigoContaContabil', None) is not None else None,
+                'codigoFornecedor': str(int(linha.codigoFornecedor)) if getattr(linha, 'codigoFornecedor', None) is not None else None,
                 'orcado': 0.0,
                 'emAprovacao': 0.0,
                 'aprovado': 0.0,
@@ -1288,4 +1291,147 @@ class RelatorioBudget:
                 'quantidadeContas': sum(grupo['quantidadeContas'] for grupo in grupos),
             },
             'grupos': grupos,
+        }
+
+    def obterDetalhesBudget(
+        self,
+        ano,
+        mes,
+        codigoCentroCusto=None,
+        codigoContaContabil=None,
+        codigoFornecedor=None,
+        modoSaldo='todos_itens',
+        filtroEmpresa='Todos',
+    ):
+        """
+        Retorna os lançamentos individuais de ContaPagar que compõem a linha
+        selecionada no relatório gerencial de Budget (drill-down por nível).
+
+        Args:
+            ano (int): Ano de referência.
+            mes (int): Mês de competência (1–12).
+            codigoCentroCusto (str|None): ID numérico do centro de custo ou None para todos.
+            codigoContaContabil (str|None): ID numérico da conta contábil ou None para todas.
+            codigoFornecedor (str|None): ID numérico do fornecedor ou None para todos.
+            modoSaldo (str): 'todos_itens' considera todos os lançamentos;
+                             'somente_budget' considera apenas os vinculados a budget.
+            filtroEmpresa (str): Código lógico da empresa matriz.
+
+        Returns:
+            dict: Payload com lista de lançamentos e totalizadores.
+        """
+        STATUS_DESCRICAO = {
+            1: 'Em Aprovação',
+            2: 'Em Aprovação',
+            3: 'Aprovado',
+            5: 'Aprovado',
+        }
+
+        codigoEmpresaMatriz = self._resolverCodigoEmpresaMatriz(filtroEmpresa)
+        subconsultaNF = self._obterSubconsultaDataDigitacaoNotaFiscal()
+        dataEfetiva = self._obterDataDigitacaoEfetivaContaPagar(subconsultaNF)
+        valorEfetivo = self._obterValorEfetivoContaPagar()
+
+        query = (
+            self.session.query(
+                ContaPagar.Codigo_ContaPagar,
+                ContaPagar.Opcao_TipoDocumento,
+                ContaPagar.Numero_Documento,
+                ContaPagar.Sequencia_Item,
+                ContaPagar.Descricao_Item,
+                ContaPagar.Data_Emissao,
+                ContaPagar.Data_Digitacao,
+                ContaPagar.Data_Aprovacao,
+                ContaPagar.Valor_ContaPagar,
+                ContaPagar.Valor_RecebidoNotaFiscal,
+                ContaPagar.Opcao_StatusContaPagar,
+                ContaPagar.Nome_UltimoAprovador,
+                ContaPagar.Codigo_BudgetItem,
+                ContaPagar.DescricaoCondicaoPagamento,
+                dataEfetiva.label('dataDigitacaoEfetiva'),
+                valorEfetivo.label('valorEfetivo'),
+                Fornecedor.Codigo_Fornecedor.label('codigoFornecedorJoin'),
+                Fornecedor.Nome_Fornecedor,
+                CentroCusto.Numero_CentroCusto,
+                CentroCusto.Nome_CentroCusto,
+                PlanoConta.Numero_ContaContabil,
+                PlanoConta.Descricao_ContaContabil,
+            )
+            .select_from(ContaPagar)
+            .outerjoin(subconsultaNF, ContaPagar.Codigo_ContaPagar == subconsultaNF.c.codigoContaPagar)
+            .outerjoin(CentroCusto, ContaPagar.Codigo_CentroCusto == CentroCusto.Codigo_CentroCusto)
+            .outerjoin(PlanoConta, ContaPagar.Codigo_ContaContabil == PlanoConta.Codigo_ContaContabil)
+            .outerjoin(Fornecedor, ContaPagar.Codigo_Fornecedor == Fornecedor.Codigo_Fornecedor)
+            .filter(extract('year', dataEfetiva) == int(ano))
+            .filter(extract('month', dataEfetiva) == int(mes))
+            .filter(ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_CONSIDERADOS))
+        )
+
+        if codigoEmpresaMatriz is not None:
+            query = query.filter(ContaPagar.Codigo_EmpresaMatriz == codigoEmpresaMatriz)
+
+        if codigoCentroCusto:
+            query = query.filter(ContaPagar.Codigo_CentroCusto == int(codigoCentroCusto))
+
+        if codigoContaContabil:
+            query = query.filter(ContaPagar.Codigo_ContaContabil == int(codigoContaContabil))
+
+        if codigoFornecedor:
+            query = query.filter(ContaPagar.Codigo_Fornecedor == int(codigoFornecedor))
+
+        if modoSaldo == 'somente_budget':
+            query = query.filter(ContaPagar.Codigo_BudgetItem.isnot(None))
+
+        resultados = query.order_by(
+            dataEfetiva,
+            ContaPagar.Codigo_ContaPagar,
+        ).all()
+
+        lancamentos = []
+        for linha in resultados:
+            descCentroCusto = self._montarDescricaoComposta(
+                getattr(linha, 'Numero_CentroCusto', None),
+                getattr(linha, 'Nome_CentroCusto', None),
+                'Não informado',
+            )
+            descContaContabil = self._montarDescricaoComposta(
+                getattr(linha, 'Numero_ContaContabil', None),
+                getattr(linha, 'Descricao_ContaContabil', None),
+                'Não informada',
+            )
+
+            lancamentos.append({
+                'codigoConta': linha.Codigo_ContaPagar,
+                'tipoDocumento': (linha.Opcao_TipoDocumento or '').strip(),
+                'numeroDocumento': (linha.Numero_Documento or '').strip(),
+                'sequenciaItem': (linha.Sequencia_Item or '').strip(),
+                'descricaoItem': (linha.Descricao_Item or '').strip(),
+                'dataEmissao': linha.Data_Emissao.strftime('%d/%m/%Y') if linha.Data_Emissao else None,
+                'dataDigitacao': linha.Data_Digitacao.strftime('%d/%m/%Y') if linha.Data_Digitacao else None,
+                'dataEfetiva': linha.dataDigitacaoEfetiva.strftime('%d/%m/%Y') if linha.dataDigitacaoEfetiva else None,
+                'dataAprovacao': linha.Data_Aprovacao.strftime('%d/%m/%Y') if linha.Data_Aprovacao else None,
+                'valorContaPagar': float(linha.Valor_ContaPagar or 0),
+                'valorNotaFiscal': float(linha.Valor_RecebidoNotaFiscal or 0),
+                'valorEfetivo': float(linha.valorEfetivo or 0),
+                'status': linha.Opcao_StatusContaPagar,
+                'descricaoStatus': STATUS_DESCRICAO.get(linha.Opcao_StatusContaPagar, str(linha.Opcao_StatusContaPagar or '')),
+                'ultimoAprovador': (linha.Nome_UltimoAprovador or '').strip(),
+                'codigoBudgetItem': linha.Codigo_BudgetItem,
+                'possuiBudget': linha.Codigo_BudgetItem is not None,
+                'condicaoPagamento': (linha.DescricaoCondicaoPagamento or '').strip(),
+                'centroCusto': descCentroCusto,
+                'contaContabil': descContaContabil,
+                'fornecedor': (getattr(linha, 'Nome_Fornecedor', None) or '').strip() or 'Sem fornecedor vinculado',
+            })
+
+        totalEmAprovacao = sum(l['valorEfetivo'] for l in lancamentos if l['status'] in self.STATUS_EM_APROVACAO)
+        totalAprovado = sum(l['valorEfetivo'] for l in lancamentos if l['status'] in self.STATUS_APROVADO)
+        totalGeral = totalEmAprovacao + totalAprovado
+
+        return {
+            'lancamentos': lancamentos,
+            'totalEmAprovacao': totalEmAprovacao,
+            'totalAprovado': totalAprovado,
+            'totalGeral': totalGeral,
+            'quantidade': len(lancamentos),
         }
