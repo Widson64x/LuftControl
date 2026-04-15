@@ -41,3 +41,28 @@ class RelatoriosService:
             return relatorio.gerarRelatorioBudgetAnalitico(ano, mes, filtroCentroCusto, filtroEmpresa, filtroFilial)
         finally:
             sessao.close()
+
+    def obterDetalhesBudget(
+        self,
+        ano,
+        mes,
+        codigoCentroCusto=None,
+        codigoContaContabil=None,
+        codigoFornecedor=None,
+        modoSaldo='todos_itens',
+        filtroEmpresa='Todos',
+    ):
+        sessao = self._ObterSessao()
+        try:
+            relatorio = RelatorioBudget(sessao)
+            return relatorio.obterDetalhesBudget(
+                ano,
+                mes,
+                codigoCentroCusto,
+                codigoContaContabil,
+                codigoFornecedor,
+                modoSaldo,
+                filtroEmpresa,
+            )
+        finally:
+            sessao.close()

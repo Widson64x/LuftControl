@@ -296,7 +296,36 @@ def GerarRelatorioBudgetAnalitico():
         RegistrarLog('Erro Crítico no Relatório de Budget Analítico', 'ERROR', e)
         return api_error(message='Falha ao gerar o relatório analítico de Budget.', details=str(e), status=500)
 
-# ============================================================
+
+@relatorios_bp.route('/budget/detalhes', methods=['GET'])
+@login_required
+@RequerPermissao('RELATORIOS.BUDGET.VISUALIZAR')
+@require_ajax
+def ObterDetalhesBudget():
+    """API: Retorna os lançamentos individuais de ContaPagar para o drill-down do Budget Gerencial."""
+    try:
+        ano = int(request.args.get('ano', datetime.now().year))
+        mes = int(request.args.get('mes', datetime.now().month))
+        centro_custo = request.args.get('centro_custo') or None
+        conta_contabil = request.args.get('conta_contabil') or None
+        fornecedor = request.args.get('fornecedor') or None
+        modo_saldo = request.args.get('modo_saldo', 'todos_itens')
+        empresa = request.args.get('empresa', 'Todos')
+
+        if modo_saldo not in ('todos_itens', 'somente_budget'):
+            modo_saldo = 'todos_itens'
+
+        svc = BudgetRelatoriosService()
+        dados = svc.obterDetalhesBudget(ano, mes, centro_custo, conta_contabil, fornecedor, modo_saldo, empresa)
+
+        return api_success(data=dados, message='Detalhes do Budget carregados com sucesso.')
+    except (ValueError, TypeError) as e:
+        return api_error(message='Parâmetros inválidos na requisição.', details=str(e), status=400)
+    except Exception as e:
+        RegistrarLog('Erro ao obter detalhes do Budget', 'ERROR', e)
+        return api_error(message='Falha ao carregar os detalhes do Budget.', details=str(e), status=500)
+
+
 # ARQUIVOS E EXPORTAÇÕES (NÃO USA @require_ajax)
 # ============================================================
 

@@ -70,8 +70,7 @@
 
     <div class="luft-card luft-baf mb-6">
         <div class="luft-baf-header">
-            <p class="luft-budget-table-toolbar-label mb-0">Filtros</p>
-            <h3 class="luft-baf-title">Refinar visão gerencial</h3>
+            <p class="luft-budget-table-toolbar-label mb-0">Filtros do Budget</p>
         </div>
 
         <div class="luft-baf-row">
@@ -242,6 +241,7 @@
 </div>
 
 
+{% include 'Components/ModalDetalhesBudget.html' %}
 {% endblock %}
 
 {% block extra_scripts %}
@@ -249,7 +249,8 @@
 <script>
     window.BUDGET_API_ROUTES = {
         filtros: "{{ url_for('Relatorios.ObterFiltrosBudget') }}",
-        gerencial: "{{ url_for('Relatorios.GerarRelatorioBudget') }}"
+        gerencial: "{{ url_for('Relatorios.GerarRelatorioBudget') }}",
+        detalhes: "{{ url_for('Relatorios.ObterDetalhesBudget') }}"
     };
 </script>
 <script src="{{ url_for('static', filename='JS/Reports/RelatorioBudget.js') }}" defer></script>

@@ -1,0 +1,165 @@
+{# ============================================================ #}
+{# MODAL DE DETALHES DO BUDGET                                  #}
+{# Incluído em: Templates/Pages/Reports/RelatorioBudget.html    #}
+{# Aberto via JS: abrirModalDetalhesBudget({ mes, centro, ... }) #}
+{# ============================================================ #}
+
+<div id="modalDetalhesBudget" class="luft-modal-detalhes is-hidden" role="dialog" aria-modal="true" aria-labelledby="modalDetalhesBudgetTitulo">
+
+    {# Backdrop — clique fora fecha #}
+    <div class="luft-modal-detalhes__backdrop" data-modal-backdrop onclick="fecharModalDetalhesBudget()"></div>
+
+    <div class="luft-modal-detalhes__container">
+
+        {# ── Cabeçalho ── #}
+        <header class="luft-modal-detalhes__header">
+            <div class="luft-modal-detalhes__header-info">
+                <div class="luft-modal-detalhes__header-icon">
+                    <i class="ph-bold ph-list-magnifying-glass"></i>
+                </div>
+                <div class="luft-modal-detalhes__header-text">
+                    <h2 id="modalDetalhesBudgetTitulo" class="luft-modal-detalhes__titulo">Detalhes dos Lançamentos</h2>
+                    <p id="modalDetalhesBudgetSubtitulo" class="luft-modal-detalhes__subtitulo">—</p>
+                </div>
+            </div>
+            <button
+                type="button"
+                class="luft-modal-detalhes__close"
+                onclick="fecharModalDetalhesBudget()"
+                aria-label="Fechar detalhes"
+                title="Fechar">
+                <i class="ph-bold ph-x"></i>
+            </button>
+        </header>
+
+        {# ── Conteúdo #}
+        <div id="modalDetalhesBudgetConteudo" class="luft-modal-detalhes__body">
+
+            {# Estado: carregando #}
+            <div id="modalDetalhesBudgetLoading" class="luft-modal-detalhes__estado">
+                <div class="luft-modal-detalhes__spinner"></div>
+                <p class="luft-modal-detalhes__estado-msg">Carregando lançamentos...</p>
+            </div>
+
+            {# Estado: erro #}
+            <div id="modalDetalhesBudgetErro" class="luft-modal-detalhes__estado d-none">
+                <i class="ph-thin ph-warning-circle luft-modal-detalhes__estado-icon luft-modal-detalhes__estado-icon--danger"></i>
+                <p class="luft-modal-detalhes__estado-titulo luft-modal-detalhes__estado-titulo--danger">Falha ao carregar os dados</p>
+                <p class="luft-modal-detalhes__erro-msg">Tente novamente em instantes.</p>
+            </div>
+
+            {# Estado: dados carregados #}
+            <div id="modalDetalhesBudgetCorpo" class="luft-modal-detalhes__corpo d-none">
+
+                {# KPIs resumo #}
+                <div class="luft-modal-detalhes__kpi-grid">
+                    <div class="luft-modal-detalhes__kpi-card">
+                        <span class="luft-modal-detalhes__kpi-label">
+                            <i class="ph-bold ph-receipt"></i>
+                            Lançamentos
+                        </span>
+                        <span id="modalDetalhesBudgetKpiQtd" class="luft-modal-detalhes__kpi-valor">—</span>
+                    </div>
+                    <div class="luft-modal-detalhes__kpi-card luft-modal-detalhes__kpi-card--total">
+                        <span class="luft-modal-detalhes__kpi-label">
+                            <i class="ph-bold ph-sigma"></i>
+                            Total Realizado
+                        </span>
+                        <span id="modalDetalhesBudgetKpiTotal" class="luft-modal-detalhes__kpi-valor">—</span>
+                    </div>
+                    <div class="luft-modal-detalhes__kpi-card luft-modal-detalhes__kpi-card--aprovacao">
+                        <span class="luft-modal-detalhes__kpi-label">
+                            <i class="ph-bold ph-clock-countdown"></i>
+                            Em Aprovação
+                        </span>
+                        <span id="modalDetalhesBudgetKpiAprovacao" class="luft-modal-detalhes__kpi-valor">—</span>
+                    </div>
+                    <div class="luft-modal-detalhes__kpi-card luft-modal-detalhes__kpi-card--aprovado">
+                        <span class="luft-modal-detalhes__kpi-label">
+                            <i class="ph-bold ph-check-circle"></i>
+                            Aprovado
+                        </span>
+                        <span id="modalDetalhesBudgetKpiAprovado" class="luft-modal-detalhes__kpi-valor">—</span>
+                    </div>
+                </div>
+
+                {# ── Toolbar: busca global + chips de filtro + export ── #}
+                <div class="luft-modal-detalhes__toolbar">
+                    <div class="luft-modal-detalhes__toolbar-busca">
+                        <i class="ph-bold ph-magnifying-glass"></i>
+                        <input type="text" id="modalDetalhesBusca" class="luft-modal-detalhes__busca-input"
+                               placeholder="Buscar em todos os campos…" autocomplete="off">
+                        <button id="modalDetalhesBuscaClear" class="luft-modal-detalhes__busca-clear is-hidden"
+                                title="Limpar busca" type="button">
+                            <i class="ph-bold ph-x"></i>
+                        </button>
+                    </div>
+                    <div class="luft-modal-detalhes__toolbar-filtros">
+                        <div class="luft-modal-detalhes__filtro-grupo">
+                            <span class="luft-modal-detalhes__filtro-label">Status</span>
+                            <div id="modalDetalhesChipsStatus" class="luft-modal-detalhes__filtro-chips">
+                                <button class="luft-modal-detalhes__chip is-active" data-status="" type="button">Todos</button>
+                                <button class="luft-modal-detalhes__chip" data-status="aprovado" type="button">Aprovado</button>
+                                <button class="luft-modal-detalhes__chip" data-status="aprovacao" type="button">Em Aprovação</button>
+                            </div>
+                        </div>
+                        <div class="luft-modal-detalhes__filtro-grupo">
+                            <span class="luft-modal-detalhes__filtro-label">Budget</span>
+                            <div id="modalDetalhesChipsBudget" class="luft-modal-detalhes__filtro-chips">
+                                <button class="luft-modal-detalhes__chip is-active" data-budget="" type="button">Todos</button>
+                                <button class="luft-modal-detalhes__chip" data-budget="sim" type="button">Sim</button>
+                                <button class="luft-modal-detalhes__chip" data-budget="nao" type="button">Não</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="luft-modal-detalhes__toolbar-acoes">
+                        <span id="modalDetalhesContador" class="luft-modal-detalhes__contador"></span>
+                        <button id="modalDetalhesExportBtn" class="luft-modal-detalhes__export-btn" type="button"
+                                title="Exportar linhas visíveis para CSV">
+                            <i class="ph-bold ph-download-simple"></i> CSV
+                        </button>
+                    </div>
+                </div>
+
+                {# Tabela de lançamentos #}
+                <div class="luft-modal-detalhes__table-wrapper">
+                    <table class="luft-modal-detalhes__table">
+                        <thead>
+                            <tr>
+                                <th class="luft-modal-detalhes__th text-right" data-col="0">#<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th" data-col="1">Tipo Doc.<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th" data-col="2">Nº Documento<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th" data-col="3">Descrição<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th text-center" data-col="4">Data Efetiva<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th text-center" data-col="5">Emissão<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th text-center" data-col="6">Aprovação<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th text-right" data-col="7">Valor Efetivo<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th text-center" data-col="8">Status<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th text-center" data-col="9">Budget<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th" data-col="10">Fornecedor<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th" data-col="11">Centro de Custo<span class="luft-modal-detalhes__sort-icon"></span></th>
+                                <th class="luft-modal-detalhes__th" data-col="12">Conta Contábil<span class="luft-modal-detalhes__sort-icon"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalDetalhesBudgetTabelaCorpo">
+                            {# Preenchido via JS — renderizarModalDetalhesBudget() #}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>{# /corpo #}
+        </div>{# /body #}
+
+        {# ── Rodapé #}
+        <footer class="luft-modal-detalhes__footer">
+            <span class="luft-modal-detalhes__footer-hint">
+                <kbd>ESC</kbd> fechar &nbsp;·&nbsp; <kbd>Ctrl+F</kbd> buscar
+            </span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="fecharModalDetalhesBudget()">
+                <i class="ph-bold ph-x"></i>
+                Fechar
+            </button>
+        </footer>
+
+    </div>{# /container #}
+</div>{# /overlay #}

@@ -264,6 +264,17 @@ function configurarControlesTabelaBudget() {
 
     if (corpoTabela && !corpoTabela.dataset.treeBound) {
         corpoTabela.addEventListener('click', (event) => {
+            const botaoDetalhe = event.target.closest('[data-budget-detail-btn]');
+            if (botaoDetalhe) {
+                event.stopPropagation();
+                const mes = Number(botaoDetalhe.dataset.detailMes);
+                const centro = decodeURIComponent(botaoDetalhe.dataset.detailCentro || '') || null;
+                const conta = decodeURIComponent(botaoDetalhe.dataset.detailConta || '') || null;
+                const fornecedor = decodeURIComponent(botaoDetalhe.dataset.detailFornecedor || '') || null;
+                abrirModalDetalhesBudget({ mes, centro, conta, fornecedor });
+                return;
+            }
+
             const botaoConta = event.target.closest('[data-budget-account-toggle]');
             if (botaoConta) {
                 const numeroMes = Number(botaoConta.dataset.budgetMonth);
@@ -900,6 +911,9 @@ function agruparDadosPorCentroCusto(listaDados) {
         const centroCusto = linha.centroCusto || 'Não Classificado';
         const contaContabil = linha.contaContabil || 'Não Classificada';
         const fornecedor = linha.fornecedor || 'Sem fornecedor vinculado';
+        const codigoCentroCusto = linha.codigoCentroCusto || null;
+        const codigoContaContabil = linha.codigoContaContabil || null;
+        const codigoFornecedor = linha.codigoFornecedor || null;
         const orcado = Number(linha.orcado) || 0;
         const emAprovacao = Number(linha.emAprovacao) || 0;
         const aprovado = Number(linha.aprovado) || 0;
@@ -908,6 +922,7 @@ function agruparDadosPorCentroCusto(listaDados) {
         if (!grupos.has(centroCusto)) {
             grupos.set(centroCusto, {
                 centroCusto,
+                codigoCentroCusto,
                 orcado: 0,
                 emAprovacao: 0,
                 aprovado: 0,
@@ -925,6 +940,7 @@ function agruparDadosPorCentroCusto(listaDados) {
         if (!grupo.contasMap.has(contaContabil)) {
             grupo.contasMap.set(contaContabil, {
                 contaContabil,
+                codigoContaContabil,
                 orcado: 0,
                 emAprovacao: 0,
                 aprovado: 0,
@@ -942,6 +958,7 @@ function agruparDadosPorCentroCusto(listaDados) {
         if (!conta.fornecedoresMap.has(fornecedor)) {
             conta.fornecedoresMap.set(fornecedor, {
                 fornecedor,
+                codigoFornecedor,
                 orcado: 0,
                 emAprovacao: 0,
                 aprovado: 0,
@@ -962,6 +979,7 @@ function agruparDadosPorCentroCusto(listaDados) {
     return Array.from(grupos.values())
         .map(grupo => ({
             centroCusto: grupo.centroCusto,
+            codigoCentroCusto: grupo.codigoCentroCusto,
             orcado: grupo.orcado,
             emAprovacao: grupo.emAprovacao,
             aprovado: grupo.aprovado,
@@ -970,6 +988,7 @@ function agruparDadosPorCentroCusto(listaDados) {
             contas: Array.from(grupo.contasMap.values())
                 .map(conta => ({
                     contaContabil: conta.contaContabil,
+                    codigoContaContabil: conta.codigoContaContabil,
                     orcado: conta.orcado,
                     emAprovacao: conta.emAprovacao,
                     aprovado: conta.aprovado,
@@ -1521,6 +1540,7 @@ function renderizarLinhasDetalhamentoBudget(gruposMes, numeroMes, fmt) {
                                 <div class="luft-budget-tree-content">
                                     <span class="luft-budget-tree-title">${escaparHtml(fornecedor.fornecedor)}</span>
                                 </div>
+                                <button type="button" class="luft-budget-detail-btn" data-budget-detail-btn data-detail-mes="${numeroMes}" data-detail-centro="${encodeURIComponent(grupo.codigoCentroCusto || '')}" data-detail-conta="${encodeURIComponent(conta.codigoContaContabil || '')}" data-detail-fornecedor="${encodeURIComponent(fornecedor.codigoFornecedor || '')}" title="Ver lançamentos do fornecedor" aria-label="Ver lançamentos de ${escaparHtml(fornecedor.fornecedor)}"><i class="ph-bold ph-list-magnifying-glass"></i></button>
                             </div>
                         </td>
                         <td class="text-right font-medium">${fmt.format(fornecedor.orcado)}</td>
@@ -1545,6 +1565,7 @@ function renderizarLinhasDetalhamentoBudget(gruposMes, numeroMes, fmt) {
                                 <span class="luft-budget-tree-title">${escaparHtml(conta.contaContabil)}</span>
                                 <span class="luft-budget-tree-caption">${obterDescricaoQuantidadeFornecedores(conta.fornecedores.length)}</span>
                             </div>
+                            <button type="button" class="luft-budget-detail-btn" data-budget-detail-btn data-detail-mes="${numeroMes}" data-detail-centro="${encodeURIComponent(grupo.codigoCentroCusto || '')}" data-detail-conta="${encodeURIComponent(conta.codigoContaContabil || '')}" title="Ver lançamentos da conta contábil" aria-label="Ver lançamentos de ${escaparHtml(conta.contaContabil)}"><i class="ph-bold ph-list-magnifying-glass"></i></button>
                         </div>
                     </td>
                     <td class="text-right font-medium">${fmt.format(conta.orcado)}</td>
@@ -1572,6 +1593,7 @@ function renderizarLinhasDetalhamentoBudget(gruposMes, numeroMes, fmt) {
                             <span class="luft-budget-tree-title">${escaparHtml(grupo.centroCusto)}</span>
                             <span class="luft-budget-tree-caption">${obterDescricaoQuantidadeContas(grupo.contas.length)}</span>
                         </div>
+                        <button type="button" class="luft-budget-detail-btn" data-budget-detail-btn data-detail-mes="${numeroMes}" data-detail-centro="${encodeURIComponent(grupo.codigoCentroCusto || '')}" title="Ver lançamentos do centro de custo" aria-label="Ver lançamentos de ${escaparHtml(grupo.centroCusto)}"><i class="ph-bold ph-list-magnifying-glass"></i></button>
                     </div>
                 </td>
                 <td class="text-right font-bold">${fmt.format(grupo.orcado)}</td>
@@ -1666,6 +1688,7 @@ function renderizarTabelaBudget(listaDados, elementoTabela, { redefinirEstado = 
                             <span class="luft-budget-tree-title">${escaparHtml(mesInfo.nomeMes || `Mês ${numeroMes}`)}</span>
                             <span class="luft-budget-tree-caption">${escaparHtml(obterResumoMesBudget(mesInfo))}</span>
                         </div>
+                        <button type="button" class="luft-budget-detail-btn" data-budget-detail-btn data-detail-mes="${numeroMes}" title="Ver lançamentos do mês" aria-label="Ver lançamentos de ${escaparHtml(mesInfo.nomeMes || '')}"><i class="ph-bold ph-list-magnifying-glass"></i></button>
                     </div>
                 </td>
                 <td class="text-right font-bold">${fmt.format(orcado)}</td>
@@ -1681,4 +1704,433 @@ function renderizarTabelaBudget(listaDados, elementoTabela, { redefinirEstado = 
 
     renderizarRodapeTabelaBudget(meses, fmt);
     atualizarStatusArvoreBudget(meses);
+}
+
+// ============================================================
+// MODAL DE DETALHES DO BUDGET
+// ============================================================
+
+// ── Estado interno (persiste na sessão da página) ─────────────────────
+const _mdDetalhes = {
+    lancamentos:           [],
+    sortCol:               -1,      // -1 = sem ordenação
+    sortDir:               'asc',
+    busca:                 '',
+    filtroStatus:          '',      // '' | 'aprovado' | 'aprovacao'
+    filtroBudget:          '',      // '' | 'sim' | 'nao'
+    fmt:                   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }),
+    _interacoesVinculadas: false,   // listeners adicionados uma única vez ao DOM
+    _buscaTimer:           null,
+    _escHandler:           null,
+};
+
+// Mapeamento coluna → campo do objeto e tipo de comparação
+const _mdColunas = [
+    { key: 'codigoConta',     tipo: 'num'  },  // 0  — #
+    { key: 'tipoDocumento',   tipo: 'str'  },  // 1
+    { key: 'numeroDocumento', tipo: 'str'  },  // 2
+    { key: 'descricaoItem',   tipo: 'str'  },  // 3
+    { key: 'dataEfetiva',     tipo: 'data' },  // 4
+    { key: 'dataEmissao',     tipo: 'data' },  // 5
+    { key: 'dataAprovacao',   tipo: 'data' },  // 6
+    { key: 'valorEfetivo',    tipo: 'num'  },  // 7
+    { key: 'descricaoStatus', tipo: 'str'  },  // 8
+    { key: 'possuiBudget',    tipo: 'bool' },  // 9
+    { key: 'fornecedor',      tipo: 'str'  },  // 10
+    { key: 'centroCusto',     tipo: 'str'  },  // 11
+    { key: 'contaContabil',   tipo: 'str'  },  // 12
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────
+function _mdParseDateBR(str) {
+    if (!str) return 0;
+    const p = String(str).split('/');
+    if (p.length !== 3) return 0;
+    return new Date(`${p[2]}-${p[1]}-${p[0]}`).getTime() || 0;
+}
+
+function _mdHighlight(texto, busca) {
+    const str = String(texto ?? '');
+    if (!busca) return escaparHtml(str);
+    const re = new RegExp(busca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    let out = '', last = 0, m;
+    while ((m = re.exec(str)) !== null) {
+        out += escaparHtml(str.slice(last, m.index));
+        out += `<mark class="luft-modal-detalhes__highlight">${escaparHtml(m[0])}</mark>`;
+        last = m.index + m[0].length;
+    }
+    return out + escaparHtml(str.slice(last));
+}
+
+function _mdIsAprovado(l) { return l.status === 3 || l.status === 5; }
+
+// ── Filtrar + Ordenar + Contador + Renderizar ─────────────────────────
+function _mdAplicar() {
+    const { lancamentos, sortCol, sortDir, busca, filtroStatus, filtroBudget, fmt } = _mdDetalhes;
+
+    // 1. Filtrar
+    let visiveis = lancamentos.filter(l => {
+        if (filtroStatus === 'aprovado'  && !_mdIsAprovado(l)) return false;
+        if (filtroStatus === 'aprovacao' &&  _mdIsAprovado(l)) return false;
+        if (filtroBudget === 'sim' && !l.possuiBudget) return false;
+        if (filtroBudget === 'nao' &&  l.possuiBudget) return false;
+        if (busca) {
+            const b = busca.toLowerCase();
+            const hay = [
+                l.tipoDocumento, l.numeroDocumento, l.descricaoItem,
+                l.dataEfetiva, l.dataEmissao, l.dataAprovacao,
+                l.descricaoStatus, l.fornecedor, l.centroCusto, l.contaContabil,
+                String(l.codigoConta ?? ''), String(l.sequenciaItem ?? ''),
+            ].map(v => String(v ?? '').toLowerCase()).join('|');
+            if (!hay.includes(b)) return false;
+        }
+        return true;
+    });
+
+    // 2. Ordenar
+    if (sortCol >= 0 && sortCol < _mdColunas.length) {
+        const col = _mdColunas[sortCol];
+        visiveis = [...visiveis].sort((a, b) => {
+            let va = a[col.key], vb = b[col.key];
+            if      (col.tipo === 'num')  { va = Number(va) || 0;                vb = Number(vb) || 0; }
+            else if (col.tipo === 'data') { va = _mdParseDateBR(va);             vb = _mdParseDateBR(vb); }
+            else if (col.tipo === 'bool') { va = va ? 1 : 0;                     vb = vb ? 1 : 0; }
+            else                          { va = String(va ?? '').toLowerCase(); vb = String(vb ?? '').toLowerCase(); }
+            if (va < vb) return sortDir === 'asc' ? -1 :  1;
+            if (va > vb) return sortDir === 'asc' ?  1 : -1;
+            return 0;
+        });
+    }
+
+    // 3. Contador
+    const contEl = document.getElementById('modalDetalhesContador');
+    if (contEl) {
+        contEl.innerHTML = visiveis.length === lancamentos.length
+            ? `<strong>${visiveis.length}</strong> lançamentos`
+            : `<strong>${visiveis.length}</strong> de ${lancamentos.length} lançamentos`;
+    }
+
+    // 4. Renderizar
+    _mdRenderizarLinhas(visiveis, busca, fmt);
+}
+
+function _mdRenderizarLinhas(visiveis, busca, fmt) {
+    const tbody = document.getElementById('modalDetalhesBudgetTabelaCorpo');
+    if (!tbody) return;
+
+    if (visiveis.length === 0) {
+        const temFiltro = busca || _mdDetalhes.filtroStatus || _mdDetalhes.filtroBudget;
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="13" class="luft-modal-detalhes__empty-filter">
+                    <i class="ph-thin ph-${temFiltro ? 'funnel-x' : 'file-x'}"
+                       style="font-size:2rem;display:block;margin-bottom:.5rem;opacity:.5;"></i>
+                    ${temFiltro
+                        ? 'Nenhum lançamento corresponde aos filtros aplicados.'
+                        : 'Nenhum lançamento encontrado para o contexto selecionado.'}
+                </td>
+            </tr>`;
+        return;
+    }
+
+    const h = t => _mdHighlight(t, busca);
+    tbody.innerHTML = visiveis.map(l => {
+        const clsSt = _mdIsAprovado(l) ? 'luft-badge-status--aprovado' : 'luft-badge-status--aprovacao';
+        const clsBg = l.possuiBudget   ? 'luft-badge-budget--sim'      : 'luft-badge-budget--nao';
+        return `
+            <tr class="luft-modal-detalhes__row">
+                <td class="text-right font-mono text-muted">${h(l.codigoConta ?? '')}</td>
+                <td>${h(l.tipoDocumento || '—')}</td>
+                <td class="font-mono">${h(l.numeroDocumento || '—')}<span class="text-muted text-xs d-block">${h(l.sequenciaItem || '')}</span></td>
+                <td class="luft-modal-detalhes__cell-desc" title="${escaparHtml(l.descricaoItem || '')}">${h(l.descricaoItem || '—')}</td>
+                <td class="text-center text-nowrap">${h(l.dataEfetiva || l.dataDigitacao || '—')}</td>
+                <td class="text-center text-nowrap">${h(l.dataEmissao || '—')}</td>
+                <td class="text-center text-nowrap">${h(l.dataAprovacao || '—')}</td>
+                <td class="text-right font-mono font-bold">${fmt.format(l.valorEfetivo || 0)}</td>
+                <td class="text-center"><span class="luft-badge-status ${clsSt}">${h(l.descricaoStatus || '')}</span></td>
+                <td class="text-center"><span class="luft-badge-budget ${clsBg}">${l.possuiBudget ? 'Sim' : 'Não'}</span></td>
+                <td class="luft-modal-detalhes__cell-desc" title="${escaparHtml(l.fornecedor || '')}">${h(l.fornecedor || '—')}</td>
+                <td class="luft-modal-detalhes__cell-desc" title="${escaparHtml(l.centroCusto || '')}">${h(l.centroCusto || '—')}</td>
+                <td class="luft-modal-detalhes__cell-desc" title="${escaparHtml(l.contaContabil || '')}">${h(l.contaContabil || '—')}</td>
+            </tr>`;
+    }).join('');
+}
+
+// ── Vincular eventos — apenas uma vez durante a vida da página ─────────
+function _mdInicializarInteracoes() {
+    if (_mdDetalhes._interacoesVinculadas) return;
+    _mdDetalhes._interacoesVinculadas = true;
+
+    // Busca global com debounce
+    const buscaInput = document.getElementById('modalDetalhesBusca');
+    const buscaClear = document.getElementById('modalDetalhesBuscaClear');
+    if (buscaInput) {
+        buscaInput.addEventListener('input', () => {
+            clearTimeout(_mdDetalhes._buscaTimer);
+            _mdDetalhes._buscaTimer = setTimeout(() => {
+                _mdDetalhes.busca = buscaInput.value.trim();
+                buscaClear?.classList.toggle('is-hidden', !_mdDetalhes.busca);
+                _mdAplicar();
+            }, 220);
+        });
+        // Ctrl+F / Cmd+F dentro do modal → foca busca
+        document.getElementById('modalDetalhesBudget')?.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                buscaInput.focus();
+                buscaInput.select();
+            }
+        });
+    }
+    buscaClear?.addEventListener('click', () => {
+        if (buscaInput) buscaInput.value = '';
+        _mdDetalhes.busca = '';
+        buscaClear.classList.add('is-hidden');
+        _mdAplicar();
+        buscaInput?.focus();
+    });
+
+    // Chips Status
+    document.getElementById('modalDetalhesChipsStatus')
+        ?.querySelectorAll('.luft-modal-detalhes__chip')
+        .forEach(btn => btn.addEventListener('click', () => {
+            document.querySelectorAll('#modalDetalhesChipsStatus .luft-modal-detalhes__chip')
+                .forEach(b => b.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            _mdDetalhes.filtroStatus = btn.dataset.status || '';
+            _mdAplicar();
+        }));
+
+    // Chips Budget
+    document.getElementById('modalDetalhesChipsBudget')
+        ?.querySelectorAll('.luft-modal-detalhes__chip')
+        .forEach(btn => btn.addEventListener('click', () => {
+            document.querySelectorAll('#modalDetalhesChipsBudget .luft-modal-detalhes__chip')
+                .forEach(b => b.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            _mdDetalhes.filtroBudget = btn.dataset.budget || '';
+            _mdAplicar();
+        }));
+
+    // Ordenação por coluna — event delegation no thead
+    document.querySelector('.luft-modal-detalhes__table thead')
+        ?.addEventListener('click', e => {
+            const th = e.target.closest('th[data-col]');
+            if (!th) return;
+            const col = parseInt(th.dataset.col, 10);
+            _mdDetalhes.sortDir = _mdDetalhes.sortCol === col
+                ? (_mdDetalhes.sortDir === 'asc' ? 'desc' : 'asc')
+                : 'asc';
+            _mdDetalhes.sortCol = col;
+            document.querySelectorAll('.luft-modal-detalhes__th[data-col]')
+                .forEach(h => h.removeAttribute('data-sort'));
+            th.setAttribute('data-sort', _mdDetalhes.sortDir);
+            _mdAplicar();
+        });
+
+    // Exportar CSV
+    document.getElementById('modalDetalhesExportBtn')?.addEventListener('click', _mdExportarCsv);
+}
+
+// ── Exportar CSV — apenas linhas visíveis ─────────────────────────────
+function _mdExportarCsv() {
+    const { lancamentos, busca, filtroStatus, filtroBudget } = _mdDetalhes;
+    const visiveis = lancamentos.filter(l => {
+        if (filtroStatus === 'aprovado'  && !_mdIsAprovado(l)) return false;
+        if (filtroStatus === 'aprovacao' &&  _mdIsAprovado(l)) return false;
+        if (filtroBudget === 'sim' && !l.possuiBudget) return false;
+        if (filtroBudget === 'nao' &&  l.possuiBudget) return false;
+        if (busca) {
+            const b = busca.toLowerCase();
+            const hay = [
+                l.tipoDocumento, l.numeroDocumento, l.descricaoItem,
+                l.dataEfetiva, l.dataEmissao, l.dataAprovacao,
+                l.descricaoStatus, l.fornecedor, l.centroCusto, l.contaContabil,
+                String(l.codigoConta ?? ''), String(l.sequenciaItem ?? ''),
+            ].map(v => String(v ?? '').toLowerCase()).join('|');
+            if (!hay.includes(b)) return false;
+        }
+        return true;
+    });
+
+    const cab = ['Cód.', 'Tipo Doc.', 'Nº Documento', 'Sequência', 'Descrição',
+        'Data Efetiva', 'Emissão', 'Aprovação', 'Valor Efetivo',
+        'Status', 'Budget', 'Fornecedor', 'Centro de Custo', 'Conta Contábil'];
+    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const linhas = [
+        cab.map(esc).join(';'),
+        ...visiveis.map(l => [
+            l.codigoConta ?? '',          l.tipoDocumento ?? '',
+            l.numeroDocumento ?? '',      l.sequenciaItem ?? '',
+            l.descricaoItem ?? '',        l.dataEfetiva ?? l.dataDigitacao ?? '',
+            l.dataEmissao ?? '',          l.dataAprovacao ?? '',
+            (l.valorEfetivo ?? 0).toFixed(2).replace('.', ','),
+            l.descricaoStatus ?? '',      l.possuiBudget ? 'Sim' : 'Não',
+            l.fornecedor ?? '',           l.centroCusto ?? '',      l.contaContabil ?? '',
+        ].map(esc).join(';')),
+    ];
+    const blob = new Blob(['\uFEFF' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), {
+        href:     url,
+        download: `Detalhes_Budget_${new Date().toISOString().slice(0, 10)}.csv`,
+    });
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 600);
+}
+
+// ── Reset de estado ao reabrir modal ──────────────────────────────────
+function _mdResetarEstado() {
+    _mdDetalhes.lancamentos  = [];
+    _mdDetalhes.sortCol      = -1;
+    _mdDetalhes.sortDir      = 'asc';
+    _mdDetalhes.busca        = '';
+    _mdDetalhes.filtroStatus = '';
+    _mdDetalhes.filtroBudget = '';
+
+    const buscaInput = document.getElementById('modalDetalhesBusca');
+    if (buscaInput) buscaInput.value = '';
+    document.getElementById('modalDetalhesBuscaClear')?.classList.add('is-hidden');
+
+    document.querySelectorAll('#modalDetalhesChipsStatus .luft-modal-detalhes__chip')
+        .forEach((b, i) => b.classList.toggle('is-active', i === 0));
+    document.querySelectorAll('#modalDetalhesChipsBudget .luft-modal-detalhes__chip')
+        .forEach((b, i) => b.classList.toggle('is-active', i === 0));
+    document.querySelectorAll('.luft-modal-detalhes__th[data-col]')
+        .forEach(th => th.removeAttribute('data-sort'));
+}
+
+// ── Funções públicas ──────────────────────────────────────────────────
+function obterFiltrosAtivosParaDetalhesBudget() {
+    const inputAno       = document.getElementById('inputAnoBudget');
+    const selectEmpresa  = document.getElementById('selectEmpresaBudget');
+    const selectModoSaldo = document.getElementById('selectModoSaldoBudget');
+    return {
+        ano:       inputAno       ? inputAno.value       : new Date().getFullYear(),
+        empresa:   selectEmpresa  ? selectEmpresa.value  : 'Todos',
+        modoSaldo: selectModoSaldo ? selectModoSaldo.value : 'todos_itens',
+    };
+}
+
+function construirContextoDetalhesBudget(params) {
+    const segmentos = [];
+    if (params.mes) {
+        const nomesMeses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        segmentos.push(nomesMeses[params.mes] || `Mês ${params.mes}`);
+    }
+    if (params.centro) {
+        const mesInfo = (budgetTreeState.mesesAtuais || []).find(m => m.mes === params.mes);
+        const grupo = (mesInfo?.grupos || []).find(g => String(g.codigoCentroCusto) === String(params.centro));
+        segmentos.push(grupo ? grupo.centroCusto : `Centro ${params.centro}`);
+    }
+    if (params.conta) {
+        const mesInfo = (budgetTreeState.mesesAtuais || []).find(m => m.mes === params.mes);
+        let nomeContaEncontrado = null;
+        for (const gr of (mesInfo?.grupos || [])) {
+            const ct = (gr.contas || []).find(c => String(c.codigoContaContabil) === String(params.conta));
+            if (ct) { nomeContaEncontrado = ct.contaContabil; break; }
+        }
+        segmentos.push(nomeContaEncontrado || `Conta ${params.conta}`);
+    }
+    if (params.fornecedor) {
+        const mesInfo = (budgetTreeState.mesesAtuais || []).find(m => m.mes === params.mes);
+        let nomeFornEncontrado = null;
+        for (const gr of (mesInfo?.grupos || [])) {
+            for (const ct of (gr.contas || [])) {
+                const fn = (ct.fornecedores || []).find(f => String(f.codigoFornecedor) === String(params.fornecedor));
+                if (fn) { nomeFornEncontrado = fn.fornecedor; break; }
+            }
+            if (nomeFornEncontrado) break;
+        }
+        segmentos.push(nomeFornEncontrado || `Fornecedor ${params.fornecedor}`);
+    }
+    const niveis = ['Mês', 'Centro de Custo', 'Conta Contábil', 'Fornecedor'];
+    const nivelIdx = [params.mes, params.centro, params.conta, params.fornecedor].filter(Boolean).length - 1;
+    return { breadcrumb: segmentos.join(' › '), nivel: niveis[nivelIdx] || 'Mês' };
+}
+
+function abrirModalDetalhesBudget(params) {
+    const modal     = document.getElementById('modalDetalhesBudget');
+    const titulo    = document.getElementById('modalDetalhesBudgetTitulo');
+    const subtitulo = document.getElementById('modalDetalhesBudgetSubtitulo');
+    const loadingEl = document.getElementById('modalDetalhesBudgetLoading');
+    const erroEl    = document.getElementById('modalDetalhesBudgetErro');
+    const corpoEl   = document.getElementById('modalDetalhesBudgetCorpo');
+    if (!modal) return;
+
+    _mdResetarEstado();
+
+    const contexto = construirContextoDetalhesBudget(params);
+    if (titulo)    titulo.textContent    = 'Detalhes dos Lançamentos';
+    if (subtitulo) subtitulo.textContent = contexto.breadcrumb;
+
+    modal.classList.remove('is-hidden');
+    document.body.classList.add('modal-open');
+    if (loadingEl) loadingEl.classList.remove('d-none');
+    if (erroEl)    erroEl.classList.add('d-none');
+    if (corpoEl)   corpoEl.classList.add('d-none');
+
+    // ESC para fechar
+    if (_mdDetalhes._escHandler) document.removeEventListener('keydown', _mdDetalhes._escHandler);
+    _mdDetalhes._escHandler = e => { if (e.key === 'Escape') fecharModalDetalhesBudget(); };
+    document.addEventListener('keydown', _mdDetalhes._escHandler);
+
+    const filtros   = obterFiltrosAtivosParaDetalhesBudget();
+    const urlParams = { ano: filtros.ano, mes: params.mes, modo_saldo: filtros.modoSaldo, empresa: filtros.empresa };
+    if (params.centro)     urlParams.centro_custo  = params.centro;
+    if (params.conta)      urlParams.conta_contabil = params.conta;
+    if (params.fornecedor) urlParams.fornecedor     = params.fornecedor;
+
+    obterJsonBudget(construirUrlBudget('detalhes', urlParams), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    })
+    .then(retorno => {
+        const dados = retorno.data || {};
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (corpoEl)   corpoEl.classList.remove('d-none');
+        renderizarModalDetalhesBudget(dados, contexto, filtros);
+    })
+    .catch(erro => {
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (erroEl) {
+            erroEl.classList.remove('d-none');
+            const msgEl = erroEl.querySelector('.luft-modal-detalhes__erro-msg');
+            if (msgEl) msgEl.textContent = erro.message || 'Falha ao carregar os dados.';
+        }
+    });
+}
+
+function fecharModalDetalhesBudget() {
+    const modal = document.getElementById('modalDetalhesBudget');
+    if (modal) modal.classList.add('is-hidden');
+    document.body.classList.remove('modal-open');
+    if (_mdDetalhes._escHandler) {
+        document.removeEventListener('keydown', _mdDetalhes._escHandler);
+        _mdDetalhes._escHandler = null;
+    }
+}
+
+function renderizarModalDetalhesBudget(dados, contexto, filtros) {
+    _mdDetalhes.lancamentos = Array.isArray(dados.lancamentos) ? dados.lancamentos : [];
+
+    const fmt = _mdDetalhes.fmt;
+    const kpi = {
+        quantidade:  document.getElementById('modalDetalhesBudgetKpiQtd'),
+        totalGeral:  document.getElementById('modalDetalhesBudgetKpiTotal'),
+        emAprovacao: document.getElementById('modalDetalhesBudgetKpiAprovacao'),
+        aprovado:    document.getElementById('modalDetalhesBudgetKpiAprovado'),
+    };
+    if (kpi.quantidade)  kpi.quantidade.textContent  = (dados.quantidade || 0).toLocaleString('pt-BR');
+    if (kpi.totalGeral)  kpi.totalGeral.textContent  = fmt.format(dados.totalGeral || 0);
+    if (kpi.emAprovacao) kpi.emAprovacao.textContent = fmt.format(dados.totalEmAprovacao || 0);
+    if (kpi.aprovado)    kpi.aprovado.textContent    = fmt.format(dados.totalAprovado || 0);
+
+    _mdInicializarInteracoes();
+    _mdAplicar();
+
+    // Foco automático na busca
+    setTimeout(() => document.getElementById('modalDetalhesBusca')?.focus(), 60);
 }
