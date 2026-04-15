@@ -2,11 +2,15 @@ document.addEventListener('DOMContentLoaded', () => {
     inicializarBudgetAnalitico();
 });
 
+// ============================================================================
+// CONSTANTES DE CONFIGURAÇÃO
+// ============================================================================
+
 const BUDGET_ANALITICO_API = window.BUDGET_ANALITICO_API_ROUTES || {
     filtros: '/budget/analitico/filtros',
     dados: '/budget/analitico/dados'
 };
-const BUDGET_ANALITICO_FILTER_MODAL_ID = 'modalFiltrosBudgetAnalitico';
+
 const BUDGET_ANALITICO_FILTER_RULES = {
     singleCentroCusto: true
 };
@@ -16,6 +20,12 @@ const BUDGET_ANALITICO_DEFAULTS = window.BUDGET_ANALITICO_DEFAULTS || {
     mes: new Date().getMonth() + 1
 };
 
+/**
+ * Config dos filtros com checkboxes: IDs dos elementos DOM + regras de comportamento.
+ * syncOnChange: true  → disparar evento ao marcar/desmarcar
+ * syncReloadData: true → recarregar dados diretamente (meses)
+ * syncReloadData: false → recarregar filtros primeiro, depois dados (centrosCusto)
+ */
 const BUDGET_ANALITICO_FILTER_CONFIG = {
     meses: {
         labelId: 'labelMesBudgetAnalitico',
@@ -32,7 +42,8 @@ const BUDGET_ANALITICO_FILTER_CONFIG = {
         emptyMeansAll: false,
         requireSelection: false,
         defaultMode: 'default-month',
-        syncOnChange: false
+        syncOnChange: true,
+        syncReloadData: true   // checkbox → recarrega dados diretamente
     },
     centrosCusto: {
         labelId: 'labelCentroCustoBudgetAnalitico',
@@ -49,9 +60,30 @@ const BUDGET_ANALITICO_FILTER_CONFIG = {
         emptyMeansAll: true,
         requireSelection: false,
         defaultMode: 'none',
-        syncOnChange: true
+        syncOnChange: true,
+        syncReloadData: false  // checkbox → recarrega filtros (cascata), depois dados
     }
 };
+
+/**
+ * Mapeamento dos seletores dropdown inline para os IDs dos elementos de controle.
+ */
+const BUDGET_ANALITICO_SELECTOR_CONFIG = {
+    meses: {
+        panelId: 'painelMesBudgetAnalitico',
+        triggerId: 'btnSelectorMesBudgetAnalitico',
+        spinnerId: 'spinnerMesBudgetAnalitico'
+    },
+    centrosCusto: {
+        panelId: 'painelCentroCustoBudgetAnalitico',
+        triggerId: 'btnSelectorCentroCustoBudgetAnalitico',
+        spinnerId: 'spinnerCentroCustoBudgetAnalitico'
+    }
+};
+
+// ============================================================================
+// ESTADO GLOBAL
+// ============================================================================
 
 const budgetAnaliticoState = {
     data: null,
@@ -63,7 +95,8 @@ const budgetAnaliticoState = {
     expansionInitialized: false,
     modoSaldo: 'todos_itens',
     requestToken: 0,
-    syncTimer: null,
+    syncTimer: null,   // timer para recarregar filtros (CC → cascata)
+    dataTimer: null,   // timer para recarregar dados diretamente (meses)
     filtros: {
         meses: {
             items: [],
@@ -79,6 +112,10 @@ const budgetAnaliticoState = {
         }
     }
 };
+
+// ============================================================================
+// BOOTSTRAP
+// ============================================================================
 
 function criarResumoVazioBudgetAnalitico() {
     return {
@@ -99,10 +136,8 @@ function inicializarBudgetAnalitico() {
         return;
     }
 
-    // Inicia com os grupos recolhidos na primeira carga.
     budgetAnaliticoState.expandedGroups = new Set();
     budgetAnaliticoState.expansionInitialized = false;
-
 
     inputAno.value = BUDGET_ANALITICO_DEFAULTS.ano;
     budgetAnaliticoState.modoSaldo = selectModoSaldo?.value || 'todos_itens';
@@ -124,38 +159,49 @@ function inicializarBudgetAnalitico() {
         });
 }
 
+// ============================================================================
+// EVENTOS
+// ============================================================================
+
 function configurarEventosBudgetAnalitico() {
-    const btnBuscar = document.getElementById('btnBuscarBudgetAnalitico');
-    const btnAbrirModal = document.getElementById('btnAbrirModalFiltrosBudgetAnalitico');
     const inputAno = document.getElementById('inputAnoBudgetAnalitico');
     const selectEmpresa = document.getElementById('selectEmpresaBudgetAnalitico');
+    const selectFilial = document.getElementById('selectFilialBudgetAnalitico');
+    const selectModoSaldo = document.getElementById('selectModoSaldoBudgetAnalitico');
     const corpoTabela = document.getElementById('corpoTabelaBudgetAnalitico');
     const btnExpandir = document.getElementById('btnExpandirGruposBudgetAnalitico');
     const btnRecolher = document.getElementById('btnRecolherGruposBudgetAnalitico');
 
-    if (btnBuscar) {
-        btnBuscar.addEventListener('click', () => aplicarFiltrosBudgetAnalitico());
-    }
-
-    if (btnAbrirModal && !btnAbrirModal.dataset.bound) {
-        btnAbrirModal.addEventListener('click', () => {
-            abrirModalFiltrosBudgetAnalitico();
-        });
-        btnAbrirModal.dataset.bound = 'true';
-    }
-
+    // Ano e Empresa → recarregam filtros e depois dados
     if (inputAno) {
         inputAno.addEventListener('change', () => {
-            carregarFiltrosBudgetAnalitico();
+            carregarFiltrosBudgetAnalitico().then(() => carregarDadosBudgetAnalitico());
         });
     }
 
     if (selectEmpresa) {
         selectEmpresa.addEventListener('change', () => {
-            carregarFiltrosBudgetAnalitico();
+            carregarFiltrosBudgetAnalitico().then(() => carregarDadosBudgetAnalitico());
         });
     }
 
+    // Filial → recarrega dados diretamente
+    if (selectFilial) {
+        selectFilial.addEventListener('change', () => {
+            agendarRecargarDadosBudgetAnalitico();
+        });
+    }
+
+    // Modo Saldo → recalcula visualmente, sem chamada à API
+    if (selectModoSaldo) {
+        selectModoSaldo.addEventListener('change', () => {
+            budgetAnaliticoState.modoSaldo = selectModoSaldo.value;
+            atualizarApresentacaoBudgetAnalitico();
+            atualizarChipsBudgetAnalitico();
+        });
+    }
+
+    // Delegação de clique nas linhas de grupo da tabela
     if (corpoTabela) {
         corpoTabela.addEventListener('click', (event) => {
             const alvo = event.target.closest('[data-budget-analytic-group]');
@@ -182,24 +228,107 @@ function configurarEventosBudgetAnalitico() {
             renderizarTabelaBudgetAnalitico();
         });
     }
+
+    // Gatilhos dos seletores dropdown inline
+    Object.keys(BUDGET_ANALITICO_SELECTOR_CONFIG).forEach((chaveFiltro) => {
+        const selectorCfg = BUDGET_ANALITICO_SELECTOR_CONFIG[chaveFiltro];
+
+        const trigger = document.getElementById(selectorCfg.triggerId);
+        if (trigger && !trigger.dataset.bound) {
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                alternarPainelFiltroAnalitico(chaveFiltro);
+            });
+            trigger.dataset.bound = 'true';
+        }
+
+        // Evita que cliques dentro do painel fechem-no
+        const panel = document.getElementById(selectorCfg.panelId);
+        if (panel && !panel.dataset.bound) {
+            panel.addEventListener('click', (e) => e.stopPropagation());
+            panel.dataset.bound = 'true';
+        }
+    });
+
+    // Fechar todos os painéis ao clicar fora deles
+    document.addEventListener('click', () => fecharTodosPainesFiltroAnalitico());
 }
 
-function abrirModalFiltrosBudgetAnalitico() {
-    if (typeof LuftCore !== 'undefined') {
-        LuftCore.abrirModal(BUDGET_ANALITICO_FILTER_MODAL_ID);
+// ============================================================================
+// DROPDOWN PANELS — abrir / fechar
+// ============================================================================
+
+function abrirPainelFiltroAnalitico(chaveFiltro) {
+    fecharTodosPainesFiltroAnalitico();
+    const cfg = BUDGET_ANALITICO_SELECTOR_CONFIG[chaveFiltro];
+    if (!cfg) {
+        return;
+    }
+    const panel = document.getElementById(cfg.panelId);
+    const trigger = document.getElementById(cfg.triggerId);
+    panel?.classList.remove('d-none');
+    trigger?.classList.add('is-open');
+    trigger?.setAttribute('aria-expanded', 'true');
+}
+
+function fecharPainelFiltroAnalitico(chaveFiltro) {
+    const cfg = BUDGET_ANALITICO_SELECTOR_CONFIG[chaveFiltro];
+    if (!cfg) {
+        return;
+    }
+    const panel = document.getElementById(cfg.panelId);
+    const trigger = document.getElementById(cfg.triggerId);
+    panel?.classList.add('d-none');
+    trigger?.classList.remove('is-open');
+    trigger?.setAttribute('aria-expanded', 'false');
+}
+
+function fecharTodosPainesFiltroAnalitico() {
+    Object.keys(BUDGET_ANALITICO_SELECTOR_CONFIG).forEach((chave) => fecharPainelFiltroAnalitico(chave));
+}
+
+function alternarPainelFiltroAnalitico(chaveFiltro) {
+    const cfg = BUDGET_ANALITICO_SELECTOR_CONFIG[chaveFiltro];
+    if (!cfg) {
+        return;
+    }
+    const panel = document.getElementById(cfg.panelId);
+    if (panel?.classList.contains('d-none')) {
+        abrirPainelFiltroAnalitico(chaveFiltro);
+    } else {
+        fecharPainelFiltroAnalitico(chaveFiltro);
     }
 }
 
-function fecharModalFiltrosBudgetAnalitico() {
-    if (typeof LuftCore !== 'undefined') {
-        LuftCore.fecharModal(BUDGET_ANALITICO_FILTER_MODAL_ID);
-    }
+// ============================================================================
+// SPINNERS — mostrar / ocultar
+// ============================================================================
+
+function mostrarSpinnerAnalitico(id) {
+    document.getElementById(id)?.classList.remove('d-none');
 }
 
-function aplicarFiltrosBudgetAnalitico() {
-    carregarDadosBudgetAnalitico();
-    fecharModalFiltrosBudgetAnalitico();
+function ocultarSpinnerAnalitico(id) {
+    document.getElementById(id)?.classList.add('d-none');
 }
+
+/**
+ * Ativa ou desativa todos os spinners de filtros (campos simples + seletores).
+ */
+function definirEstadoCarregandoFiltrosAnalitico(carregando) {
+    ['spinnerAnoBudgetAnalitico', 'spinnerEmpresaBudgetAnalitico', 'spinnerFilialBudgetAnalitico'].forEach((id) => {
+        carregando ? mostrarSpinnerAnalitico(id) : ocultarSpinnerAnalitico(id);
+    });
+    Object.values(BUDGET_ANALITICO_SELECTOR_CONFIG).forEach((cfg) => {
+        const trigger = document.getElementById(cfg.triggerId);
+        trigger?.classList.toggle('is-loading', carregando);
+        carregando ? mostrarSpinnerAnalitico(cfg.spinnerId) : ocultarSpinnerAnalitico(cfg.spinnerId);
+    });
+}
+
+// ============================================================================
+// FILTROS — configuração dos ouvintes de cada seletor
+// ============================================================================
 
 function configurarFiltrosBudgetAnalitico() {
     Object.keys(BUDGET_ANALITICO_FILTER_CONFIG).forEach((chaveFiltro) => {
@@ -248,6 +377,10 @@ function obterEstadoFiltroBudgetAnalitico(chaveFiltro) {
     return budgetAnaliticoState.filtros[chaveFiltro];
 }
 
+// ============================================================================
+// HTTP
+// ============================================================================
+
 function construirUrlBudgetAnalitico(chave, parametros = {}) {
     const rota = BUDGET_ANALITICO_API[chave] || BUDGET_ANALITICO_API.dados;
     const url = new URL(rota, window.location.origin);
@@ -276,6 +409,10 @@ async function obterJsonBudgetAnalitico(url) {
     return payload;
 }
 
+// ============================================================================
+// CARREGAR FILTROS (empresas, meses, centros, filiais)
+// ============================================================================
+
 async function carregarFiltrosBudgetAnalitico() {
     const inputAno = document.getElementById('inputAnoBudgetAnalitico');
     const selectEmpresa = document.getElementById('selectEmpresaBudgetAnalitico');
@@ -287,43 +424,44 @@ async function carregarFiltrosBudgetAnalitico() {
     const centroAtual = obterParametroFiltroBudgetAnalitico('centrosCusto', { ignorarVazio: true });
     const requestToken = ++budgetAnaliticoState.requestToken;
 
-    if (selectFilial) {
-        selectFilial.disabled = true;
-        selectFilial.innerHTML = '<option value="Todos">Atualizando filiais...</option>';
+    definirEstadoCarregandoFiltrosAnalitico(true);
+
+    try {
+        const retorno = await obterJsonBudgetAnalitico(construirUrlBudgetAnalitico('filtros', {
+            ano,
+            empresa: empresaAtual,
+            centro_custo: centroAtual
+        }));
+
+        if (requestToken !== budgetAnaliticoState.requestToken) {
+            return;
+        }
+
+        const dados = retorno.data || {};
+
+        preencherSelectBudgetAnalitico(
+            selectEmpresa,
+            dados.empresas || [],
+            empresaAtual,
+            'Todos',
+            'Todas as Empresas',
+            (item) => ({ value: item.id, label: item.nome })
+        );
+
+        renderizarOpcoesFiltroBudgetAnalitico('meses', dados.meses || []);
+        renderizarOpcoesFiltroBudgetAnalitico('centrosCusto', dados.centrosCusto || []);
+
+        preencherSelectBudgetAnalitico(
+            selectFilial,
+            dados.filiais || [],
+            filialAtual,
+            'Todos',
+            'Todas as Filiais',
+            (item) => ({ value: item.id, label: item.nome })
+        );
+    } finally {
+        definirEstadoCarregandoFiltrosAnalitico(false);
     }
-
-    const retorno = await obterJsonBudgetAnalitico(construirUrlBudgetAnalitico('filtros', {
-        ano,
-        empresa: empresaAtual,
-        centro_custo: centroAtual
-    }));
-
-    if (requestToken !== budgetAnaliticoState.requestToken) {
-        return;
-    }
-
-    const dados = retorno.data || {};
-
-    preencherSelectBudgetAnalitico(
-        selectEmpresa,
-        dados.empresas || [],
-        empresaAtual,
-        'Todos',
-        'Todas as Empresas',
-        (item) => ({ value: item.id, label: item.nome })
-    );
-
-    renderizarOpcoesFiltroBudgetAnalitico('meses', dados.meses || []);
-    renderizarOpcoesFiltroBudgetAnalitico('centrosCusto', dados.centrosCusto || []);
-
-    preencherSelectBudgetAnalitico(
-        selectFilial,
-        dados.filiais || [],
-        filialAtual,
-        'Todos',
-        'Todas as Filiais',
-        (item) => ({ value: item.id, label: item.nome })
-    );
 }
 
 function preencherSelectBudgetAnalitico(select, itens, valorAtual, valorPadrao, labelPadrao, mapearItem) {
@@ -350,6 +488,10 @@ function preencherSelectBudgetAnalitico(select, itens, valorAtual, valorPadrao, 
     const proximoValor = valoresDisponiveis.has(String(valorAtual)) ? String(valorAtual) : valorPadrao;
     select.value = proximoValor;
 }
+
+// ============================================================================
+// RENDERIZAR OPÇÕES DO SELETOR (meses / centrosCusto)
+// ============================================================================
 
 function renderizarOpcoesFiltroBudgetAnalitico(chaveFiltro, listaOpcoes) {
     const config = obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro);
@@ -468,6 +610,10 @@ function normalizarTextoBudgetAnalitico(texto) {
         .toLowerCase();
 }
 
+// ============================================================================
+// ATUALIZAÇÃO DE SELEÇÃO
+// ============================================================================
+
 function atualizarSelecaoFiltroBudgetAnalitico(chaveFiltro, checkbox) {
     const config = obterConfiguracaoFiltroBudgetAnalitico(chaveFiltro);
     const estado = obterEstadoFiltroBudgetAnalitico(chaveFiltro);
@@ -493,7 +639,11 @@ function atualizarSelecaoFiltroBudgetAnalitico(chaveFiltro, checkbox) {
     atualizarResumoFiltroBudgetAnalitico(chaveFiltro);
 
     if (config.syncOnChange) {
-        agendarSincronizacaoFiltrosBudgetAnalitico();
+        if (config.syncReloadData) {
+            agendarRecargarDadosBudgetAnalitico();
+        } else {
+            agendarSincronizacaoFiltrosBudgetAnalitico();
+        }
     }
 }
 
@@ -517,11 +667,14 @@ function atualizarSelecaoTotalFiltroBudgetAnalitico(chaveFiltro, checkboxTodos) 
     estado.allSelected = checkboxTodos.checked && estado.items.length > 0;
 
     sincronizarMarcacaoFiltroBudgetAnalitico(chaveFiltro);
-
     atualizarResumoFiltroBudgetAnalitico(chaveFiltro);
 
     if (config.syncOnChange) {
-        agendarSincronizacaoFiltrosBudgetAnalitico();
+        if (config.syncReloadData) {
+            agendarRecargarDadosBudgetAnalitico();
+        } else {
+            agendarSincronizacaoFiltrosBudgetAnalitico();
+        }
     }
 }
 
@@ -642,12 +795,36 @@ function obterParametroFiltroBudgetAnalitico(chaveFiltro, { ignorarVazio = false
     return Array.from(estado.selectedIds).join(',');
 }
 
+// ============================================================================
+// TIMERS DE SINCRONIZAÇÃO
+// ============================================================================
+
+/**
+ * Agenda recarga de filtros (cascata CC → dados).
+ * Chamado quando o centro de custo muda para atualizar filtros dependentes.
+ */
 function agendarSincronizacaoFiltrosBudgetAnalitico() {
     clearTimeout(budgetAnaliticoState.syncTimer);
-    budgetAnaliticoState.syncTimer = setTimeout(() => {
-        carregarFiltrosBudgetAnalitico();
-    }, 250);
+    budgetAnaliticoState.syncTimer = setTimeout(async () => {
+        await carregarFiltrosBudgetAnalitico();
+        carregarDadosBudgetAnalitico();
+    }, 350);
 }
+
+/**
+ * Agenda recarga direta de dados (sem recarregar filtros).
+ * Chamado quando meses ou filial mudam.
+ */
+function agendarRecargarDadosBudgetAnalitico() {
+    clearTimeout(budgetAnaliticoState.dataTimer);
+    budgetAnaliticoState.dataTimer = setTimeout(() => {
+        carregarDadosBudgetAnalitico();
+    }, 400);
+}
+
+// ============================================================================
+// CARREGAR DADOS DO RELATÓRIO
+// ============================================================================
 
 async function carregarDadosBudgetAnalitico() {
     const inputAno = document.getElementById('inputAnoBudgetAnalitico');
@@ -695,6 +872,10 @@ async function carregarDadosBudgetAnalitico() {
         renderizarErroBudgetAnalitico(erro.message || 'Falha ao carregar os dados analíticos.');
     }
 }
+
+// ============================================================================
+// APRESENTAÇÃO — recalcular + renderizar
+// ============================================================================
 
 function atualizarApresentacaoBudgetAnalitico() {
     recalcularApresentacaoBudgetAnalitico();
@@ -799,7 +980,6 @@ function sincronizarExpansaoGruposBudgetAnalitico() {
     const ids = grupos.map((grupo) => grupo.id);
 
     if (!budgetAnaliticoState.expansionInitialized) {
-        // Primeira renderização: mantém todos recolhidos por padrão.
         budgetAnaliticoState.expandedGroups = new Set();
         budgetAnaliticoState.expansionInitialized = true;
         return;
@@ -828,6 +1008,10 @@ function alternarGrupoBudgetAnalitico(groupId) {
 
     renderizarTabelaBudgetAnalitico();
 }
+
+// ============================================================================
+// KPIs + CABEÇALHO + CHIPS
+// ============================================================================
 
 function atualizarKpisBudgetAnalitico() {
     const resumo = budgetAnaliticoState.renderData?.resumo || criarResumoVazioBudgetAnalitico();
@@ -872,6 +1056,10 @@ function atualizarChipsBudgetAnalitico() {
     definirTexto('chipFilialBudgetAnalitico', obterTextoOpcaoSelecionada(selectFilial) || 'Todas as Filiais');
     definirTexto('chipModoSaldoBudgetAnalitico', obterTextoOpcaoSelecionada(selectModoSaldo) || 'Modo de saldo');
 }
+
+// ============================================================================
+// TABELA
+// ============================================================================
 
 function renderizarTabelaBudgetAnalitico() {
     const corpo = document.getElementById('corpoTabelaBudgetAnalitico');
@@ -1041,6 +1229,10 @@ function renderizarConsumoBudgetAnalitico(valor, orcado = 0, valorExecutado = 0)
     `;
 }
 
+// ============================================================================
+// ESTADOS LOADING / ERRO
+// ============================================================================
+
 function renderizarLoadingBudgetAnalitico() {
     const corpo = document.getElementById('corpoTabelaBudgetAnalitico');
     const rodape = document.getElementById('rodapeTabelaBudgetAnalitico');
@@ -1048,7 +1240,12 @@ function renderizarLoadingBudgetAnalitico() {
     if (corpo) {
         corpo.innerHTML = `
             <tr>
-                <td colspan="5" class="luft-budget-analytic-loading">Carregando dados analíticos...</td>
+                <td colspan="5" class="text-center">
+                    <div class="luft-baf-table-loading">
+                        <i class="ph-bold ph-spinner-gap luft-baf-table-loading-spinner"></i>
+                        <span>Atualizando dados analíticos...</span>
+                    </div>
+                </td>
             </tr>
         `;
     }
@@ -1079,6 +1276,10 @@ function renderizarErroBudgetAnalitico(mensagem) {
     definirTexto('budgetAnaliticoStatusTabela', mensagem);
 }
 
+// ============================================================================
+// UTILITÁRIOS
+// ============================================================================
+
 function definirTexto(id, valor) {
     const elemento = document.getElementById(id);
     if (elemento) {
@@ -1105,18 +1306,15 @@ function formatarPercentualBudgetAnalitico(valor) {
     if (valor === null || typeof valor === 'undefined') {
         return '-';
     }
-    // Aqui a porcetagem é formatada com no máximo 1 casa decimal para evitar poluição visual, já que o valor é apresentado em um badge pequeno ao lado da barra de consumo
-    // EX: 75.3% ao invés de 75.34567%
     return `${new Intl.NumberFormat('pt-BR', {
         maximumFractionDigits: 1
     }).format(Number(valor || 0))}%`;
 }
 
-/*  
-    Função para escapar caracteres especiais em HTML, prevenindo vulnerabilidades XSS e garantindo a 
-    correta exibição de textos que possam conter caracteres como <, >, &, etc.
+/*
+    Escapa caracteres especiais em HTML, prevenindo XSS.
 */
- function escapeHtml(valor) {
+function escapeHtml(valor) {
     return String(valor ?? '')
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
@@ -1124,3 +1322,4 @@ function formatarPercentualBudgetAnalitico(valor) {
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
 }
+

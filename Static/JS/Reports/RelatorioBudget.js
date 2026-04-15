@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 const COLSPAN_TABELA_BUDGET = 8;
-const BUDGET_FILTER_MODAL_ID = 'modalFiltrosBudget';
 const BUDGET_FILTER_RULES = {
     singleCentroCusto: true
 };
@@ -25,6 +24,7 @@ const budgetTreeState = {
 const budgetFilterState = {
     requestToken: 0,
     syncTimer: null,
+    dataTimer: null,
     filtros: {
         centrosCusto: {
             items: [],
@@ -42,34 +42,48 @@ const budgetFilterState = {
 };
 const BUDGET_FILTER_CONFIG = {
     centrosCusto: {
-        labelId: 'labelCentroCusto',
-        searchInputId: 'inputBuscaCentroCusto',
-        listId: 'listaCentrosCusto',
-        selectAllId: 'checkTodosCentros',
-        selectAllWrapperId: 'wrapCheckTodosCentros',
-        emptyId: 'emptyCentroCusto',
+        labelId: 'labelCentroCustoBudget',
+        searchInputId: 'inputBuscaCentroCustoBudget',
+        listId: 'listaCentroCustoBudget',
+        selectAllId: 'checkTodosCentrosBudget',
+        selectAllWrapperId: 'wrapCheckTodosCentrosBudget',
+        emptyId: 'emptyCentroCustoBudget',
         emptyMessage: 'Nenhum centro de custo disponível.',
         paramName: 'centro_custo',
         allowMultiple: !BUDGET_FILTER_RULES.singleCentroCusto,
         emptyMeansAll: true,
         allLabel: 'Todos os centros',
         noneLabel: 'Nenhum centro selecionado',
-        multipleLabel: 'centros selecionados'
+        multipleLabel: 'centros selecionados',
+        syncReloadData: false
     },
     contasContabeis: {
-        labelId: 'labelContaContabil',
-        searchInputId: 'inputBuscaContaContabil',
-        listId: 'listaContasContabeis',
-        selectAllId: 'checkTodasContas',
-        selectAllWrapperId: 'wrapCheckTodasContas',
-        emptyId: 'emptyContaContabil',
+        labelId: 'labelContaContabilBudget',
+        searchInputId: 'inputBuscaContaContabilBudget',
+        listId: 'listaContaContabilBudget',
+        selectAllId: 'checkTodasContasBudget',
+        selectAllWrapperId: 'wrapCheckTodasContasBudget',
+        emptyId: 'emptyContaContabilBudget',
         emptyMessage: 'Nenhuma conta contábil disponível.',
         paramName: 'conta_contabil',
         allowMultiple: true,
         emptyMeansAll: false,
         allLabel: 'Todas as contas',
         noneLabel: 'Nenhuma conta selecionada',
-        multipleLabel: 'contas selecionadas'
+        multipleLabel: 'contas selecionadas',
+        syncReloadData: true
+    }
+};
+const BUDGET_SELECTOR_CONFIG = {
+    centrosCusto: {
+        panelId: 'painelCentroCustoBudget',
+        triggerId: 'btnSelectorCentroCustoBudget',
+        spinnerId: 'spinnerCentroCustoBudget'
+    },
+    contasContabeis: {
+        panelId: 'painelContaContabilBudget',
+        triggerId: 'btnSelectorContaContabilBudget',
+        spinnerId: 'spinnerContaContabilBudget'
     }
 };
 const BUDGET_API_ROUTES = window.BUDGET_API_ROUTES || {
@@ -110,36 +124,62 @@ async function obterJsonBudget(url, opcoes = {}) {
  */
 function inicializarRelatorioBudget() {
     const inputAno = document.getElementById('inputAnoBudget');
-    const botaoBuscar = document.getElementById('btnBuscarBudget');
-    const btnAbrirModal = document.getElementById('btnAbrirModalFiltrosBudget');
     const selectModoSaldo = document.getElementById('selectModoSaldoBudget');
     const selectEmpresa = document.getElementById('selectEmpresaBudget');
-    
-    if (!inputAno || !botaoBuscar) return;
+
+    if (!inputAno) return;
 
     budgetTreeState.modoSaldo = selectModoSaldo ? selectModoSaldo.value : 'todos_itens';
 
-    botaoBuscar.addEventListener('click', aplicarFiltrosBudget);
     configurarControlesTabelaBudget();
     atualizarStatusArvoreBudget([]);
-    configurarAberturaModalBudget(btnAbrirModal);
-
     configurarFiltrosBudget();
 
-    if (inputAno && !inputAno.dataset.filterBound) {
-        inputAno.addEventListener('change', () => {
-            sincronizarFiltrosBudget();
+    // Triggers dos seletores dropdown
+    Object.keys(BUDGET_SELECTOR_CONFIG).forEach((chave) => {
+        const cfg = BUDGET_SELECTOR_CONFIG[chave];
+        const trigger = document.getElementById(cfg.triggerId);
+        if (trigger && !trigger.dataset.bound) {
+            trigger.addEventListener('click', () => alternarPainelFiltroBudget(chave));
+            trigger.dataset.bound = 'true';
+        }
+    });
+
+    // Fechar painéis ao clicar fora
+    document.addEventListener('click', (event) => {
+        const clicouDentroDeAlgumSeletor = Object.values(BUDGET_SELECTOR_CONFIG).some((cfg) => {
+            const seletor = document.getElementById(cfg.triggerId)?.closest('.luft-baf-selector');
+            return seletor && seletor.contains(event.target);
         });
+        if (!clicouDentroDeAlgumSeletor) {
+            fecharTodosPainesFIltroBudget();
+        }
+    });
+
+    if (inputAno && !inputAno.dataset.filterBound) {
+        inputAno.addEventListener('change', () => agendarSincronizacaoFiltrosBudget());
         inputAno.dataset.filterBound = 'true';
     }
 
     if (selectEmpresa && !selectEmpresa.dataset.filterBound) {
-        selectEmpresa.addEventListener('change', () => {
-            sincronizarFiltrosBudget();
-        });
+        selectEmpresa.addEventListener('change', () => agendarSincronizacaoFiltrosBudget());
         selectEmpresa.dataset.filterBound = 'true';
     }
-    
+
+    if (selectModoSaldo && !selectModoSaldo.dataset.filterBound) {
+        selectModoSaldo.addEventListener('change', () => {
+            budgetTreeState.modoSaldo = selectModoSaldo.value;
+            agendarRecarregarDadosBudget();
+        });
+        selectModoSaldo.dataset.filterBound = 'true';
+    }
+
+    const selectMes = document.getElementById('selectMesBudget');
+    if (selectMes && !selectMes.dataset.filterBound) {
+        selectMes.addEventListener('change', () => agendarRecarregarDadosBudget());
+        selectMes.dataset.filterBound = 'true';
+    }
+
     // Carrega filtros e dispara a busca inicial
     sincronizarFiltrosBudget().then(() => {
         atualizarChipsBudget();
@@ -147,32 +187,74 @@ function inicializarRelatorioBudget() {
     });
 }
 
-function configurarAberturaModalBudget(botao) {
-    if (!botao || botao.dataset.bound) {
-        return;
-    }
+function abrirPainelFiltroBudget(chave) {
+    const cfg = BUDGET_SELECTOR_CONFIG[chave];
+    if (!cfg) return;
 
-    botao.addEventListener('click', () => {
-        abrirModalFiltrosBudget();
+    const painel = document.getElementById(cfg.panelId);
+    const trigger = document.getElementById(cfg.triggerId);
+    if (!painel || !trigger) return;
+
+    painel.classList.remove('d-none');
+    trigger.classList.add('is-open');
+    trigger.setAttribute('aria-expanded', 'true');
+}
+
+function fecharPainelFiltroBudget(chave) {
+    const cfg = BUDGET_SELECTOR_CONFIG[chave];
+    if (!cfg) return;
+
+    const painel = document.getElementById(cfg.panelId);
+    const trigger = document.getElementById(cfg.triggerId);
+    if (!painel || !trigger) return;
+
+    painel.classList.add('d-none');
+    trigger.classList.remove('is-open');
+    trigger.setAttribute('aria-expanded', 'false');
+}
+
+function fecharTodosPainesFIltroBudget() {
+    Object.keys(BUDGET_SELECTOR_CONFIG).forEach((chave) => fecharPainelFiltroBudget(chave));
+}
+
+function alternarPainelFiltroBudget(chave) {
+    const cfg = BUDGET_SELECTOR_CONFIG[chave];
+    if (!cfg) return;
+
+    const painel = document.getElementById(cfg.panelId);
+    const aberto = painel && !painel.classList.contains('d-none');
+
+    fecharTodosPainesFIltroBudget();
+
+    if (!aberto) {
+        abrirPainelFiltroBudget(chave);
+    }
+}
+
+function definirEstadoCarregandoFiltrosBudget(carregando) {
+    ['spinnerAnoBudget', 'spinnerEmpresaBudget'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('d-none', !carregando);
     });
-    botao.dataset.bound = 'true';
+
+    Object.keys(BUDGET_SELECTOR_CONFIG).forEach((chave) => {
+        const cfg = BUDGET_SELECTOR_CONFIG[chave];
+        const trigger = document.getElementById(cfg.triggerId);
+        const spinner = document.getElementById(cfg.spinnerId);
+        if (trigger) trigger.classList.toggle('is-loading', carregando);
+        if (spinner) spinner.classList.toggle('d-none', !carregando);
+    });
 }
 
-function abrirModalFiltrosBudget() {
-    if (typeof LuftCore !== 'undefined') {
-        LuftCore.abrirModal(BUDGET_FILTER_MODAL_ID);
-    }
-}
-
-function fecharModalFiltrosBudget() {
-    if (typeof LuftCore !== 'undefined') {
-        LuftCore.fecharModal(BUDGET_FILTER_MODAL_ID);
-    }
+function agendarRecarregarDadosBudget() {
+    clearTimeout(budgetFilterState.dataTimer);
+    budgetFilterState.dataTimer = setTimeout(() => {
+        carregarDadosBudget();
+    }, 400);
 }
 
 function aplicarFiltrosBudget() {
     carregarDadosBudget();
-    fecharModalFiltrosBudget();
 }
 
 function configurarControlesTabelaBudget() {
@@ -366,6 +448,8 @@ function sincronizarFiltrosBudget() {
     const contaContabil = obterParametroFiltroBudget('contasContabeis', { ignorarVazio: true });
     const requestToken = ++budgetFilterState.requestToken;
 
+    definirEstadoCarregandoFiltrosBudget(true);
+
     return obterJsonBudget(construirUrlBudget('filtros', {
         ano,
         empresa,
@@ -376,6 +460,8 @@ function sincronizarFiltrosBudget() {
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then((retorno) => {
+        definirEstadoCarregandoFiltrosBudget(false);
+
         if (requestToken !== budgetFilterState.requestToken) {
             return;
         }
@@ -388,6 +474,7 @@ function sincronizarFiltrosBudget() {
         }
     })
     .catch((erro) => {
+        definirEstadoCarregandoFiltrosBudget(false);
         console.error('Erro ao carregar os filtros:', erro);
     });
 }
@@ -476,7 +563,12 @@ function atualizarSelecaoFiltroBudget(chaveFiltro, idItem, marcado) {
     estado.allSelected = config.allowMultiple && estado.items.length > 0 && estado.selectedIds.size === estado.items.length;
     sincronizarMarcacaoFiltroBudget(chaveFiltro);
     atualizarResumoFiltroBudget(chaveFiltro);
-    agendarSincronizacaoFiltrosBudget();
+
+    if (config.syncReloadData) {
+        agendarRecarregarDadosBudget();
+    } else {
+        agendarSincronizacaoFiltrosBudget();
+    }
 }
 
 function atualizarSelecaoTotalFiltroBudget(chaveFiltro, marcado) {
@@ -495,7 +587,12 @@ function atualizarSelecaoTotalFiltroBudget(chaveFiltro, marcado) {
     sincronizarMarcacaoFiltroBudget(chaveFiltro);
 
     atualizarResumoFiltroBudget(chaveFiltro);
-    agendarSincronizacaoFiltrosBudget();
+
+    if (config.syncReloadData) {
+        agendarRecarregarDadosBudget();
+    } else {
+        agendarSincronizacaoFiltrosBudget();
+    }
 }
 
 function sincronizarMarcacaoFiltroBudget(chaveFiltro) {
@@ -614,9 +711,10 @@ function obterParametroFiltroBudget(chaveFiltro, { ignorarVazio = false } = {}) 
 
 function agendarSincronizacaoFiltrosBudget() {
     clearTimeout(budgetFilterState.syncTimer);
-    budgetFilterState.syncTimer = setTimeout(() => {
-        sincronizarFiltrosBudget();
-    }, 250);
+    budgetFilterState.syncTimer = setTimeout(async () => {
+        await sincronizarFiltrosBudget();
+        carregarDadosBudget();
+    }, 350);
 }
 
 /**
@@ -645,7 +743,7 @@ function carregarDadosBudget() {
         <tr>
             <td colspan="${COLSPAN_TABELA_BUDGET}" class="text-center py-10">
                 <div class="d-flex flex-col align-items-center justify-content-center">
-                    <i class="ph-bold ph-spinner-gap text-primary text-4xl" style="animation: spin 1s linear infinite;"></i>
+                    <i class="ph-bold ph-spinner-gap luft-spin text-primary text-4xl"></i>
                     <p class="text-muted mt-3 font-medium">Processando estrutura orçamentária...</p>
                 </div>
             </td>
@@ -661,8 +759,11 @@ function carregarDadosBudget() {
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(retorno => {
+        const selectMes = document.getElementById('selectMesBudget');
+        const mesSelecionado = selectMes ? parseInt(selectMes.value, 10) : 0;
         const meses = Array.isArray(retorno.data?.meses) ? retorno.data.meses : [];
-        renderizarTabelaBudget(meses, corpoTabela);
+        const mesesFiltrados = mesSelecionado > 0 ? meses.filter(m => m.mes === mesSelecionado) : meses;
+        renderizarTabelaBudget(mesesFiltrados, corpoTabela);
     })
     .catch(erro => {
         console.error('Falha ao obter dados:', erro);
@@ -674,8 +775,10 @@ function atualizarChipsBudget() {
     const inputAno = document.getElementById('inputAnoBudget');
     const selectEmpresa = document.getElementById('selectEmpresaBudget');
     const selectModoSaldo = document.getElementById('selectModoSaldoBudget');
+    const selectMes = document.getElementById('selectMesBudget');
 
     definirTextoBudget('chipAnoBudget', `Ano ${inputAno?.value || new Date().getFullYear()}`);
+    definirTextoBudget('chipMesBudget', obterTextoOpcaoSelecionadaBudget(selectMes) || 'Todos os meses');
     definirTextoBudget('chipEmpresaBudget', obterTextoOpcaoSelecionadaBudget(selectEmpresa) || 'Todas as Empresas');
     definirTextoBudget('chipCentroBudget', obterDescricaoSelecaoFiltroBudget('centrosCusto'));
     definirTextoBudget('chipContaBudget', obterDescricaoSelecaoFiltroBudget('contasContabeis'));
