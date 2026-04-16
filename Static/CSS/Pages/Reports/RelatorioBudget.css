@@ -5,6 +5,8 @@
 .luft-budget-page {
     width: 100%;
     min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
     padding-bottom: var(--luft-space-12);
 }
 
@@ -31,7 +33,19 @@
     justify-content: space-between;
     gap: var(--luft-space-4);
     min-width: 0;
+    overflow: hidden;
     padding: var(--luft-space-6);
+}
+
+.luft-budget-kpi-card > div:first-child {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.luft-budget-kpi-card h3 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .luft-budget-kpi-icon {
@@ -392,6 +406,8 @@
     z-index: 1;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
     margin-inline: auto;
 }
 
@@ -403,6 +419,14 @@
     padding: var(--luft-space-5) var(--luft-space-6);
     border-bottom: 1px solid var(--luft-border-light);
     background: var(--luft-bg-panel);
+    min-width: 0;
+    overflow: hidden;
+}
+
+.luft-budget-table-toolbar > div:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
 }
 
 .luft-budget-table-toolbar-label {
@@ -419,6 +443,9 @@
     color: var(--luft-text-main);
     font-size: var(--luft-text-lg);
     font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .luft-budget-table-toolbar-status {
@@ -473,6 +500,8 @@
     overflow-y: auto;
     height: clamp(17rem, calc(100vh - 23rem), 34rem);
     min-width: 0;
+    /* Garante que o scrollbar apareça dentro do card */
+    -webkit-overflow-scrolling: touch;
 }
 
 .luft-budget-table th {
@@ -1201,8 +1230,8 @@
     .luft-budget-table td:nth-child(2),
     .luft-budget-table th:nth-child(3),
     .luft-budget-table td:nth-child(3),
-.luft-budget-table th:nth-child(4),
-.luft-budget-table td:nth-child(4),
+    .luft-budget-table th:nth-child(4),
+    .luft-budget-table td:nth-child(4),
     .luft-budget-table th:nth-child(5),
     .luft-budget-table td:nth-child(5) {
         width: 10%;
@@ -1222,6 +1251,20 @@
 
     .luft-budget-analytic-active-filters {
         padding-inline: var(--luft-space-5);
+    }
+}
+
+@media (max-width: 1024px) {
+    .luft-baf {
+        padding: 1rem 1.25rem;
+    }
+
+    .luft-baf-field--sm {
+        flex: 0 0 100px;
+    }
+
+    .luft-baf-field--wide {
+        flex: 2 1 180px;
     }
 }
 
@@ -1282,7 +1325,7 @@
 
     .luft-budget-kpi-grid,
     .luft-budget-filters-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .luft-budget-analytic-filters-grid {
@@ -1300,6 +1343,55 @@
     .luft-budget-analytic-table th:first-child,
     .luft-budget-analytic-table td:first-child {
         width: 18rem;
+    }
+
+    .luft-budget-table-toolbar {
+        padding: var(--luft-space-4);
+    }
+}
+
+@media (max-width: 480px) {
+    .luft-budget-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .luft-budget-kpi-card {
+        padding: var(--luft-space-4);
+    }
+
+    .luft-baf {
+        padding: 0.875rem 1rem;
+    }
+
+    .luft-baf-row {
+        flex-direction: column;
+    }
+
+    .luft-baf-field,
+    .luft-baf-field--sm,
+    .luft-baf-field--wide {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+
+    .luft-baf-selector-panel {
+        min-width: 100%;
+        max-width: 100%;
+        left: 0;
+        right: 0;
+    }
+
+    .luft-budget-table-scroll {
+        height: clamp(14rem, calc(100vh - 18rem), 22rem);
+    }
+
+    .luft-budget-table-toolbar-title {
+        font-size: var(--luft-text-base);
+        white-space: normal;
+    }
+
+    .luft-budget-analytic-active-filters {
+        padding: var(--luft-space-3) var(--luft-space-3);
     }
 }
 
@@ -1513,7 +1605,7 @@
     left: 0;
     z-index: 100;
     min-width: max(100%, 280px);
-    max-width: 360px;
+    max-width: min(360px, calc(100vw - 2rem));
     max-height: 340px;
     display: flex;
     flex-direction: column;
@@ -1918,35 +2010,114 @@ tr:focus-within .luft-budget-detail-btn {
     margin: 0;
 }
 
-/* ── Grade de KPIs ── */
-.luft-modal-detalhes__kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+/* ── Painel executivo de KPIs ── */
+
+/* ─ Contêiner raiz ─ */
+.luft-kpi-exec {
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--luft-border);
+    background: var(--luft-bg-panel);
+}
+
+/* ─ Faixa de referência (budget orçado) ─ */
+.luft-kpi-exec__ref {
+    display: flex;
+    align-items: center;
     gap: 0;
     border-bottom: 1px solid var(--luft-border);
+    background: var(--luft-bg-app);
+    padding: 0.55rem 1.5rem;
+}
+
+.luft-kpi-exec__ref-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.luft-kpi-exec__ref-sep {
+    width: 1px;
+    height: 1.4rem;
+    background: var(--luft-border);
+    flex-shrink: 0;
+    margin: 0 1.25rem;
+}
+
+.luft-kpi-exec__ref-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--luft-text-light);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
     flex-shrink: 0;
 }
 
-.luft-modal-detalhes__kpi-card {
+.luft-kpi-exec__ref-valor {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--luft-primary-500);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ─ Zonas lado a lado ─ */
+.luft-kpi-exec__zonas {
+    display: flex;
+    align-items: stretch;
+}
+
+.luft-kpi-exec__zona {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    padding: 0.9rem 1.25rem;
-    border-right: 1px solid var(--luft-border);
-    background: var(--luft-bg-panel);
-    transition: background 0.15s;
+    padding: 1rem 1.5rem 1.1rem;
+    min-width: 0;
 }
 
-.luft-modal-detalhes__kpi-card:last-child {
-    border-right: none;
+.luft-kpi-exec__zona-divider {
+    width: 1px;
+    background: var(--luft-border);
+    flex-shrink: 0;
+    margin: 0.6rem 0;
 }
 
-.luft-modal-detalhes__kpi-card:hover {
-    background: var(--luft-bg-panel-hover);
+/* Título da zona */
+.luft-kpi-exec__zona-titulo {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--luft-text-light);
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--luft-border);
 }
 
-.luft-modal-detalhes__kpi-label {
-    font-size: 0.7rem;
+.luft-kpi-exec__zona-corpo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    flex: 1;
+}
+
+/* ─ Número destaque ─ */
+.luft-kpi-exec__destaque {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.luft-kpi-exec__destaque-label {
+    font-size: 0.68rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -1956,20 +2127,123 @@ tr:focus-within .luft-budget-detail-btn {
     gap: 0.35rem;
 }
 
-.luft-modal-detalhes__kpi-valor {
-    font-size: 1.15rem;
+.luft-kpi-exec__destaque-valor {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--luft-text-main);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+/* ─ Indicadores secundários ─ */
+.luft-kpi-exec__indicadores {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+}
+
+.luft-kpi-exec__indicador {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 6px;
+    background: var(--luft-bg-app);
+    border: 1px solid var(--luft-border);
+    min-width: 0;
+}
+
+.luft-kpi-exec__ind-topo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.luft-kpi-exec__ind-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--luft-text-light);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.luft-kpi-exec__ind-valor {
+    font-size: 1.05rem;
     font-weight: 800;
     color: var(--luft-text-main);
     font-variant-numeric: tabular-nums;
     line-height: 1.2;
 }
 
-/* Variantes de KPI */
-.luft-modal-detalhes__kpi-card--aprovacao .luft-modal-detalhes__kpi-label { color: var(--luft-warning-700); }
-.luft-modal-detalhes__kpi-card--aprovacao .luft-modal-detalhes__kpi-valor { color: var(--luft-warning-500); }
+/* ─ Barra de progresso ─ */
+.luft-kpi-exec__barra-track {
+    height: 5px;
+    border-radius: 99px;
+    background: var(--luft-border);
+    overflow: hidden;
+    margin-top: 0.3rem;
+    flex-shrink: 0;
+}
 
-.luft-modal-detalhes__kpi-card--aprovado .luft-modal-detalhes__kpi-label { color: var(--luft-success-700); }
-.luft-modal-detalhes__kpi-card--aprovado .luft-modal-detalhes__kpi-valor { color: var(--luft-success-500); }
+.luft-kpi-exec__barra-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--luft-success-500, #10b981);
+    width: 0%;
+    max-width: 100%;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;
+}
+
+/* ─ Variantes dinâmicas (aplicadas via JS) ─ */
+
+/* Saldo positivo */
+.luft-kpi-exec__indicador--saldo-positivo .luft-kpi-exec__ind-label { color: var(--luft-success-700); }
+.luft-kpi-exec__indicador--saldo-positivo .luft-kpi-exec__ind-valor { color: var(--luft-success-500); }
+
+/* Saldo negativo */
+.luft-kpi-exec__indicador--saldo-negativo .luft-kpi-exec__ind-label { color: var(--luft-danger-700); }
+.luft-kpi-exec__indicador--saldo-negativo .luft-kpi-exec__ind-valor { color: var(--luft-danger-500); }
+
+/* % ok (< 80%) */
+.luft-kpi-exec__indicador--pct-ok .luft-kpi-exec__ind-label  { color: var(--luft-success-700); }
+.luft-kpi-exec__indicador--pct-ok .luft-kpi-exec__ind-valor  { color: var(--luft-success-500); }
+.luft-kpi-exec__indicador--pct-ok  .luft-kpi-exec__barra-fill { background: var(--luft-success-500, #10b981); }
+
+/* % alerta (80-99%) */
+.luft-kpi-exec__indicador--pct-alerta .luft-kpi-exec__ind-label { color: var(--luft-warning-700); }
+.luft-kpi-exec__indicador--pct-alerta .luft-kpi-exec__ind-valor { color: var(--luft-warning-500); }
+.luft-kpi-exec__indicador--pct-alerta .luft-kpi-exec__barra-fill { background: var(--luft-warning-500, #f59e0b); }
+
+/* % crítico (≥ 100%) */
+.luft-kpi-exec__indicador--pct-critico .luft-kpi-exec__ind-label { color: var(--luft-danger-700); }
+.luft-kpi-exec__indicador--pct-critico .luft-kpi-exec__ind-valor { color: var(--luft-danger-500); }
+.luft-kpi-exec__indicador--pct-critico .luft-kpi-exec__barra-fill { background: var(--luft-danger-500, #ef4444); }
+
+/* Responsivo */
+@media (max-width: 900px) {
+    .luft-kpi-exec__ref {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.6rem 1rem;
+    }
+    .luft-kpi-exec__ref-sep { display: none; }
+    .luft-kpi-exec__ref-item { flex: 1 1 auto; min-width: 30%; }
+    .luft-kpi-exec__zona { padding: 0.75rem 1rem 0.9rem; }
+    .luft-kpi-exec__destaque-valor { font-size: 1.35rem; }
+}
+
+@media (max-width: 640px) {
+    .luft-kpi-exec__zonas { flex-direction: column; }
+    .luft-kpi-exec__zona-divider { width: auto; height: 1px; margin: 0 1rem; }
+    .luft-kpi-exec__ref-item { min-width: 100%; }
+}
 
 /* ── Corpo (wrapper do KPI + tabela) ── */
 .luft-modal-detalhes__corpo {
@@ -2343,20 +2617,30 @@ body.modal-open {
 /* ── Responsivo ── */
 @media (max-width: 900px) {
     .luft-modal-detalhes__kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 680px) {
+    .luft-modal-detalhes__kpi-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .luft-modal-detalhes__kpi-card:nth-child(2) {
+    /* Redefine bordas para grade 2 colunas */
+    .luft-modal-detalhes__kpi-card:nth-child(3n) {
+        border-right: 1px solid var(--luft-border);
+    }
+
+    .luft-modal-detalhes__kpi-card:nth-child(2n) {
         border-right: none;
+    }
+
+    .luft-modal-detalhes__kpi-card:nth-child(n+4) {
+        border-top: 1px solid var(--luft-border);
     }
 
     .luft-modal-detalhes__kpi-card:nth-child(3) {
         border-top: 1px solid var(--luft-border);
-    }
-
-    .luft-modal-detalhes__kpi-card:nth-child(4) {
-        border-top: 1px solid var(--luft-border);
-        border-right: none;
     }
 }
 
@@ -2371,9 +2655,5 @@ body.modal-open {
     .luft-modal-detalhes {
         padding: 0;
         align-items: flex-end;
-    }
-
-    .luft-modal-detalhes__kpi-grid {
-        grid-template-columns: 1fr 1fr;
     }
 }

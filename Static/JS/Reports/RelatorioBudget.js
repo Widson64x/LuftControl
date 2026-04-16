@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 const COLSPAN_TABELA_BUDGET = 8;
 const BUDGET_FILTER_RULES = {
-    singleCentroCusto: true
+    singleCentroCusto: false
 };
 const budgetTreeState = {
     mesesAtuais: [],
@@ -71,7 +71,7 @@ const BUDGET_FILTER_CONFIG = {
         allLabel: 'Todas as contas',
         noneLabel: 'Nenhuma conta selecionada',
         multipleLabel: 'contas selecionadas',
-        syncReloadData: true
+        syncReloadData: false
     }
 };
 const BUDGET_SELECTOR_CONFIG = {
@@ -2003,13 +2003,15 @@ function _mdResetarEstado() {
 
 // ── Funções públicas ──────────────────────────────────────────────────
 function obterFiltrosAtivosParaDetalhesBudget() {
-    const inputAno       = document.getElementById('inputAnoBudget');
-    const selectEmpresa  = document.getElementById('selectEmpresaBudget');
+    const inputAno        = document.getElementById('inputAnoBudget');
+    const selectEmpresa   = document.getElementById('selectEmpresaBudget');
     const selectModoSaldo = document.getElementById('selectModoSaldoBudget');
+    const ccFiltro        = obterParametroFiltroBudget('centrosCusto');
     return {
-        ano:       inputAno       ? inputAno.value       : new Date().getFullYear(),
-        empresa:   selectEmpresa  ? selectEmpresa.value  : 'Todos',
-        modoSaldo: selectModoSaldo ? selectModoSaldo.value : 'todos_itens',
+        ano:          inputAno        ? inputAno.value        : new Date().getFullYear(),
+        empresa:      selectEmpresa   ? selectEmpresa.value   : 'Todos',
+        modoSaldo:    selectModoSaldo ? selectModoSaldo.value : 'todos_itens',
+        centrosCusto: ccFiltro !== 'Todos' ? ccFiltro : null,
     };
 }
 
@@ -2079,9 +2081,10 @@ function abrirModalDetalhesBudget(params) {
 
     const filtros   = obterFiltrosAtivosParaDetalhesBudget();
     const urlParams = { ano: filtros.ano, mes: params.mes, modo_saldo: filtros.modoSaldo, empresa: filtros.empresa };
-    if (params.centro)     urlParams.centro_custo  = params.centro;
-    if (params.conta)      urlParams.conta_contabil = params.conta;
-    if (params.fornecedor) urlParams.fornecedor     = params.fornecedor;
+    if (params.centro)             urlParams.centro_custo   = params.centro;
+    else if (filtros.centrosCusto) urlParams.centro_custo   = filtros.centrosCusto;
+    if (params.conta)              urlParams.conta_contabil = params.conta;
+    if (params.fornecedor)         urlParams.fornecedor     = params.fornecedor;
 
     obterJsonBudget(construirUrlBudget('detalhes', urlParams), {
         method: 'GET',
@@ -2116,17 +2119,84 @@ function fecharModalDetalhesBudget() {
 function renderizarModalDetalhesBudget(dados, contexto, filtros) {
     _mdDetalhes.lancamentos = Array.isArray(dados.lancamentos) ? dados.lancamentos : [];
 
-    const fmt = _mdDetalhes.fmt;
-    const kpi = {
-        quantidade:  document.getElementById('modalDetalhesBudgetKpiQtd'),
-        totalGeral:  document.getElementById('modalDetalhesBudgetKpiTotal'),
-        emAprovacao: document.getElementById('modalDetalhesBudgetKpiAprovacao'),
-        aprovado:    document.getElementById('modalDetalhesBudgetKpiAprovado'),
-    };
-    if (kpi.quantidade)  kpi.quantidade.textContent  = (dados.quantidade || 0).toLocaleString('pt-BR');
-    if (kpi.totalGeral)  kpi.totalGeral.textContent  = fmt.format(dados.totalGeral || 0);
-    if (kpi.emAprovacao) kpi.emAprovacao.textContent = fmt.format(dados.totalEmAprovacao || 0);
-    if (kpi.aprovado)    kpi.aprovado.textContent    = fmt.format(dados.totalAprovado || 0);
+    const fmt    = _mdDetalhes.fmt;
+    const fmtPct = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+    const VARIANTES = [
+        'luft-kpi-exec__indicador--saldo-positivo',
+        'luft-kpi-exec__indicador--saldo-negativo',
+        'luft-kpi-exec__indicador--pct-ok',
+        'luft-kpi-exec__indicador--pct-alerta',
+        'luft-kpi-exec__indicador--pct-critico',
+    ];
+
+    function _setText(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    }
+
+    function _setVariante(cardId, variantClass) {
+        const card = document.getElementById(cardId);
+        if (!card) return;
+        card.classList.remove(...VARIANTES);
+        if (variantClass) card.classList.add(variantClass);
+    }
+
+    function _setBarra(barraId, pct) {
+        const el = document.getElementById(barraId);
+        if (!el) return;
+        // Limita em 100% visualmente mas valores >100 ficam evidentes pela cor
+        el.style.width = Math.min(pct, 100) + '%';
+    }
+
+    const budgetAnual              = dados.budgetAnual              || 0;
+    const budgetMes                = dados.budgetMes                || 0;
+    const consumoAcumuladoAnterior = dados.consumoAcumuladoAnterior || 0;
+    const totalMes                 = dados.totalMes                 || dados.totalGeral || 0;
+    const saldoBudgetMensal        = dados.saldoBudgetMensal        ?? (budgetMes - totalMes);
+    const pctBudgetMes             = dados.pctBudgetMes             ?? 0;
+    const consumoAcumuladoAtual    = dados.consumoAcumuladoAtual    || 0;
+    const saldoBudgetAcumulado     = dados.saldoBudgetAcumulado     ?? 0;
+    const pctBudgetAno             = dados.pctBudgetAno             ?? 0;
+
+    // Faixa de referência
+    _setText('modalDetalhesKpiBudgetAnual',     fmt.format(budgetAnual));
+    _setText('modalDetalhesKpiBudgetMes',       fmt.format(budgetMes));
+    _setText('modalDetalhesKpiConsumoAnterior', fmt.format(consumoAcumuladoAnterior));
+
+    // Zona: Execução do Mês
+    _setText('modalDetalhesKpiTotalMes',    fmt.format(totalMes));
+    _setText('modalDetalhesKpiSaldoMensal', fmt.format(saldoBudgetMensal));
+    _setText('modalDetalhesKpiPctMes',      `${fmtPct.format(pctBudgetMes)}%`);
+
+    // Zona: Posição Acumulada no Ano
+    _setText('modalDetalhesKpiConsumoAtual',    fmt.format(consumoAcumuladoAtual));
+    _setText('modalDetalhesKpiSaldoAcumulado',  fmt.format(saldoBudgetAcumulado));
+    _setText('modalDetalhesKpiPctAno',          `${fmtPct.format(pctBudgetAno)}%`);
+
+    // Variantes de cor dos indicadores de saldo
+    _setVariante('modalDetalhesKpiSaldoMensalCard',
+        saldoBudgetMensal >= 0
+            ? 'luft-kpi-exec__indicador--saldo-positivo'
+            : 'luft-kpi-exec__indicador--saldo-negativo'
+    );
+    _setVariante('modalDetalhesKpiSaldoAcumuladoCard',
+        saldoBudgetAcumulado >= 0
+            ? 'luft-kpi-exec__indicador--saldo-positivo'
+            : 'luft-kpi-exec__indicador--saldo-negativo'
+    );
+
+    // Variantes + barras de progresso para %
+    const _pctVariante = pct =>
+        pct >= 100 ? 'luft-kpi-exec__indicador--pct-critico'
+        : pct >= 80 ? 'luft-kpi-exec__indicador--pct-alerta'
+        : 'luft-kpi-exec__indicador--pct-ok';
+
+    _setVariante('modalDetalhesKpiPctMesCard', _pctVariante(pctBudgetMes));
+    _setBarra('modalDetalhesKpiPctMesBarra', pctBudgetMes);
+
+    _setVariante('modalDetalhesKpiPctAnoCard', _pctVariante(pctBudgetAno));
+    _setBarra('modalDetalhesKpiPctAnoBarra', pctBudgetAno);
 
     _mdInicializarInteracoes();
     _mdAplicar();

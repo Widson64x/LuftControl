@@ -1293,6 +1293,100 @@ class RelatorioBudget:
             'grupos': grupos,
         }
 
+    def _obterContextoBudgetDetalhes(
+        self,
+        ano,
+        mes,
+        idsCentros,
+        idsContasContabeis,
+        idFornecedor,
+        codigoEmpresaMatriz,
+        modoSaldo,
+    ):
+        """Calcula valores de contexto orçamentário para o drill-down do modal de detalhes."""
+
+        # ── Orçado: budget por mês via BudgetItem ──────────────────────────
+        queryOrcado = (
+            self.session.query(
+                *[func.sum(coluna).label(rotulo)
+                  for _, _, _, rotulo, coluna in self.MESES_RELATORIO],
+            )
+            .select_from(BudgetItem)
+            .join(Budget, BudgetItem.Codigo_Budget == Budget.Codigo_Budget)
+            .filter(Budget.Ano_Vigencia == int(ano))
+        )
+        queryOrcado = self._aplicarFiltrosComuns(
+            queryOrcado,
+            BudgetItem.Codigo_CentroCusto,
+            BudgetItem.Codigo_ContaContabil,
+            BudgetItem.Codigo_EmpresaMatriz,
+            idsCentros,
+            idsContasContabeis,
+            codigoEmpresaMatriz,
+        )
+        if idFornecedor is not None:
+            queryOrcado = queryOrcado.filter(BudgetItem.Codigo_Fornecedor == idFornecedor)
+
+        linhaOrcado = queryOrcado.one_or_none()
+
+        mesAtual = int(mes)
+        budgetMes = 0.0
+        budgetAnual = 0.0
+        budgetAcumulado = 0.0
+        if linhaOrcado:
+            for numero, _, _, rotulo, _ in self.MESES_RELATORIO:
+                valor = float(getattr(linhaOrcado, rotulo, None) or 0)
+                budgetAnual += valor
+                if numero == mesAtual:
+                    budgetMes = valor
+                if numero <= mesAtual:
+                    budgetAcumulado += valor
+
+        # ── Realizado: consumo acumulado meses 1..mes ──────────────────────
+        subconsultaNF = self._obterSubconsultaDataDigitacaoNotaFiscal()
+        dataEfetiva = self._obterDataDigitacaoEfetivaContaPagar(subconsultaNF)
+        valorEfetivo = self._obterValorEfetivoContaPagar()
+
+        queryAcumulado = (
+            self.session.query(
+                extract('month', dataEfetiva).label('mesCompetencia'),
+                func.sum(valorEfetivo).label('totalMes'),
+            )
+            .select_from(ContaPagar)
+            .outerjoin(subconsultaNF, ContaPagar.Codigo_ContaPagar == subconsultaNF.c.codigoContaPagar)
+            .filter(extract('year', dataEfetiva) == int(ano))
+            .filter(extract('month', dataEfetiva) <= mesAtual)
+            .filter(ContaPagar.Opcao_StatusContaPagar.in_(self.STATUS_CONSIDERADOS))
+            .group_by(extract('month', dataEfetiva))
+        )
+
+        if codigoEmpresaMatriz is not None:
+            queryAcumulado = queryAcumulado.filter(ContaPagar.Codigo_EmpresaMatriz == codigoEmpresaMatriz)
+        if idsCentros:
+            queryAcumulado = queryAcumulado.filter(ContaPagar.Codigo_CentroCusto.in_(idsCentros))
+        if idsContasContabeis:
+            queryAcumulado = queryAcumulado.filter(ContaPagar.Codigo_ContaContabil.in_(idsContasContabeis))
+        if idFornecedor is not None:
+            queryAcumulado = queryAcumulado.filter(ContaPagar.Codigo_Fornecedor == idFornecedor)
+        if modoSaldo == 'somente_budget':
+            queryAcumulado = queryAcumulado.filter(ContaPagar.Codigo_BudgetItem.isnot(None))
+
+        consumoAcumuladoAtual = 0.0
+        consumoAcumuladoAnterior = 0.0
+        for linha in queryAcumulado.all():
+            valor = float(linha.totalMes or 0)
+            consumoAcumuladoAtual += valor
+            if int(linha.mesCompetencia) < mesAtual:
+                consumoAcumuladoAnterior += valor
+
+        return {
+            'budgetAnual': budgetAnual,
+            'budgetMes': budgetMes,
+            'budgetAcumulado': budgetAcumulado,
+            'consumoAcumuladoAnterior': consumoAcumuladoAnterior,
+            'consumoAcumuladoAtual': consumoAcumuladoAtual,
+        }
+
     def obterDetalhesBudget(
         self,
         ano,
@@ -1310,15 +1404,15 @@ class RelatorioBudget:
         Args:
             ano (int): Ano de referência.
             mes (int): Mês de competência (1–12).
-            codigoCentroCusto (str|None): ID numérico do centro de custo ou None para todos.
-            codigoContaContabil (str|None): ID numérico da conta contábil ou None para todas.
+            codigoCentroCusto (str|None): ID(s) numérico(s) do centro de custo (vírgula separado) ou None para todos.
+            codigoContaContabil (str|None): ID(s) numérico(s) da conta contábil (vírgula separado) ou None para todas.
             codigoFornecedor (str|None): ID numérico do fornecedor ou None para todos.
             modoSaldo (str): 'todos_itens' considera todos os lançamentos;
                              'somente_budget' considera apenas os vinculados a budget.
             filtroEmpresa (str): Código lógico da empresa matriz.
 
         Returns:
-            dict: Payload com lista de lançamentos e totalizadores.
+            dict: Payload com lista de lançamentos, totalizadores e contexto orçamentário.
         """
         STATUS_DESCRICAO = {
             1: 'Em Aprovação',
@@ -1328,6 +1422,10 @@ class RelatorioBudget:
         }
 
         codigoEmpresaMatriz = self._resolverCodigoEmpresaMatriz(filtroEmpresa)
+        idsCentros = self._extrairIdsNumericos(codigoCentroCusto)
+        idsContasContabeis = self._extrairIdsNumericos(codigoContaContabil)
+        idFornecedor = int(codigoFornecedor) if codigoFornecedor else None
+
         subconsultaNF = self._obterSubconsultaDataDigitacaoNotaFiscal()
         dataEfetiva = self._obterDataDigitacaoEfetivaContaPagar(subconsultaNF)
         valorEfetivo = self._obterValorEfetivoContaPagar()
@@ -1369,16 +1467,12 @@ class RelatorioBudget:
 
         if codigoEmpresaMatriz is not None:
             query = query.filter(ContaPagar.Codigo_EmpresaMatriz == codigoEmpresaMatriz)
-
-        if codigoCentroCusto:
-            query = query.filter(ContaPagar.Codigo_CentroCusto == int(codigoCentroCusto))
-
-        if codigoContaContabil:
-            query = query.filter(ContaPagar.Codigo_ContaContabil == int(codigoContaContabil))
-
-        if codigoFornecedor:
-            query = query.filter(ContaPagar.Codigo_Fornecedor == int(codigoFornecedor))
-
+        if idsCentros:
+            query = query.filter(ContaPagar.Codigo_CentroCusto.in_(idsCentros))
+        if idsContasContabeis:
+            query = query.filter(ContaPagar.Codigo_ContaContabil.in_(idsContasContabeis))
+        if idFornecedor is not None:
+            query = query.filter(ContaPagar.Codigo_Fornecedor == idFornecedor)
         if modoSaldo == 'somente_budget':
             query = query.filter(ContaPagar.Codigo_BudgetItem.isnot(None))
 
@@ -1426,12 +1520,31 @@ class RelatorioBudget:
 
         totalEmAprovacao = sum(l['valorEfetivo'] for l in lancamentos if l['status'] in self.STATUS_EM_APROVACAO)
         totalAprovado = sum(l['valorEfetivo'] for l in lancamentos if l['status'] in self.STATUS_APROVADO)
-        totalGeral = totalEmAprovacao + totalAprovado
+        totalMes = totalEmAprovacao + totalAprovado
+
+        ctx = self._obterContextoBudgetDetalhes(
+            ano, mes, idsCentros, idsContasContabeis, idFornecedor, codigoEmpresaMatriz, modoSaldo
+        )
+
+        saldoBudgetMensal  = ctx['budgetMes'] - totalMes
+        pctBudgetMes       = round(totalMes / ctx['budgetMes'] * 100, 2) if ctx['budgetMes'] else 0.0
+        saldoBudgetAcumulado = ctx['budgetAcumulado'] - ctx['consumoAcumuladoAtual']
+        pctBudgetAno         = round(ctx['consumoAcumuladoAtual'] / ctx['budgetAnual'] * 100, 2) if ctx['budgetAnual'] else 0.0
 
         return {
             'lancamentos': lancamentos,
             'totalEmAprovacao': totalEmAprovacao,
             'totalAprovado': totalAprovado,
-            'totalGeral': totalGeral,
+            'totalGeral': totalMes,
             'quantidade': len(lancamentos),
+            # Contexto orçamentário para os KPIs do modal
+            'budgetAnual': ctx['budgetAnual'],
+            'budgetMes': ctx['budgetMes'],
+            'consumoAcumuladoAnterior': ctx['consumoAcumuladoAnterior'],
+            'totalMes': totalMes,
+            'saldoBudgetMensal': saldoBudgetMensal,
+            'pctBudgetMes': pctBudgetMes,
+            'consumoAcumuladoAtual': ctx['consumoAcumuladoAtual'],
+            'saldoBudgetAcumulado': saldoBudgetAcumulado,
+            'pctBudgetAno': pctBudgetAno,
         }

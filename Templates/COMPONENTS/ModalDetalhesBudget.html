@@ -51,37 +51,110 @@
             {# Estado: dados carregados #}
             <div id="modalDetalhesBudgetCorpo" class="luft-modal-detalhes__corpo d-none">
 
-                {# KPIs resumo #}
-                <div class="luft-modal-detalhes__kpi-grid">
-                    <div class="luft-modal-detalhes__kpi-card">
-                        <span class="luft-modal-detalhes__kpi-label">
-                            <i class="ph-bold ph-receipt"></i>
-                            Lançamentos
-                        </span>
-                        <span id="modalDetalhesBudgetKpiQtd" class="luft-modal-detalhes__kpi-valor">—</span>
+                {# ── Painel executivo de KPIs ── #}
+                <div class="luft-kpi-exec">
+
+                    {# Faixa de referência: o que foi orçado #}
+                    <div class="luft-kpi-exec__ref">
+                        <div class="luft-kpi-exec__ref-item">
+                            <span class="luft-kpi-exec__ref-label">
+                                <i class="ph-bold ph-calendar-dots"></i> Budget / Ano
+                            </span>
+                            <span id="modalDetalhesKpiBudgetAnual" class="luft-kpi-exec__ref-valor">—</span>
+                        </div>
+                        <div class="luft-kpi-exec__ref-sep"></div>
+                        <div class="luft-kpi-exec__ref-item">
+                            <span class="luft-kpi-exec__ref-label">
+                                <i class="ph-bold ph-calendar-check"></i> Budget / Mês
+                            </span>
+                            <span id="modalDetalhesKpiBudgetMes" class="luft-kpi-exec__ref-valor">—</span>
+                        </div>
+                        <div class="luft-kpi-exec__ref-sep"></div>
+                        <div class="luft-kpi-exec__ref-item">
+                            <span class="luft-kpi-exec__ref-label">
+                                <i class="ph-bold ph-arrow-bend-right-up"></i> Consumo até o Mês Anterior
+                            </span>
+                            <span id="modalDetalhesKpiConsumoAnterior" class="luft-kpi-exec__ref-valor">—</span>
+                        </div>
                     </div>
-                    <div class="luft-modal-detalhes__kpi-card luft-modal-detalhes__kpi-card--total">
-                        <span class="luft-modal-detalhes__kpi-label">
-                            <i class="ph-bold ph-sigma"></i>
-                            Total Realizado
-                        </span>
-                        <span id="modalDetalhesBudgetKpiTotal" class="luft-modal-detalhes__kpi-valor">—</span>
-                    </div>
-                    <div class="luft-modal-detalhes__kpi-card luft-modal-detalhes__kpi-card--aprovacao">
-                        <span class="luft-modal-detalhes__kpi-label">
-                            <i class="ph-bold ph-clock-countdown"></i>
-                            Em Aprovação
-                        </span>
-                        <span id="modalDetalhesBudgetKpiAprovacao" class="luft-modal-detalhes__kpi-valor">—</span>
-                    </div>
-                    <div class="luft-modal-detalhes__kpi-card luft-modal-detalhes__kpi-card--aprovado">
-                        <span class="luft-modal-detalhes__kpi-label">
-                            <i class="ph-bold ph-check-circle"></i>
-                            Aprovado
-                        </span>
-                        <span id="modalDetalhesBudgetKpiAprovado" class="luft-modal-detalhes__kpi-valor">—</span>
-                    </div>
-                </div>
+
+                    {# Zonas de execução: Mês  ×  Ano #}
+                    <div class="luft-kpi-exec__zonas">
+
+                        {# Zona: Execução do Mês #}
+                        <div class="luft-kpi-exec__zona">
+                            <div class="luft-kpi-exec__zona-titulo">
+                                <i class="ph-bold ph-calendar-blank"></i>
+                                <span>Execução do Mês</span>
+                            </div>
+                            <div class="luft-kpi-exec__zona-corpo">
+                                <div class="luft-kpi-exec__destaque">
+                                    <span class="luft-kpi-exec__destaque-label">
+                                        <i class="ph-bold ph-sigma"></i> Total Realizado
+                                    </span>
+                                    <span id="modalDetalhesKpiTotalMes" class="luft-kpi-exec__destaque-valor">—</span>
+                                </div>
+                                <div class="luft-kpi-exec__indicadores">
+                                    <div id="modalDetalhesKpiSaldoMensalCard" class="luft-kpi-exec__indicador">
+                                        <span class="luft-kpi-exec__ind-label">
+                                            <i class="ph-bold ph-scales"></i> Saldo do Mês
+                                        </span>
+                                        <span id="modalDetalhesKpiSaldoMensal" class="luft-kpi-exec__ind-valor">—</span>
+                                    </div>
+                                    <div id="modalDetalhesKpiPctMesCard" class="luft-kpi-exec__indicador luft-kpi-exec__indicador--pct">
+                                        <div class="luft-kpi-exec__ind-topo">
+                                            <span class="luft-kpi-exec__ind-label">
+                                                <i class="ph-bold ph-percent"></i> Consumido / Mês
+                                            </span>
+                                            <span id="modalDetalhesKpiPctMes" class="luft-kpi-exec__ind-valor">—</span>
+                                        </div>
+                                        <div class="luft-kpi-exec__barra-track">
+                                            <div id="modalDetalhesKpiPctMesBarra" class="luft-kpi-exec__barra-fill"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="luft-kpi-exec__zona-divider"></div>
+
+                        {# Zona: Posição Acumulada no Ano #}
+                        <div class="luft-kpi-exec__zona">
+                            <div class="luft-kpi-exec__zona-titulo">
+                                <i class="ph-bold ph-chart-line-up"></i>
+                                <span>Posição Acumulada no Ano</span>
+                            </div>
+                            <div class="luft-kpi-exec__zona-corpo">
+                                <div class="luft-kpi-exec__destaque">
+                                    <span class="luft-kpi-exec__destaque-label">
+                                        <i class="ph-bold ph-trend-up"></i> Consumo Acumulado
+                                    </span>
+                                    <span id="modalDetalhesKpiConsumoAtual" class="luft-kpi-exec__destaque-valor">—</span>
+                                </div>
+                                <div class="luft-kpi-exec__indicadores">
+                                    <div id="modalDetalhesKpiSaldoAcumuladoCard" class="luft-kpi-exec__indicador">
+                                        <span class="luft-kpi-exec__ind-label">
+                                            <i class="ph-bold ph-bank"></i> Saldo Acumulado
+                                        </span>
+                                        <span id="modalDetalhesKpiSaldoAcumulado" class="luft-kpi-exec__ind-valor">—</span>
+                                    </div>
+                                    <div id="modalDetalhesKpiPctAnoCard" class="luft-kpi-exec__indicador luft-kpi-exec__indicador--pct">
+                                        <div class="luft-kpi-exec__ind-topo">
+                                            <span class="luft-kpi-exec__ind-label">
+                                                <i class="ph-bold ph-percent"></i> Consumido / Ano
+                                            </span>
+                                            <span id="modalDetalhesKpiPctAno" class="luft-kpi-exec__ind-valor">—</span>
+                                        </div>
+                                        <div class="luft-kpi-exec__barra-track">
+                                            <div id="modalDetalhesKpiPctAnoBarra" class="luft-kpi-exec__barra-fill"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>{# /zonas #}
+                </div>{# /kpi-exec #}
 
                 {# ── Toolbar: busca global + chips de filtro + export ── #}
                 <div class="luft-modal-detalhes__toolbar">

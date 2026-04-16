@@ -13,53 +13,63 @@
 
 {# 2. Usando a Macro de Menu para gerar a Sidebar #}
 {% block sidebar_menu %}
-{# --- ITEM NORMAL (Raiz - Visão Global) --- #}
-{{ ui.nav_item('Home',
-icone='ph-bold ph-house',
-href=url_for('Principal.MenuPrincipal'),
-ativo=(request.endpoint == 'Principal.MenuPrincipal'))
+
+{# ── Início ─────────────────────────────────────────────── #}
+{{ ui.nav_item('Início',
+    icone='ph-bold ph-house',
+    href=url_for('Principal.MenuPrincipal'),
+    ativo=(request.endpoint == 'Principal.MenuPrincipal'))
 }}
 
-{{ ui.nav_item('Módulo Relatórios',
-icone='ph-bold ph-presentation-chart',
-href=url_for('Relatorios.PaginaRelatorios'),
-ativo=(request.endpoint == 'Relatorios.PaginaRelatorios'))
+{# ── Relatórios ──────────────────────────────────────────── #}
+{{ ui.nav_item('Relatórios',
+    icone='ph-bold ph-presentation-chart',
+    href=url_for('Relatorios.PaginaRelatorios'),
+    ativo=(request.endpoint == 'Relatorios.PaginaRelatorios'))
 }}
 
-{# --- NOVO: ITEM COM SUBMENU (Módulo DRE) --- #}
-{% set dre_endpoints = ['Principal.HubDRE', 'Relatorios.PaginaRelatorios'] %}
-{% set dre_blueprints = ['AjustesManuaisRazao', 'ConfiguracaoDre', 'ImportacaoDadosRazao', 'OrdenamentoDre'] %}
-{% call ui.nav_item('Módulo DRE', icone='ph-bold ph-chart-bar', ativo=(request.endpoint in dre_endpoints or request.blueprint in dre_blueprints)) %}
+{# ── Módulo DRE ──────────────────────────────────────────── #}
+{% set dre_endpoints = ['Principal.HubDRE'] %}
+{% set dre_blueprints = ['AjustesManuaisRazao', 'ImportacaoDadosRazao', 'ConfiguracaoDre', 'OrdenamentoDre'] %}
+{% call ui.nav_item('DRE',
+    icone='ph-bold ph-chart-bar',
+    ativo=(request.endpoint in dre_endpoints or request.blueprint in dre_blueprints)) %}
 
-{{ ui.nav_item('Hub do DRE', href=url_for('Principal.HubDRE')) }}
-{{ ui.nav_item('Ajustes Manuais do Razão', href=url_for('AjustesManuaisRazao.Inicio')) }}
-{{ ui.nav_item('Importação de Dados do Razão', href=url_for('ImportacaoDadosRazao.Inicio')) }}
-{{ ui.nav_item('Configurações (Engine)', href=url_for('ConfiguracaoDre.VisualizarArvore')) }}
+    {{ ui.nav_item('Visão Geral',             href=url_for('Principal.HubDRE')) }}
+    {{ ui.nav_item('Ajustes no Razão',        href=url_for('AjustesManuaisRazao.Inicio')) }}
+    {{ ui.nav_item('Importação do Razão',     href=url_for('ImportacaoDadosRazao.Inicio')) }}
+    {{ ui.nav_item('Estrutura da DRE',        href=url_for('ConfiguracaoDre.VisualizarArvore')) }}
 
 {% endcall %}
 
+{# ── Módulo Budget ───────────────────────────────────────── #}
 {% set budget_endpoints = ['Principal.HubBudget', 'Relatorios.PaginaBudget', 'Relatorios.PaginaBudgetAnalitico', 'AcompanhamentoMensalBudget.PaginaAcompanhamentoMensal'] %}
 {% set budget_blueprints = ['AtualizacaoDespesasFixas', 'AcompanhamentoMensalBudget'] %}
-{% call ui.nav_item('Módulo Budget', icone='ph-bold ph-wallet', ativo=(request.endpoint in budget_endpoints or request.blueprint in budget_blueprints)) %}
+{% call ui.nav_item('Budget',
+    icone='ph-bold ph-wallet',
+    ativo=(request.endpoint in budget_endpoints or request.blueprint in budget_blueprints)) %}
 
-{{ ui.nav_item('Hub do Budget', href=url_for('Principal.HubBudget')) }}
-{{ ui.nav_item('Acompanhamento Mensal', href=url_for('AcompanhamentoMensalBudget.PaginaAcompanhamentoMensal')) }}
-{{ ui.nav_item('Atualização de Despesas Fixas', href=url_for('AtualizacaoDespesasFixas.PaginaAtualizacaoDespesasFixas')) }}
-{{ ui.nav_item('Relatório Budget x Real', href=url_for('Relatorios.PaginaBudget')) }}
-{{ ui.nav_item('Relatório Budget Analítico', href=url_for('Relatorios.PaginaBudgetAnalitico')) }}
+    {{ ui.nav_item('Visão Geral',             href=url_for('Principal.HubBudget')) }}
+    {{ ui.nav_item('Acompanhamento Mensal',   href=url_for('AcompanhamentoMensalBudget.PaginaAcompanhamentoMensal')) }}
+    {{ ui.nav_item('Despesas Fixas',          href=url_for('AtualizacaoDespesasFixas.PaginaAtualizacaoDespesasFixas')) }}
+    {{ ui.nav_item('Budget vs. Realizado',    href=url_for('Relatorios.PaginaBudget')) }}
+    {{ ui.nav_item('Budget Analítico',        href=url_for('Relatorios.PaginaBudgetAnalitico')) }}
+
+{% endcall %}
+
+{# ── Administração ───────────────────────────────────────── #}
+{% set adm_endpoints = ['Principal.MenuConfiguracoes', 'Seguranca.VisualizarGerenciador', 'CentroCustoConfig.VisualizarConfiguracaoCentroCusto'] %}
+{% set adm_blueprints = ['Seguranca', 'CentroCustoConfig'] %}
+{% call ui.nav_item('Administração',
+    icone='ph-bold ph-gear',
+    ativo=(request.endpoint in adm_endpoints or request.blueprint in adm_blueprints)) %}
+
+    {{ ui.nav_item('Configurações Gerais',    href=url_for('Principal.MenuConfiguracoes')) }}
+    {{ ui.nav_item('Centros de Custo',        href=url_for('CentroCustoConfig.VisualizarConfiguracaoCentroCusto')) }}
+    {{ ui.nav_item('Usuários e Permissões',   href=url_for('Seguranca.VisualizarGerenciador')) }}
 
 {% endcall %}
 
-{# --- ITEM COM SUBMENU (Administração Global) --- #}
-{% set sys_endpoints = ['Principal.MenuConfiguracoes', 'Seguranca.VisualizarGerenciador', 'CentroCustoConfig.VisualizarConfiguracaoCentroCusto'] %}
-{% set sys_blueprints = ['Seguranca', 'CentroCustoConfig'] %}
-{% call ui.nav_item('Sistema', icone='ph-bold ph-gear', ativo=(request.endpoint in sys_endpoints or request.blueprint in sys_blueprints)) %}
-
-{{ ui.nav_item('Configurações Gerais', href=url_for('Principal.MenuConfiguracoes')) }}
-{{ ui.nav_item('Centros de Custo', href=url_for('CentroCustoConfig.VisualizarConfiguracaoCentroCusto')) }}
-{{ ui.nav_item('Segurança e Permissões', href=url_for('Seguranca.VisualizarGerenciador')) }}
-
-{% endcall %}
 {% endblock %}
 
 {# 3. Ações do rodapé #}

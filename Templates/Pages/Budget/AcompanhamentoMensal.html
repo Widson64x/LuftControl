@@ -20,28 +20,19 @@
     data-generate-url="{{ url_for('AcompanhamentoMensalBudget.GerarArquivoAcompanhamentoMensal') }}"
     data-filters-url="{{ url_for('Relatorios.ObterFiltrosBudget') }}"
 >
-    <section class="luft-budget-track-header">
-        <div class="luft-budget-track-header-main">
-            <h1 class="luft-budget-track-title">Acompanhamento Mensal</h1>
-            <p class="luft-budget-track-subtitle">Escolha o ano e o centro de custo. Quando a geração terminar, o download começa automaticamente.</p>
-        </div>
-
-        <div class="luft-budget-track-header-side">
-            <a href="{{ url_for('Principal.HubBudget') }}" class="luft-budget-track-btn-secondary">
-                <i class="ph-bold ph-arrow-left"></i>
-                <span>Voltar ao hub</span>
-            </a>
-        </div>
-    </section>
+    <header class="luft-budget-track-header">
+        <h1 class="luft-budget-track-title">Acompanhamento Mensal</h1>
+        <a href="{{ url_for('Principal.HubBudget') }}" class="luft-budget-track-btn-secondary">
+            <i class="ph-bold ph-arrow-left"></i>
+            <span>Voltar</span>
+        </a>
+    </header>
 
     <section class="luft-budget-track-card">
-        <h2 class="luft-budget-track-card-title">Gerar planilha</h2>
-        <p class="luft-budget-track-card-desc">Preencha só o necessário para iniciar o download.</p>
-
         {% if not template_disponivel %}
         <div class="luft-budget-track-warning">
             <strong>Template ausente</strong>
-            Template não encontrado em Data/Base/Template - budget - MENSAL.xlsx. Copie o arquivo para liberar a geração.
+            Arquivo <code>Template - budget - MENSAL.xlsx</code> não encontrado em <code>Data/Base/</code>.
         </div>
         {% elif not gestor %}
         <div class="luft-budget-track-warning">
@@ -51,23 +42,6 @@
         {% else %}
         <div class="luft-budget-track-grid">
             <div class="luft-budget-track-field">
-                <label class="luft-budget-track-label">Responsável</label>
-                <div class="luft-budget-track-static">
-                    <strong>{{ gestor.nome_usuario }}</strong>
-                    <span>{{ gestor.cargo or 'Gestor' }}</span>
-                </div>
-            </div>
-
-            <div class="luft-budget-track-field">
-                <label class="luft-budget-track-label" for="budget-track-year">Ano de referência</label>
-                <select class="luft-budget-track-select" id="budget-track-year">
-                    {% for ano in ano_opcoes %}
-                    <option value="{{ ano }}" {% if ano == ano_padrao %}selected{% endif %}>{{ ano }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="luft-budget-track-field is-full">
                 <label class="luft-budget-track-label" for="budget-track-center">Centro de custo</label>
                 {% if centros_custo|length == 1 %}
                 <div class="luft-budget-track-static" id="budget-track-center-static">
@@ -79,14 +53,13 @@
                 <select class="luft-budget-track-select" id="budget-track-center">
                     <option value="">Selecione o centro de custo</option>
                     {% for centro in centros_custo %}
-                    <option value="{{ centro.codigo }}">{{ centro.numero }} - {{ centro.nome }}</option>
+                    <option value="{{ centro.codigo }}">{{ centro.numero }} – {{ centro.nome }}</option>
                     {% endfor %}
                 </select>
                 {% endif %}
-                <div class="luft-budget-track-help">Um arquivo por centro de custo.</div>
             </div>
 
-            <div class="luft-budget-track-field is-full">
+            <div class="luft-budget-track-field">
                 <label class="luft-budget-track-label" for="budget-track-accounts-toggle">Contas contábeis</label>
                 <div class="luft-budget-track-multiselect" id="budget-track-accounts-field">
                     <button type="button" class="luft-budget-track-multiselect-toggle" id="budget-track-accounts-toggle" aria-expanded="false" disabled>
@@ -109,19 +82,33 @@
                         <p class="luft-budget-track-multiselect-empty" id="budget-track-accounts-empty">Selecione o centro de custo para carregar as contas.</p>
                     </div>
                 </div>
-                <div class="luft-budget-track-help">A lista mostra apenas as contas do centro selecionado. A busca procura pelo nome e pelo número da conta.</div>
+            </div>
+
+            <div class="luft-budget-track-field">
+                <label class="luft-budget-track-label">Responsável</label>
+                <div class="luft-budget-track-static">
+                    <strong>{{ gestor.nome_usuario }}</strong>
+                    <span>{{ gestor.cargo or 'Gestor' }}</span>
+                </div>
+            </div>
+
+            <div class="luft-budget-track-field">
+                <label class="luft-budget-track-label" for="budget-track-year">Ano</label>
+                <select class="luft-budget-track-select" id="budget-track-year">
+                    {% for ano in ano_opcoes %}
+                    <option value="{{ ano }}" {% if ano == ano_padrao %}selected{% endif %}>{{ ano }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="luft-budget-track-actions">
+                <button type="button" class="luft-budget-track-btn-primary" id="budget-track-generate-btn">
+                    <i class="ph-bold ph-file-xls"></i>
+                    <span>Gerar planilha</span>
+                </button>
+                <div class="luft-budget-track-status" id="budget-track-status"></div>
             </div>
         </div>
-
-        <div class="luft-budget-track-actions">
-            <button type="button" class="luft-budget-track-btn-primary" id="budget-track-generate-btn">
-                <i class="ph-bold ph-file-xls"></i>
-                <span>Gerar planilha</span>
-            </button>
-        </div>
-
-        <p class="luft-budget-track-note">O download começa automaticamente quando a geração terminar.</p>
-        <div class="luft-budget-track-status" id="budget-track-status"></div>
         {% endif %}
     </section>
 
