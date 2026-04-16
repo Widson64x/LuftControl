@@ -1041,6 +1041,30 @@ class RelatorioBudget:
             'meses': [meses[numero] for numero, _, _, _, _ in self.MESES_RELATORIO]
         }
 
+    def _resolverIdsCentrosPermitidos(self, idsCentrosFiltro, centrosPermitidos):
+        """
+        Calcula os IDs de centros de custo efetivos considerando a restrição de acesso do usuário.
+
+        - centrosPermitidos=None  → sem restrição (modo legado/admin), retorna filtro original.
+        - centrosPermitidos=[]    → usuário sem CCs atribuídos, retorna [] (sem acesso).
+        - centrosPermitidos=[..] → intersecta com o filtro selecionado pelo usuário.
+        """
+        if centrosPermitidos is None:
+            return idsCentrosFiltro
+
+        idsPermitidos = self._extrairIdsNumericos(centrosPermitidos)
+        if not idsPermitidos:
+            # Nenhum CC atribuído ao usuário → sem acesso a nenhum dado
+            return []
+
+        if idsCentrosFiltro is None:
+            # Sem filtro adicional → exibe apenas os CCs do usuário
+            return idsPermitidos
+
+        # Intersecção: mantém apenas os CCs que estão nos dois conjuntos
+        permitidosSet = set(idsPermitidos)
+        return [id_ for id_ in idsCentrosFiltro if id_ in permitidosSet] or []
+
     def _aplicarFiltrosComuns(
         self,
         query,
@@ -1052,7 +1076,8 @@ class RelatorioBudget:
         codigoEmpresaMatriz,
     ):
         """Aplica filtros compartilhados por múltiplas consultas do relatório."""
-        if idsCentros:
+        if idsCentros is not None:
+            # None = sem restrição; [] = sem acesso; [...] = filtro específico
             query = query.filter(campoCentroCusto.in_(idsCentros))
 
         if idsContasContabeis:
@@ -1063,7 +1088,7 @@ class RelatorioBudget:
 
         return query
 
-    def obterFiltrosDisponiveis(self, ano, filtroCentroCusto='Todos', filtroContaContabil='Todos', filtroEmpresa='Todos'):
+    def obterFiltrosDisponiveis(self, ano, filtroCentroCusto='Todos', filtroContaContabil='Todos', filtroEmpresa='Todos', centrosPermitidos=None):
         """
         Busca as opções válidas de Centros de Custo e Contas Contábeis conforme
         o ano, empresa e a seleção atual dos filtros.
@@ -1075,15 +1100,20 @@ class RelatorioBudget:
         idsCentros = self._extrairIdsNumericos(filtroCentroCusto)
         idsContas = self._extrairIdsNumericos(filtroContaContabil)
 
+        # Lista de CCs visíveis para o usuário (restrição de acesso)
+        idsCentrosParaLista = self._resolverIdsCentrosPermitidos(None, centrosPermitidos)
+        # CCs para filtrar contas (intersecta com a seleção do usuário)
+        idsCentrosRestritos = self._resolverIdsCentrosPermitidos(idsCentros, centrosPermitidos)
+
         centrosDisponiveis, _ = self._obterOpcoesFiltros(
             ano,
-            None,
+            idsCentrosParaLista,
             idsContas,
             codigoEmpresaMatriz,
         )
         _, contasDisponiveis = self._obterOpcoesFiltros(
             ano,
-            idsCentros,
+            idsCentrosRestritos,
             None,
             codigoEmpresaMatriz,
         )
@@ -1098,19 +1128,23 @@ class RelatorioBudget:
             'contasContabeis': contasDisponiveis,
         }
 
-    def obterFiltrosAnalitico(self, ano, filtroEmpresa='Todos', filtroCentroCusto='Todos'):
+    def obterFiltrosAnalitico(self, ano, filtroEmpresa='Todos', filtroCentroCusto='Todos', centrosPermitidos=None):
         """Retorna filtros disponíveis para a visão analítica do orçamento."""
         codigoEmpresaMatriz = self._resolverCodigoEmpresaMatriz(filtroEmpresa)
         idsCentros = self._extrairIdsNumericos(filtroCentroCusto)
+
+        idsCentrosParaLista = self._resolverIdsCentrosPermitidos(None, centrosPermitidos)
+        idsCentrosRestritos = self._resolverIdsCentrosPermitidos(idsCentros, centrosPermitidos)
+
         centrosDisponiveis, _ = self._obterOpcoesFiltros(
             ano,
-            None,
+            idsCentrosParaLista,
             None,
             codigoEmpresaMatriz,
         )
         filiaisDisponiveis = self._obterOpcoesFiliaisAnalitico(
             ano,
-            idsCentros,
+            idsCentrosRestritos,
             codigoEmpresaMatriz,
         )
 
@@ -1139,7 +1173,7 @@ class RelatorioBudget:
             'filialHabilitada': True,
         }
 
-    def gerarRelatorioBudget(self, ano, filtroCentroCusto='Todos', filtroContaContabil='Todos', filtroEmpresa='Todos'):
+    def gerarRelatorioBudget(self, ano, filtroCentroCusto='Todos', filtroContaContabil='Todos', filtroEmpresa='Todos', centrosPermitidos=None):
         """
         Gera o consolidado do orçamento comparando valores orçados com
         lançamentos em aprovação e aprovados, agrupando por Centro de Custo,
@@ -1150,12 +1184,16 @@ class RelatorioBudget:
             filtroCentroCusto (str): String com IDs dos centros de custo separados por vírgula ou 'Todos'.
             filtroContaContabil (str): ID da conta contábil ou 'Todos'.
             filtroEmpresa (str): Código lógico da empresa matriz ('1' Intec, '2' Farma ou 'Todos').
+            centrosPermitidos (list|None): Lista de códigos de CC permitidos para o usuário, ou None sem restrição.
 
         Returns:
             dict: Estrutura com 12 meses do ano e o detalhamento mensal por centro, conta e fornecedor.
         """
         codigoEmpresaMatriz = self._resolverCodigoEmpresaMatriz(filtroEmpresa)
-        idsCentros = self._extrairIdsNumericos(filtroCentroCusto)
+        idsCentros = self._resolverIdsCentrosPermitidos(
+            self._extrairIdsNumericos(filtroCentroCusto),
+            centrosPermitidos,
+        )
         idsContasContabeis = self._extrairIdsNumericos(filtroContaContabil)
         detalhesPorMes = self._consolidarDetalhesMensais(
             ano,
@@ -1166,7 +1204,7 @@ class RelatorioBudget:
 
         return self._montarRetornoMensal(detalhesPorMes)
 
-    def gerarRelatorioBudgetAnalitico(self, ano, mes, filtroCentroCusto='Todos', filtroEmpresa='Todos', filtroFilial='Todos'):
+    def gerarRelatorioBudgetAnalitico(self, ano, mes, filtroCentroCusto='Todos', filtroEmpresa='Todos', filtroFilial='Todos', centrosPermitidos=None):
         """
         Gera o relatório analítico por grupo e conta contábil para um ou mais meses.
 
@@ -1176,13 +1214,17 @@ class RelatorioBudget:
             filtroCentroCusto (str): IDs de centros de custo separados por vírgula ou 'Todos'.
             filtroEmpresa (str): Código lógico da empresa matriz ('1', '2' ou 'Todos').
             filtroFilial (str): Nome(s) de filial separados por vírgula ou 'Todos'.
+            centrosPermitidos (list|None): Lista de códigos de CC permitidos para o usuário, ou None sem restrição.
 
         Returns:
             dict: Payload analítico com referência, filtros, resumo e agrupamento por grupo.
         """
         mesesInfo = self._resolverMesesRelatorio(mes)
         codigoEmpresaMatriz = self._resolverCodigoEmpresaMatriz(filtroEmpresa)
-        idsCentros = self._extrairIdsNumericos(filtroCentroCusto)
+        idsCentros = self._resolverIdsCentrosPermitidos(
+            self._extrairIdsNumericos(filtroCentroCusto),
+            centrosPermitidos,
+        )
         filiaisSelecionadas = self._extrairValoresTexto(filtroFilial)
         acumulador = {}
 
@@ -1362,7 +1404,7 @@ class RelatorioBudget:
 
         if codigoEmpresaMatriz is not None:
             queryAcumulado = queryAcumulado.filter(ContaPagar.Codigo_EmpresaMatriz == codigoEmpresaMatriz)
-        if idsCentros:
+        if idsCentros is not None:
             queryAcumulado = queryAcumulado.filter(ContaPagar.Codigo_CentroCusto.in_(idsCentros))
         if idsContasContabeis:
             queryAcumulado = queryAcumulado.filter(ContaPagar.Codigo_ContaContabil.in_(idsContasContabeis))
@@ -1396,6 +1438,7 @@ class RelatorioBudget:
         codigoFornecedor=None,
         modoSaldo='todos_itens',
         filtroEmpresa='Todos',
+        centrosPermitidos=None,
     ):
         """
         Retorna os lançamentos individuais de ContaPagar que compõem a linha
@@ -1410,6 +1453,7 @@ class RelatorioBudget:
             modoSaldo (str): 'todos_itens' considera todos os lançamentos;
                              'somente_budget' considera apenas os vinculados a budget.
             filtroEmpresa (str): Código lógico da empresa matriz.
+            centrosPermitidos (list|None): Lista de códigos de CC permitidos para o usuário, ou None sem restrição.
 
         Returns:
             dict: Payload com lista de lançamentos, totalizadores e contexto orçamentário.
@@ -1422,7 +1466,10 @@ class RelatorioBudget:
         }
 
         codigoEmpresaMatriz = self._resolverCodigoEmpresaMatriz(filtroEmpresa)
-        idsCentros = self._extrairIdsNumericos(codigoCentroCusto)
+        idsCentros = self._resolverIdsCentrosPermitidos(
+            self._extrairIdsNumericos(codigoCentroCusto),
+            centrosPermitidos,
+        )
         idsContasContabeis = self._extrairIdsNumericos(codigoContaContabil)
         idFornecedor = int(codigoFornecedor) if codigoFornecedor else None
 
@@ -1467,7 +1514,7 @@ class RelatorioBudget:
 
         if codigoEmpresaMatriz is not None:
             query = query.filter(ContaPagar.Codigo_EmpresaMatriz == codigoEmpresaMatriz)
-        if idsCentros:
+        if idsCentros is not None:
             query = query.filter(ContaPagar.Codigo_CentroCusto.in_(idsCentros))
         if idsContasContabeis:
             query = query.filter(ContaPagar.Codigo_ContaContabil.in_(idsContasContabeis))

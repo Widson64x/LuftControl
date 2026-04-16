@@ -75,6 +75,7 @@
     const offList = byId('cc-off-list');
     const offSelected = byId('cc-off-selected');
     const offApplyBtn = byId('cc-off-apply');
+    const managerSelectAllBtn = byId('cc-manager-select-all');
 
     const sortCenters = (items) => items.sort((a, b) => `${a.numero} ${a.nome}`.localeCompare(`${b.numero} ${b.nome}`));
 
@@ -308,6 +309,14 @@
         managerCenterSelected.innerHTML = selectedCenters.length
             ? `<span class="cc-info-text">${selectedCenters.length} centro${selectedCenters.length !== 1 ? 's' : ''}</span>`
             : '';
+
+        if (managerSelectAllBtn) {
+            const allSelected = visibleCenters.length > 0 && visibleCenters.every((center) => state.selectedCenterCodes.has(center.codigo));
+            const icon = managerSelectAllBtn.querySelector('i');
+            const label = managerSelectAllBtn.querySelector('span');
+            if (icon) icon.className = allSelected ? 'ph-bold ph-x-square' : 'ph-bold ph-check-square';
+            if (label) label.textContent = allSelected ? 'Limpar' : 'Todos';
+        }
     };
 
     const renderOffOptions = () => {
@@ -498,6 +507,17 @@
 
     managerCenterSearch.addEventListener('input', () => {
         state.centerFilter = managerCenterSearch.value || '';
+        renderManagerCenterOptions();
+    });
+
+    managerSelectAllBtn.addEventListener('click', () => {
+        const visibleCenters = getFilteredCenters(state.centerFilter, false);
+        const allSelected = visibleCenters.length > 0 && visibleCenters.every((center) => state.selectedCenterCodes.has(center.codigo));
+        if (allSelected) {
+            visibleCenters.forEach((center) => state.selectedCenterCodes.delete(center.codigo));
+        } else {
+            visibleCenters.forEach((center) => state.selectedCenterCodes.add(center.codigo));
+        }
         renderManagerCenterOptions();
     });
 

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "atualizado_em": "2026-04-15T14:47:07",
+  "atualizado_em": "2026-04-16T17:38:03",
   "atualizado_por": {
     "id": 2351,
     "nome": "widson.araujo",
@@ -15,28 +15,1127 @@
   ],
   "gestores": [
     {
-      "codigo_usuario": 58,
-      "nome_usuario": "Tania Oliveira Neves Guimarães",
-      "login_usuario": "tania.guimaraes",
-      "cargo": "Gerente",
+      "codigo_usuario": 61,
+      "nome_usuario": "Augusto Vieira",
+      "login_usuario": "augusto.vieira",
+      "cargo": "Diretor",
       "centros_custo": [
+        {
+          "codigo": "21110101",
+          "numero": "21110101",
+          "nome": "MOTORISTAS OPERACIONAIS"
+        },
+        {
+          "codigo": "21110102",
+          "numero": "21110102",
+          "nome": "MOTORISTAS - VIAGEM"
+        },
+        {
+          "codigo": "21110201",
+          "numero": "21110201",
+          "nome": "MANUTENCAO DE FROTA"
+        },
+        {
+          "codigo": "21110203",
+          "numero": "21110203",
+          "nome": "MANUTENCAO PREDIAL"
+        },
+        {
+          "codigo": "21110301",
+          "numero": "21110301",
+          "nome": "SEGURANCA OPERACIONAL"
+        },
+        {
+          "codigo": "21110302",
+          "numero": "21110302",
+          "nome": "GESTAO DE OPERACOES"
+        },
+        {
+          "codigo": "21110401",
+          "numero": "21110401",
+          "nome": "GESTAO DE OPERACOES"
+        },
+        {
+          "codigo": "21110402",
+          "numero": "21110402",
+          "nome": "FATURAMENTO"
+        },
+        {
+          "codigo": "21110403",
+          "numero": "21110403",
+          "nome": "CONTROLE DE TRAFEGO"
+        },
+        {
+          "codigo": "21110404",
+          "numero": "21110404",
+          "nome": "EXPEDICAO"
+        },
+        {
+          "codigo": "21110405",
+          "numero": "21110405",
+          "nome": "RECEBIMENTO"
+        },
+        {
+          "codigo": "21110406",
+          "numero": "21110406",
+          "nome": "GESTAO DE ESTOQUE"
+        },
+        {
+          "codigo": "21110501",
+          "numero": "21110501",
+          "nome": "GESTAO DE FROTA"
+        },
+        {
+          "codigo": "21111001",
+          "numero": "21111001",
+          "nome": "TRANSPORTE"
+        },
+        {
+          "codigo": "21120101",
+          "numero": "21120101",
+          "nome": "GESTAO DE ARMAZENAGEM E MOVIMENTACAO"
+        },
+        {
+          "codigo": "21120102",
+          "numero": "21120102",
+          "nome": "FATURAMENTO"
+        },
+        {
+          "codigo": "21120103",
+          "numero": "21120103",
+          "nome": "RECEBIMENTO"
+        },
+        {
+          "codigo": "21120104",
+          "numero": "21120104",
+          "nome": "EXPEDIÇÃO"
+        },
+        {
+          "codigo": "21120105",
+          "numero": "21120105",
+          "nome": "GESTÃO DE ESTOQUE"
+        },
+        {
+          "codigo": "21120106",
+          "numero": "21120106",
+          "nome": "ARMAZENAGEM GERAL OUTROS"
+        },
+        {
+          "codigo": "21120202",
+          "numero": "21120202",
+          "nome": "HSE"
+        },
+        {
+          "codigo": "21120203",
+          "numero": "21120203",
+          "nome": "QUALIDADE"
+        },
+        {
+          "codigo": "21120301",
+          "numero": "21120301",
+          "nome": "MANUTENCAO  EQUIPAMENTOS"
+        },
+        {
+          "codigo": "21120401",
+          "numero": "21120401",
+          "nome": "GESTAO TRANSPORTES"
+        },
+        {
+          "codigo": "21122001",
+          "numero": "21122001",
+          "nome": "ARMAZENAGEM"
+        },
+        {
+          "codigo": "25110101",
+          "numero": "25110101",
+          "nome": "DIRETORIA"
+        },
+        {
+          "codigo": "25110201",
+          "numero": "25110201",
+          "nome": "ADMINISTRATIVO DIRETORIA"
+        },
+        {
+          "codigo": "25110202",
+          "numero": "25110202",
+          "nome": "ADMINISTRATIVO GERAL"
+        },
+        {
+          "codigo": "25110203",
+          "numero": "25110203",
+          "nome": "RECURSOS HUMANOS"
+        },
+        {
+          "codigo": "25110301",
+          "numero": "25110301",
+          "nome": "COMERCIAL"
+        },
+        {
+          "codigo": "25110302",
+          "numero": "25110302",
+          "nome": "PROJETOS"
+        },
+        {
+          "codigo": "25110401",
+          "numero": "25110401",
+          "nome": "TESOURARIA"
+        },
+        {
+          "codigo": "25110402",
+          "numero": "25110402",
+          "nome": "CONTAS A PAGAR"
+        },
+        {
+          "codigo": "25110403",
+          "numero": "25110403",
+          "nome": "CONTAS A RECEBER"
+        },
+        {
+          "codigo": "25110404",
+          "numero": "25110404",
+          "nome": "CREDITO E COBRANÇA"
+        },
+        {
+          "codigo": "25110405",
+          "numero": "25110405",
+          "nome": "ADMISTRACAO FINANCEIRA"
+        },
+        {
+          "codigo": "25110501",
+          "numero": "25110501",
+          "nome": "CORPORATE"
+        },
         {
           "codigo": "25110503",
           "numero": "25110503",
           "nome": "CONTROLADORIA"
+        },
+        {
+          "codigo": "25110601",
+          "numero": "25110601",
+          "nome": "RECRUTAMENTO SELECAO"
+        },
+        {
+          "codigo": "25110603",
+          "numero": "25110603",
+          "nome": "TREINAMENTO / DESENVOLVIMENTO"
+        },
+        {
+          "codigo": "25110701",
+          "numero": "25110701",
+          "nome": "GESTAO DA QUALIDADE"
+        },
+        {
+          "codigo": "25110702",
+          "numero": "25110702",
+          "nome": "SEGURANCA DO TRABALHO"
+        },
+        {
+          "codigo": "25110801",
+          "numero": "25110801",
+          "nome": "SAC ADM."
+        },
+        {
+          "codigo": "25110802",
+          "numero": "25110802",
+          "nome": "SAC OPERACIONAL"
+        },
+        {
+          "codigo": "25110901",
+          "numero": "25110901",
+          "nome": "COMPRAS"
+        },
+        {
+          "codigo": "25111001",
+          "numero": "25111001",
+          "nome": "TI - DIVISAO DE NEGOCIO"
+        },
+        {
+          "codigo": "25111101",
+          "numero": "25111101",
+          "nome": "JURIDICO - DIVISAO DE NEGOCIO"
+        },
+        {
+          "codigo": "25112001",
+          "numero": "25112001",
+          "nome": "DESPESAS ADMINISTRATIVAS"
+        },
+        {
+          "codigo": "25210101",
+          "numero": "25210101",
+          "nome": "RECRUTAMENTO E SELEÇÃO - CORP"
+        },
+        {
+          "codigo": "25210201",
+          "numero": "25210201",
+          "nome": "ADMINISTRATIVO"
+        },
+        {
+          "codigo": "25210501",
+          "numero": "25210501",
+          "nome": "COMPRAS"
+        },
+        {
+          "codigo": "25210702",
+          "numero": "25210702",
+          "nome": "CONTAS A RECEBER CORP"
+        },
+        {
+          "codigo": "25210801",
+          "numero": "25210801",
+          "nome": "DIRETORIA"
+        },
+        {
+          "codigo": "25210901",
+          "numero": "25210901",
+          "nome": "GESTÃO FROTA"
         }
       ]
     },
     {
-      "codigo_usuario": 545,
-      "nome_usuario": "Teste TI",
-      "login_usuario": "teste.ti",
+      "codigo_usuario": 71,
+      "nome_usuario": "Bianca Rocha",
+      "login_usuario": "bianca.rocha",
+      "cargo": "Analista",
+      "centros_custo": [
+        {
+          "codigo": "21110101",
+          "numero": "21110101",
+          "nome": "MOTORISTAS OPERACIONAIS"
+        },
+        {
+          "codigo": "21110102",
+          "numero": "21110102",
+          "nome": "MOTORISTAS - VIAGEM"
+        },
+        {
+          "codigo": "21110201",
+          "numero": "21110201",
+          "nome": "MANUTENCAO DE FROTA"
+        },
+        {
+          "codigo": "21110203",
+          "numero": "21110203",
+          "nome": "MANUTENCAO PREDIAL"
+        },
+        {
+          "codigo": "21110301",
+          "numero": "21110301",
+          "nome": "SEGURANCA OPERACIONAL"
+        },
+        {
+          "codigo": "21110302",
+          "numero": "21110302",
+          "nome": "GESTAO DE OPERACOES"
+        },
+        {
+          "codigo": "21110401",
+          "numero": "21110401",
+          "nome": "GESTAO DE OPERACOES"
+        },
+        {
+          "codigo": "21110402",
+          "numero": "21110402",
+          "nome": "FATURAMENTO"
+        },
+        {
+          "codigo": "21110403",
+          "numero": "21110403",
+          "nome": "CONTROLE DE TRAFEGO"
+        },
+        {
+          "codigo": "21110404",
+          "numero": "21110404",
+          "nome": "EXPEDICAO"
+        },
+        {
+          "codigo": "21110405",
+          "numero": "21110405",
+          "nome": "RECEBIMENTO"
+        },
+        {
+          "codigo": "21110406",
+          "numero": "21110406",
+          "nome": "GESTAO DE ESTOQUE"
+        },
+        {
+          "codigo": "21110501",
+          "numero": "21110501",
+          "nome": "GESTAO DE FROTA"
+        },
+        {
+          "codigo": "21111001",
+          "numero": "21111001",
+          "nome": "TRANSPORTE"
+        },
+        {
+          "codigo": "21120101",
+          "numero": "21120101",
+          "nome": "GESTAO DE ARMAZENAGEM E MOVIMENTACAO"
+        },
+        {
+          "codigo": "21120102",
+          "numero": "21120102",
+          "nome": "FATURAMENTO"
+        },
+        {
+          "codigo": "21120103",
+          "numero": "21120103",
+          "nome": "RECEBIMENTO"
+        },
+        {
+          "codigo": "21120104",
+          "numero": "21120104",
+          "nome": "EXPEDIÇÃO"
+        },
+        {
+          "codigo": "21120105",
+          "numero": "21120105",
+          "nome": "GESTÃO DE ESTOQUE"
+        },
+        {
+          "codigo": "21120106",
+          "numero": "21120106",
+          "nome": "ARMAZENAGEM GERAL OUTROS"
+        },
+        {
+          "codigo": "21120202",
+          "numero": "21120202",
+          "nome": "HSE"
+        },
+        {
+          "codigo": "21120203",
+          "numero": "21120203",
+          "nome": "QUALIDADE"
+        },
+        {
+          "codigo": "21120301",
+          "numero": "21120301",
+          "nome": "MANUTENCAO  EQUIPAMENTOS"
+        },
+        {
+          "codigo": "21120401",
+          "numero": "21120401",
+          "nome": "GESTAO TRANSPORTES"
+        },
+        {
+          "codigo": "21122001",
+          "numero": "21122001",
+          "nome": "ARMAZENAGEM"
+        },
+        {
+          "codigo": "25110101",
+          "numero": "25110101",
+          "nome": "DIRETORIA"
+        },
+        {
+          "codigo": "25110201",
+          "numero": "25110201",
+          "nome": "ADMINISTRATIVO DIRETORIA"
+        },
+        {
+          "codigo": "25110202",
+          "numero": "25110202",
+          "nome": "ADMINISTRATIVO GERAL"
+        },
+        {
+          "codigo": "25110203",
+          "numero": "25110203",
+          "nome": "RECURSOS HUMANOS"
+        },
+        {
+          "codigo": "25110301",
+          "numero": "25110301",
+          "nome": "COMERCIAL"
+        },
+        {
+          "codigo": "25110302",
+          "numero": "25110302",
+          "nome": "PROJETOS"
+        },
+        {
+          "codigo": "25110401",
+          "numero": "25110401",
+          "nome": "TESOURARIA"
+        },
+        {
+          "codigo": "25110402",
+          "numero": "25110402",
+          "nome": "CONTAS A PAGAR"
+        },
+        {
+          "codigo": "25110403",
+          "numero": "25110403",
+          "nome": "CONTAS A RECEBER"
+        },
+        {
+          "codigo": "25110404",
+          "numero": "25110404",
+          "nome": "CREDITO E COBRANÇA"
+        },
+        {
+          "codigo": "25110405",
+          "numero": "25110405",
+          "nome": "ADMISTRACAO FINANCEIRA"
+        },
+        {
+          "codigo": "25110501",
+          "numero": "25110501",
+          "nome": "CORPORATE"
+        },
+        {
+          "codigo": "25110503",
+          "numero": "25110503",
+          "nome": "CONTROLADORIA"
+        },
+        {
+          "codigo": "25110601",
+          "numero": "25110601",
+          "nome": "RECRUTAMENTO SELECAO"
+        },
+        {
+          "codigo": "25110603",
+          "numero": "25110603",
+          "nome": "TREINAMENTO / DESENVOLVIMENTO"
+        },
+        {
+          "codigo": "25110701",
+          "numero": "25110701",
+          "nome": "GESTAO DA QUALIDADE"
+        },
+        {
+          "codigo": "25110702",
+          "numero": "25110702",
+          "nome": "SEGURANCA DO TRABALHO"
+        },
+        {
+          "codigo": "25110801",
+          "numero": "25110801",
+          "nome": "SAC ADM."
+        },
+        {
+          "codigo": "25110802",
+          "numero": "25110802",
+          "nome": "SAC OPERACIONAL"
+        },
+        {
+          "codigo": "25110901",
+          "numero": "25110901",
+          "nome": "COMPRAS"
+        },
+        {
+          "codigo": "25111001",
+          "numero": "25111001",
+          "nome": "TI - DIVISAO DE NEGOCIO"
+        },
+        {
+          "codigo": "25111101",
+          "numero": "25111101",
+          "nome": "JURIDICO - DIVISAO DE NEGOCIO"
+        },
+        {
+          "codigo": "25112001",
+          "numero": "25112001",
+          "nome": "DESPESAS ADMINISTRATIVAS"
+        },
+        {
+          "codigo": "25210101",
+          "numero": "25210101",
+          "nome": "RECRUTAMENTO E SELEÇÃO - CORP"
+        },
+        {
+          "codigo": "25210201",
+          "numero": "25210201",
+          "nome": "ADMINISTRATIVO"
+        },
+        {
+          "codigo": "25210501",
+          "numero": "25210501",
+          "nome": "COMPRAS"
+        },
+        {
+          "codigo": "25210702",
+          "numero": "25210702",
+          "nome": "CONTAS A RECEBER CORP"
+        },
+        {
+          "codigo": "25210801",
+          "numero": "25210801",
+          "nome": "DIRETORIA"
+        },
+        {
+          "codigo": "25210901",
+          "numero": "25210901",
+          "nome": "GESTÃO FROTA"
+        }
+      ]
+    },
+    {
+      "codigo_usuario": 703,
+      "nome_usuario": "Felipe Selistre",
+      "login_usuario": "felipe.selistre",
+      "cargo": "Diretor",
+      "centros_custo": [
+        {
+          "codigo": "21110101",
+          "numero": "21110101",
+          "nome": "MOTORISTAS OPERACIONAIS"
+        },
+        {
+          "codigo": "21110102",
+          "numero": "21110102",
+          "nome": "MOTORISTAS - VIAGEM"
+        },
+        {
+          "codigo": "21110201",
+          "numero": "21110201",
+          "nome": "MANUTENCAO DE FROTA"
+        },
+        {
+          "codigo": "21110203",
+          "numero": "21110203",
+          "nome": "MANUTENCAO PREDIAL"
+        },
+        {
+          "codigo": "21110301",
+          "numero": "21110301",
+          "nome": "SEGURANCA OPERACIONAL"
+        },
+        {
+          "codigo": "21110302",
+          "numero": "21110302",
+          "nome": "GESTAO DE OPERACOES"
+        },
+        {
+          "codigo": "21110401",
+          "numero": "21110401",
+          "nome": "GESTAO DE OPERACOES"
+        },
+        {
+          "codigo": "21110402",
+          "numero": "21110402",
+          "nome": "FATURAMENTO"
+        },
+        {
+          "codigo": "21110403",
+          "numero": "21110403",
+          "nome": "CONTROLE DE TRAFEGO"
+        },
+        {
+          "codigo": "21110404",
+          "numero": "21110404",
+          "nome": "EXPEDICAO"
+        },
+        {
+          "codigo": "21110405",
+          "numero": "21110405",
+          "nome": "RECEBIMENTO"
+        },
+        {
+          "codigo": "21110406",
+          "numero": "21110406",
+          "nome": "GESTAO DE ESTOQUE"
+        },
+        {
+          "codigo": "21110501",
+          "numero": "21110501",
+          "nome": "GESTAO DE FROTA"
+        },
+        {
+          "codigo": "21111001",
+          "numero": "21111001",
+          "nome": "TRANSPORTE"
+        },
+        {
+          "codigo": "21120101",
+          "numero": "21120101",
+          "nome": "GESTAO DE ARMAZENAGEM E MOVIMENTACAO"
+        },
+        {
+          "codigo": "21120102",
+          "numero": "21120102",
+          "nome": "FATURAMENTO"
+        },
+        {
+          "codigo": "21120103",
+          "numero": "21120103",
+          "nome": "RECEBIMENTO"
+        },
+        {
+          "codigo": "21120104",
+          "numero": "21120104",
+          "nome": "EXPEDIÇÃO"
+        },
+        {
+          "codigo": "21120105",
+          "numero": "21120105",
+          "nome": "GESTÃO DE ESTOQUE"
+        },
+        {
+          "codigo": "21120106",
+          "numero": "21120106",
+          "nome": "ARMAZENAGEM GERAL OUTROS"
+        },
+        {
+          "codigo": "21120202",
+          "numero": "21120202",
+          "nome": "HSE"
+        },
+        {
+          "codigo": "21120203",
+          "numero": "21120203",
+          "nome": "QUALIDADE"
+        },
+        {
+          "codigo": "21120301",
+          "numero": "21120301",
+          "nome": "MANUTENCAO  EQUIPAMENTOS"
+        },
+        {
+          "codigo": "21120401",
+          "numero": "21120401",
+          "nome": "GESTAO TRANSPORTES"
+        },
+        {
+          "codigo": "21122001",
+          "numero": "21122001",
+          "nome": "ARMAZENAGEM"
+        },
+        {
+          "codigo": "25110101",
+          "numero": "25110101",
+          "nome": "DIRETORIA"
+        },
+        {
+          "codigo": "25110201",
+          "numero": "25110201",
+          "nome": "ADMINISTRATIVO DIRETORIA"
+        },
+        {
+          "codigo": "25110202",
+          "numero": "25110202",
+          "nome": "ADMINISTRATIVO GERAL"
+        },
+        {
+          "codigo": "25110203",
+          "numero": "25110203",
+          "nome": "RECURSOS HUMANOS"
+        },
+        {
+          "codigo": "25110301",
+          "numero": "25110301",
+          "nome": "COMERCIAL"
+        },
+        {
+          "codigo": "25110302",
+          "numero": "25110302",
+          "nome": "PROJETOS"
+        },
+        {
+          "codigo": "25110401",
+          "numero": "25110401",
+          "nome": "TESOURARIA"
+        },
+        {
+          "codigo": "25110402",
+          "numero": "25110402",
+          "nome": "CONTAS A PAGAR"
+        },
+        {
+          "codigo": "25110403",
+          "numero": "25110403",
+          "nome": "CONTAS A RECEBER"
+        },
+        {
+          "codigo": "25110404",
+          "numero": "25110404",
+          "nome": "CREDITO E COBRANÇA"
+        },
+        {
+          "codigo": "25110405",
+          "numero": "25110405",
+          "nome": "ADMISTRACAO FINANCEIRA"
+        },
+        {
+          "codigo": "25110501",
+          "numero": "25110501",
+          "nome": "CORPORATE"
+        },
+        {
+          "codigo": "25110503",
+          "numero": "25110503",
+          "nome": "CONTROLADORIA"
+        },
+        {
+          "codigo": "25110601",
+          "numero": "25110601",
+          "nome": "RECRUTAMENTO SELECAO"
+        },
+        {
+          "codigo": "25110603",
+          "numero": "25110603",
+          "nome": "TREINAMENTO / DESENVOLVIMENTO"
+        },
+        {
+          "codigo": "25110701",
+          "numero": "25110701",
+          "nome": "GESTAO DA QUALIDADE"
+        },
+        {
+          "codigo": "25110702",
+          "numero": "25110702",
+          "nome": "SEGURANCA DO TRABALHO"
+        },
+        {
+          "codigo": "25110801",
+          "numero": "25110801",
+          "nome": "SAC ADM."
+        },
+        {
+          "codigo": "25110802",
+          "numero": "25110802",
+          "nome": "SAC OPERACIONAL"
+        },
+        {
+          "codigo": "25110901",
+          "numero": "25110901",
+          "nome": "COMPRAS"
+        },
+        {
+          "codigo": "25111001",
+          "numero": "25111001",
+          "nome": "TI - DIVISAO DE NEGOCIO"
+        },
+        {
+          "codigo": "25111101",
+          "numero": "25111101",
+          "nome": "JURIDICO - DIVISAO DE NEGOCIO"
+        },
+        {
+          "codigo": "25112001",
+          "numero": "25112001",
+          "nome": "DESPESAS ADMINISTRATIVAS"
+        },
+        {
+          "codigo": "25210101",
+          "numero": "25210101",
+          "nome": "RECRUTAMENTO E SELEÇÃO - CORP"
+        },
+        {
+          "codigo": "25210201",
+          "numero": "25210201",
+          "nome": "ADMINISTRATIVO"
+        },
+        {
+          "codigo": "25210501",
+          "numero": "25210501",
+          "nome": "COMPRAS"
+        },
+        {
+          "codigo": "25210702",
+          "numero": "25210702",
+          "nome": "CONTAS A RECEBER CORP"
+        },
+        {
+          "codigo": "25210801",
+          "numero": "25210801",
+          "nome": "DIRETORIA"
+        },
+        {
+          "codigo": "25210901",
+          "numero": "25210901",
+          "nome": "GESTÃO FROTA"
+        }
+      ]
+    },
+    {
+      "codigo_usuario": 2,
+      "nome_usuario": "Francisco Cotrim Miranda",
+      "login_usuario": "francisco.miranda",
       "cargo": "Gerente",
       "centros_custo": [
         {
-          "codigo": "21120107",
-          "numero": "21120107",
-          "nome": "ADEQUACAO/FRACIONAMENTO"
+          "codigo": "25111001",
+          "numero": "25111001",
+          "nome": "TI - DIVISAO DE NEGOCIO"
+        }
+      ]
+    },
+    {
+      "codigo_usuario": 58,
+      "nome_usuario": "Tania Oliveira Neves Guimarães",
+      "login_usuario": "tania.guimaraes",
+      "cargo": "Analista",
+      "centros_custo": [
+        {
+          "codigo": "21110101",
+          "numero": "21110101",
+          "nome": "MOTORISTAS OPERACIONAIS"
+        },
+        {
+          "codigo": "21110102",
+          "numero": "21110102",
+          "nome": "MOTORISTAS - VIAGEM"
+        },
+        {
+          "codigo": "21110201",
+          "numero": "21110201",
+          "nome": "MANUTENCAO DE FROTA"
+        },
+        {
+          "codigo": "21110203",
+          "numero": "21110203",
+          "nome": "MANUTENCAO PREDIAL"
+        },
+        {
+          "codigo": "21110301",
+          "numero": "21110301",
+          "nome": "SEGURANCA OPERACIONAL"
+        },
+        {
+          "codigo": "21110302",
+          "numero": "21110302",
+          "nome": "GESTAO DE OPERACOES"
+        },
+        {
+          "codigo": "21110401",
+          "numero": "21110401",
+          "nome": "GESTAO DE OPERACOES"
+        },
+        {
+          "codigo": "21110402",
+          "numero": "21110402",
+          "nome": "FATURAMENTO"
+        },
+        {
+          "codigo": "21110403",
+          "numero": "21110403",
+          "nome": "CONTROLE DE TRAFEGO"
+        },
+        {
+          "codigo": "21110404",
+          "numero": "21110404",
+          "nome": "EXPEDICAO"
+        },
+        {
+          "codigo": "21110405",
+          "numero": "21110405",
+          "nome": "RECEBIMENTO"
+        },
+        {
+          "codigo": "21110406",
+          "numero": "21110406",
+          "nome": "GESTAO DE ESTOQUE"
+        },
+        {
+          "codigo": "21110501",
+          "numero": "21110501",
+          "nome": "GESTAO DE FROTA"
+        },
+        {
+          "codigo": "21111001",
+          "numero": "21111001",
+          "nome": "TRANSPORTE"
+        },
+        {
+          "codigo": "21120101",
+          "numero": "21120101",
+          "nome": "GESTAO DE ARMAZENAGEM E MOVIMENTACAO"
+        },
+        {
+          "codigo": "21120102",
+          "numero": "21120102",
+          "nome": "FATURAMENTO"
+        },
+        {
+          "codigo": "21120103",
+          "numero": "21120103",
+          "nome": "RECEBIMENTO"
+        },
+        {
+          "codigo": "21120104",
+          "numero": "21120104",
+          "nome": "EXPEDIÇÃO"
+        },
+        {
+          "codigo": "21120105",
+          "numero": "21120105",
+          "nome": "GESTÃO DE ESTOQUE"
+        },
+        {
+          "codigo": "21120106",
+          "numero": "21120106",
+          "nome": "ARMAZENAGEM GERAL OUTROS"
+        },
+        {
+          "codigo": "21120202",
+          "numero": "21120202",
+          "nome": "HSE"
+        },
+        {
+          "codigo": "21120203",
+          "numero": "21120203",
+          "nome": "QUALIDADE"
+        },
+        {
+          "codigo": "21120301",
+          "numero": "21120301",
+          "nome": "MANUTENCAO  EQUIPAMENTOS"
+        },
+        {
+          "codigo": "21120401",
+          "numero": "21120401",
+          "nome": "GESTAO TRANSPORTES"
+        },
+        {
+          "codigo": "21122001",
+          "numero": "21122001",
+          "nome": "ARMAZENAGEM"
+        },
+        {
+          "codigo": "25110101",
+          "numero": "25110101",
+          "nome": "DIRETORIA"
+        },
+        {
+          "codigo": "25110201",
+          "numero": "25110201",
+          "nome": "ADMINISTRATIVO DIRETORIA"
+        },
+        {
+          "codigo": "25110202",
+          "numero": "25110202",
+          "nome": "ADMINISTRATIVO GERAL"
+        },
+        {
+          "codigo": "25110203",
+          "numero": "25110203",
+          "nome": "RECURSOS HUMANOS"
+        },
+        {
+          "codigo": "25110301",
+          "numero": "25110301",
+          "nome": "COMERCIAL"
+        },
+        {
+          "codigo": "25110302",
+          "numero": "25110302",
+          "nome": "PROJETOS"
+        },
+        {
+          "codigo": "25110401",
+          "numero": "25110401",
+          "nome": "TESOURARIA"
+        },
+        {
+          "codigo": "25110402",
+          "numero": "25110402",
+          "nome": "CONTAS A PAGAR"
+        },
+        {
+          "codigo": "25110403",
+          "numero": "25110403",
+          "nome": "CONTAS A RECEBER"
+        },
+        {
+          "codigo": "25110404",
+          "numero": "25110404",
+          "nome": "CREDITO E COBRANÇA"
+        },
+        {
+          "codigo": "25110405",
+          "numero": "25110405",
+          "nome": "ADMISTRACAO FINANCEIRA"
+        },
+        {
+          "codigo": "25110501",
+          "numero": "25110501",
+          "nome": "CORPORATE"
+        },
+        {
+          "codigo": "25110503",
+          "numero": "25110503",
+          "nome": "CONTROLADORIA"
+        },
+        {
+          "codigo": "25110601",
+          "numero": "25110601",
+          "nome": "RECRUTAMENTO SELECAO"
+        },
+        {
+          "codigo": "25110603",
+          "numero": "25110603",
+          "nome": "TREINAMENTO / DESENVOLVIMENTO"
+        },
+        {
+          "codigo": "25110701",
+          "numero": "25110701",
+          "nome": "GESTAO DA QUALIDADE"
+        },
+        {
+          "codigo": "25110702",
+          "numero": "25110702",
+          "nome": "SEGURANCA DO TRABALHO"
+        },
+        {
+          "codigo": "25110801",
+          "numero": "25110801",
+          "nome": "SAC ADM."
+        },
+        {
+          "codigo": "25110802",
+          "numero": "25110802",
+          "nome": "SAC OPERACIONAL"
+        },
+        {
+          "codigo": "25110901",
+          "numero": "25110901",
+          "nome": "COMPRAS"
+        },
+        {
+          "codigo": "25111001",
+          "numero": "25111001",
+          "nome": "TI - DIVISAO DE NEGOCIO"
+        },
+        {
+          "codigo": "25111101",
+          "numero": "25111101",
+          "nome": "JURIDICO - DIVISAO DE NEGOCIO"
+        },
+        {
+          "codigo": "25112001",
+          "numero": "25112001",
+          "nome": "DESPESAS ADMINISTRATIVAS"
+        },
+        {
+          "codigo": "25210101",
+          "numero": "25210101",
+          "nome": "RECRUTAMENTO E SELEÇÃO - CORP"
+        },
+        {
+          "codigo": "25210201",
+          "numero": "25210201",
+          "nome": "ADMINISTRATIVO"
+        },
+        {
+          "codigo": "25210501",
+          "numero": "25210501",
+          "nome": "COMPRAS"
+        },
+        {
+          "codigo": "25210702",
+          "numero": "25210702",
+          "nome": "CONTAS A RECEBER CORP"
+        },
+        {
+          "codigo": "25210801",
+          "numero": "25210801",
+          "nome": "DIRETORIA"
+        },
+        {
+          "codigo": "25210901",
+          "numero": "25210901",
+          "nome": "GESTÃO FROTA"
         }
       ]
     },
@@ -47,9 +1146,274 @@
       "cargo": "Gerente",
       "centros_custo": [
         {
+          "codigo": "21110101",
+          "numero": "21110101",
+          "nome": "MOTORISTAS OPERACIONAIS"
+        },
+        {
+          "codigo": "21110102",
+          "numero": "21110102",
+          "nome": "MOTORISTAS - VIAGEM"
+        },
+        {
+          "codigo": "21110201",
+          "numero": "21110201",
+          "nome": "MANUTENCAO DE FROTA"
+        },
+        {
+          "codigo": "21110203",
+          "numero": "21110203",
+          "nome": "MANUTENCAO PREDIAL"
+        },
+        {
+          "codigo": "21110301",
+          "numero": "21110301",
+          "nome": "SEGURANCA OPERACIONAL"
+        },
+        {
+          "codigo": "21110302",
+          "numero": "21110302",
+          "nome": "GESTAO DE OPERACOES"
+        },
+        {
+          "codigo": "21110401",
+          "numero": "21110401",
+          "nome": "GESTAO DE OPERACOES"
+        },
+        {
+          "codigo": "21110402",
+          "numero": "21110402",
+          "nome": "FATURAMENTO"
+        },
+        {
+          "codigo": "21110403",
+          "numero": "21110403",
+          "nome": "CONTROLE DE TRAFEGO"
+        },
+        {
+          "codigo": "21110404",
+          "numero": "21110404",
+          "nome": "EXPEDICAO"
+        },
+        {
+          "codigo": "21110405",
+          "numero": "21110405",
+          "nome": "RECEBIMENTO"
+        },
+        {
+          "codigo": "21110406",
+          "numero": "21110406",
+          "nome": "GESTAO DE ESTOQUE"
+        },
+        {
+          "codigo": "21110501",
+          "numero": "21110501",
+          "nome": "GESTAO DE FROTA"
+        },
+        {
+          "codigo": "21111001",
+          "numero": "21111001",
+          "nome": "TRANSPORTE"
+        },
+        {
+          "codigo": "21120101",
+          "numero": "21120101",
+          "nome": "GESTAO DE ARMAZENAGEM E MOVIMENTACAO"
+        },
+        {
+          "codigo": "21120102",
+          "numero": "21120102",
+          "nome": "FATURAMENTO"
+        },
+        {
+          "codigo": "21120103",
+          "numero": "21120103",
+          "nome": "RECEBIMENTO"
+        },
+        {
+          "codigo": "21120104",
+          "numero": "21120104",
+          "nome": "EXPEDIÇÃO"
+        },
+        {
+          "codigo": "21120105",
+          "numero": "21120105",
+          "nome": "GESTÃO DE ESTOQUE"
+        },
+        {
+          "codigo": "21120106",
+          "numero": "21120106",
+          "nome": "ARMAZENAGEM GERAL OUTROS"
+        },
+        {
+          "codigo": "21120202",
+          "numero": "21120202",
+          "nome": "HSE"
+        },
+        {
+          "codigo": "21120203",
+          "numero": "21120203",
+          "nome": "QUALIDADE"
+        },
+        {
+          "codigo": "21120301",
+          "numero": "21120301",
+          "nome": "MANUTENCAO  EQUIPAMENTOS"
+        },
+        {
+          "codigo": "21120401",
+          "numero": "21120401",
+          "nome": "GESTAO TRANSPORTES"
+        },
+        {
+          "codigo": "21122001",
+          "numero": "21122001",
+          "nome": "ARMAZENAGEM"
+        },
+        {
+          "codigo": "25110101",
+          "numero": "25110101",
+          "nome": "DIRETORIA"
+        },
+        {
+          "codigo": "25110201",
+          "numero": "25110201",
+          "nome": "ADMINISTRATIVO DIRETORIA"
+        },
+        {
+          "codigo": "25110202",
+          "numero": "25110202",
+          "nome": "ADMINISTRATIVO GERAL"
+        },
+        {
+          "codigo": "25110203",
+          "numero": "25110203",
+          "nome": "RECURSOS HUMANOS"
+        },
+        {
+          "codigo": "25110301",
+          "numero": "25110301",
+          "nome": "COMERCIAL"
+        },
+        {
+          "codigo": "25110302",
+          "numero": "25110302",
+          "nome": "PROJETOS"
+        },
+        {
+          "codigo": "25110401",
+          "numero": "25110401",
+          "nome": "TESOURARIA"
+        },
+        {
+          "codigo": "25110402",
+          "numero": "25110402",
+          "nome": "CONTAS A PAGAR"
+        },
+        {
+          "codigo": "25110403",
+          "numero": "25110403",
+          "nome": "CONTAS A RECEBER"
+        },
+        {
+          "codigo": "25110404",
+          "numero": "25110404",
+          "nome": "CREDITO E COBRANÇA"
+        },
+        {
+          "codigo": "25110405",
+          "numero": "25110405",
+          "nome": "ADMISTRACAO FINANCEIRA"
+        },
+        {
+          "codigo": "25110501",
+          "numero": "25110501",
+          "nome": "CORPORATE"
+        },
+        {
+          "codigo": "25110503",
+          "numero": "25110503",
+          "nome": "CONTROLADORIA"
+        },
+        {
+          "codigo": "25110601",
+          "numero": "25110601",
+          "nome": "RECRUTAMENTO SELECAO"
+        },
+        {
+          "codigo": "25110603",
+          "numero": "25110603",
+          "nome": "TREINAMENTO / DESENVOLVIMENTO"
+        },
+        {
+          "codigo": "25110701",
+          "numero": "25110701",
+          "nome": "GESTAO DA QUALIDADE"
+        },
+        {
+          "codigo": "25110702",
+          "numero": "25110702",
+          "nome": "SEGURANCA DO TRABALHO"
+        },
+        {
+          "codigo": "25110801",
+          "numero": "25110801",
+          "nome": "SAC ADM."
+        },
+        {
+          "codigo": "25110802",
+          "numero": "25110802",
+          "nome": "SAC OPERACIONAL"
+        },
+        {
+          "codigo": "25110901",
+          "numero": "25110901",
+          "nome": "COMPRAS"
+        },
+        {
           "codigo": "25111001",
           "numero": "25111001",
           "nome": "TI - DIVISAO DE NEGOCIO"
+        },
+        {
+          "codigo": "25111101",
+          "numero": "25111101",
+          "nome": "JURIDICO - DIVISAO DE NEGOCIO"
+        },
+        {
+          "codigo": "25112001",
+          "numero": "25112001",
+          "nome": "DESPESAS ADMINISTRATIVAS"
+        },
+        {
+          "codigo": "25210101",
+          "numero": "25210101",
+          "nome": "RECRUTAMENTO E SELEÇÃO - CORP"
+        },
+        {
+          "codigo": "25210201",
+          "numero": "25210201",
+          "nome": "ADMINISTRATIVO"
+        },
+        {
+          "codigo": "25210501",
+          "numero": "25210501",
+          "nome": "COMPRAS"
+        },
+        {
+          "codigo": "25210702",
+          "numero": "25210702",
+          "nome": "CONTAS A RECEBER CORP"
+        },
+        {
+          "codigo": "25210801",
+          "numero": "25210801",
+          "nome": "DIRETORIA"
+        },
+        {
+          "codigo": "25210901",
+          "numero": "25210901",
+          "nome": "GESTÃO FROTA"
         }
       ]
     }

@@ -84,7 +84,13 @@
             <div class="cc-mgr-list" id="cc-user-results"></div>
         </div>
         <div class="cc-mgr-col">
-            <input class="luft-cc-input" id="cc-manager-center-search" type="text" placeholder="Filtrar centros">
+            <div style="display:flex;gap:8px;align-items:center">
+                <input class="luft-cc-input" id="cc-manager-center-search" type="text" placeholder="Filtrar centros">
+                <button type="button" class="luft-cc-btn luft-cc-btn-secondary luft-cc-btn-sm" id="cc-manager-select-all" style="white-space:nowrap" title="Selecionar / desmarcar todos os centros visíveis">
+                    <i class="ph-bold ph-check-square"></i>
+                    <span>Todos</span>
+                </button>
+            </div>
             <div class="cc-mgr-list" id="cc-manager-center-list"></div>
         </div>
     </div>

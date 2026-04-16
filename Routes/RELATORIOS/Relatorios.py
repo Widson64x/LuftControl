@@ -216,7 +216,7 @@ def ObterFiltrosBudget():
         empresa = request.args.get('empresa', 'Todos')
 
         svc = BudgetRelatoriosService()
-        dados = svc.obterFiltrosDisponiveis(ano, centro_custo, conta_contabil, empresa)
+        dados = svc.obterFiltrosDisponiveis(ano, centro_custo, conta_contabil, empresa, codigo_usuario=current_user.get_id())
         return api_success(data=dados)
     except Exception as e:
         RegistrarLog('Erro ao buscar filtros do Budget', 'ERROR', e)
@@ -235,7 +235,7 @@ def ObterFiltrosBudgetAnalitico():
         centro_custo = request.args.get('centro_custo', 'Todos')
 
         svc = BudgetRelatoriosService()
-        dados = svc.obterFiltrosAnalitico(ano, empresa, centro_custo)
+        dados = svc.obterFiltrosAnalitico(ano, empresa, centro_custo, codigo_usuario=current_user.get_id())
         return api_success(data=dados)
     except Exception as e:
         RegistrarLog('Erro ao buscar filtros do Budget Analítico', 'ERROR', e)
@@ -261,7 +261,7 @@ def GerarRelatorioBudget():
         )
 
         svc = BudgetRelatoriosService()
-        dados = svc.gerarRelatorioBudget(int(ano), centro_custo, conta_contabil, empresa)
+        dados = svc.gerarRelatorioBudget(int(ano), centro_custo, conta_contabil, empresa, codigo_usuario=current_user.get_id())
 
         return api_success(data=dados, message='Relatório de Budget processado com sucesso.')
     except Exception as e:
@@ -289,7 +289,7 @@ def GerarRelatorioBudgetAnalitico():
         )
 
         svc = BudgetRelatoriosService()
-        dados = svc.gerarRelatorioBudgetAnalitico(ano, mes, centro_custo, empresa, filial)
+        dados = svc.gerarRelatorioBudgetAnalitico(ano, mes, centro_custo, empresa, filial, codigo_usuario=current_user.get_id())
 
         return api_success(data=dados, message='Relatório analítico de Budget processado com sucesso.')
     except Exception as e:
@@ -316,7 +316,7 @@ def ObterDetalhesBudget():
             modo_saldo = 'todos_itens'
 
         svc = BudgetRelatoriosService()
-        dados = svc.obterDetalhesBudget(ano, mes, centro_custo, conta_contabil, fornecedor, modo_saldo, empresa)
+        dados = svc.obterDetalhesBudget(ano, mes, centro_custo, conta_contabil, fornecedor, modo_saldo, empresa, codigo_usuario=current_user.get_id())
 
         return api_success(data=dados, message='Detalhes do Budget carregados com sucesso.')
     except (ValueError, TypeError) as e:
