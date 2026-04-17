@@ -13,6 +13,9 @@ from Models.Postgress.CTL_Seguranca import CtlSegUsuario # ATUALIZADO
 # --- Import do Logger ---
 from Utils.Logger import RegistrarLog
 
+# --- Import do Serviço de Permissões ---
+from Modules.SISTEMA.Services.PermissaoService import PermissaoService
+
 class UsuarioWrapper(UserMixin):
     def __init__(self, usuario_db, nome_grupo="", lista_menus=None):
         self.id = usuario_db.Codigo_Usuario
@@ -56,9 +59,6 @@ class AutenticacaoService:
     def __init__(self):
         self.ldap_server = os.getenv("LDAP_SERVER", "luftfarma.com.br")
         self.ldap_domain = os.getenv("LDAP_DOMAIN", "luftfarma")
-        self.grupos_permitidos = [
-            'CONTROLADORIA ADMIN', 'CONTROLADORIA BÁSICO', 'GRUPO ADMIN', 'GRUPO TI'
-        ]
 
     def _ObterSessaoSqlServer(self):
         engine = GetSqlServerEngine()
@@ -106,5 +106,6 @@ class AutenticacaoService:
         finally:
             session_db.close()
 
-    def VerificarPermissaoGrupo(self, nome_grupo):
-        return nome_grupo in self.grupos_permitidos
+    def VerificarAcessoSistema(self, usuario_flask):
+        """Verifica se o usuário tem ao menos a permissão HOME.VISUALIZAR no banco de dados."""
+        return PermissaoService.VerificarPermissao(usuario_flask, 'HOME.VISUALIZAR')

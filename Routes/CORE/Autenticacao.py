@@ -47,9 +47,14 @@ def Login():
                     usuario_flask = auth_service.CarregarUsuarioCompleto(user_db.Codigo_Usuario)
 
                     if usuario_flask:
-                        # Validação de Grupo (Whitelist)
-                        if not auth_service.VerificarPermissaoGrupo(usuario_flask.nome_grupo):
-                            RegistrarLog(f"Acesso negado. Grupo '{usuario_flask.nome_grupo}' não autorizado. Usuário: {username}", 'WARNING')
+                        # Validação via banco de dados (HOME.VISUALIZAR)
+                        if not auth_service.VerificarAcessoSistema(usuario_flask):
+                            RegistrarLog(
+                                f"[LOGIN NEGADO] "
+                                f"Usuário: '{usuario_flask.nome_completo}' (login: {username} | grupo: {usuario_flask.nome_grupo}) "
+                                f"| Permissão exigida: 'HOME.VISUALIZAR'",
+                                'WARNING'
+                            )
                             flash('Usuário não possui permissão para acessar o sistema.', 'danger')
                             logout_user()
                             return redirect(url_for('Autenticacao.Login'))

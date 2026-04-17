@@ -162,10 +162,19 @@ def RequerPermissao(Chave):
             parametros_str = json.dumps(params_dict, ensure_ascii=False) if params_dict else None
 
             if not Permitido:
+                nome_usuario = getattr(current_user, 'nome_completo', None) or getattr(current_user, 'nome', 'Desconhecido')
+                login_usuario = getattr(current_user, 'nome', 'Desconhecido')
+                grupo_usuario = getattr(current_user, 'nome_grupo', 'Sem Grupo')
+                RegistrarLog(
+                    f"[PERMISSÃO NEGADA] "
+                    f"Usuário: '{nome_usuario}' (login: {login_usuario} | grupo: {grupo_usuario}) "
+                    f"| Permissão exigida: '{Chave.upper()}' "
+                    f"| Rota: {request.method} {request.path}",
+                    'WARNING'
+                )
                 msg = f"Acesso negado. Requer: {Chave.upper()}"
                 PermissaoService.RegistrarLogAcesso(
-                    # Passa o ip_real aqui!
-                    current_user, request.path, request.method, ip_real, 
+                    current_user, request.path, request.method, ip_real,
                     Chave, Permitido, parametros_str, f"Erro 403: {msg}"
                 )
                 return api_error(msg, 403) if _is_api() else render_no_permission(msg)
