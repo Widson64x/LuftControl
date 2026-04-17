@@ -23,6 +23,7 @@ class RelatorioBudget:
     STATUS_EM_APROVACAO = (1, 2)
     STATUS_APROVADO = (3, 5)
     STATUS_CONSIDERADOS = STATUS_EM_APROVACAO + STATUS_APROVADO
+    CONTAS_EXCLUIDAS = ('6.03.01.02.02.79',)
 
     MESES_RELATORIO = (
         (1, 'Janeiro', 'Jan', 'orcadoJaneiro', BudgetItem.Valor_JaneiroO),
@@ -1086,7 +1087,19 @@ class RelatorioBudget:
         if codigoEmpresaMatriz is not None:
             query = query.filter(campoEmpresaMatriz == codigoEmpresaMatriz)
 
+        query = self._excluirContasBloqueadas(query, campoContaContabil)
         return query
+
+    def _excluirContasBloqueadas(self, query, campoContaContabil):
+        """Exclui da consulta as contas contábeis em CONTAS_EXCLUIDAS."""
+        if not self.CONTAS_EXCLUIDAS:
+            return query
+        subconsulta = (
+            self.session.query(PlanoConta.Codigo_ContaContabil)
+            .filter(PlanoConta.Numero_ContaContabil.in_(self.CONTAS_EXCLUIDAS))
+            .subquery()
+        )
+        return query.filter(campoContaContabil.notin_(subconsulta))
 
     def obterFiltrosDisponiveis(self, ano, filtroCentroCusto='Todos', filtroContaContabil='Todos', filtroEmpresa='Todos', centrosPermitidos=None):
         """
@@ -1413,6 +1426,8 @@ class RelatorioBudget:
         if modoSaldo == 'somente_budget':
             queryAcumulado = queryAcumulado.filter(ContaPagar.Codigo_BudgetItem.isnot(None))
 
+        queryAcumulado = self._excluirContasBloqueadas(queryAcumulado, ContaPagar.Codigo_ContaContabil)
+
         consumoAcumuladoAtual = 0.0
         consumoAcumuladoAnterior = 0.0
         for linha in queryAcumulado.all():
@@ -1522,6 +1537,8 @@ class RelatorioBudget:
             query = query.filter(ContaPagar.Codigo_Fornecedor == idFornecedor)
         if modoSaldo == 'somente_budget':
             query = query.filter(ContaPagar.Codigo_BudgetItem.isnot(None))
+
+        query = self._excluirContasBloqueadas(query, ContaPagar.Codigo_ContaContabil)
 
         resultados = query.order_by(
             dataEfetiva,
